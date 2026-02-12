@@ -9,7 +9,7 @@ export interface Player {
 
 export interface SessionConfig {
   attendingPlayerIds: string[];
-  numCourts: number; // 2-5
+  numCourts: number; // 1+
   numRounds: number;
 }
 
@@ -24,6 +24,7 @@ export interface Round {
   roundNumber: number;
   courts: CourtAssignment[];
   sitOuts: Player[];
+  isGendered?: boolean;
 }
 
 export interface Schedule {
@@ -35,4 +36,5 @@ export interface PairingHistory {
   opponentCounts: Record<string, Record<string, number>>;
   sitOutCounts: Record<string, number>;
   gamesPlayed: Record<string, number>;
+  genderedMixedCounts: Record<string, number>;
 }

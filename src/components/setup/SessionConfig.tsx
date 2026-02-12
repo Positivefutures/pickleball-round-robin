@@ -4,6 +4,10 @@ interface Props {
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
   numPlayers: number;
+  genderedEnabled: boolean;
+  genderedFrequency: number;
+  onGenderedToggle: (enabled: boolean) => void;
+  onGenderedFrequencyChange: (n: number) => void;
 }
 
 export function SessionConfig({
@@ -12,14 +16,18 @@ export function SessionConfig({
   onCourtsChange,
   onRoundsChange,
   numPlayers,
+  genderedEnabled,
+  genderedFrequency,
+  onGenderedToggle,
+  onGenderedFrequencyChange,
 }: Props) {
-  const maxCourts = Math.min(5, Math.floor(numPlayers / 4));
+  const maxCourts = Math.floor(numPlayers / 4);
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-6 flex-wrap">
+      <div className="flex gap-6 flex-wrap items-start">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Number of Courts
@@ -27,9 +35,8 @@ export function SessionConfig({
           <input
             type="number"
             value={numCourts}
-            onChange={(e) => onCourtsChange(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
+            onChange={(e) => onCourtsChange(Math.max(1, parseInt(e.target.value) || 1))}
             min="1"
-            max="5"
             className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
         </div>
@@ -44,6 +51,47 @@ export function SessionConfig({
             min="1"
             className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Play Gendered Games?
+          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="radio"
+                name="gendered"
+                checked={!genderedEnabled}
+                onChange={() => onGenderedToggle(false)}
+                className="text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm text-gray-700">No</span>
+            </label>
+            <label className="flex items-center gap-1 cursor-pointer">
+              <input
+                type="radio"
+                name="gendered"
+                checked={genderedEnabled}
+                onChange={() => onGenderedToggle(true)}
+                className="text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm text-gray-700">Yes</span>
+            </label>
+            {genderedEnabled && (
+              <div className="flex items-center gap-1.5 ml-2">
+                <span className="text-sm text-gray-700">Every</span>
+                <input
+                  type="number"
+                  value={genderedFrequency}
+                  onChange={(e) => onGenderedFrequencyChange(Math.max(1, Math.min(8, parseInt(e.target.value) || 1)))}
+                  min="1"
+                  max="8"
+                  className="w-14 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                />
+                <span className="text-sm text-gray-700">Rounds</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

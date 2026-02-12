@@ -17,6 +17,11 @@ export function PrintSchedule({ schedule }: Props) {
         <div key={round.roundNumber} className="round-card" style={{ marginBottom: '16pt' }}>
           <h2 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '8pt', borderBottom: '1px solid #ccc', paddingBottom: '4pt' }}>
             Round {round.roundNumber}
+            {round.isGendered && (
+              <span style={{ fontSize: '9pt', fontWeight: 'normal', marginLeft: '8pt', color: '#666' }}>
+                (Gendered Round)
+              </span>
+            )}
           </h2>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6pt' }}>

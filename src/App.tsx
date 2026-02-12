@@ -18,6 +18,8 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [numCourts, setNumCourts] = useState(3);
   const [numRounds, setNumRounds] = useState(6);
+  const [genderedEnabled, setGenderedEnabled] = useState(false);
+  const [genderedFrequency, setGenderedFrequency] = useState(2);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
 
   const togglePlayer = useCallback((id: string) => {
@@ -37,10 +39,16 @@ function App() {
   const handleGenerate = useCallback(() => {
     const attending = players.filter((p) => selectedIds.includes(p.id));
     if (attending.length < 4) return;
-    const result = generateSchedule(attending, numCourts, numRounds);
+    const result = generateSchedule(
+      attending,
+      numCourts,
+      numRounds,
+      genderedEnabled,
+      genderedFrequency
+    );
     setSchedule(result);
     setStep('schedule');
-  }, [players, selectedIds, numCourts, numRounds]);
+  }, [players, selectedIds, numCourts, numRounds, genderedEnabled, genderedFrequency]);
 
   const attendingPlayers = players.filter((p) => selectedIds.includes(p.id));
 
@@ -66,11 +74,15 @@ function App() {
             selectedIds={selectedIds}
             numCourts={numCourts}
             numRounds={numRounds}
+            genderedEnabled={genderedEnabled}
+            genderedFrequency={genderedFrequency}
             onTogglePlayer={togglePlayer}
             onSelectAll={selectAll}
             onDeselectAll={deselectAll}
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
+            onGenderedToggle={setGenderedEnabled}
+            onGenderedFrequencyChange={setGenderedFrequency}
             onGenerate={handleGenerate}
             onBack={() => setStep('roster')}
           />
@@ -85,6 +97,10 @@ function App() {
           />
         )}
       </main>
+
+      <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
+        Created by Jeff Baker &ndash; positivefutures.ai
+      </footer>
 
       <PrintSchedule schedule={schedule} />
     </div>

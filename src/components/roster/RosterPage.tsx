@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { Player, Gender } from '../../types';
 import { PlayerForm } from './PlayerForm';
 import { PlayerList } from './PlayerList';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { corePlayers } from '../../data/corePlayers';
 
 interface Props {
   players: Player[];
@@ -13,6 +15,7 @@ interface Props {
 
 export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: Props) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [coreImported, setCoreImported] = useLocalStorage<boolean>('pb-core-imported', false);
 
   function handleSubmit(name: string, rating: number, gender: Gender) {
     if (editingPlayer) {
@@ -23,8 +26,26 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
     }
   }
 
+  function handleImportCorePlayers() {
+    for (const p of corePlayers) {
+      onAdd(p.name, p.rating, p.gender);
+    }
+    setCoreImported(true);
+  }
+
   return (
     <div className="space-y-6">
+      {players.length >= 4 && (
+        <div className="flex justify-end">
+          <button
+            onClick={onContinue}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+          >
+            Continue to Setup &rarr;
+          </button>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">
           {editingPlayer ? 'Edit Player' : 'Add Player'}
@@ -63,6 +84,21 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
           Need at least 4 players to continue
         </p>
       )}
+
+      {!coreImported && (
+        <div className="text-center pt-2">
+          <button
+            onClick={handleImportCorePlayers}
+            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+          >
+            Import Core Players
+          </button>
+          <p className="text-xs text-gray-500 mt-2">
+            Will import the most common players, such as Susan, Jeff, Adonica, etc.
+          </p>
+        </div>
+      )}
+
     </div>
   );
 }

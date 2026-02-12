@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Player } from '../../types';
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function PlayerList({ players, onEdit, onRemove }: Props) {
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   if (players.length === 0) {
     return (
       <p className="text-gray-500 text-center py-8">
@@ -53,18 +55,41 @@ export function PlayerList({ players, onEdit, onRemove }: Props) {
                   </span>
                 </td>
                 <td className="py-2 px-3 text-right">
-                  <button
-                    onClick={() => onEdit(player)}
-                    className="text-blue-600 hover:text-blue-800 text-sm mr-3 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onRemove(player.id)}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium"
-                  >
-                    Remove
-                  </button>
+                  {confirmingId === player.id ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="text-sm text-gray-700">Remove {player.name}?</span>
+                      <button
+                        onClick={() => {
+                          onRemove(player.id);
+                          setConfirmingId(null);
+                        }}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => setConfirmingId(null)}
+                        className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onEdit(player)}
+                        className="text-blue-600 hover:text-blue-800 text-sm mr-3 font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setConfirmingId(player.id)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
