@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    color: black;
+    background: white;
+    font-size: 12pt;
+  }
+
+  .round-card {
+    break-inside: avoid;
+  }
+}

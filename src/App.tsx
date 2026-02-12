@@ -1,0 +1,94 @@
+import { useState, useCallback } from 'react';
+import type { Schedule } from './types';
+import { usePlayers } from './hooks/usePlayers';
+import { generateSchedule } from './lib/pairing';
+import { Header } from './components/layout/Header';
+import { StepIndicator } from './components/layout/StepIndicator';
+import type { Step } from './components/layout/StepIndicator';
+import { RosterPage } from './components/roster/RosterPage';
+import { SetupPage } from './components/setup/SetupPage';
+import { SchedulePage } from './components/schedule/SchedulePage';
+import { PrintSchedule } from './components/print/PrintSchedule';
+
+function App() {
+  const { players, addPlayer, updatePlayer, removePlayer } = usePlayers();
+  const [step, setStep] = useState<Step>('roster');
+
+  // Session config state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [numCourts, setNumCourts] = useState(3);
+  const [numRounds, setNumRounds] = useState(6);
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
+
+  const togglePlayer = useCallback((id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(players.map((p) => p.id));
+  }, [players]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
+
+  const handleGenerate = useCallback(() => {
+    const attending = players.filter((p) => selectedIds.includes(p.id));
+    if (attending.length < 4) return;
+    const result = generateSchedule(attending, numCourts, numRounds);
+    setSchedule(result);
+    setStep('schedule');
+  }, [players, selectedIds, numCourts, numRounds]);
+
+  const attendingPlayers = players.filter((p) => selectedIds.includes(p.id));
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        <StepIndicator current={step} />
+
+        {step === 'roster' && (
+          <RosterPage
+            players={players}
+            onAdd={addPlayer}
+            onUpdate={updatePlayer}
+            onRemove={removePlayer}
+            onContinue={() => setStep('setup')}
+          />
+        )}
+
+        {step === 'setup' && (
+          <SetupPage
+            players={players}
+            selectedIds={selectedIds}
+            numCourts={numCourts}
+            numRounds={numRounds}
+            onTogglePlayer={togglePlayer}
+            onSelectAll={selectAll}
+            onDeselectAll={deselectAll}
+            onCourtsChange={setNumCourts}
+            onRoundsChange={setNumRounds}
+            onGenerate={handleGenerate}
+            onBack={() => setStep('roster')}
+          />
+        )}
+
+        {step === 'schedule' && schedule && (
+          <SchedulePage
+            schedule={schedule}
+            players={attendingPlayers}
+            onRegenerate={handleGenerate}
+            onBack={() => setStep('setup')}
+          />
+        )}
+      </main>
+
+      <PrintSchedule schedule={schedule} />
+    </div>
+  );
+}
+
+export default App;
