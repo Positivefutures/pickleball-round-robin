@@ -58,7 +58,13 @@ export function SetupPage({
         />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        <button
+          onClick={onBack}
+          className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+        >
+          &larr; Back to Roster
+        </button>
         <button
           onClick={onGenerate}
           disabled={!canGenerate}

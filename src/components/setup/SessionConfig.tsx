@@ -32,25 +32,45 @@ export function SessionConfig({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Number of Courts
           </label>
-          <input
-            type="number"
-            value={numCourts}
-            onChange={(e) => onCourtsChange(Math.max(1, parseInt(e.target.value) || 1))}
-            min="1"
-            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onCourtsChange(Math.max(1, numCourts - 1))}
+              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            >
+              &minus;
+            </button>
+            <span className="w-10 text-center font-medium text-gray-800">{numCourts}</span>
+            <button
+              type="button"
+              onClick={() => onCourtsChange(Math.min(16, numCourts + 1))}
+              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            >
+              +
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Number of Rounds
           </label>
-          <input
-            type="number"
-            value={numRounds}
-            onChange={(e) => onRoundsChange(Math.max(1, parseInt(e.target.value) || 1))}
-            min="1"
-            className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onRoundsChange(Math.max(1, numRounds - 1))}
+              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            >
+              &minus;
+            </button>
+            <span className="w-10 text-center font-medium text-gray-800">{numRounds}</span>
+            <button
+              type="button"
+              onClick={() => onRoundsChange(Math.min(16, numRounds + 1))}
+              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            >
+              +
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -80,14 +100,15 @@ export function SessionConfig({
             {genderedEnabled && (
               <div className="flex items-center gap-1.5 ml-2">
                 <span className="text-sm text-gray-700">Every</span>
-                <input
-                  type="number"
+                <select
                   value={genderedFrequency}
-                  onChange={(e) => onGenderedFrequencyChange(Math.max(1, Math.min(8, parseInt(e.target.value) || 1)))}
-                  min="1"
-                  max="8"
+                  onChange={(e) => onGenderedFrequencyChange(parseInt(e.target.value))}
                   className="w-14 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                />
+                >
+                  {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
                 <span className="text-sm text-gray-700">Rounds</span>
               </div>
             )}

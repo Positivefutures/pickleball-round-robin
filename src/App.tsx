@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Schedule } from './types';
 import { usePlayers } from './hooks/usePlayers';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import { generateSchedule } from './lib/pairing';
 import { Header } from './components/layout/Header';
 import { StepIndicator } from './components/layout/StepIndicator';
@@ -15,12 +16,21 @@ function App() {
   const [step, setStep] = useState<Step>('roster');
 
   // Session config state
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useLocalStorage<string[]>('pb-selected-ids', []);
   const [numCourts, setNumCourts] = useState(3);
   const [numRounds, setNumRounds] = useState(6);
   const [genderedEnabled, setGenderedEnabled] = useState(false);
   const [genderedFrequency, setGenderedFrequency] = useState(2);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
+
+  // Clean up stale IDs when roster changes
+  useEffect(() => {
+    const playerIds = new Set(players.map((p) => p.id));
+    setSelectedIds((prev) => {
+      const filtered = prev.filter((id) => playerIds.has(id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [players, setSelectedIds]);
 
   const togglePlayer = useCallback((id: string) => {
     setSelectedIds((prev) =>

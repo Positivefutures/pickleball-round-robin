@@ -48,32 +48,56 @@ export function PlayerForm({ onSubmit, editingPlayer, onCancelEdit }: Props) {
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
         />
       </div>
-      <div className="w-24">
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Rating
         </label>
-        <input
-          type="number"
-          value={rating}
-          onChange={(e) => setRating(e.target.value)}
-          min="3"
-          max="5"
-          step="0.1"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setRating(String(Math.max(3, Math.round((parseFloat(rating) - 0.1) * 10) / 10)))}
+            className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+          >
+            &minus;
+          </button>
+          <span className="w-10 text-center font-medium text-gray-800">{parseFloat(rating).toFixed(1)}</span>
+          <button
+            type="button"
+            onClick={() => setRating(String(Math.min(5, Math.round((parseFloat(rating) + 0.1) * 10) / 10)))}
+            className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+          >
+            +
+          </button>
+        </div>
       </div>
-      <div className="w-20">
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Gender
         </label>
-        <select
-          value={gender}
-          onChange={(e) => setGender(e.target.value as Gender)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        >
-          <option value="M">M</option>
-          <option value="F">F</option>
-        </select>
+        <div className="flex">
+          <button
+            type="button"
+            onClick={() => setGender('M')}
+            className={`px-4 py-2 text-sm font-medium rounded-l-md border transition-colors ${
+              gender === 'M'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            M
+          </button>
+          <button
+            type="button"
+            onClick={() => setGender('F')}
+            className={`px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 transition-colors ${
+              gender === 'F'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            F
+          </button>
+        </div>
       </div>
       <button
         type="submit"
