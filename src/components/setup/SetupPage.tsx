@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Player } from '../../types';
 import { PlayerSelector } from './PlayerSelector';
 import { SessionConfig } from './SessionConfig';
@@ -37,9 +38,25 @@ export function SetupPage({
   onGenerate,
   onBack,
 }: Props) {
+  const [showError, setShowError] = useState(false);
   const playersNeeded = numCourts * 4;
   const notEnoughPlayers = selectedIds.length < playersNeeded;
   const canGenerate = selectedIds.length >= 4 && !notEnoughPlayers;
+
+  const errorMessage = !canGenerate
+    ? selectedIds.length < 4
+      ? 'Select at least 4 players to generate a schedule'
+      : `Need at least ${playersNeeded} players for ${numCourts} courts (have ${selectedIds.length})`
+    : '';
+
+  function handleGenerate() {
+    if (canGenerate) {
+      setShowError(false);
+      onGenerate();
+    } else {
+      setShowError(true);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -58,20 +75,24 @@ export function SetupPage({
         />
       </div>
 
-      <div className="flex justify-between">
-        <button
-          onClick={onBack}
-          className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-        >
-          &larr; Back to Roster
-        </button>
-        <button
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Generate Schedule
-        </button>
+      <div>
+        <div className="flex justify-between">
+          <button
+            onClick={onBack}
+            className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          >
+            &larr; Back to Roster
+          </button>
+          <button
+            onClick={handleGenerate}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+          >
+            Generate Schedule
+          </button>
+        </div>
+        {showError && errorMessage && (
+          <p className="text-red-600 text-sm text-right mt-2">{errorMessage}</p>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
@@ -84,28 +105,25 @@ export function SetupPage({
         />
       </div>
 
-      <div className="flex justify-between">
-        <button
-          onClick={onBack}
-          className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-        >
-          &larr; Back to Roster
-        </button>
-        <button
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Generate Schedule
-        </button>
+      <div>
+        <div className="flex justify-between">
+          <button
+            onClick={onBack}
+            className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          >
+            &larr; Back to Roster
+          </button>
+          <button
+            onClick={handleGenerate}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+          >
+            Generate Schedule
+          </button>
+        </div>
+        {showError && errorMessage && (
+          <p className="text-red-600 text-sm text-right mt-2">{errorMessage}</p>
+        )}
       </div>
-      {!canGenerate && selectedIds.length > 0 && (
-        <p className="text-red-600 text-sm text-right">
-          {selectedIds.length < 4
-            ? 'Select at least 4 players to generate a schedule'
-            : `Need at least ${playersNeeded} players for ${numCourts} courts (have ${selectedIds.length})`}
-        </p>
-      )}
     </div>
   );
 }

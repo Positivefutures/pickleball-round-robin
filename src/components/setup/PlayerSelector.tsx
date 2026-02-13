@@ -21,7 +21,7 @@ export function PlayerSelector({
     <div>
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-medium text-gray-700">
-          Select Attending Players ({selectedIds.length} of {players.length})
+          Select Players ({selectedIds.length} of {players.length})
         </h3>
         <div className="flex gap-2">
           <button

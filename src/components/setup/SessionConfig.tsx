@@ -21,7 +21,6 @@ export function SessionConfig({
   onGenderedToggle,
   onGenderedFrequencyChange,
 }: Props) {
-  const maxCourts = Math.floor(numPlayers / 4);
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
 
@@ -116,23 +115,16 @@ export function SessionConfig({
         </div>
       </div>
 
-      {numPlayers > 0 && (
-        <div className="text-sm space-y-1">
-          <p className="text-gray-600">
-            {spotsNeeded} spots available ({numCourts} courts &times; 4 players)
+      <div className="text-sm space-y-1">
+        <p className="text-gray-600">
+          {spotsNeeded} spots available ({numCourts} courts &times; 4 players)
+        </p>
+        {sitOutsPerRound > 0 && (
+          <p className="text-amber-600">
+            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round (rotated fairly)
           </p>
-          {sitOutsPerRound > 0 && (
-            <p className="text-amber-600">
-              {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round (rotated fairly)
-            </p>
-          )}
-          {numCourts > maxCourts && maxCourts > 0 && (
-            <p className="text-amber-600">
-              Not enough players to fill {numCourts} courts. Will use {maxCourts} court{maxCourts > 1 ? 's' : ''}.
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

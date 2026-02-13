@@ -47,15 +47,22 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
       )}
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          {editingPlayer ? 'Edit Player' : 'Add Player'}
-        </h2>
-        <PlayerForm
-          onSubmit={handleSubmit}
-          editingPlayer={editingPlayer}
-          onCancelEdit={() => setEditingPlayer(null)}
-        />
+        <h2 className="text-lg font-semibold mb-4">Add Player</h2>
+        <PlayerForm onSubmit={handleSubmit} />
       </div>
+
+      {editingPlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Edit Player</h2>
+            <PlayerForm
+              onSubmit={handleSubmit}
+              editingPlayer={editingPlayer}
+              onCancelEdit={() => setEditingPlayer(null)}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
