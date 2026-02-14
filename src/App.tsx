@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Schedule } from './types';
+import type { Schedule, LockedPair } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { generateSchedule } from './lib/pairing';
+import { generateSchedule, reshuffleSchedule } from './lib/pairing';
 import { Header } from './components/layout/Header';
 import { StepIndicator } from './components/layout/StepIndicator';
 import type { Step } from './components/layout/StepIndicator';
@@ -46,16 +46,13 @@ function App() {
     setSelectedIds([]);
   }, []);
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback((locks?: Record<number, LockedPair[]>) => {
     const attending = players.filter((p) => selectedIds.includes(p.id));
     if (attending.length < 4) return;
-    const result = generateSchedule(
-      attending,
-      numCourts,
-      numRounds,
-      genderedEnabled,
-      genderedFrequency
-    );
+    const hasLocks = locks && Object.keys(locks).length > 0;
+    const result = hasLocks
+      ? reshuffleSchedule(attending, numCourts, numRounds, locks, genderedEnabled, genderedFrequency)
+      : generateSchedule(attending, numCourts, numRounds, genderedEnabled, genderedFrequency);
     setSchedule(result);
     setStep('schedule');
   }, [players, selectedIds, numCourts, numRounds, genderedEnabled, genderedFrequency]);

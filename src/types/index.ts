@@ -31,6 +31,13 @@ export interface Schedule {
   rounds: Round[];
 }
 
+export interface LockedPair {
+  player1Id: string;
+  player2Id: string;
+  courtIdx: number;
+  team: 'team1' | 'team2';
+}
+
 export interface PairingHistory {
   partnerCounts: Record<string, Record<string, number>>;
   opponentCounts: Record<string, Record<string, number>>;

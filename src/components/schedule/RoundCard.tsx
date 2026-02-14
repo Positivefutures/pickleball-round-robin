@@ -1,4 +1,4 @@
-import type { Round, Player } from '../../types';
+import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
@@ -9,9 +9,11 @@ interface Props {
   selectedSlot: PlayerSlot | null;
   onPlayerTap: (slot: PlayerSlot) => void;
   allPlayers: Player[];
+  locks: LockedPair[];
+  onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
 }
 
-export function RoundCard({ round, roundIdx, selectedSlot, onPlayerTap, allPlayers }: Props) {
+export function RoundCard({ round, roundIdx, selectedSlot, onPlayerTap, allPlayers, locks, onToggleLock }: Props) {
   return (
     <div className="round-card bg-white rounded-lg shadow p-6">
       <div className="flex items-center gap-2 mb-4">
@@ -25,17 +27,25 @@ export function RoundCard({ round, roundIdx, selectedSlot, onPlayerTap, allPlaye
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {round.courts.map((court, courtIdx) => (
-          <CourtMatchup
-            key={court.courtNumber}
-            court={court}
-            roundIdx={roundIdx}
-            courtIdx={courtIdx}
-            selectedSlot={selectedSlot}
-            onPlayerTap={onPlayerTap}
-            allPlayers={allPlayers}
-          />
-        ))}
+        {round.courts.map((court, courtIdx) => {
+          const lockedTeams = {
+            team1: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team1'),
+            team2: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team2'),
+          };
+          return (
+            <CourtMatchup
+              key={court.courtNumber}
+              court={court}
+              roundIdx={roundIdx}
+              courtIdx={courtIdx}
+              selectedSlot={selectedSlot}
+              onPlayerTap={onPlayerTap}
+              allPlayers={allPlayers}
+              lockedTeams={lockedTeams}
+              onToggleLock={onToggleLock}
+            />
+          );
+        })}
       </div>
       <SitOutList players={round.sitOuts} />
     </div>

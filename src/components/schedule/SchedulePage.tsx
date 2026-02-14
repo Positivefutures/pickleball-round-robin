@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Schedule, Player } from '../../types';
+import type { Schedule, Player, LockedPair } from '../../types';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 
@@ -13,13 +13,54 @@ export interface PlayerSlot {
 interface Props {
   schedule: Schedule;
   players: Player[];
-  onRegenerate: () => void;
+  onRegenerate: (locks: Record<number, LockedPair[]>) => void;
   onBack: () => void;
   onUpdateSchedule: (schedule: Schedule) => void;
 }
 
 export function SchedulePage({ schedule, players, onRegenerate, onBack, onUpdateSchedule }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
+  const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
+
+  function handleToggleLock(roundIdx: number, courtIdx: number, team: 'team1' | 'team2') {
+    setLocks((prev) => {
+      const roundLocks = prev[roundIdx] || [];
+      const existingIdx = roundLocks.findIndex(
+        (lp) => lp.courtIdx === courtIdx && lp.team === team
+      );
+
+      if (existingIdx >= 0) {
+        // Unlock
+        const newRoundLocks = roundLocks.filter((_, i) => i !== existingIdx);
+        const newLocks = { ...prev };
+        if (newRoundLocks.length === 0) {
+          delete newLocks[roundIdx];
+        } else {
+          newLocks[roundIdx] = newRoundLocks;
+        }
+        return newLocks;
+      } else {
+        // Lock: capture current player IDs
+        const round = schedule.rounds[roundIdx];
+        const court = round.courts[courtIdx];
+        const teamPlayers = court[team];
+        if (teamPlayers.length !== 2) return prev;
+
+        const newLock: LockedPair = {
+          player1Id: teamPlayers[0].id,
+          player2Id: teamPlayers[1].id,
+          courtIdx,
+          team,
+        };
+        return {
+          ...prev,
+          [roundIdx]: [...roundLocks, newLock],
+        };
+      }
+    });
+    // Deselect any swap selection when toggling a lock
+    setSelectedSlot(null);
+  }
 
   function handlePlayerTap(slot: PlayerSlot) {
     if (!selectedSlot) {
@@ -79,21 +120,32 @@ export function SchedulePage({ schedule, players, onRegenerate, onBack, onUpdate
     setSelectedSlot(null);
   }
 
+  function handleRegenerate() {
+    onRegenerate(locks);
+  }
+
+  function handleBack() {
+    setLocks({}); // clear all locks when going back to setup
+    onBack();
+  }
+
+  const hasLocks = Object.keys(locks).length > 0;
+
   return (
     <div className="space-y-6 no-print">
       <div className="flex justify-between items-center flex-wrap gap-3">
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           &larr; Back to Setup
         </button>
         <div className="flex gap-3">
           <button
-            onClick={onRegenerate}
+            onClick={handleRegenerate}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
-            Regenerate
+            {hasLocks ? 'Reshuffle' : 'Regenerate'}
           </button>
           <button
             onClick={() => window.print()}
@@ -112,6 +164,8 @@ export function SchedulePage({ schedule, players, onRegenerate, onBack, onUpdate
             selectedSlot={selectedSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}
+            locks={locks[roundIdx] || []}
+            onToggleLock={handleToggleLock}
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
@@ -125,10 +179,10 @@ export function SchedulePage({ schedule, players, onRegenerate, onBack, onUpdate
 
       <div className="flex justify-end">
         <button
-          onClick={onRegenerate}
+          onClick={handleRegenerate}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
         >
-          Regenerate
+          {hasLocks ? 'Reshuffle' : 'Regenerate'}
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { Player, CourtAssignment, Round, Schedule, PairingHistory } from '../types';
+import type { Player, CourtAssignment, Round, Schedule, PairingHistory, LockedPair } from '../types';
 import { fisherYatesShuffle, sumRatings } from '../utils/helpers';
 import { scoreAssignment } from './scoring';
 import { determineSitOuts } from './sitout';
@@ -101,6 +101,115 @@ function findBestAssignment(
       bestCourts = courts;
       bestExtras = extras;
     }
+  }
+
+  return { courts: bestCourts, extraSitOuts: bestExtras };
+}
+
+function findBestAssignmentWithLocks(
+  activePlayers: Player[],
+  numCourts: number,
+  history: PairingHistory,
+  lockedPairs: LockedPair[]
+): { courts: CourtAssignment[]; extraSitOuts: Player[] } {
+  const effectiveCourts = Math.min(numCourts, Math.floor(activePlayers.length / 4));
+
+  if (effectiveCourts === 0) {
+    return { courts: [], extraSitOuts: activePlayers };
+  }
+
+  // Build a map of locked pairs by courtIdx
+  const locksByCourtIdx = new Map<number, LockedPair[]>();
+  for (const lp of lockedPairs) {
+    if (lp.courtIdx < effectiveCourts) {
+      const existing = locksByCourtIdx.get(lp.courtIdx) || [];
+      existing.push(lp);
+      locksByCourtIdx.set(lp.courtIdx, existing);
+    }
+  }
+
+  // Identify locked player IDs and resolve locked players
+  const lockedIds = new Set<string>();
+  const lockedPlayerMap = new Map<string, Player>();
+  for (const p of activePlayers) {
+    lockedPlayerMap.set(p.id, p);
+  }
+  for (const lp of lockedPairs) {
+    lockedIds.add(lp.player1Id);
+    lockedIds.add(lp.player2Id);
+  }
+
+  // Free players = active but not locked
+  const freePlayers = activePlayers.filter((p) => !lockedIds.has(p.id));
+
+  const NUM_ITERATIONS = 1000;
+  let bestScore = Infinity;
+  let bestCourts: CourtAssignment[] = [];
+  let bestExtras: Player[] = [];
+
+  for (let i = 0; i < NUM_ITERATIONS; i++) {
+    const shuffled = fisherYatesShuffle(freePlayers);
+    let freeIdx = 0;
+
+    const courts: CourtAssignment[] = [];
+    let valid = true;
+
+    for (let c = 0; c < effectiveCourts; c++) {
+      const courtsLocks = locksByCourtIdx.get(c) || [];
+      const team1Lock = courtsLocks.find((lp) => lp.team === 'team1');
+      const team2Lock = courtsLocks.find((lp) => lp.team === 'team2');
+
+      let team1: Player[];
+      let team2: Player[];
+
+      if (team1Lock) {
+        const p1 = lockedPlayerMap.get(team1Lock.player1Id);
+        const p2 = lockedPlayerMap.get(team1Lock.player2Id);
+        if (!p1 || !p2) { valid = false; break; }
+        team1 = [p1, p2];
+      } else {
+        if (freeIdx + 2 > shuffled.length) { valid = false; break; }
+        team1 = [shuffled[freeIdx++], shuffled[freeIdx++]];
+      }
+
+      if (team2Lock) {
+        const p1 = lockedPlayerMap.get(team2Lock.player1Id);
+        const p2 = lockedPlayerMap.get(team2Lock.player2Id);
+        if (!p1 || !p2) { valid = false; break; }
+        team2 = [p1, p2];
+      } else {
+        if (freeIdx + 2 > shuffled.length) { valid = false; break; }
+        team2 = [shuffled[freeIdx++], shuffled[freeIdx++]];
+      }
+
+      // For fully-free courts, try pickBestSplit for optimal team split
+      if (!team1Lock && !team2Lock) {
+        const fourPlayers = [...team1, ...team2];
+        courts.push(pickBestSplit(fourPlayers, history, c + 1));
+      } else {
+        courts.push({
+          courtNumber: c + 1,
+          team1,
+          team2,
+          ratingDiff: Math.abs(sumRatings(team1) - sumRatings(team2)),
+        });
+      }
+    }
+
+    if (!valid) continue;
+
+    const extras = shuffled.slice(freeIdx);
+    const score = scoreAssignment(courts, history);
+    if (score < bestScore) {
+      bestScore = score;
+      bestCourts = courts;
+      bestExtras = extras;
+    }
+  }
+
+  // If no valid iteration found (edge case), return empty
+  if (bestCourts.length === 0 && effectiveCourts > 0) {
+    return { courts: [], extraSitOuts: activePlayers };
   }
 
   return { courts: bestCourts, extraSitOuts: bestExtras };
@@ -242,6 +351,73 @@ export function generateSchedule(
       courts,
       sitOuts: allSitOuts,
       isGendered: isGendered || undefined,
+    });
+  }
+
+  return { rounds };
+}
+
+export function reshuffleSchedule(
+  players: Player[],
+  numCourts: number,
+  numRounds: number,
+  locks: Record<number, LockedPair[]>,
+  genderedEnabled = false,
+  genderedFrequency = 2
+): Schedule {
+  const history = initHistory(players);
+  const rounds: Round[] = [];
+  let previousSitOutIds: Set<string> | undefined;
+
+  for (let r = 1; r <= numRounds; r++) {
+    const roundIdx = r - 1;
+    const isGendered = genderedEnabled && r % genderedFrequency === 0;
+    const roundLocks = locks[roundIdx] || [];
+    const hasLocks = roundLocks.length > 0;
+
+    // Locked players cannot sit out
+    const lockedIds = hasLocks
+      ? new Set(roundLocks.flatMap((lp) => [lp.player1Id, lp.player2Id]))
+      : undefined;
+
+    const sitOuts = determineSitOuts(
+      players, numCourts, history, lockedIds, previousSitOutIds
+    );
+    const sitOutIds = new Set(sitOuts.map((p) => p.id));
+    const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
+
+    let courts: CourtAssignment[];
+    let extraSitOuts: Player[];
+
+    if (hasLocks) {
+      // Locks override gendered constraints
+      const result = findBestAssignmentWithLocks(activePlayers, numCourts, history, roundLocks);
+      courts = result.courts;
+      extraSitOuts = result.extraSitOuts;
+    } else if (isGendered) {
+      const result = findGenderedAssignment(activePlayers, numCourts, history);
+      courts = result.courts;
+      extraSitOuts = result.extraSitOuts;
+    } else {
+      const result = findBestAssignment(activePlayers, numCourts, history);
+      courts = result.courts;
+      extraSitOuts = result.extraSitOuts;
+    }
+
+    const allSitOuts = [...sitOuts, ...extraSitOuts];
+    updateHistory(history, courts, allSitOuts);
+
+    if (isGendered && !hasLocks) {
+      updateGenderedMixedCounts(history, courts);
+    }
+
+    previousSitOutIds = new Set(allSitOuts.map((p) => p.id));
+
+    rounds.push({
+      roundNumber: r,
+      courts,
+      sitOuts: allSitOuts,
+      isGendered: (isGendered && !hasLocks) || undefined,
     });
   }
 
