@@ -11,6 +11,16 @@ export function sumRatings(players: { rating: number }[]): number {
   return players.reduce((sum, p) => sum + p.rating, 0);
 }
 
+export function getDisplayName(player: { name: string }, allPlayers: { name: string }[]): string {
+  const lastSpace = player.name.lastIndexOf(' ');
+  if (lastSpace === -1) return player.name;
+  const firstName = player.name.substring(0, lastSpace);
+  const hasDuplicate = allPlayers.some(
+    (p) => p !== player && p.name.substring(0, p.name.lastIndexOf(' ')) === firstName
+  );
+  return hasDuplicate ? player.name : firstName;
+}
+
 export function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();

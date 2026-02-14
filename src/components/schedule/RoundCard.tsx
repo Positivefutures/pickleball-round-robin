@@ -1,12 +1,17 @@
-import type { Round } from '../../types';
+import type { Round, Player } from '../../types';
+import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 
 interface Props {
   round: Round;
+  roundIdx: number;
+  selectedSlot: PlayerSlot | null;
+  onPlayerTap: (slot: PlayerSlot) => void;
+  allPlayers: Player[];
 }
 
-export function RoundCard({ round }: Props) {
+export function RoundCard({ round, roundIdx, selectedSlot, onPlayerTap, allPlayers }: Props) {
   return (
     <div className="round-card bg-white rounded-lg shadow p-6">
       <div className="flex items-center gap-2 mb-4">
@@ -20,8 +25,16 @@ export function RoundCard({ round }: Props) {
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {round.courts.map((court) => (
-          <CourtMatchup key={court.courtNumber} court={court} />
+        {round.courts.map((court, courtIdx) => (
+          <CourtMatchup
+            key={court.courtNumber}
+            court={court}
+            roundIdx={roundIdx}
+            courtIdx={courtIdx}
+            selectedSlot={selectedSlot}
+            onPlayerTap={onPlayerTap}
+            allPlayers={allPlayers}
+          />
         ))}
       </div>
       <SitOutList players={round.sitOuts} />

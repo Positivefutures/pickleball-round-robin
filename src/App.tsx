@@ -104,6 +104,7 @@ function App() {
             players={attendingPlayers}
             onRegenerate={handleGenerate}
             onBack={() => setStep('setup')}
+            onUpdateSchedule={setSchedule}
           />
         )}
       </main>
@@ -112,7 +113,7 @@ function App() {
         Created by Jeff Baker &ndash; positivefutures.ai
       </footer>
 
-      <PrintSchedule schedule={schedule} />
+      <PrintSchedule schedule={schedule} players={attendingPlayers} />
     </div>
   );
 }

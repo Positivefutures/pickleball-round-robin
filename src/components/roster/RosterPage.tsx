@@ -35,17 +35,6 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
 
   return (
     <div className="space-y-6">
-      {players.length >= 4 && (
-        <div className="flex justify-end">
-          <button
-            onClick={onContinue}
-            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
-          >
-            Continue to Setup &rarr;
-          </button>
-        </div>
-      )}
-
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Add Player</h2>
         <PlayerForm onSubmit={handleSubmit} />
@@ -64,6 +53,21 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
         </div>
       )}
 
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={onContinue}
+          disabled={players.length < 4}
+          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Continue to Setup &rarr;
+        </button>
+        {players.length < 4 && players.length > 0 && (
+          <p className="text-amber-600 text-sm">
+            Need at least 4 players to continue
+          </p>
+        )}
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">
@@ -76,21 +80,6 @@ export function RosterPage({ players, onAdd, onUpdate, onRemove, onContinue }: P
           onRemove={onRemove}
         />
       </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={onContinue}
-          disabled={players.length < 4}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Continue to Setup &rarr;
-        </button>
-      </div>
-      {players.length < 4 && players.length > 0 && (
-        <p className="text-amber-600 text-sm text-right">
-          Need at least 4 players to continue
-        </p>
-      )}
 
       {!coreImported && (
         <div className="text-center pt-2">

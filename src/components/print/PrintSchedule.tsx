@@ -1,10 +1,12 @@
-import type { Schedule } from '../../types';
+import type { Schedule, Player } from '../../types';
+import { getDisplayName } from '../../utils/helpers';
 
 interface Props {
   schedule: Schedule | null;
+  players: Player[];
 }
 
-export function PrintSchedule({ schedule }: Props) {
+export function PrintSchedule({ schedule, players }: Props) {
   if (!schedule) return null;
 
   return (
@@ -15,7 +17,7 @@ export function PrintSchedule({ schedule }: Props) {
 
       {schedule.rounds.map((round) => (
         <div key={round.roundNumber} className="round-card" style={{ marginBottom: '16pt' }}>
-          <h2 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '8pt', borderBottom: '1px solid #ccc', paddingBottom: '4pt' }}>
+          <h2 style={{ fontSize: '15.4pt', fontWeight: 'bold', marginBottom: '8pt', borderBottom: '1px solid #ccc', paddingBottom: '4pt' }}>
             Round {round.roundNumber}
             {round.isGendered && (
               <span style={{ fontSize: '9pt', fontWeight: 'normal', marginLeft: '8pt', color: '#666' }}>
@@ -28,15 +30,12 @@ export function PrintSchedule({ schedule }: Props) {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
-                  Court
                 </th>
                 <th style={{ textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
-                  Team A
-                </th>
-                <th style={{ textAlign: 'center', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
+                  SERVING
                 </th>
                 <th style={{ textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
-                  Team B
+                  RECEIVING
                 </th>
               </tr>
             </thead>
@@ -46,14 +45,11 @@ export function PrintSchedule({ schedule }: Props) {
                   <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '10pt' }}>
                     Court {court.courtNumber}
                   </td>
-                  <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '10pt' }}>
-                    {court.team1.map((p) => p.name).join(' & ')}
+                  <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '12.5pt' }}>
+                    {court.team1.map((p) => getDisplayName(p, players)).join(' & ')}
                   </td>
-                  <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', textAlign: 'center', fontSize: '10pt', color: '#999' }}>
-                    vs
-                  </td>
-                  <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '10pt' }}>
-                    {court.team2.map((p) => p.name).join(' & ')}
+                  <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '12.5pt' }}>
+                    {court.team2.map((p) => getDisplayName(p, players)).join(' & ')}
                   </td>
                 </tr>
               ))}
@@ -62,7 +58,7 @@ export function PrintSchedule({ schedule }: Props) {
 
           {round.sitOuts.length > 0 && (
             <p style={{ fontSize: '9pt', color: '#666', marginTop: '2pt' }}>
-              Sitting out: {round.sitOuts.map((p) => p.name).join(', ')}
+              Sitting out: {round.sitOuts.map((p) => getDisplayName(p, players)).join(', ')}
             </p>
           )}
         </div>
