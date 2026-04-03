@@ -32,6 +32,15 @@ function incrementBidirectional(
   counts[id2][id1] = (counts[id2][id1] ?? 0) + 1;
 }
 
+function getInteractionCount(
+  history: PairingHistory,
+  id1: string,
+  id2: string
+): number {
+  return (history.partnerCounts[id1]?.[id2] ?? 0)
+    + (history.opponentCounts[id1]?.[id2] ?? 0);
+}
+
 function pickBestSplit(
   four: Player[],
   history: PairingHistory,
@@ -48,10 +57,34 @@ function pickBestSplit(
 
   for (const [team1, team2] of splits) {
     const ratingDiff = Math.abs(sumRatings(team1) - sumRatings(team2));
+
     let partnerPenalty = 0;
-    partnerPenalty += (history.partnerCounts[team1[0].id]?.[team1[1].id] ?? 0);
-    partnerPenalty += (history.partnerCounts[team2[0].id]?.[team2[1].id] ?? 0);
-    const score = ratingDiff * 10 + partnerPenalty * 8;
+    partnerPenalty += Math.pow(history.partnerCounts[team1[0].id]?.[team1[1].id] ?? 0, 1.5);
+    partnerPenalty += Math.pow(history.partnerCounts[team2[0].id]?.[team2[1].id] ?? 0, 1.5);
+
+    let opponentPenalty = 0;
+    for (const p1 of team1) {
+      for (const p2 of team2) {
+        opponentPenalty += Math.pow(history.opponentCounts[p1.id]?.[p2.id] ?? 0, 1.5);
+      }
+    }
+
+    // Novelty: count pairs that have never interacted
+    let noveltyBonus = 0;
+    for (let i = 0; i < four.length; i++) {
+      for (let j = i + 1; j < four.length; j++) {
+        if (getInteractionCount(history, four[i].id, four[j].id) === 0) {
+          noveltyBonus += 5;
+        }
+      }
+    }
+    // Novelty from all 6 pairs is the same for all splits, but partner/opponent
+    // split matters — reward splits where partners are new to each other
+    let splitNovelty = 0;
+    if (getInteractionCount(history, team1[0].id, team1[1].id) === 0) splitNovelty += 3;
+    if (getInteractionCount(history, team2[0].id, team2[1].id) === 0) splitNovelty += 3;
+
+    const score = ratingDiff * 5 + partnerPenalty * 8 + opponentPenalty * 6 - noveltyBonus - splitNovelty;
     if (score < bestScore) {
       bestScore = score;
       bestSplit = [team1, team2];
@@ -70,7 +103,8 @@ function pickBestSplit(
 function findBestAssignment(
   activePlayers: Player[],
   numCourts: number,
-  history: PairingHistory
+  history: PairingHistory,
+  allPlayers?: Player[]
 ): { courts: CourtAssignment[]; extraSitOuts: Player[] } {
   const effectiveCourts = Math.min(numCourts, Math.floor(activePlayers.length / 4));
   const numNeeded = effectiveCourts * 4;
@@ -95,7 +129,7 @@ function findBestAssignment(
       courts.push(pickBestSplit(fourPlayers, history, c + 1));
     }
 
-    const score = scoreAssignment(courts, history);
+    const score = scoreAssignment(courts, history, allPlayers);
     if (score < bestScore) {
       bestScore = score;
       bestCourts = courts;
@@ -110,7 +144,8 @@ function findBestAssignmentWithLocks(
   activePlayers: Player[],
   numCourts: number,
   history: PairingHistory,
-  lockedPairs: LockedPair[]
+  lockedPairs: LockedPair[],
+  allPlayers?: Player[]
 ): { courts: CourtAssignment[]; extraSitOuts: Player[] } {
   const effectiveCourts = Math.min(numCourts, Math.floor(activePlayers.length / 4));
 
@@ -199,7 +234,7 @@ function findBestAssignmentWithLocks(
     if (!valid) continue;
 
     const extras = shuffled.slice(freeIdx);
-    const score = scoreAssignment(courts, history);
+    const score = scoreAssignment(courts, history, allPlayers);
     if (score < bestScore) {
       bestScore = score;
       bestCourts = courts;
@@ -218,7 +253,8 @@ function findBestAssignmentWithLocks(
 function findGenderedAssignment(
   activePlayers: Player[],
   numCourts: number,
-  history: PairingHistory
+  history: PairingHistory,
+  allPlayers?: Player[]
 ): { courts: CourtAssignment[]; extraSitOuts: Player[] } {
   const males = activePlayers.filter((p) => p.gender === 'M');
   const females = activePlayers.filter((p) => p.gender === 'F');
@@ -252,13 +288,13 @@ function findGenderedAssignment(
 
   // Run optimization on each group separately
   const femaleResult = femaleCourts > 0
-    ? findBestAssignment(genderedFemales, femaleCourts, history)
+    ? findBestAssignment(genderedFemales, femaleCourts, history, allPlayers)
     : { courts: [] as CourtAssignment[], extraSitOuts: [] as Player[] };
   const maleResult = maleCourts > 0
-    ? findBestAssignment(genderedMales, maleCourts, history)
+    ? findBestAssignment(genderedMales, maleCourts, history, allPlayers)
     : { courts: [] as CourtAssignment[], extraSitOuts: [] as Player[] };
   const mixedResult = mixedCourts > 0
-    ? findBestAssignment(mixedPool, mixedCourts, history)
+    ? findBestAssignment(mixedPool, mixedCourts, history, allPlayers)
     : { courts: [] as CourtAssignment[], extraSitOuts: [] as Player[] };
 
   // Combine and renumber courts sequentially
@@ -336,8 +372,8 @@ export function generateSchedule(
     );
 
     const { courts, extraSitOuts } = isGendered
-      ? findGenderedAssignment(activePlayers, numCourts, history)
-      : findBestAssignment(activePlayers, numCourts, history);
+      ? findGenderedAssignment(activePlayers, numCourts, history, players)
+      : findBestAssignment(activePlayers, numCourts, history, players);
 
     const allSitOuts = [...sitOuts, ...extraSitOuts];
     updateHistory(history, courts, allSitOuts);
@@ -391,15 +427,15 @@ export function reshuffleSchedule(
 
     if (hasLocks) {
       // Locks override gendered constraints
-      const result = findBestAssignmentWithLocks(activePlayers, numCourts, history, roundLocks);
+      const result = findBestAssignmentWithLocks(activePlayers, numCourts, history, roundLocks, players);
       courts = result.courts;
       extraSitOuts = result.extraSitOuts;
     } else if (isGendered) {
-      const result = findGenderedAssignment(activePlayers, numCourts, history);
+      const result = findGenderedAssignment(activePlayers, numCourts, history, players);
       courts = result.courts;
       extraSitOuts = result.extraSitOuts;
     } else {
-      const result = findBestAssignment(activePlayers, numCourts, history);
+      const result = findBestAssignment(activePlayers, numCourts, history, players);
       courts = result.courts;
       extraSitOuts = result.extraSitOuts;
     }
