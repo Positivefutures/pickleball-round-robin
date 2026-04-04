@@ -1,12 +1,12 @@
 import type { CourtAssignment, PairingHistory, Player } from '../types';
 import { sumRatings } from '../utils/helpers';
 
-const BALANCE_WEIGHT = 5.0;
-const PARTNER_REPEAT_WEIGHT = 8.0;
-const OPPONENT_REPEAT_WEIGHT = 6.0;
-const NOVELTY_BONUS = 15.0;
-const COVERAGE_WEIGHT = 3.0;
-const REPEAT_EXPONENT = 1.5;
+const BALANCE_WEIGHT = 3.0;
+const PARTNER_REPEAT_WEIGHT = 10.0;
+const OPPONENT_REPEAT_WEIGHT = 10.0;
+const NOVELTY_BONUS = 25.0;
+const COVERAGE_WEIGHT = 5.0;
+const REPEAT_EXPONENT = 2.0;
 
 function getCount(
   counts: Record<string, Record<string, number>>,
@@ -82,7 +82,7 @@ export function scoreAssignment(
         const interactions = getInteractionCount(history, id1, id2);
 
         if (interactions === 0) {
-          // These two have never played together — reward this
+          // These two have never played together — big reward
           noveltyBonus += NOVELTY_BONUS;
         } else if (totalPlayers > 0) {
           // They've already met — penalize proportional to how many unmet players they each have

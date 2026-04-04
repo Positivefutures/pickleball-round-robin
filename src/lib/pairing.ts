@@ -69,22 +69,12 @@ function pickBestSplit(
       }
     }
 
-    // Novelty: count pairs that have never interacted
-    let noveltyBonus = 0;
-    for (let i = 0; i < four.length; i++) {
-      for (let j = i + 1; j < four.length; j++) {
-        if (getInteractionCount(history, four[i].id, four[j].id) === 0) {
-          noveltyBonus += 5;
-        }
-      }
-    }
-    // Novelty from all 6 pairs is the same for all splits, but partner/opponent
-    // split matters — reward splits where partners are new to each other
+    // Reward splits where partners are new to each other
     let splitNovelty = 0;
-    if (getInteractionCount(history, team1[0].id, team1[1].id) === 0) splitNovelty += 3;
-    if (getInteractionCount(history, team2[0].id, team2[1].id) === 0) splitNovelty += 3;
+    if (getInteractionCount(history, team1[0].id, team1[1].id) === 0) splitNovelty += 5;
+    if (getInteractionCount(history, team2[0].id, team2[1].id) === 0) splitNovelty += 5;
 
-    const score = ratingDiff * 5 + partnerPenalty * 8 + opponentPenalty * 6 - noveltyBonus - splitNovelty;
+    const score = ratingDiff * 3 + partnerPenalty * 8 + opponentPenalty * 6 - splitNovelty;
     if (score < bestScore) {
       bestScore = score;
       bestSplit = [team1, team2];
@@ -100,6 +90,111 @@ function pickBestSplit(
   };
 }
 
+// Build courts by greedily targeting players who haven't met yet.
+// Returns groups of 4 players for each court, plus extras who sit out.
+function buildGreedyCourts(
+  activePlayers: Player[],
+  effectiveCourts: number,
+  history: PairingHistory
+): { groups: Player[][]; extras: Player[] } {
+  const pool = new Set(activePlayers.map((p) => p.id));
+  const playerMap = new Map(activePlayers.map((p) => [p.id, p]));
+  const groups: Player[][] = [];
+
+  // Build a sorted list of unmet pairs (lowest interaction count first)
+  const pairDebts: { id1: string; id2: string; count: number }[] = [];
+  const playerList = activePlayers.filter((p) => pool.has(p.id));
+  for (let i = 0; i < playerList.length; i++) {
+    for (let j = i + 1; j < playerList.length; j++) {
+      const count = getInteractionCount(history, playerList[i].id, playerList[j].id);
+      pairDebts.push({ id1: playerList[i].id, id2: playerList[j].id, count });
+    }
+  }
+  // Shuffle first for randomized tie-breaking, then sort by count ascending
+  for (let i = pairDebts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairDebts[i], pairDebts[j]] = [pairDebts[j], pairDebts[i]];
+  }
+  pairDebts.sort((a, b) => a.count - b.count);
+
+  for (let c = 0; c < effectiveCourts; c++) {
+    if (pool.size < 4) break;
+
+    // Find the highest-priority unmet pair still in the pool
+    let seed1: string | undefined;
+    let seed2: string | undefined;
+    for (const debt of pairDebts) {
+      if (pool.has(debt.id1) && pool.has(debt.id2)) {
+        seed1 = debt.id1;
+        seed2 = debt.id2;
+        break;
+      }
+    }
+
+    // Fallback: pick two random from pool
+    if (!seed1 || !seed2) {
+      const arr = Array.from(pool);
+      seed1 = arr[0];
+      seed2 = arr[1];
+    }
+
+    pool.delete(seed1);
+    pool.delete(seed2);
+
+    // Pick 2 more players that maximize new interactions with the seeds
+    const remaining = Array.from(pool);
+    const scored = remaining.map((id) => {
+      // Count how many of the 2 seeds this player hasn't met
+      let newPairs = 0;
+      if (getInteractionCount(history, id, seed1!) === 0) newPairs++;
+      if (getInteractionCount(history, id, seed2!) === 0) newPairs++;
+      // Small tiebreaker: total unmet count (prefer players with more unmet people)
+      let totalUnmet = 0;
+      for (const otherId of remaining) {
+        if (otherId !== id && getInteractionCount(history, id, otherId) === 0) totalUnmet++;
+      }
+      return { id, newPairs, totalUnmet, rand: Math.random() };
+    });
+    // Sort: most new pairs first, then most unmet, then random
+    scored.sort((a, b) => {
+      if (b.newPairs !== a.newPairs) return b.newPairs - a.newPairs;
+      if (b.totalUnmet !== a.totalUnmet) return b.totalUnmet - a.totalUnmet;
+      return a.rand - b.rand;
+    });
+
+    const pick3 = scored[0]?.id;
+    if (pick3) pool.delete(pick3);
+
+    // Re-score for 4th player considering all 3 already picked
+    const remaining2 = Array.from(pool);
+    const scored2 = remaining2.map((id) => {
+      let newPairs = 0;
+      if (getInteractionCount(history, id, seed1!) === 0) newPairs++;
+      if (getInteractionCount(history, id, seed2!) === 0) newPairs++;
+      if (pick3 && getInteractionCount(history, id, pick3) === 0) newPairs++;
+      return { id, newPairs, rand: Math.random() };
+    });
+    scored2.sort((a, b) => {
+      if (b.newPairs !== a.newPairs) return b.newPairs - a.newPairs;
+      return a.rand - b.rand;
+    });
+
+    const pick4 = scored2[0]?.id;
+    if (pick4) pool.delete(pick4);
+
+    const group = [seed1, seed2, pick3, pick4]
+      .filter(Boolean)
+      .map((id) => playerMap.get(id!)!)
+      .filter(Boolean);
+    if (group.length === 4) {
+      groups.push(group);
+    }
+  }
+
+  const extras = Array.from(pool).map((id) => playerMap.get(id)!).filter(Boolean);
+  return { groups, extras };
+}
+
 function findBestAssignment(
   activePlayers: Player[],
   numCourts: number,
@@ -113,12 +208,29 @@ function findBestAssignment(
     return { courts: [], extraSitOuts: activePlayers };
   }
 
-  const NUM_ITERATIONS = 1000;
   let bestScore = Infinity;
   let bestCourts: CourtAssignment[] = [];
   let bestExtras: Player[] = [];
 
-  for (let i = 0; i < NUM_ITERATIONS; i++) {
+  // --- Greedy iterations: build courts targeting unmet pairs ---
+  for (let i = 0; i < 500; i++) {
+    const { groups, extras } = buildGreedyCourts(activePlayers, effectiveCourts, history);
+    if (groups.length !== effectiveCourts) continue;
+
+    const courts: CourtAssignment[] = groups.map((group, c) =>
+      pickBestSplit(group, history, c + 1)
+    );
+
+    const score = scoreAssignment(courts, history, allPlayers);
+    if (score < bestScore) {
+      bestScore = score;
+      bestCourts = courts;
+      bestExtras = extras;
+    }
+  }
+
+  // --- Random iterations: explore broader space ---
+  for (let i = 0; i < 500; i++) {
     const shuffled = fisherYatesShuffle(activePlayers);
     const playersForCourts = shuffled.slice(0, numNeeded);
     const extras = shuffled.slice(numNeeded);
