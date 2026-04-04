@@ -55,8 +55,13 @@ function pickBestSplit(
   let bestSplit = splits[0];
   let bestScore = Infinity;
 
+  const MAX_DIFF = 0.5;
+
   for (const [team1, team2] of splits) {
     const ratingDiff = Math.abs(sumRatings(team1) - sumRatings(team2));
+
+    // Hard penalty if this split exceeds the max allowed rating difference
+    const capPenalty = ratingDiff > MAX_DIFF ? 200 * (ratingDiff - MAX_DIFF) : 0;
 
     let partnerPenalty = 0;
     partnerPenalty += Math.pow(history.partnerCounts[team1[0].id]?.[team1[1].id] ?? 0, 1.5);
@@ -74,7 +79,7 @@ function pickBestSplit(
     if (getInteractionCount(history, team1[0].id, team1[1].id) === 0) splitNovelty += 5;
     if (getInteractionCount(history, team2[0].id, team2[1].id) === 0) splitNovelty += 5;
 
-    const score = ratingDiff * 3 + partnerPenalty * 8 + opponentPenalty * 6 - splitNovelty;
+    const score = capPenalty + ratingDiff * 3 + partnerPenalty * 8 + opponentPenalty * 6 - splitNovelty;
     if (score < bestScore) {
       bestScore = score;
       bestSplit = [team1, team2];

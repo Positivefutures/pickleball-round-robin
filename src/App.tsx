@@ -107,7 +107,7 @@ function App() {
       </main>
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.4
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.4.1
       </footer>
 
       <PrintSchedule schedule={schedule} players={attendingPlayers} />

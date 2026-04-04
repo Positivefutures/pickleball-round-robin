@@ -7,6 +7,8 @@ const OPPONENT_REPEAT_WEIGHT = 10.0;
 const NOVELTY_BONUS = 25.0;
 const COVERAGE_WEIGHT = 5.0;
 const REPEAT_EXPONENT = 2.0;
+const MAX_RATING_DIFF = 0.5;
+const HARD_CAP_PENALTY = 200.0;
 
 function getCount(
   counts: Record<string, Record<string, number>>,
@@ -52,7 +54,11 @@ export function scoreAssignment(
   for (const court of courts) {
     const team1Rating = sumRatings(court.team1);
     const team2Rating = sumRatings(court.team2);
-    const balancePenalty = Math.abs(team1Rating - team2Rating) * BALANCE_WEIGHT;
+    const ratingDiff = Math.abs(team1Rating - team2Rating);
+    let balancePenalty = ratingDiff * BALANCE_WEIGHT;
+    if (ratingDiff > MAX_RATING_DIFF) {
+      balancePenalty += HARD_CAP_PENALTY * (ratingDiff - MAX_RATING_DIFF);
+    }
 
     let partnerPenalty = 0;
     for (const team of [court.team1, court.team2]) {
