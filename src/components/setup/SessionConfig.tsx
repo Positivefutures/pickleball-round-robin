@@ -35,15 +35,15 @@ export function SessionConfig({
             <button
               type="button"
               onClick={() => onCourtsChange(Math.max(1, numCourts - 1))}
-              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               &minus;
             </button>
-            <span className="w-10 text-center font-medium text-gray-800">{numCourts}</span>
+            <span className="min-w-10 text-center font-medium text-gray-800">{numCourts}</span>
             <button
               type="button"
               onClick={() => onCourtsChange(Math.min(16, numCourts + 1))}
-              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               +
             </button>
@@ -57,15 +57,15 @@ export function SessionConfig({
             <button
               type="button"
               onClick={() => onRoundsChange(Math.max(1, numRounds - 1))}
-              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               &minus;
             </button>
-            <span className="w-10 text-center font-medium text-gray-800">{numRounds}</span>
+            <span className="min-w-10 text-center font-medium text-gray-800">{numRounds}</span>
             <button
               type="button"
               onClick={() => onRoundsChange(Math.min(16, numRounds + 1))}
-              className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               +
             </button>
@@ -102,7 +102,7 @@ export function SessionConfig({
                 <select
                   value={genderedFrequency}
                   onChange={(e) => onGenderedFrequencyChange(parseInt(e.target.value))}
-                  className="w-14 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  className="min-w-14 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                 >
                   {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>{n}</option>

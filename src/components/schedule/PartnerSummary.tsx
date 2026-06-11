@@ -78,7 +78,7 @@ export function PartnerSummary({ schedule, players }: Props) {
                 <th
                   key={p.id}
                   className="p-1 border border-gray-200 bg-gray-50 font-medium"
-                  style={{ writingMode: 'vertical-lr', maxWidth: '2rem' }}
+                  style={{ writingMode: 'vertical-lr', maxWidth: '2.7em' }}
                 >
                   {p.name}
                 </th>

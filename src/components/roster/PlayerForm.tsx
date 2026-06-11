@@ -56,15 +56,15 @@ export function PlayerForm({ onSubmit, editingPlayer, onCancelEdit }: Props) {
           <button
             type="button"
             onClick={() => setRating(String(Math.max(3, Math.round((parseFloat(rating) - 0.1) * 10) / 10)))}
-            className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
           >
             &minus;
           </button>
-          <span className="w-10 text-center font-medium text-gray-800">{parseFloat(rating).toFixed(1)}</span>
+          <span className="min-w-10 text-center font-medium text-gray-800">{parseFloat(rating).toFixed(1)}</span>
           <button
             type="button"
             onClick={() => setRating(String(Math.min(5, Math.round((parseFloat(rating) + 0.1) * 10) / 10)))}
-            className="w-9 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
           >
             +
           </button>

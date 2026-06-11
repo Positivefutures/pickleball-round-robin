@@ -17,6 +17,7 @@ function App() {
 
   // Session config state
   const [selectedIds, setSelectedIds] = useLocalStorage<string[]>('pb-selected-ids', []);
+  const [largeText, setLargeText] = useLocalStorage<boolean>('pb-large-text', false);
   const [numCourts, setNumCourts] = useState(3);
   const [numRounds, setNumRounds] = useState(6);
   const [genderedEnabled, setGenderedEnabled] = useState(false);
@@ -60,8 +61,8 @@ function App() {
   const attendingPlayers = players.filter((p) => selectedIds.includes(p.id));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className={`min-h-screen bg-gray-50 ${largeText ? 'text-large' : ''}`}>
+      <Header largeText={largeText} onToggleLargeText={() => setLargeText((v) => !v)} />
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
         <StepIndicator current={step} />
 
@@ -107,7 +108,7 @@ function App() {
       </main>
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.4.1
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.5.0
       </footer>
 
       <PrintSchedule schedule={schedule} players={attendingPlayers} />

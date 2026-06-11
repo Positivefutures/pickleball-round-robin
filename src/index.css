@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Large-text mode (toggled from the header). --text-2xl intentionally
+   NOT scaled: only the header h1 title uses it and it stays fixed. */
+.text-large {
+  font-size: 1.35rem; /* scales un-classed/inherited text */
+  --text-xs: calc(0.75rem * 1.35);
+  --text-sm: calc(0.875rem * 1.35);
+  --text-base: calc(1rem * 1.35);
+  --text-lg: calc(1.125rem * 1.35);
+  --text-xl: calc(1.25rem * 1.35);
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -17,5 +28,15 @@
 
   .round-card {
     break-inside: avoid;
+  }
+
+  /* Large-text mode must never affect printed output */
+  .text-large {
+    font-size: 12pt;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
   }
 }
