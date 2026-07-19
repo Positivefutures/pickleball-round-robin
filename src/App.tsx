@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Schedule, LockedPair } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { generateSchedule, reshuffleSchedule } from './lib/pairing';
+import { generateSchedule, reshuffleSchedule, regenerateRemaining } from './lib/pairing';
 import { Header } from './components/layout/Header';
 import { StepIndicator } from './components/layout/StepIndicator';
 import type { Step } from './components/layout/StepIndicator';
@@ -13,16 +13,22 @@ import { PrintSchedule } from './components/print/PrintSchedule';
 
 function App() {
   const { players, addPlayer, updatePlayer, removePlayer } = usePlayers();
-  const [step, setStep] = useState<Step>('roster');
 
   // Session config state
   const [selectedIds, setSelectedIds] = useLocalStorage<string[]>('pb-selected-ids', []);
   const [largeText, setLargeText] = useLocalStorage<boolean>('pb-large-text', false);
-  const [numCourts, setNumCourts] = useState(3);
-  const [numRounds, setNumRounds] = useState(6);
-  const [genderedEnabled, setGenderedEnabled] = useState(false);
-  const [genderedFrequency, setGenderedFrequency] = useState(2);
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [numCourts, setNumCourts] = useLocalStorage('pb-num-courts', 3);
+  const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 6);
+  const [genderedEnabled, setGenderedEnabled] = useLocalStorage('pb-gendered-enabled', false);
+  const [genderedFrequency, setGenderedFrequency] = useLocalStorage('pb-gendered-frequency', 2);
+
+  // Live session state — persisted so a refresh mid-session doesn't lose the
+  // schedule or which rounds have already been played.
+  const [schedule, setSchedule] = useLocalStorage<Schedule | null>('pb-schedule', null);
+  const [completedThrough, setCompletedThrough] = useLocalStorage('pb-completed-through', 0);
+  const [removedIds, setRemovedIds] = useLocalStorage<string[]>('pb-removed-ids', []);
+
+  const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
 
   // Clean up stale IDs when roster changes
   useEffect(() => {
@@ -55,10 +61,41 @@ function App() {
       ? reshuffleSchedule(attending, numCourts, numRounds, locks, genderedEnabled, genderedFrequency)
       : generateSchedule(attending, numCourts, numRounds, genderedEnabled, genderedFrequency);
     setSchedule(result);
+    // A fresh schedule starts over: nothing played, nobody gone
+    setCompletedThrough(0);
+    setRemovedIds([]);
     setStep('schedule');
-  }, [players, selectedIds, numCourts, numRounds, genderedEnabled, genderedFrequency]);
+  }, [players, selectedIds, numCourts, numRounds, genderedEnabled, genderedFrequency,
+      setSchedule, setCompletedThrough, setRemovedIds]);
 
-  const attendingPlayers = players.filter((p) => selectedIds.includes(p.id));
+  const attendingPlayers = players.filter(
+    (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
+  );
+
+  // Removes a player from every round that hasn't been played yet and rebuilds
+  // those rounds around the smaller group.
+  const handleRemovePlayer = useCallback((playerId: string) => {
+    if (!schedule) return;
+    const remaining = attendingPlayers.filter((p) => p.id !== playerId);
+    if (remaining.length < 4) return;
+
+    const completed = schedule.rounds.slice(0, completedThrough);
+    setSchedule(
+      regenerateRemaining(
+        remaining, numCourts, schedule.rounds.length, completed,
+        genderedEnabled, genderedFrequency
+      )
+    );
+    setRemovedIds((prev) => [...prev, playerId]);
+  }, [schedule, attendingPlayers, completedThrough, numCourts, genderedEnabled,
+      genderedFrequency, setSchedule, setRemovedIds]);
+
+  const handleStartNewSession = useCallback(() => {
+    setSchedule(null);
+    setCompletedThrough(0);
+    setRemovedIds([]);
+    setStep('roster');
+  }, [setSchedule, setCompletedThrough, setRemovedIds]);
 
   return (
     <div className={`min-h-screen bg-gray-50 ${largeText ? 'text-large' : ''}`}>
@@ -100,15 +137,21 @@ function App() {
           <SchedulePage
             schedule={schedule}
             players={attendingPlayers}
+            numCourts={numCourts}
+            completedThrough={completedThrough}
+            canUncomplete={removedIds.length === 0}
             onRegenerate={handleGenerate}
             onBack={() => setStep('setup')}
             onUpdateSchedule={setSchedule}
+            onCompletedThroughChange={setCompletedThrough}
+            onRemovePlayer={handleRemovePlayer}
+            onStartNewSession={handleStartNewSession}
           />
         )}
       </main>
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.5.0
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.6.0
       </footer>
 
       <PrintSchedule schedule={schedule} players={attendingPlayers} />

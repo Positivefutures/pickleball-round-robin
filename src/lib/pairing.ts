@@ -470,6 +470,74 @@ function updateGenderedMixedCounts(
   }
 }
 
+// How many courts can actually be filled by this many players. Courts need 4
+// players each, so a roster that shrinks mid-session may support fewer courts
+// than were originally requested.
+export function effectiveCourtCount(numPlayers: number, numCourts: number): number {
+  return Math.min(numCourts, Math.floor(numPlayers / 4));
+}
+
+// Builds a single round and folds it into `history`. Shared by all three
+// schedule entry points so the per-round rules live in exactly one place.
+function buildRound(
+  roundNumber: number,
+  players: Player[],
+  effectiveCourts: number,
+  history: PairingHistory,
+  opts: {
+    isGendered: boolean;
+    roundLocks?: LockedPair[];
+    previousSitOutIds?: Set<string>;
+  }
+): Round {
+  const roundLocks = opts.roundLocks ?? [];
+  const hasLocks = roundLocks.length > 0;
+  // Locks override gendered constraints
+  const isGendered = opts.isGendered && !hasLocks;
+
+  // Locked players cannot sit out
+  const lockedIds = hasLocks
+    ? new Set(roundLocks.flatMap((lp) => [lp.player1Id, lp.player2Id]))
+    : undefined;
+
+  const sitOuts = determineSitOuts(
+    players, effectiveCourts, history, lockedIds, opts.previousSitOutIds
+  );
+  const sitOutIds = new Set(sitOuts.map((p) => p.id));
+  const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
+
+  let courts: CourtAssignment[];
+  let extraSitOuts: Player[];
+
+  if (hasLocks) {
+    const result = findBestAssignmentWithLocks(activePlayers, effectiveCourts, history, roundLocks, players);
+    courts = result.courts;
+    extraSitOuts = result.extraSitOuts;
+  } else if (isGendered) {
+    const result = findGenderedAssignment(activePlayers, effectiveCourts, history, players);
+    courts = result.courts;
+    extraSitOuts = result.extraSitOuts;
+  } else {
+    const result = findBestAssignment(activePlayers, effectiveCourts, history, players);
+    courts = result.courts;
+    extraSitOuts = result.extraSitOuts;
+  }
+
+  const allSitOuts = [...sitOuts, ...extraSitOuts];
+  updateHistory(history, courts, allSitOuts);
+
+  if (isGendered) {
+    updateGenderedMixedCounts(history, courts);
+  }
+
+  return {
+    roundNumber,
+    courts,
+    sitOuts: allSitOuts,
+    isGendered: isGendered || undefined,
+  };
+}
+
 export function generateSchedule(
   players: Player[],
   numCourts: number,
@@ -478,33 +546,17 @@ export function generateSchedule(
   genderedFrequency = 2
 ): Schedule {
   const history = initHistory(players);
+  const effectiveCourts = effectiveCourtCount(players.length, numCourts);
   const rounds: Round[] = [];
+  let previousSitOutIds: Set<string> | undefined;
 
   for (let r = 1; r <= numRounds; r++) {
-    const isGendered = genderedEnabled && r % genderedFrequency === 0;
-
-    const sitOuts = determineSitOuts(players, numCourts, history);
-    const activePlayers = players.filter(
-      (p) => !sitOuts.some((s) => s.id === p.id)
-    );
-
-    const { courts, extraSitOuts } = isGendered
-      ? findGenderedAssignment(activePlayers, numCourts, history, players)
-      : findBestAssignment(activePlayers, numCourts, history, players);
-
-    const allSitOuts = [...sitOuts, ...extraSitOuts];
-    updateHistory(history, courts, allSitOuts);
-
-    if (isGendered) {
-      updateGenderedMixedCounts(history, courts);
-    }
-
-    rounds.push({
-      roundNumber: r,
-      courts,
-      sitOuts: allSitOuts,
-      isGendered: isGendered || undefined,
+    const round = buildRound(r, players, effectiveCourts, history, {
+      isGendered: genderedEnabled && r % genderedFrequency === 0,
+      previousSitOutIds,
     });
+    previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
+    rounds.push(round);
   }
 
   return { rounds };
@@ -519,60 +571,70 @@ export function reshuffleSchedule(
   genderedFrequency = 2
 ): Schedule {
   const history = initHistory(players);
+  const effectiveCourts = effectiveCourtCount(players.length, numCourts);
   const rounds: Round[] = [];
   let previousSitOutIds: Set<string> | undefined;
 
   for (let r = 1; r <= numRounds; r++) {
-    const roundIdx = r - 1;
-    const isGendered = genderedEnabled && r % genderedFrequency === 0;
-    const roundLocks = locks[roundIdx] || [];
-    const hasLocks = roundLocks.length > 0;
-
-    // Locked players cannot sit out
-    const lockedIds = hasLocks
-      ? new Set(roundLocks.flatMap((lp) => [lp.player1Id, lp.player2Id]))
-      : undefined;
-
-    const sitOuts = determineSitOuts(
-      players, numCourts, history, lockedIds, previousSitOutIds
-    );
-    const sitOutIds = new Set(sitOuts.map((p) => p.id));
-    const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
-
-    let courts: CourtAssignment[];
-    let extraSitOuts: Player[];
-
-    if (hasLocks) {
-      // Locks override gendered constraints
-      const result = findBestAssignmentWithLocks(activePlayers, numCourts, history, roundLocks, players);
-      courts = result.courts;
-      extraSitOuts = result.extraSitOuts;
-    } else if (isGendered) {
-      const result = findGenderedAssignment(activePlayers, numCourts, history, players);
-      courts = result.courts;
-      extraSitOuts = result.extraSitOuts;
-    } else {
-      const result = findBestAssignment(activePlayers, numCourts, history, players);
-      courts = result.courts;
-      extraSitOuts = result.extraSitOuts;
-    }
-
-    const allSitOuts = [...sitOuts, ...extraSitOuts];
-    updateHistory(history, courts, allSitOuts);
-
-    if (isGendered && !hasLocks) {
-      updateGenderedMixedCounts(history, courts);
-    }
-
-    previousSitOutIds = new Set(allSitOuts.map((p) => p.id));
-
-    rounds.push({
-      roundNumber: r,
-      courts,
-      sitOuts: allSitOuts,
-      isGendered: (isGendered && !hasLocks) || undefined,
+    const round = buildRound(r, players, effectiveCourts, history, {
+      isGendered: genderedEnabled && r % genderedFrequency === 0,
+      roundLocks: locks[r - 1] || [],
+      previousSitOutIds,
     });
+    previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
+    rounds.push(round);
   }
 
   return { rounds };
+}
+
+// Rebuilds only the rounds after `completedRounds`, leaving those untouched.
+// Used when a player leaves partway through a session: the pairing history from
+// the rounds already played is replayed first, so partner/opponent variety and
+// the sit-out rotation carry forward instead of restarting.
+export function regenerateRemaining(
+  players: Player[],
+  numCourts: number,
+  numRounds: number,
+  completedRounds: Round[],
+  genderedEnabled = false,
+  genderedFrequency = 2
+): Schedule {
+  const history = initHistory(players);
+
+  // Replay the completed rounds. Players who have since left still appear in
+  // them; their history entries are harmless because they are never candidates
+  // for the rounds being rebuilt.
+  for (const round of completedRounds) {
+    updateHistory(history, round.courts, round.sitOuts);
+    if (round.isGendered) {
+      updateGenderedMixedCounts(history, round.courts);
+    }
+  }
+
+  // Carry the sit-out rotation across the boundary so whoever just sat out
+  // isn't immediately picked again.
+  const lastCompleted = completedRounds[completedRounds.length - 1];
+  const remainingIds = new Set(players.map((p) => p.id));
+  let previousSitOutIds = lastCompleted
+    ? new Set(
+        lastCompleted.sitOuts
+          .map((p) => p.id)
+          .filter((id) => remainingIds.has(id))
+      )
+    : undefined;
+
+  const effectiveCourts = effectiveCourtCount(players.length, numCourts);
+  const rounds: Round[] = [];
+
+  for (let r = completedRounds.length + 1; r <= numRounds; r++) {
+    const round = buildRound(r, players, effectiveCourts, history, {
+      isGendered: genderedEnabled && r % genderedFrequency === 0,
+      previousSitOutIds,
+    });
+    previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
+    rounds.push(round);
+  }
+
+  return { rounds: [...completedRounds, ...rounds] };
 }
