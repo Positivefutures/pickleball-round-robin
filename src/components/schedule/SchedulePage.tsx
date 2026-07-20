@@ -283,7 +283,7 @@ export function SchedulePage({
           <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">Start a new session?</p>
             <p className="text-sm text-gray-600 text-center mb-4">
-              This clears the current schedule and its completed rounds. Your roster is kept.
+              This clears the current schedule and its completed rounds. Your groups are kept.
             </p>
             <div className="flex gap-3">
               <button

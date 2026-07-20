@@ -3,16 +3,32 @@ import type { Player } from '../../types';
 
 interface Props {
   players: Player[];
+  /** Every player in the app — used to read roster membership. */
+  allPlayers: Player[];
+  rosterName?: string;
   onEdit: (player: Player) => void;
   onRemove: (id: string) => void;
 }
 
-export function PlayerList({ players, onEdit, onRemove }: Props) {
+export function PlayerList({ players, allPlayers, rosterName, onEdit, onRemove }: Props) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  // Players in several rosters just get dropped from this one after a light
+  // confirm. Players in only this roster fall through to the parent, which
+  // offers permanent deletion instead.
+  function requestRemove(id: string) {
+    const player = allPlayers.find((p) => p.id === id);
+    if (player && player.rosterIds.length <= 1) {
+      onRemove(id);
+      return;
+    }
+    setConfirmingId(id);
+  }
+
   if (players.length === 0) {
     return (
       <p className="text-gray-500 text-center py-8">
-        No players added yet. Add players above to get started.
+        No players in this group yet. Add players above to get started.
       </p>
     );
   }
@@ -65,7 +81,7 @@ export function PlayerList({ players, onEdit, onRemove }: Props) {
                       Edit
                     </button>
                     <button
-                      onClick={() => setConfirmingId(player.id)}
+                      onClick={() => requestRemove(player.id)}
                       className="text-red-600 hover:text-red-800 text-sm font-medium"
                     >
                       Remove
@@ -80,8 +96,11 @@ export function PlayerList({ players, onEdit, onRemove }: Props) {
       {confirmingPlayer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-4">
-              Remove {confirmingPlayer.name}?
+            <p className="text-gray-800 text-center font-medium mb-2">
+              Remove {confirmingPlayer.name} from {rosterName ?? 'this group'}?
+            </p>
+            <p className="text-sm text-gray-600 text-center mb-4">
+              They&rsquo;ll stay in their other groups.
             </p>
             <div className="flex gap-3">
               <button

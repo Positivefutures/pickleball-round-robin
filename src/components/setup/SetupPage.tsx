@@ -81,7 +81,7 @@ export function SetupPage({
             onClick={onBack}
             className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
           >
-            &larr; Back to Roster
+            &larr; Back to Players
           </button>
           <button
             onClick={handleGenerate}
@@ -111,7 +111,7 @@ export function SetupPage({
             onClick={onBack}
             className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
           >
-            &larr; Back to Roster
+            &larr; Back to Players
           </button>
           <button
             onClick={handleGenerate}

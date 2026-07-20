@@ -1,10 +1,16 @@
 export type Gender = 'M' | 'F';
 
+export interface Roster {
+  id: string;
+  name: string;
+}
+
 export interface Player {
   id: string;
   name: string;
   rating: number; // 3.0 - 5.0
   gender: Gender;
+  rosterIds: string[]; // a player may belong to any number of rosters
 }
 
 export interface SessionConfig {
