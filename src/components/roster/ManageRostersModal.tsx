@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 
 interface Props {
@@ -23,6 +23,7 @@ export function ManageRostersModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState<Roster | null>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
 
   // Players who would be left with no roster at all if this one goes away
   const exclusivePlayers = confirmingDelete
@@ -40,6 +41,8 @@ export function ManageRostersModal({
     if (!trimmed) return;
     onAdd(trimmed);
     setNewName('');
+    // Keep the caret in the field so several groups can be added in a row
+    newNameRef.current?.focus();
   }
 
   function commitRename() {
@@ -167,6 +170,7 @@ export function ManageRostersModal({
 
         <form onSubmit={handleAdd} className="flex gap-2 mb-5">
           <input
+            ref={newNameRef}
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}

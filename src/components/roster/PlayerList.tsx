@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Player } from '../../types';
 
 interface Props {
@@ -8,10 +8,34 @@ interface Props {
   rosterName?: string;
   onEdit: (player: Player) => void;
   onRemove: (id: string) => void;
+  /** Selection mode — when off, the table renders exactly as before. */
+  selecting?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
 }
 
-export function PlayerList({ players, allPlayers, rosterName, onEdit, onRemove }: Props) {
+export function PlayerList({
+  players,
+  allPlayers,
+  rosterName,
+  onEdit,
+  onRemove,
+  selecting = false,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+}: Props) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  const allSelected = players.length > 0 && selectedIds.length === players.length;
+  const someSelected = selectedIds.length > 0 && !allSelected;
+
+  // A partially-selected list would otherwise look identical to an empty one
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected, selecting]);
 
   // Players in several rosters just get dropped from this one after a light
   // confirm. Players in only this roster fall through to the parent, which
@@ -41,6 +65,18 @@ export function PlayerList({ players, allPlayers, rosterName, onEdit, onRemove }
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-gray-200">
+              {selecting && (
+                <th className="py-2 pl-2 pr-1 w-8">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => onToggleSelectAll?.()}
+                    aria-label="Select all players"
+                    className="w-4 h-4 accent-green-600 align-middle"
+                  />
+                </th>
+              )}
               <th className="text-left py-2 px-2 text-sm font-semibold text-gray-600">
                 Name
               </th>
@@ -62,8 +98,25 @@ export function PlayerList({ players, allPlayers, rosterName, onEdit, onRemove }
               .map((player) => (
                 <tr
                   key={player.id}
-                  className="border-b border-gray-100 hover:bg-gray-50"
+                  // The row is the tap target while selecting — the checkbox alone
+                  // is small on a phone, and the row's other controls are inert.
+                  onClick={selecting ? () => onToggleSelect?.(player.id) : undefined}
+                  className={`border-b border-gray-100 hover:bg-gray-50 ${
+                    selecting ? 'cursor-pointer' : ''
+                  } ${selecting && selectedIds.includes(player.id) ? 'bg-green-50' : ''}`}
                 >
+                  {selecting && (
+                    <td className="py-2 pl-2 pr-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(player.id)}
+                        onChange={() => onToggleSelect?.(player.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${player.name}`}
+                        className="w-4 h-4 accent-green-600 align-middle"
+                      />
+                    </td>
+                  )}
                   <td className="py-2 px-2 font-medium">{player.name}</td>
                   <td className="py-2 px-1 text-center text-sm text-gray-600">
                     {player.gender}
@@ -76,13 +129,15 @@ export function PlayerList({ players, allPlayers, rosterName, onEdit, onRemove }
                   <td className="py-2 px-2 text-right">
                     <button
                       onClick={() => onEdit(player)}
-                      className="text-blue-600 hover:text-blue-800 text-sm mr-3 font-medium"
+                      disabled={selecting}
+                      className="text-blue-600 hover:text-blue-800 text-sm mr-3 font-medium disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => requestRemove(player.id)}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                      disabled={selecting}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300"
                     >
                       Remove
                     </button>

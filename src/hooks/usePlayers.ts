@@ -55,6 +55,24 @@ export function usePlayers() {
     [setPlayers]
   );
 
+  /**
+   * Adds several players to several groups in one write. The Set union means a
+   * player already in a target group is left untouched rather than duplicated.
+   */
+  const addPlayersToRosters = useCallback(
+    (playerIds: string[], rosterIds: string[]) => {
+      const targets = new Set(playerIds);
+      setPlayers((prev) =>
+        prev.map((p) =>
+          targets.has(p.id)
+            ? { ...p, rosterIds: Array.from(new Set([...p.rosterIds, ...rosterIds])) }
+            : p
+        )
+      );
+    },
+    [setPlayers]
+  );
+
   /** Bulk membership rewrite, used when a roster is deleted. */
   const reassignRoster = useCallback(
     (fromRosterId: string, toRosterId: string | null) => {
@@ -77,6 +95,7 @@ export function usePlayers() {
     addPlayer,
     updatePlayer,
     setPlayerRosters,
+    addPlayersToRosters,
     removeFromRoster,
     deletePlayer,
     reassignRoster,

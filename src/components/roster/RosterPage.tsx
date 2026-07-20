@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Player, Gender, Roster } from '../../types';
 import { PlayerForm } from './PlayerForm';
 import { PlayerList } from './PlayerList';
 import { ManageRostersModal } from './ManageRostersModal';
+import { AddToGroupDialog } from './AddToGroupDialog';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { corePlayers } from '../../data/corePlayers';
 import { KEYS } from '../../lib/migrations';
@@ -21,6 +22,7 @@ interface Props {
   onAdd: (name: string, rating: number, gender: Gender, rosterIds: string[]) => void;
   onUpdate: (id: string, updates: Partial<Omit<Player, 'id'>>) => void;
   onSetPlayerRosters: (id: string, rosterIds: string[]) => void;
+  onAddPlayersToRosters: (playerIds: string[], rosterIds: string[]) => void;
   onRemoveFromRoster: (playerId: string, rosterId: string) => void;
   onDeletePlayer: (id: string) => void;
   onContinue: () => void;
@@ -38,6 +40,7 @@ export function RosterPage({
   onAdd,
   onUpdate,
   onSetPlayerRosters,
+  onAddPlayersToRosters,
   onRemoveFromRoster,
   onDeletePlayer,
   onContinue,
@@ -54,8 +57,68 @@ export function RosterPage({
     []
   );
 
+  // Selection is stamped with its group too, so switching groups clears it
+  const [selection, setSelection] = useState<{ ids: string[]; rosterId: string } | null>(null);
+  const [showAddToGroup, setShowAddToGroup] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
   const editingPlayer = editing?.rosterId === activeRosterId ? editing.player : null;
   const orphanCandidate = orphan?.rosterId === activeRosterId ? orphan.player : null;
+  const selecting = selection?.rosterId === activeRosterId;
+  const selectedIds = selecting ? selection!.ids : [];
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Stamping makes stale dialog state inert, but it would come back to life on
+  // returning to the same group — so discard it outright when the user switches.
+  function handleSelectRoster(id: string) {
+    setSelection(null);
+    setShowAddToGroup(false);
+    setEditing(null);
+    setOrphan(null);
+    onSelectRoster(id);
+  }
+
+  function startSelecting() {
+    setSelection({ ids: [], rosterId: activeRosterId });
+  }
+
+  function stopSelecting() {
+    setSelection(null);
+    setShowAddToGroup(false);
+  }
+
+  function toggleSelect(id: string) {
+    setSelection((prev) => {
+      const ids = prev?.rosterId === activeRosterId ? prev.ids : [];
+      return {
+        rosterId: activeRosterId,
+        ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+      };
+    });
+  }
+
+  function toggleSelectAll() {
+    const allIds = players.map((p) => p.id);
+    setSelection({
+      rosterId: activeRosterId,
+      ids: selectedIds.length === allIds.length ? [] : allIds,
+    });
+  }
+
+  function handleAddToGroups(targetIds: string[]) {
+    const count = selectedIds.length;
+    onAddPlayersToRosters(selectedIds, targetIds);
+    const names = rosters.filter((r) => targetIds.includes(r.id)).map((r) => r.name);
+    setNotice(
+      `${count} player${count === 1 ? '' : 's'} added to ${names.join(', ')}.`
+    );
+    stopSelecting();
+  }
 
   function startEdit(player: Player) {
     setEditing({ player, rosterId: activeRosterId });
@@ -146,7 +209,7 @@ export function RosterPage({
           <select
             id="roster-select"
             value={activeRosterId}
-            onChange={(e) => onSelectRoster(e.target.value)}
+            onChange={(e) => handleSelectRoster(e.target.value)}
             className="flex-1 min-w-[160px] px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
           >
             {rosters.map((r) => (
@@ -163,6 +226,12 @@ export function RosterPage({
           </button>
         </div>
       </div>
+
+      {notice && (
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-md px-4 py-2.5 text-sm">
+          {notice}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Add Player</h2>
@@ -214,6 +283,15 @@ export function RosterPage({
         </div>
       )}
 
+      {showAddToGroup && selecting && (
+        <AddToGroupDialog
+          playerCount={selectedIds.length}
+          groups={rosters.filter((r) => r.id !== activeRosterId)}
+          onConfirm={handleAddToGroups}
+          onCancel={() => setShowAddToGroup(false)}
+        />
+      )}
+
       {showManage && (
         <ManageRostersModal
           rosters={rosters}
@@ -241,10 +319,37 @@ export function RosterPage({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
           <h2 className="text-lg font-semibold">
             {activeRoster?.name ?? 'Player Roster'} ({players.length})
           </h2>
+          {selecting ? (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+              <button
+                onClick={() => setShowAddToGroup(true)}
+                disabled={selectedIds.length === 0}
+                className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add to Group
+              </button>
+              <button
+                onClick={stopSelecting}
+                className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={startSelecting}
+              disabled={rosters.length < 2 || players.length === 0}
+              title={rosters.length < 2 ? 'Create another group first' : undefined}
+              className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Select Players
+            </button>
+          )}
         </div>
         <PlayerList
           players={players}
@@ -252,6 +357,10 @@ export function RosterPage({
           rosterName={activeRoster?.name}
           onEdit={startEdit}
           onRemove={handleRemoveFromRoster}
+          selecting={selecting}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
         />
       </div>
 

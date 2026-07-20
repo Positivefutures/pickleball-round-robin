@@ -19,6 +19,7 @@ function App() {
     addPlayer,
     updatePlayer,
     setPlayerRosters,
+    addPlayersToRosters,
     removeFromRoster,
     deletePlayer,
     reassignRoster,
@@ -193,6 +194,7 @@ function App() {
             onAdd={addPlayer}
             onUpdate={updatePlayer}
             onSetPlayerRosters={setPlayerRosters}
+            onAddPlayersToRosters={addPlayersToRosters}
             onRemoveFromRoster={removeFromRoster}
             onDeletePlayer={deletePlayer}
             onContinue={() => setStep('setup')}
@@ -264,7 +266,7 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.7.0
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.8.0
       </footer>
 
       <PrintSchedule schedule={schedule} players={attendingPlayers} />
