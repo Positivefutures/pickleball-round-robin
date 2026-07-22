@@ -19,6 +19,14 @@ describe('runMigrations — rosters', () => {
     expect(rosters[0].name).toBe(DEFAULT_ROSTER_NAME);
     expect(read<string>(KEYS.activeRoster)).toBe(rosters[0].id);
     expect(read<number[]>(KEYS.completedRounds)).toEqual([]);
+    expect(read<unknown[]>(KEYS.partnerships)).toEqual([]);
+  });
+
+  it('leaves existing partnerships untouched', () => {
+    const existing = [{ player1Id: 'a', player2Id: 'b' }];
+    seed({ [KEYS.partnerships]: existing });
+    runMigrations();
+    expect(read<unknown[]>(KEYS.partnerships)).toEqual(existing);
   });
 
   it('assigns legacy players (no rosterIds) to the default group and maps the core-import flag', () => {

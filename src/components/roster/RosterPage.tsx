@@ -203,8 +203,8 @@ export function RosterPage({
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-sm font-medium text-gray-700" htmlFor="roster-select">
-            Group
+          <label className="text-sm font-bold text-gray-700" htmlFor="roster-select">
+            My Groups
           </label>
           <select
             id="roster-select"

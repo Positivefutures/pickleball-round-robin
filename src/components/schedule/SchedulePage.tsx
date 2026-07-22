@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import type { Schedule, Player, LockedPair } from '../../types';
+import type { Schedule, Player, LockedPair, Partnership, Round } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
+import { arePartners, partnerKey } from '../../lib/partnerships';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
@@ -35,10 +36,14 @@ function sameSlot(a: PlayerSlot, b: PlayerSlot): boolean {
 interface Props {
   schedule: Schedule;
   players: Player[];
+  partnerships: Partnership[];
   numCourts: number;
   completedRounds: number[];
   canUncomplete: boolean;
-  onRegenerate: (locks: Record<number, LockedPair[]>) => void;
+  onRegenerate: (
+    locks: Record<number, LockedPair[]>,
+    brokenPairs: Record<number, string[]>
+  ) => void;
   onBack: () => void;
   onUpdateSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
@@ -46,9 +51,34 @@ interface Props {
   onStartNewSession: () => void;
 }
 
+// The padlocks shown for a round: every intact (non-broken) couple found in the
+// round's current team assignments, read live so they stay correct across
+// reshuffles and manual swaps.
+function partnershipLocksForRound(
+  round: Round,
+  partnerships: Partnership[],
+  broken: Set<string>
+): LockedPair[] {
+  const result: LockedPair[] = [];
+  round.courts.forEach((court, courtIdx) => {
+    (['team1', 'team2'] as const).forEach((team) => {
+      const t = court[team];
+      if (
+        t.length === 2 &&
+        arePartners(t[0].id, t[1].id, partnerships) &&
+        !broken.has(partnerKey(t[0].id, t[1].id))
+      ) {
+        result.push({ player1Id: t[0].id, player2Id: t[1].id, courtIdx, team });
+      }
+    });
+  });
+  return result;
+}
+
 export function SchedulePage({
   schedule,
   players,
+  partnerships,
   numCourts,
   completedRounds,
   canUncomplete,
@@ -61,10 +91,13 @@ export function SchedulePage({
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
+  // Couples the host has broken for a specific round (partnerKeys by round index).
+  const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
 
+  const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
 
   // Completion is an arbitrary set: any round can be toggled independently, and
@@ -97,6 +130,31 @@ export function SchedulePage({
   }
 
   function handleToggleLock(roundIdx: number, courtIdx: number, team: 'team1' | 'team2') {
+    const teamPlayers = schedule.rounds[roundIdx].courts[courtIdx][team];
+
+    // In partnership mode the lock icon on a couple breaks (or re-links) them for
+    // this round only. Non-couple teams fall through to the ad-hoc lock behaviour.
+    if (
+      hasPartnerships &&
+      teamPlayers.length === 2 &&
+      arePartners(teamPlayers[0].id, teamPlayers[1].id, partnerships)
+    ) {
+      const key = partnerKey(teamPlayers[0].id, teamPlayers[1].id);
+      setBrokenPairs((prev) => {
+        const roundBroken = prev[roundIdx] || [];
+        const isBroken = roundBroken.includes(key);
+        const nextRound = isBroken
+          ? roundBroken.filter((k) => k !== key)
+          : [...roundBroken, key];
+        const next = { ...prev };
+        if (nextRound.length === 0) delete next[roundIdx];
+        else next[roundIdx] = nextRound;
+        return next;
+      });
+      setSelectedSlot(null);
+      return;
+    }
+
     setLocks((prev) => {
       const roundLocks = prev[roundIdx] || [];
       const existingIdx = roundLocks.findIndex(
@@ -208,15 +266,17 @@ export function SchedulePage({
   }
 
   function handleRegenerate() {
-    onRegenerate(locks);
+    onRegenerate(locks, brokenPairs);
   }
 
   function handleBack() {
     setLocks({}); // clear all locks when going back to setup
+    setBrokenPairs({});
     onBack();
   }
 
-  const hasLocks = Object.keys(locks).length > 0;
+  const hasLocks =
+    Object.keys(locks).length > 0 || Object.keys(brokenPairs).length > 0;
   const allComplete = completedSet.size >= schedule.rounds.length;
 
   // Completed rounds group at the top (numeric order), then the rest — while
@@ -264,7 +324,21 @@ export function SchedulePage({
         </div>
       </div>
 
-      {orderedRounds.map(({ round, roundIdx, complete }) => (
+      {orderedRounds.map(({ round, roundIdx, complete }) => {
+        // Show ad-hoc locks plus every intact couple in this round (deduped by
+        // court+team so a couple never renders as two overlapping locks).
+        const manualLocks = locks[roundIdx] || [];
+        const partnerLocks = hasPartnerships
+          ? partnershipLocksForRound(
+              round, partnerships, new Set(brokenPairs[roundIdx] || [])
+            )
+          : [];
+        const seen = new Set(partnerLocks.map((lp) => `${lp.courtIdx}-${lp.team}`));
+        const roundLocks = [
+          ...partnerLocks,
+          ...manualLocks.filter((lp) => !seen.has(`${lp.courtIdx}-${lp.team}`)),
+        ];
+        return (
         <div key={round.roundNumber}>
           <RoundCard
             round={round}
@@ -272,7 +346,7 @@ export function SchedulePage({
             selectedSlot={selectedSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}
-            locks={locks[roundIdx] || []}
+            locks={roundLocks}
             onToggleLock={handleToggleLock}
             onRequestRemove={setRemoveCandidate}
             isComplete={complete}
@@ -287,7 +361,8 @@ export function SchedulePage({
             </p>
           )}
         </div>
-      ))}
+        );
+      })}
 
       <PartnerSummary schedule={schedule} players={players} />
 

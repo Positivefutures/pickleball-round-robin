@@ -44,6 +44,14 @@ export interface LockedPair {
   team: 'team1' | 'team2';
 }
 
+// A fixed partnership set up during Setup. Unlike LockedPair, it is
+// placement-agnostic: the two players are kept on the same team every round,
+// but the scheduler is free to choose which court and which opponents they get.
+export interface Partnership {
+  player1Id: string;
+  player2Id: string;
+}
+
 export interface PairingHistory {
   partnerCounts: Record<string, Record<string, number>>;
   opponentCounts: Record<string, Record<string, number>>;

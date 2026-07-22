@@ -1,7 +1,8 @@
-import type { Player, CourtAssignment, Round, Schedule, PairingHistory, LockedPair } from '../types';
+import type { Player, CourtAssignment, Round, Schedule, PairingHistory, LockedPair, Partnership } from '../types';
 import { fisherYatesShuffle, sumRatings } from '../utils/helpers';
 import { scoreAssignment } from './scoring';
 import { determineSitOuts } from './sitout';
+import { partnerKey } from './partnerships';
 
 function initHistory(players: Player[]): PairingHistory {
   const history: PairingHistory = {
@@ -367,6 +368,111 @@ function findBestAssignmentWithLocks(
   return { courts: bestCourts, extraSitOuts: bestExtras };
 }
 
+// Placement-agnostic partner keeping: each partnership is a fixed 2-player team
+// that must stay together, but — unlike a LockedPair — the scheduler is free to
+// choose which court and which opponents it gets. Free singles fill the rest.
+// This keeps couples together every round while still mixing up opponents.
+function findBestAssignmentWithPartners(
+  activePlayers: Player[],
+  numCourts: number,
+  history: PairingHistory,
+  keepTogether: Partnership[],
+  allPlayers?: Player[]
+): { courts: CourtAssignment[]; extraSitOuts: Player[] } {
+  const effectiveCourts = Math.min(numCourts, Math.floor(activePlayers.length / 4));
+
+  if (effectiveCourts === 0) {
+    return { courts: [], extraSitOuts: activePlayers };
+  }
+
+  const byId = new Map(activePlayers.map((p) => [p.id, p]));
+
+  // Resolve partnerships whose members are both active into fixed 2-player teams.
+  const claimed = new Set<string>();
+  const pairTeams: Player[][] = [];
+  for (const pr of keepTogether) {
+    const p1 = byId.get(pr.player1Id);
+    const p2 = byId.get(pr.player2Id);
+    if (!p1 || !p2 || claimed.has(p1.id) || claimed.has(p2.id)) continue;
+    claimed.add(p1.id);
+    claimed.add(p2.id);
+    pairTeams.push([p1, p2]);
+  }
+
+  const singles = activePlayers.filter((p) => !claimed.has(p.id));
+
+  // Guard: partnerships can never exceed the team slots because they occupy 2 of
+  // the exactly 4*effectiveCourts active players — but stay defensive.
+  if (pairTeams.length > effectiveCourts * 2) {
+    return findBestAssignment(activePlayers, numCourts, history, allPlayers);
+  }
+
+  const NUM_ITERATIONS = 1000;
+  let bestScore = Infinity;
+  let bestCourts: CourtAssignment[] = [];
+  let bestExtras: Player[] = [];
+
+  for (let iter = 0; iter < NUM_ITERATIONS; iter++) {
+    const shuffledPairs = fisherYatesShuffle(pairTeams);
+    const shuffledSingles = fisherYatesShuffle(singles);
+
+    // Each court exposes two team slots; scatter the pair-teams across them so a
+    // couple may face another couple or a pair of singles round to round.
+    const slots: number[] = [];
+    for (let c = 0; c < effectiveCourts; c++) {
+      slots.push(c, c);
+    }
+    const shuffledSlots = fisherYatesShuffle(slots);
+
+    const courtPairs: Player[][][] = Array.from({ length: effectiveCourts }, () => []);
+    for (let i = 0; i < shuffledPairs.length; i++) {
+      courtPairs[shuffledSlots[i]].push(shuffledPairs[i]);
+    }
+
+    const courts: CourtAssignment[] = [];
+    let si = 0;
+    for (let c = 0; c < effectiveCourts; c++) {
+      const pairs = courtPairs[c];
+      const freeSlots = 4 - pairs.length * 2;
+      const courtSingles = shuffledSingles.slice(si, si + freeSlots);
+      si += freeSlots;
+
+      if (pairs.length === 2) {
+        courts.push({
+          courtNumber: c + 1,
+          team1: pairs[0],
+          team2: pairs[1],
+          ratingDiff: Math.abs(sumRatings(pairs[0]) - sumRatings(pairs[1])),
+        });
+      } else if (pairs.length === 1) {
+        courts.push({
+          courtNumber: c + 1,
+          team1: pairs[0],
+          team2: courtSingles,
+          ratingDiff: Math.abs(sumRatings(pairs[0]) - sumRatings(courtSingles)),
+        });
+      } else {
+        // Fully-free court: optimise the 2v2 split like the default path.
+        courts.push(pickBestSplit(courtSingles, history, c + 1));
+      }
+    }
+
+    const extras = shuffledSingles.slice(si);
+    const score = scoreAssignment(courts, history, allPlayers);
+    if (score < bestScore) {
+      bestScore = score;
+      bestCourts = courts;
+      bestExtras = extras;
+    }
+  }
+
+  if (bestCourts.length === 0 && effectiveCourts > 0) {
+    return { courts: [], extraSitOuts: activePlayers };
+  }
+
+  return { courts: bestCourts, extraSitOuts: bestExtras };
+}
+
 function findGenderedAssignment(
   activePlayers: Player[],
   numCourts: number,
@@ -487,21 +593,35 @@ function buildRound(
   opts: {
     isGendered: boolean;
     roundLocks?: LockedPair[];
+    partnerships?: Partnership[];
     previousSitOutIds?: Set<string>;
   }
 ): Round {
   const roundLocks = opts.roundLocks ?? [];
+  const partnerships = opts.partnerships ?? [];
   const hasLocks = roundLocks.length > 0;
-  // Locks override gendered constraints
-  const isGendered = opts.isGendered && !hasLocks;
+  const hasPartnerships = partnerships.length > 0;
+  // Both fixed partnerships and ad-hoc locks override the gendered constraint.
+  const isGendered = opts.isGendered && !hasLocks && !hasPartnerships;
 
-  // Locked players cannot sit out
-  const lockedIds = hasLocks
+  // When partnerships are in play, ad-hoc locks are folded in as additional
+  // "keep together" pairs (placement-agnostic) so both are honoured by one
+  // solver, and locked players are eligible to sit as a unit like any couple.
+  const keepTogether: Partnership[] = hasPartnerships
+    ? [
+        ...partnerships,
+        ...roundLocks.map((lp) => ({ player1Id: lp.player1Id, player2Id: lp.player2Id })),
+      ]
+    : [];
+
+  // Locked players cannot sit out (only applies on the pure-locks path).
+  const lockedIds = hasLocks && !hasPartnerships
     ? new Set(roundLocks.flatMap((lp) => [lp.player1Id, lp.player2Id]))
     : undefined;
 
   const sitOuts = determineSitOuts(
-    players, effectiveCourts, history, lockedIds, opts.previousSitOutIds
+    players, effectiveCourts, history, lockedIds, opts.previousSitOutIds,
+    hasPartnerships ? keepTogether : undefined
   );
   const sitOutIds = new Set(sitOuts.map((p) => p.id));
   const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
@@ -509,7 +629,11 @@ function buildRound(
   let courts: CourtAssignment[];
   let extraSitOuts: Player[];
 
-  if (hasLocks) {
+  if (hasPartnerships) {
+    const result = findBestAssignmentWithPartners(activePlayers, effectiveCourts, history, keepTogether, players);
+    courts = result.courts;
+    extraSitOuts = result.extraSitOuts;
+  } else if (hasLocks) {
     const result = findBestAssignmentWithLocks(activePlayers, effectiveCourts, history, roundLocks, players);
     courts = result.courts;
     extraSitOuts = result.extraSitOuts;
@@ -543,7 +667,8 @@ export function generateSchedule(
   numCourts: number,
   numRounds: number,
   genderedEnabled = false,
-  genderedFrequency = 2
+  genderedFrequency = 2,
+  partnerships: Partnership[] = []
 ): Schedule {
   const history = initHistory(players);
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
@@ -553,6 +678,7 @@ export function generateSchedule(
   for (let r = 1; r <= numRounds; r++) {
     const round = buildRound(r, players, effectiveCourts, history, {
       isGendered: genderedEnabled && r % genderedFrequency === 0,
+      partnerships,
       previousSitOutIds,
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
@@ -568,7 +694,9 @@ export function reshuffleSchedule(
   numRounds: number,
   locks: Record<number, LockedPair[]>,
   genderedEnabled = false,
-  genderedFrequency = 2
+  genderedFrequency = 2,
+  partnerships: Partnership[] = [],
+  brokenPairs: Record<number, string[]> = {}
 ): Schedule {
   const history = initHistory(players);
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
@@ -576,9 +704,15 @@ export function reshuffleSchedule(
   let previousSitOutIds: Set<string> | undefined;
 
   for (let r = 1; r <= numRounds; r++) {
+    // Couples the host broke for this specific round are freed here only.
+    const broken = new Set(brokenPairs[r - 1] || []);
+    const roundPartnerships = partnerships.filter(
+      (p) => !broken.has(partnerKey(p.player1Id, p.player2Id))
+    );
     const round = buildRound(r, players, effectiveCourts, history, {
       isGendered: genderedEnabled && r % genderedFrequency === 0,
       roundLocks: locks[r - 1] || [],
+      partnerships: roundPartnerships,
       previousSitOutIds,
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
@@ -600,7 +734,8 @@ export function regenerateRemaining(
   allRounds: Round[],
   completedRoundNumbers: number[],
   genderedEnabled = false,
-  genderedFrequency = 2
+  genderedFrequency = 2,
+  partnerships: Partnership[] = []
 ): Schedule {
   const completedSet = new Set(completedRoundNumbers);
   const history = initHistory(players);
@@ -632,6 +767,7 @@ export function regenerateRemaining(
     if (completedSet.has(r.roundNumber)) return r; // keep verbatim
     const round = buildRound(r.roundNumber, players, effectiveCourts, history, {
       isGendered: genderedEnabled && r.roundNumber % genderedFrequency === 0,
+      partnerships,
       previousSitOutIds,
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));

@@ -11,6 +11,7 @@ export const KEYS = {
   schedule: 'pb-schedule',
   completedRounds: 'pb-completed-rounds',
   legacyCompletedThrough: 'pb-completed-through',
+  partnerships: 'pb-partnerships',
 } as const;
 
 export const DEFAULT_ROSTER_NAME = 'Main Group';
@@ -89,5 +90,11 @@ export function runMigrations() {
       KEYS.completedRounds,
       through > 0 ? Array.from({ length: through }, (_, i) => i + 1) : []
     );
+  }
+
+  // Fixed partnerships are new in this version; seed an empty list so the hook
+  // reads a valid value on first run.
+  if (window.localStorage.getItem(KEYS.partnerships) === null) {
+    write(KEYS.partnerships, []);
   }
 }
