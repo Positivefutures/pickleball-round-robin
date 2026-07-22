@@ -291,15 +291,23 @@ export function SchedulePage({
 
   return (
     <div className="space-y-6 no-print">
-      <div className="flex justify-between items-center flex-wrap gap-3">
-        <div className="flex gap-3">
+      <div className="space-y-3">
+        {/* Row 1: Back to Setup (left) and Start New Session (right) */}
+        <div className="flex justify-between items-center flex-wrap gap-3">
           <button
             onClick={handleBack}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
           >
             &larr; Back to Setup
           </button>
+          <button
+            onClick={() => setConfirmingNewSession(true)}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          >
+            Start New Session
+          </button>
         </div>
+        {/* Row 2: Regenerate and Print / Save PDF */}
         <div className="flex gap-3 flex-wrap justify-end">
           {!allComplete && (
             <button
@@ -309,12 +317,6 @@ export function SchedulePage({
               {hasLocks ? 'Reshuffle' : 'Regenerate'}
             </button>
           )}
-          <button
-            onClick={() => setConfirmingNewSession(true)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-          >
-            Start New Session
-          </button>
           <button
             onClick={() => window.print()}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
