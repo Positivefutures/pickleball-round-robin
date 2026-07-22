@@ -275,8 +275,6 @@ export function SchedulePage({
     onBack();
   }
 
-  const hasLocks =
-    Object.keys(locks).length > 0 || Object.keys(brokenPairs).length > 0;
   const allComplete = completedSet.size >= schedule.rounds.length;
 
   // Completed rounds group at the top (numeric order), then the rest — while
@@ -315,7 +313,7 @@ export function SchedulePage({
                 onClick={handleRegenerate}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
               >
-                {hasLocks ? 'Reshuffle' : 'Regenerate'}
+                Regenerate
               </button>
             )}
           </div>
@@ -376,7 +374,7 @@ export function SchedulePage({
             onClick={handleRegenerate}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
-            {hasLocks ? 'Reshuffle' : 'Regenerate'}
+            Regenerate
           </button>
         </div>
       )}
