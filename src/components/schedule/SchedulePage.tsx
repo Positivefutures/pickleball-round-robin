@@ -307,16 +307,18 @@ export function SchedulePage({
             Start New Session
           </button>
         </div>
-        {/* Row 2: Regenerate and Print / Save PDF */}
-        <div className="flex gap-3 flex-wrap justify-end">
-          {!allComplete && (
-            <button
-              onClick={handleRegenerate}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-            >
-              {hasLocks ? 'Reshuffle' : 'Regenerate'}
-            </button>
-          )}
+        {/* Row 2: Regenerate (left) and Print / Save PDF (right) */}
+        <div className="flex justify-between items-center flex-wrap gap-3">
+          <div>
+            {!allComplete && (
+              <button
+                onClick={handleRegenerate}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+              >
+                {hasLocks ? 'Reshuffle' : 'Regenerate'}
+              </button>
+            )}
+          </div>
           <button
             onClick={() => window.print()}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
