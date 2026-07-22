@@ -98,11 +98,7 @@ export function SetupPage({
         <button
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
-          className={`px-6 py-2.5 rounded-md transition-colors font-medium ${
-            mode === 'pair'
-              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-              : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed'
-          }`}
+          className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {mode === 'select' ? 'Set Partners' : 'Done Pairing'}
         </button>
@@ -132,7 +128,7 @@ export function SetupPage({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Session Configuration</h2>
+        <h2 className="text-lg font-semibold mb-4">Setup Round Robin</h2>
         <SessionConfig
           numCourts={numCourts}
           numRounds={numRounds}

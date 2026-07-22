@@ -299,14 +299,8 @@ export function SchedulePage({
           >
             &larr; Back to Setup
           </button>
-          <button
-            onClick={() => setConfirmingNewSession(true)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-          >
-            Start New Session
-          </button>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap justify-end">
           {!allComplete && (
             <button
               onClick={handleRegenerate}
@@ -315,6 +309,12 @@ export function SchedulePage({
               {hasLocks ? 'Reshuffle' : 'Regenerate'}
             </button>
           )}
+          <button
+            onClick={() => setConfirmingNewSession(true)}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          >
+            Start New Session
+          </button>
           <button
             onClick={() => window.print()}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"

@@ -42,7 +42,7 @@ function App() {
   const [partnerships, setPartnerships] = useLocalStorage<Partnership[]>(KEYS.partnerships, []);
   const [largeText, setLargeText] = useLocalStorage<boolean>('pb-large-text', false);
   const [numCourts, setNumCourts] = useLocalStorage('pb-num-courts', 3);
-  const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 6);
+  const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 8);
   const [genderedEnabled, setGenderedEnabled] = useLocalStorage('pb-gendered-enabled', false);
   const [genderedFrequency, setGenderedFrequency] = useLocalStorage('pb-gendered-frequency', 2);
 

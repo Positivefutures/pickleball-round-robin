@@ -115,13 +115,13 @@ export function SessionConfig({
         </div>
       </div>
 
-      <div className="text-sm space-y-1">
-        <p className="text-gray-600">
-          {spotsNeeded} spots available ({numCourts} courts &times; 4 players)
+      <div className="space-y-1">
+        <p className="text-base font-bold text-gray-700">
+          {numPlayers} of {spotsNeeded} Spots Filled
         </p>
         {sitOutsPerRound > 0 && (
-          <p className="text-amber-600">
-            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round (rotated fairly)
+          <p className="text-sm text-amber-600">
+            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
           </p>
         )}
       </div>
