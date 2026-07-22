@@ -134,7 +134,15 @@ export function RoundCard({
               );
             })}
           </div>
-          <SitOutList players={round.sitOuts} />
+          <SitOutList
+            players={round.sitOuts}
+            roundIdx={roundIdx}
+            selectedSlot={selectedSlot}
+            onPlayerTap={onPlayerTap}
+            onRequestRemove={onRequestRemove}
+            allPlayers={allPlayers}
+            readOnly={isComplete}
+          />
         </>
       )}
     </div>

@@ -588,53 +588,55 @@ export function reshuffleSchedule(
   return { rounds };
 }
 
-// Rebuilds only the rounds after `completedRounds`, leaving those untouched.
-// Used when a player leaves partway through a session: the pairing history from
-// the rounds already played is replayed first, so partner/opponent variety and
-// the sit-out rotation carry forward instead of restarting.
+// Rebuilds only the rounds that are NOT marked complete, leaving the completed
+// ones untouched. Completed rounds can be any subset (the host may play them out
+// of order), so they're identified by round number rather than by position.
+// The pairing history from every completed round is replayed first, so partner/
+// opponent variety and the sit-out rotation carry forward instead of restarting.
+// The returned schedule keeps rounds in their original numeric order.
 export function regenerateRemaining(
   players: Player[],
   numCourts: number,
-  numRounds: number,
-  completedRounds: Round[],
+  allRounds: Round[],
+  completedRoundNumbers: number[],
   genderedEnabled = false,
   genderedFrequency = 2
 ): Schedule {
+  const completedSet = new Set(completedRoundNumbers);
   const history = initHistory(players);
 
-  // Replay the completed rounds. Players who have since left still appear in
-  // them; their history entries are harmless because they are never candidates
-  // for the rounds being rebuilt.
-  for (const round of completedRounds) {
+  // Replay the completed rounds in numeric order. Players who have since left
+  // still appear in them; their history entries are harmless because they are
+  // never candidates for the rounds being rebuilt.
+  const completedInOrder = allRounds.filter((r) => completedSet.has(r.roundNumber));
+  for (const round of completedInOrder) {
     updateHistory(history, round.courts, round.sitOuts);
     if (round.isGendered) {
       updateGenderedMixedCounts(history, round.courts);
     }
   }
 
-  // Carry the sit-out rotation across the boundary so whoever just sat out
-  // isn't immediately picked again.
-  const lastCompleted = completedRounds[completedRounds.length - 1];
+  // Carry the sit-out rotation across the boundary from the latest completed
+  // round so whoever just sat out isn't immediately picked again.
+  const lastCompleted = completedInOrder[completedInOrder.length - 1];
   const remainingIds = new Set(players.map((p) => p.id));
   let previousSitOutIds = lastCompleted
     ? new Set(
-        lastCompleted.sitOuts
-          .map((p) => p.id)
-          .filter((id) => remainingIds.has(id))
+        lastCompleted.sitOuts.map((p) => p.id).filter((id) => remainingIds.has(id))
       )
     : undefined;
 
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
-  const rounds: Round[] = [];
 
-  for (let r = completedRounds.length + 1; r <= numRounds; r++) {
-    const round = buildRound(r, players, effectiveCourts, history, {
-      isGendered: genderedEnabled && r % genderedFrequency === 0,
+  const rounds = allRounds.map((r) => {
+    if (completedSet.has(r.roundNumber)) return r; // keep verbatim
+    const round = buildRound(r.roundNumber, players, effectiveCourts, history, {
+      isGendered: genderedEnabled && r.roundNumber % genderedFrequency === 0,
       previousSitOutIds,
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
-    rounds.push(round);
-  }
+    return round;
+  });
 
-  return { rounds: [...completedRounds, ...rounds] };
+  return { rounds };
 }

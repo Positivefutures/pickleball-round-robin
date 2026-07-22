@@ -45,7 +45,9 @@ function App() {
   // Live session state — persisted so a refresh mid-session doesn't lose the
   // schedule or which rounds have already been played.
   const [schedule, setSchedule] = useLocalStorage<Schedule | null>('pb-schedule', null);
-  const [completedThrough, setCompletedThrough] = useLocalStorage('pb-completed-through', 0);
+  // Round numbers marked complete. An arbitrary set — the host may complete
+  // rounds out of order.
+  const [completedRounds, setCompletedRounds] = useLocalStorage<number[]>(KEYS.completedRounds, []);
   const [removedIds, setRemovedIds] = useLocalStorage<string[]>('pb-removed-ids', []);
   const [scheduleRosterId, setScheduleRosterId] = useLocalStorage<string | null>(
     KEYS.scheduleRoster,
@@ -93,13 +95,16 @@ function App() {
     setSelectedIds([]);
   }, [setSelectedIds]);
 
-  const clearSession = useCallback(() => {
+  // keepSelection is used by "Start New Session": the same crowd usually plays
+  // each time, so the previously chosen players stay selected for the next one.
+  // A roster switch clears the selection instead, since it's a different group.
+  const clearSession = useCallback((keepSelection = false) => {
     setSchedule(null);
-    setCompletedThrough(0);
+    setCompletedRounds([]);
     setRemovedIds([]);
-    setSelectedIds([]);
+    if (!keepSelection) setSelectedIds([]);
     setScheduleRosterId(null);
-  }, [setSchedule, setCompletedThrough, setRemovedIds, setSelectedIds, setScheduleRosterId]);
+  }, [setSchedule, setCompletedRounds, setRemovedIds, setSelectedIds, setScheduleRosterId]);
 
   // Switching rosters invalidates an in-progress session, so confirm first
   const handleSelectRoster = useCallback(
@@ -141,37 +146,37 @@ function App() {
       : generateSchedule(attending, numCourts, numRounds, genderedEnabled, genderedFrequency);
     setSchedule(result);
     // A fresh schedule starts over: nothing played, nobody gone
-    setCompletedThrough(0);
+    setCompletedRounds([]);
     setRemovedIds([]);
     setScheduleRosterId(activeRosterId);
     setStep('schedule');
   }, [rosterPlayers, selectedIds, numCourts, numRounds, genderedEnabled, genderedFrequency,
-      activeRosterId, setSchedule, setCompletedThrough, setRemovedIds, setScheduleRosterId]);
+      activeRosterId, setSchedule, setCompletedRounds, setRemovedIds, setScheduleRosterId]);
 
   const attendingPlayers = rosterPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
   );
 
-  // Removes a player from every round that hasn't been played yet and rebuilds
-  // those rounds around the smaller group.
+  // Removes a player from every round that isn't marked complete and rebuilds
+  // those rounds around the smaller group. Completed rounds — any subset — are
+  // kept verbatim.
   const handleRemovePlayer = useCallback((playerId: string) => {
     if (!schedule) return;
     const remaining = attendingPlayers.filter((p) => p.id !== playerId);
     if (remaining.length < 4) return;
 
-    const completed = schedule.rounds.slice(0, completedThrough);
     setSchedule(
       regenerateRemaining(
-        remaining, numCourts, schedule.rounds.length, completed,
+        remaining, numCourts, schedule.rounds, completedRounds,
         genderedEnabled, genderedFrequency
       )
     );
     setRemovedIds((prev) => [...prev, playerId]);
-  }, [schedule, attendingPlayers, completedThrough, numCourts, genderedEnabled,
+  }, [schedule, attendingPlayers, completedRounds, numCourts, genderedEnabled,
       genderedFrequency, setSchedule, setRemovedIds]);
 
   const handleStartNewSession = useCallback(() => {
-    clearSession();
+    clearSession(true); // keep the selected players for the next session
     setStep('roster');
   }, [clearSession]);
 
@@ -226,12 +231,12 @@ function App() {
             schedule={schedule}
             players={attendingPlayers}
             numCourts={numCourts}
-            completedThrough={completedThrough}
+            completedRounds={completedRounds}
             canUncomplete={removedIds.length === 0}
             onRegenerate={handleGenerate}
             onBack={() => setStep('setup')}
             onUpdateSchedule={setSchedule}
-            onCompletedThroughChange={setCompletedThrough}
+            onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onStartNewSession={handleStartNewSession}
           />
@@ -266,7 +271,7 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.8.0
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.9.0
       </footer>
 
       <PrintSchedule schedule={schedule} players={attendingPlayers} />

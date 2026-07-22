@@ -2,6 +2,7 @@ import type { CourtAssignment, Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
+import { TrashIcon } from './icons';
 
 interface Props {
   court: CourtAssignment;
@@ -29,19 +30,6 @@ function LockIcon({ locked }: { locked: boolean }) {
       ) : (
         <path d="M12 2C9.24 2 7 4.24 7 7v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-7V7c0-1.66 1.34-3 3-3s3 1.34 3 3v1h2V7c0-2.76-2.24-5-5-5z" />
       )}
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="#dc2626"
-      className="w-4 h-4"
-    >
-      <path d="M9 3v1H4v2h16V4h-5V3H9zM6 8v11a2 2 0 002 2h8a2 2 0 002-2V8H6zm3 2h2v9H9v-9zm4 0h2v9h-2v-9z" />
     </svg>
   );
 }
@@ -87,7 +75,9 @@ function PlayerButton({
   return (
     <button
       type="button"
-      onClick={() => interactive && onPlayerTap({ roundIdx, courtIdx, team: teamKey, playerIdx })}
+      onClick={() =>
+        interactive && onPlayerTap({ kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx })
+      }
       className={`w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
         locked
           ? `${bgClass} border-2 border-black`
@@ -155,10 +145,11 @@ function TeamColumn({
 }) {
   function isSelected(playerIdx: number) {
     return (
-      selectedSlot?.roundIdx === roundIdx &&
-      selectedSlot?.courtIdx === courtIdx &&
-      selectedSlot?.team === teamKey &&
-      selectedSlot?.playerIdx === playerIdx
+      selectedSlot?.kind === 'court' &&
+      selectedSlot.roundIdx === roundIdx &&
+      selectedSlot.courtIdx === courtIdx &&
+      selectedSlot.team === teamKey &&
+      selectedSlot.playerIdx === playerIdx
     );
   }
 

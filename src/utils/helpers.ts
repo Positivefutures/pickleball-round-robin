@@ -11,21 +11,13 @@ export function sumRatings(players: { rating: number }[]): number {
   return players.reduce((sum, p) => sum + p.rating, 0);
 }
 
-export function getDisplayName(
-  player: { id?: string; name: string },
-  allPlayers: { id?: string; name: string }[]
-): string {
-  const lastSpace = player.name.lastIndexOf(' ');
-  if (lastSpace === -1) return player.name;
-  const firstName = player.name.substring(0, lastSpace);
-  // Compare by id: a schedule loaded from localStorage holds deserialized copies,
-  // so reference equality would make every player match themselves.
-  const isSamePlayer = (p: { id?: string; name: string }) =>
-    p.id !== undefined && player.id !== undefined ? p.id === player.id : p === player;
-  const hasDuplicate = allPlayers.some(
-    (p) => !isSamePlayer(p) && p.name.substring(0, p.name.lastIndexOf(' ')) === firstName
-  );
-  return hasDuplicate ? player.name : firstName;
+// The schedule shows each player's full entered name verbatim (e.g. "Jeff B",
+// "Becky P", or a full last name) — never just the first name. The second
+// argument is retained so existing call sites don't need to change; it is no
+// longer consulted now that names are never abbreviated.
+export function getDisplayName(player: { name: string }, allPlayers?: unknown): string {
+  void allPlayers;
+  return player.name;
 }
 
 export function generateId(): string {

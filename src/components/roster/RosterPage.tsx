@@ -318,7 +318,7 @@ export function RosterPage({
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="roster-panel bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
           <h2 className="text-lg font-semibold">
             {activeRoster?.name ?? 'Player Roster'} ({players.length})

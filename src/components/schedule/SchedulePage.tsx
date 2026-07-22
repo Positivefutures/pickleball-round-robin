@@ -5,23 +5,43 @@ import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
 
-export interface PlayerSlot {
+export interface CourtSlot {
+  kind: 'court';
   roundIdx: number;
   courtIdx: number;
   team: 'team1' | 'team2';
   playerIdx: number;
 }
 
+export interface SitOutSlot {
+  kind: 'sitout';
+  roundIdx: number;
+  sitOutIdx: number;
+}
+
+export type PlayerSlot = CourtSlot | SitOutSlot;
+
+function sameSlot(a: PlayerSlot, b: PlayerSlot): boolean {
+  if (a.kind !== b.kind || a.roundIdx !== b.roundIdx) return false;
+  if (a.kind === 'court' && b.kind === 'court') {
+    return a.courtIdx === b.courtIdx && a.team === b.team && a.playerIdx === b.playerIdx;
+  }
+  if (a.kind === 'sitout' && b.kind === 'sitout') {
+    return a.sitOutIdx === b.sitOutIdx;
+  }
+  return false;
+}
+
 interface Props {
   schedule: Schedule;
   players: Player[];
   numCourts: number;
-  completedThrough: number;
+  completedRounds: number[];
   canUncomplete: boolean;
   onRegenerate: (locks: Record<number, LockedPair[]>) => void;
   onBack: () => void;
   onUpdateSchedule: (schedule: Schedule) => void;
-  onCompletedThroughChange: (value: number) => void;
+  onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
   onStartNewSession: () => void;
 }
@@ -30,41 +50,41 @@ export function SchedulePage({
   schedule,
   players,
   numCourts,
-  completedThrough,
+  completedRounds,
   canUncomplete,
   onRegenerate,
   onBack,
   onUpdateSchedule,
-  onCompletedThroughChange,
+  onCompletedRoundsChange,
   onRemovePlayer,
   onStartNewSession,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
-  const [expandedCompleted, setExpandedCompleted] = useState<Set<number>>(new Set());
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
 
-  // Completion is sequential: checking round N marks rounds 1..N complete, and
-  // unchecking it drops back to N-1. Only the highest completed round can be
-  // unchecked, and only while no player has been removed.
-  function handleToggleComplete(roundIdx: number) {
-    const isComplete = roundIdx < completedThrough;
-    if (isComplete) {
-      if (!canUncomplete || roundIdx !== completedThrough - 1) return;
-      onCompletedThroughChange(roundIdx);
+  const completedSet = new Set(completedRounds);
+
+  // Completion is an arbitrary set: any round can be toggled independently, and
+  // completed rounds group at the top of the list. Unchecking is allowed only
+  // until a player has been removed (which regenerates the remaining rounds).
+  function handleToggleComplete(roundNumber: number) {
+    if (completedSet.has(roundNumber)) {
+      if (!canUncomplete) return;
+      onCompletedRoundsChange(completedRounds.filter((n) => n !== roundNumber));
     } else {
-      onCompletedThroughChange(roundIdx + 1);
-      setExpandedCompleted(new Set());
+      onCompletedRoundsChange([...completedRounds, roundNumber]);
     }
     setSelectedSlot(null);
   }
 
-  function handleToggleExpand(roundIdx: number) {
-    setExpandedCompleted((prev) => {
+  function handleToggleExpand(roundNumber: number) {
+    setExpandedRounds((prev) => {
       const next = new Set(prev);
-      if (next.has(roundIdx)) next.delete(roundIdx);
-      else next.add(roundIdx);
+      if (next.has(roundNumber)) next.delete(roundNumber);
+      else next.add(roundNumber);
       return next;
     });
   }
@@ -119,7 +139,7 @@ export function SchedulePage({
   function handlePlayerTap(slot: PlayerSlot) {
     // Completed rounds are frozen — guard here too so a stale selection can't
     // mutate one after it's been marked complete.
-    if (slot.roundIdx < completedThrough) return;
+    if (completedSet.has(schedule.rounds[slot.roundIdx].roundNumber)) return;
 
     if (!selectedSlot) {
       setSelectedSlot(slot);
@@ -127,12 +147,7 @@ export function SchedulePage({
     }
 
     // Same slot: deselect
-    if (
-      selectedSlot.roundIdx === slot.roundIdx &&
-      selectedSlot.courtIdx === slot.courtIdx &&
-      selectedSlot.team === slot.team &&
-      selectedSlot.playerIdx === slot.playerIdx
-    ) {
+    if (sameSlot(selectedSlot, slot)) {
       setSelectedSlot(null);
       return;
     }
@@ -143,35 +158,49 @@ export function SchedulePage({
       return;
     }
 
-    // Swap players
+    // Two sit-outs can't swap (both stay out) — just move the selection to the
+    // newly tapped one, ready to pair with a court player.
+    if (selectedSlot.kind === 'sitout' && slot.kind === 'sitout') {
+      setSelectedSlot(slot);
+      return;
+    }
+
+    const from = selectedSlot;
     const newRounds = schedule.rounds.map((round, ri) => {
       if (ri !== slot.roundIdx) return round;
+
       const newCourts = round.courts.map((court) => ({
         ...court,
         team1: [...court.team1],
         team2: [...court.team2],
       }));
+      const newSitOuts = [...round.sitOuts];
 
-      const courtA = newCourts[selectedSlot.courtIdx];
-      const courtB = newCourts[slot.courtIdx];
-      const playerA = courtA[selectedSlot.team][selectedSlot.playerIdx];
-      const playerB = courtB[slot.team][slot.playerIdx];
+      const read = (s: PlayerSlot): Player =>
+        s.kind === 'court'
+          ? newCourts[s.courtIdx][s.team][s.playerIdx]
+          : newSitOuts[s.sitOutIdx];
+      const write = (s: PlayerSlot, p: Player) => {
+        if (s.kind === 'court') newCourts[s.courtIdx][s.team][s.playerIdx] = p;
+        else newSitOuts[s.sitOutIdx] = p;
+      };
 
-      courtA[selectedSlot.team][selectedSlot.playerIdx] = playerB;
-      courtB[slot.team][slot.playerIdx] = playerA;
+      const playerA = read(from);
+      const playerB = read(slot);
+      write(from, playerB);
+      write(slot, playerA);
 
-      // Recalculate ratingDiff for affected courts
-      const recalc = (court: typeof courtA) => {
+      // Recalculate ratingDiff for any court touched by the swap
+      const recalc = (court: (typeof newCourts)[number]) => {
         const t1 = court.team1.reduce((s, p) => s + p.rating, 0);
         const t2 = court.team2.reduce((s, p) => s + p.rating, 0);
         court.ratingDiff = Math.abs(t1 - t2);
       };
-      recalc(courtA);
-      if (slot.courtIdx !== selectedSlot.courtIdx) {
-        recalc(courtB);
+      for (const s of [from, slot]) {
+        if (s.kind === 'court') recalc(newCourts[s.courtIdx]);
       }
 
-      return { ...round, courts: newCourts };
+      return { ...round, courts: newCourts, sitOuts: newSitOuts };
     });
 
     onUpdateSchedule({ rounds: newRounds });
@@ -188,7 +217,13 @@ export function SchedulePage({
   }
 
   const hasLocks = Object.keys(locks).length > 0;
-  const allComplete = completedThrough >= schedule.rounds.length;
+  const allComplete = completedSet.size >= schedule.rounds.length;
+
+  // Completed rounds group at the top (numeric order), then the rest — while
+  // each round keeps its original index for swaps and its original "Round N".
+  const orderedRounds = schedule.rounds
+    .map((round, roundIdx) => ({ round, roundIdx, complete: completedSet.has(round.roundNumber) }))
+    .sort((a, b) => Number(b.complete) - Number(a.complete)); // stable: keeps numeric order within each group
 
   // Courts in play right now vs. what would remain after the pending removal.
   const currentCourts = effectiveCourtCount(players.length, numCourts);
@@ -229,7 +264,7 @@ export function SchedulePage({
         </div>
       </div>
 
-      {schedule.rounds.map((round, roundIdx) => (
+      {orderedRounds.map(({ round, roundIdx, complete }) => (
         <div key={round.roundNumber}>
           <RoundCard
             round={round}
@@ -240,11 +275,11 @@ export function SchedulePage({
             locks={locks[roundIdx] || []}
             onToggleLock={handleToggleLock}
             onRequestRemove={setRemoveCandidate}
-            isComplete={roundIdx < completedThrough}
-            isExpanded={expandedCompleted.has(roundIdx)}
-            canUncomplete={canUncomplete && roundIdx === completedThrough - 1}
-            onToggleComplete={() => handleToggleComplete(roundIdx)}
-            onToggleExpand={() => handleToggleExpand(roundIdx)}
+            isComplete={complete}
+            isExpanded={expandedRounds.has(round.roundNumber)}
+            canUncomplete={canUncomplete}
+            onToggleComplete={() => handleToggleComplete(round.roundNumber)}
+            onToggleExpand={() => handleToggleExpand(round.roundNumber)}
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">

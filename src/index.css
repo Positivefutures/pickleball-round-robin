@@ -11,6 +11,37 @@
   --text-xl: calc(1.25rem * 1.35);
 }
 
+/* Large-text mode makes the roster table wide enough to clip the Edit/Remove
+   buttons on a phone. When it's on, tighten everything around that table:
+   less panel padding, less margin to the screen edge, smaller column labels,
+   and narrower Gender/Rating columns — freeing width for the action buttons. */
+.text-large main {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.text-large .roster-panel {
+  padding: 0.75rem;
+}
+.text-large .roster-table thead th {
+  font-size: 0.875rem; /* same as normal (small) mode — text-sm, unscaled */
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+.text-large .roster-table td {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+.text-large .roster-table .col-gender {
+  width: 1.75rem;
+}
+.text-large .roster-table .col-rating {
+  width: 2.75rem;
+}
+.text-large .roster-table .rating-badge {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
 @media print {
   .no-print {
     display: none !important;

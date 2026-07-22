@@ -8,6 +8,9 @@ export const KEYS = {
   coreImportedRosters: 'pb-core-imported-rosters',
   legacyCoreImported: 'pb-core-imported',
   scheduleRoster: 'pb-schedule-roster',
+  schedule: 'pb-schedule',
+  completedRounds: 'pb-completed-rounds',
+  legacyCompletedThrough: 'pb-completed-through',
 } as const;
 
 export const DEFAULT_ROSTER_NAME = 'Main Group';
@@ -75,5 +78,16 @@ export function runMigrations() {
   if (window.localStorage.getItem(KEYS.coreImportedRosters) === null) {
     const legacy = read<boolean>(KEYS.legacyCoreImported, false);
     write(KEYS.coreImportedRosters, legacy ? [activeId] : []);
+  }
+
+  // Round completion used to be a prefix count (rounds 1..N complete). It is now
+  // an arbitrary set of round numbers. Convert a mid-session count so an
+  // in-progress session survives the upgrade.
+  if (window.localStorage.getItem(KEYS.completedRounds) === null) {
+    const through = read<number>(KEYS.legacyCompletedThrough, 0);
+    write(
+      KEYS.completedRounds,
+      through > 0 ? Array.from({ length: through }, (_, i) => i + 1) : []
+    );
   }
 }

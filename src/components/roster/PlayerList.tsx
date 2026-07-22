@@ -62,7 +62,7 @@ export function PlayerList({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="roster-table w-full">
           <thead>
             <tr className="border-b-2 border-gray-200">
               {selecting && (
@@ -80,10 +80,10 @@ export function PlayerList({
               <th className="text-left py-2 px-2 text-sm font-semibold text-gray-600">
                 Name
               </th>
-              <th className="text-center py-2 px-1 text-sm font-semibold text-gray-600 w-12">
+              <th className="col-gender text-center py-2 px-1 text-sm font-semibold text-gray-600 w-12">
                 Gender
               </th>
-              <th className="text-center py-2 px-1 text-sm font-semibold text-gray-600 w-14">
+              <th className="col-rating text-center py-2 px-1 text-sm font-semibold text-gray-600 w-14">
                 Rating
               </th>
               <th className="text-right py-2 px-2 text-sm font-semibold text-gray-600">
@@ -118,11 +118,11 @@ export function PlayerList({
                     </td>
                   )}
                   <td className="py-2 px-2 font-medium">{player.name}</td>
-                  <td className="py-2 px-1 text-center text-sm text-gray-600">
+                  <td className="col-gender py-2 px-1 text-center text-sm text-gray-600">
                     {player.gender}
                   </td>
-                  <td className="py-2 px-1 text-center">
-                    <span className="inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">
+                  <td className="col-rating py-2 px-1 text-center">
+                    <span className="rating-badge inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">
                       {player.rating.toFixed(1)}
                     </span>
                   </td>
