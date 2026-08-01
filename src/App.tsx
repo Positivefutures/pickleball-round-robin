@@ -19,6 +19,8 @@ import { StepIndicator } from './components/layout/StepIndicator';
 import { stepLabel, type Step } from './lib/steps';
 import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
+import { SharePanel } from './components/layout/SharePanel';
+import { shareApp } from './lib/share';
 import type { FeedbackKind } from './lib/feedback';
 import { APP_VERSION } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
@@ -82,13 +84,22 @@ function App() {
   const [showImportExport, setShowImportExport] = useState(false);
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
   const [showDonate, setShowDonate] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
-    !!feedbackKind || showDonate
+    !!feedbackKind || showDonate || showShare
   );
+
+  // Straight to the OS share sheet where there is one. The copy-link panel is
+  // only for browsers without it — someone who cancelled the sheet gets nothing,
+  // which is what cancelling should do.
+  async function handleShare() {
+    const outcome = await shareApp();
+    if (outcome === 'unsupported' || outcome === 'failed') setShowShare(true);
+  }
 
   // A saved session belongs to the roster it was built from. On boot, follow it
   // rather than stranding the user in a schedule full of another roster's players.
@@ -338,6 +349,7 @@ function App() {
     >
       <SettingsPanel
         open={settingsOpen}
+        onShare={handleShare}
         onToggleLargeText={() => setLargeText((v) => !v)}
         onOpenDefaultRating={() => setShowDefaultRating(true)}
         onOpenImportExport={() => setShowImportExport(true)}
@@ -461,6 +473,8 @@ function App() {
       {showInstructions && (
         <InstructionsPanel onClose={() => setShowInstructions(false)} />
       )}
+
+      {showShare && <SharePanel onClose={() => setShowShare(false)} />}
 
       {showDonate && <DonatePanel onClose={() => setShowDonate(false)} />}
 

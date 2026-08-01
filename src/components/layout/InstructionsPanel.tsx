@@ -198,6 +198,9 @@ export function InstructionsPanel({ onClose }: Props) {
 
           <Section id="instr-settings" title="Settings menu">
             <p className="text-gray-600">The ☰ button, top right of any screen.</p>
+            <Item term="Share App">
+              sends a link to the app however you normally share — text, email, AirDrop.
+            </Item>
             <Item term="Toggle Font Size">bigger text for reading at arm's length.</Item>
             <Item term="Default Player Rating">
               the rating new players start at, so you're not adjusting every time.

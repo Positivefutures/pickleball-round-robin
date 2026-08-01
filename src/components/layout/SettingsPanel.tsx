@@ -3,6 +3,7 @@ import { DONATE_URL } from '../../lib/appInfo';
 
 interface Props {
   open: boolean;
+  onShare: () => void;
   onToggleLargeText: () => void;
   onOpenDefaultRating: () => void;
   onOpenImportExport: () => void;
@@ -22,6 +23,17 @@ function Icon({ children }: { children: ReactNode }) {
     >
       {children}
     </svg>
+  );
+}
+
+// Box with an arrow leaving the top — the share glyph people already know.
+function ShareIcon() {
+  return (
+    <Icon>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </Icon>
   );
 }
 
@@ -137,6 +149,7 @@ function SettingsItem({
  */
 export function SettingsPanel({
   open,
+  onShare,
   onToggleLargeText,
   onOpenDefaultRating,
   onOpenImportExport,
@@ -155,6 +168,7 @@ export function SettingsPanel({
         Pickleball Round Robin Generator
       </h2>
       <nav className="mt-3 space-y-1">
+        <SettingsItem icon={<ShareIcon />} label="Share App" onClick={onShare} />
         <SettingsItem
           icon={<FontSizeIcon />}
           label="Toggle Font Size"
