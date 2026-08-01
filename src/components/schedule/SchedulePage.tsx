@@ -321,6 +321,13 @@ export function SchedulePage({
         </button>
       </div>
 
+      {/* Completed rounds are frozen, so once they all are there is nothing to swap */}
+      {!allComplete && (
+        <p className="text-center text-sm text-gray-400">
+          Tap a player, then tap another to swap them
+        </p>
+      )}
+
       {orderedRounds.map(({ round, roundIdx, complete }) => {
         // Show ad-hoc locks plus every intact couple in this round (deduped by
         // court+team so a couple never renders as two overlapping locks).

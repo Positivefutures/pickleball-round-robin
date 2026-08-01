@@ -4,6 +4,9 @@ import { DONATE_URL } from '../../lib/appInfo';
 interface Props {
   open: boolean;
   onShare: () => void;
+  onOpenInstall: () => void;
+  /** Hidden once launched from a home-screen icon — nothing left to install. */
+  showInstallItem: boolean;
   onToggleLargeText: () => void;
   onOpenDefaultRating: () => void;
   onOpenImportExport: () => void;
@@ -33,6 +36,17 @@ function ShareIcon() {
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
       <polyline points="16 6 12 2 8 6" />
       <line x1="12" y1="2" x2="12" y2="15" />
+    </Icon>
+  );
+}
+
+// A phone with a plus — put this on your device.
+function AddToHomeScreenIcon() {
+  return (
+    <Icon>
+      <rect x="5" y="2" width="14" height="20" rx="2" />
+      <line x1="12" y1="8" x2="12" y2="14" />
+      <line x1="9" y1="11" x2="15" y2="11" />
     </Icon>
   );
 }
@@ -150,6 +164,8 @@ function SettingsItem({
 export function SettingsPanel({
   open,
   onShare,
+  onOpenInstall,
+  showInstallItem,
   onToggleLargeText,
   onOpenDefaultRating,
   onOpenImportExport,
@@ -169,6 +185,13 @@ export function SettingsPanel({
       </h2>
       <nav className="mt-3 space-y-1">
         <SettingsItem icon={<ShareIcon />} label="Share App" onClick={onShare} />
+        {showInstallItem && (
+          <SettingsItem
+            icon={<AddToHomeScreenIcon />}
+            label="Add to Home Screen"
+            onClick={onOpenInstall}
+          />
+        )}
         <SettingsItem
           icon={<FontSizeIcon />}
           label="Toggle Font Size"

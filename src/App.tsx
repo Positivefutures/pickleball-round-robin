@@ -20,7 +20,11 @@ import { stepLabel, type Step } from './lib/steps';
 import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
+import { InstallPanel } from './components/layout/InstallPanel';
+import { InstallBanner } from './components/layout/InstallBanner';
 import { shareApp } from './lib/share';
+import { isStandalone, installRoute } from './lib/install';
+import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
 import { APP_VERSION } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
@@ -85,12 +89,19 @@ function App() {
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
   const [showDonate, setShowDonate] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [installDismissed, setInstallDismissed] = useLocalStorage('pb-install-dismissed', false);
+  const { canPrompt, promptInstall } = useInstallPrompt();
+
+  // Read once: it cannot change without a reload, and re-reading per render
+  // would run a matchMedia query on every keystroke.
+  const [installed] = useState(isStandalone);
 
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
-    !!feedbackKind || showDonate || showShare
+    !!feedbackKind || showDonate || showShare || showInstall
   );
 
   // Straight to the OS share sheet where there is one. The copy-link panel is
@@ -350,6 +361,8 @@ function App() {
       <SettingsPanel
         open={settingsOpen}
         onShare={handleShare}
+        onOpenInstall={() => setShowInstall(true)}
+        showInstallItem={!installed}
         onToggleLargeText={() => setLargeText((v) => !v)}
         onOpenDefaultRating={() => setShowDefaultRating(true)}
         onOpenImportExport={() => setShowImportExport(true)}
@@ -375,6 +388,19 @@ function App() {
         onPrint={step === 'schedule' ? () => window.print() : undefined}
       />
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        {/* Held back until there's a real roster worth keeping. The route check
+            matters: browsers with no install path at all (desktop Firefox) must
+            never be offered one. */}
+        {!installed &&
+          !installDismissed &&
+          rosterPlayers.length >= 4 &&
+          installRoute({ canPrompt }) !== 'manual' && (
+            <InstallBanner
+              onOpen={() => setShowInstall(true)}
+              onDismiss={() => setInstallDismissed(true)}
+            />
+          )}
+
         <StepIndicator current={step} />
 
         {step === 'roster' && (
@@ -475,6 +501,17 @@ function App() {
       )}
 
       {showShare && <SharePanel onClose={() => setShowShare(false)} />}
+
+      {showInstall && (
+        <InstallPanel
+          canPrompt={canPrompt}
+          onInstall={async () => {
+            await promptInstall();
+            setShowInstall(false);
+          }}
+          onClose={() => setShowInstall(false)}
+        />
+      )}
 
       {showDonate && <DonatePanel onClose={() => setShowDonate(false)} />}
 

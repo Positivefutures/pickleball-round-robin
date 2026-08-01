@@ -201,6 +201,10 @@ export function InstructionsPanel({ onClose }: Props) {
             <Item term="Share App">
               sends a link to the app however you normally share — text, email, AirDrop.
             </Item>
+            <Item term="Add to Home Screen">
+              keeps the app one tap away and opens it full screen. Note the home screen
+              copy starts empty — use Import / Export Group to bring a group across.
+            </Item>
             <Item term="Toggle Font Size">bigger text for reading at arm's length.</Item>
             <Item term="Default Player Rating">
               the rating new players start at, so you're not adjusting every time.
