@@ -177,10 +177,11 @@ export function RosterPage({
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
+        {/* Still a label, not a heading, so it stays tied to the select below */}
+        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="roster-select">
+          My Groups
+        </label>
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-sm font-bold text-gray-700" htmlFor="roster-select">
-            My Groups
-          </label>
           <select
             id="roster-select"
             value={activeRosterId}
@@ -208,20 +209,24 @@ export function RosterPage({
         </div>
       )}
 
-      <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={onContinue}
-          disabled={players.length < 4}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Continue to Setup &rarr;
-        </button>
-        {players.length < 4 && players.length > 0 && (
-          <p className="text-amber-600 text-sm">
-            Need at least 4 players to continue
-          </p>
-        )}
-      </div>
+      {/* Hidden on an empty group: a disabled button with nothing to explain it
+          is noise on the one screen a newcomer needs to be simple. */}
+      {players.length > 0 && (
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={onContinue}
+            disabled={players.length < 4}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continue to Setup &rarr;
+          </button>
+          {players.length < 4 && (
+            <p className="text-amber-600 text-sm">
+              Need at least 4 players to continue
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Add Player</h2>
@@ -294,51 +299,62 @@ export function RosterPage({
         />
       )}
 
-      <div className="roster-panel bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-          <h2 className="text-lg font-semibold">
-            {activeRoster?.name ?? 'Player Roster'} ({players.length})
-          </h2>
-          {selecting ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
-              <button
-                onClick={() => setShowAddToGroup(true)}
-                disabled={selectedIds.length === 0}
-                className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add to Group
-              </button>
-              <button
-                onClick={stopSelecting}
-                className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={startSelecting}
-              disabled={rosters.length < 2 || players.length === 0}
-              title={rosters.length < 2 ? 'Create another group first' : undefined}
-              className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Select Players
-            </button>
-          )}
+      {/* An empty group replaces the whole panel — heading and Select Players
+          included, since neither can be acted on with nobody in the list. */}
+      {players.length === 0 ? (
+        <div className="roster-panel bg-white rounded-lg shadow p-6 py-12 text-center">
+          <p className="text-xl font-medium text-gray-400">Add your first player!</p>
+          <p className="mt-2 text-sm text-gray-400">
+            You&rsquo;ll need at least 4 to build a schedule.
+          </p>
         </div>
-        <PlayerList
-          players={players}
-          allPlayers={allPlayers}
-          rosterName={activeRoster?.name}
-          onEdit={startEdit}
-          onRemove={handleRemoveFromRoster}
-          selecting={selecting}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-        />
-      </div>
+      ) : (
+        <div className="roster-panel bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
+            <h2 className="text-lg font-semibold">
+              {activeRoster?.name ?? 'Player Roster'} ({players.length})
+            </h2>
+            {selecting ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+                <button
+                  onClick={() => setShowAddToGroup(true)}
+                  disabled={selectedIds.length === 0}
+                  className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add to Group
+                </button>
+                <button
+                  onClick={stopSelecting}
+                  className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={startSelecting}
+                disabled={rosters.length < 2 || players.length === 0}
+                title={rosters.length < 2 ? 'Create another group first' : undefined}
+                className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Select Players
+              </button>
+            )}
+          </div>
+          <PlayerList
+            players={players}
+            allPlayers={allPlayers}
+            rosterName={activeRoster?.name}
+            onEdit={startEdit}
+            onRemove={handleRemoveFromRoster}
+            selecting={selecting}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+          />
+        </div>
+      )}
     </div>
   );
 }

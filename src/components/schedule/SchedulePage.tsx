@@ -293,17 +293,19 @@ export function SchedulePage({
       {/* Setup, Reshuffle, New Session. Printing lives on the header's printer
           button. Reshuffle drops out once every round is complete, leaving the
           other two at the edges. */}
-      <div className="flex justify-between items-center flex-wrap gap-3">
+      {/* Never wraps: the New Session label shortens instead. 0.9em rather than a
+          fixed size so the 10% reduction still tracks large-text mode. */}
+      <div className="flex flex-nowrap justify-between items-center gap-3">
         <button
           onClick={handleBack}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           &larr; Setup
         </button>
         {!allComplete && (
           <button
             onClick={handleRegenerate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+            className="inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2 text-[0.9em] bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
             <ShuffleIcon />
             Reshuffle
@@ -311,9 +313,11 @@ export function SchedulePage({
         )}
         <button
           onClick={() => setConfirmingNewSession(true)}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          aria-label="Start a new session"
+          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
-          New Session
+          <span className="session-long hidden min-[430px]:inline">New Session</span>
+          <span className="session-short min-[430px]:hidden">New</span>
         </button>
       </div>
 

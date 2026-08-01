@@ -12,7 +12,9 @@ export const KEYS = {
   partnerships: 'pb-partnerships',
 } as const;
 
-export const DEFAULT_ROSTER_NAME = 'Main Group';
+// Only ever applied on a fresh install (see the freshInstall branch below), so
+// existing users keep the group name they already have.
+export const DEFAULT_ROSTER_NAME = 'My First Group';
 
 function read<T>(key: string, fallback: T): T {
   try {

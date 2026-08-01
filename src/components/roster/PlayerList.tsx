@@ -72,13 +72,8 @@ export function PlayerList({
     setConfirmingId(id);
   }
 
-  if (players.length === 0) {
-    return (
-      <p className="text-gray-500 text-center py-8">
-        No players in this group yet. Add players above to get started.
-      </p>
-    );
-  }
+  // No empty case here: RosterPage swaps the whole panel for its own empty
+  // state before this ever renders with an empty list.
 
   const confirmingPlayer = confirmingId ? players.find((p) => p.id === confirmingId) : null;
 

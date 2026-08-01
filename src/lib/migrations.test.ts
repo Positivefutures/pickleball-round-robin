@@ -12,14 +12,24 @@ const read = <T>(key: string): T => JSON.parse(localStorage.getItem(key) || 'nul
 beforeEach(() => localStorage.clear());
 
 describe('runMigrations — rosters', () => {
-  it('creates a default group on a fresh install', () => {
+  // The literal, not the constant — this pins what a first-time user actually
+  // sees, which asserting against the imported constant would not.
+  it('drops a first-time user into "My First Group"', () => {
     runMigrations();
     const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
     expect(rosters).toHaveLength(1);
-    expect(rosters[0].name).toBe(DEFAULT_ROSTER_NAME);
+    expect(rosters[0].name).toBe('My First Group');
+    expect(DEFAULT_ROSTER_NAME).toBe('My First Group');
     expect(read<string>(KEYS.activeRoster)).toBe(rosters[0].id);
     expect(read<number[]>(KEYS.completedRounds)).toEqual([]);
     expect(read<unknown[]>(KEYS.partnerships)).toEqual([]);
+  });
+
+  it('never renames a group an existing user already has', () => {
+    seed({ [KEYS.rosters]: [{ id: 'r1', name: 'Main Group' }] });
+    runMigrations();
+    const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
+    expect(rosters).toEqual([{ id: 'r1', name: 'Main Group' }]);
   });
 
   it('leaves existing partnerships untouched', () => {

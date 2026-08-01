@@ -36,6 +36,19 @@
   padding-right: 0.25rem;
 }
 
+/* The Schedule button row must never wrap. Large-text mode makes those buttons
+   wide enough that "New Session" still overflows well past the 430px breakpoint
+   set in the markup, so hold the short label further up the range. Beats the
+   Tailwind utilities on specificity (two classes vs one). */
+@media (max-width: 560px) {
+  .text-large .session-long {
+    display: none;
+  }
+  .text-large .session-short {
+    display: inline;
+  }
+}
+
 @media print {
   .no-print {
     display: none !important;
