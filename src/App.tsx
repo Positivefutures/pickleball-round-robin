@@ -75,6 +75,10 @@ function App() {
   // rounds out of order.
   const [completedRounds, setCompletedRounds] = useLocalStorage<number[]>(KEYS.completedRounds, []);
   const [removedIds, setRemovedIds] = useLocalStorage<string[]>('pb-removed-ids', []);
+  // True once the host has hand-modified the generated schedule — a swap or a
+  // player removal. Persisted alongside the schedule so a refresh mid-session
+  // doesn't make an edited schedule look untouched.
+  const [scheduleEdited, setScheduleEdited] = useLocalStorage<boolean>('pb-schedule-edited', false);
   const [scheduleRosterId, setScheduleRosterId] = useLocalStorage<string | null>(
     KEYS.scheduleRoster,
     null
@@ -181,6 +185,7 @@ function App() {
     setSchedule(null);
     setCompletedRounds([]);
     setRemovedIds([]);
+    setScheduleEdited(false);
     // "Start New Session" keeps the crowd (and their couples); a group switch
     // clears both since it's a different set of people.
     if (!keepSelection) {
@@ -188,7 +193,8 @@ function App() {
       setPartnerships([]);
     }
     setScheduleRosterId(null);
-  }, [setSchedule, setCompletedRounds, setRemovedIds, setSelectedIds, setPartnerships, setScheduleRosterId]);
+  }, [setSchedule, setCompletedRounds, setRemovedIds, setScheduleEdited, setSelectedIds,
+      setPartnerships, setScheduleRosterId]);
 
   // Switching rosters invalidates an in-progress session, so confirm first
   const handleSelectRoster = useCallback(
@@ -246,14 +252,15 @@ function App() {
           activePartnerships
         );
     setSchedule(result);
-    // A fresh schedule starts over: nothing played, nobody gone
+    // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
     setCompletedRounds([]);
     setRemovedIds([]);
+    setScheduleEdited(false);
     setScheduleRosterId(activeRosterId);
     setStep('schedule');
   }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, genderedEnabled,
       genderedFrequency, activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
-      setScheduleRosterId]);
+      setScheduleEdited, setScheduleRosterId]);
 
   const attendingPlayers = rosterPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
@@ -277,8 +284,16 @@ function App() {
       )
     );
     setRemovedIds((prev) => [...prev, playerId]);
+    setScheduleEdited(true);
   }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
-      genderedFrequency, setSchedule, setRemovedIds]);
+      genderedFrequency, setSchedule, setRemovedIds, setScheduleEdited]);
+
+  // Swaps made by tapping two players. Separate from setSchedule so only host
+  // edits mark the schedule dirty — generation and reshuffles reset the flag.
+  const handleUpdateSchedule = useCallback((next: Schedule) => {
+    setSchedule(next);
+    setScheduleEdited(true);
+  }, [setSchedule, setScheduleEdited]);
 
   const handleExportGroup = useCallback(
     (rosterId: string) => {
@@ -456,7 +471,8 @@ function App() {
             canUncomplete={removedIds.length === 0}
             onRegenerate={handleGenerate}
             onBack={() => setStep('setup')}
-            onUpdateSchedule={setSchedule}
+            scheduleEdited={scheduleEdited}
+            onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onStartNewSession={handleStartNewSession}

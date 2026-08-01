@@ -41,6 +41,8 @@ interface Props {
   numCourts: number;
   completedRounds: number[];
   canUncomplete: boolean;
+  // Set once the host has swapped players or removed someone from this schedule.
+  scheduleEdited: boolean;
   onRegenerate: (
     locks: Record<number, LockedPair[]>,
     brokenPairs: Record<number, string[]>
@@ -83,6 +85,7 @@ export function SchedulePage({
   numCourts,
   completedRounds,
   canUncomplete,
+  scheduleEdited,
   onRegenerate,
   onBack,
   onUpdateSchedule,
@@ -97,6 +100,7 @@ export function SchedulePage({
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
+  const [confirmingSetup, setConfirmingSetup] = useState(false);
 
   const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
@@ -271,9 +275,24 @@ export function SchedulePage({
   }
 
   function handleBack() {
+    setConfirmingSetup(false);
     setLocks({}); // clear all locks when going back to setup
     setBrokenPairs({});
     onBack();
+  }
+
+  // Everything that going back to Setup would throw away. On an untouched
+  // schedule there is nothing to lose, so Setup goes straight through rather
+  // than nagging about a schedule the host can recreate with one tap.
+  const hasUnsavedWork =
+    scheduleEdited ||
+    completedRounds.length > 0 ||
+    Object.keys(locks).length > 0 ||
+    Object.keys(brokenPairs).length > 0;
+
+  function handleSetupClick() {
+    if (hasUnsavedWork) setConfirmingSetup(true);
+    else handleBack();
   }
 
   const allComplete = completedSet.size >= schedule.rounds.length;
@@ -297,7 +316,7 @@ export function SchedulePage({
           fixed size so the 10% reduction still tracks large-text mode. */}
       <div className="flex flex-nowrap justify-between items-center gap-3">
         <button
-          onClick={handleBack}
+          onClick={handleSetupClick}
           className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           &larr; Setup
@@ -391,6 +410,34 @@ export function SchedulePage({
           onConfirm={handleConfirmRemove}
           onCancel={() => setRemoveCandidate(null)}
         />
+      )}
+
+      {/* Setup is a one-way door: the only route forward from there is Generate,
+          which builds a fresh schedule and drops swaps, completions and removals. */}
+      {confirmingSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+            <p className="text-gray-800 text-center font-medium mb-2">Go back to Setup?</p>
+            <p className="text-sm text-gray-600 text-center mb-4">
+              Generating again from Setup discards this schedule, including any swaps
+              you've made and rounds you've marked complete.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmingSetup(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              >
+                Keep Schedule
+              </button>
+              <button
+                onClick={handleBack}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Go to Setup
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {confirmingNewSession && (
