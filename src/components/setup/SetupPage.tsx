@@ -115,7 +115,7 @@ export function SetupPage({
           onClick={handleGenerate}
           className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
         >
-          Generate Schedule
+          Generate Schedule &rarr;
         </button>
       </div>
       {showError && errorMessage && (
@@ -126,13 +126,13 @@ export function SetupPage({
 
   return (
     <div className="space-y-6">
-      {/* Back to Players moved above the session configuration */}
+      {/* Players link moved above the session configuration */}
       <div>
         <button
           onClick={onBack}
           className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
-          &larr; Back to Players
+          &larr; Players
         </button>
       </div>
 
@@ -157,7 +157,7 @@ export function SetupPage({
         <div className="bg-white rounded-lg shadow p-6">
           <div className="mb-3">
             <h3 className="font-medium text-gray-700">
-              Partners ({pairs.length} {pairs.length === 1 ? 'pair' : 'pairs'})
+              Partners
             </h3>
             <p className="text-sm text-gray-500 mt-1">
               These players stay together all session. Tap the broken-link icon to

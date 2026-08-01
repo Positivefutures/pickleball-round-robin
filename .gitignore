@@ -7,7 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Trailing * so copies like node_modules_OLD_BACKUP are covered too — a bare
+# "node_modules" matches only that exact name, and a stray 147MB copy would
+# otherwise be one `git add -A` away from being committed permanently.
+node_modules*
 dist
 dist-ssr
 *.local

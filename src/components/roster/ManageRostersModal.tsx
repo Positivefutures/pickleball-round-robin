@@ -149,7 +149,7 @@ export function ManageRostersModal({
                   <button
                     type="button"
                     onClick={() => { setEditingId(r.id); setEditingName(r.name); }}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
                   >
                     Rename
                   </button>
@@ -158,7 +158,7 @@ export function ManageRostersModal({
                     disabled={rosters.length <= 1}
                     title={rosters.length <= 1 ? 'You need at least one group' : undefined}
                     onClick={() => setConfirmingDelete(r)}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium disabled:text-gray-300 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Delete
                   </button>

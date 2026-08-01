@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DONATE_URL } from '../../lib/appInfo';
+import { DONATE_URL, FEEDBACK_EMAIL } from '../../lib/appInfo';
 
 interface Props {
   open: boolean;
@@ -180,9 +180,19 @@ export function SettingsPanel({
       aria-label="Settings"
       className="no-print fixed inset-y-0 right-0 z-0 w-4/5 overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white"
     >
-      <h2 className="border-b border-white/20 pb-3 text-xl font-bold tracking-tight">
-        Pickleball Round Robin Generator
-      </h2>
+      <div className="border-b border-white/20 pb-3">
+        {/* The 192px icon scaled down, so it stays crisp on a retina screen */}
+        <img
+          src="/icon-192.png"
+          alt=""
+          width={192}
+          height={192}
+          className="mb-2 h-14 w-14 rounded-lg"
+        />
+        <h2 className="text-xl font-bold tracking-tight">
+          Pickleball Round Robin Generator
+        </h2>
+      </div>
       <nav className="mt-3 space-y-1">
         <SettingsItem icon={<ShareIcon />} label="Share App" onClick={onShare} />
         {showInstallItem && (
@@ -219,6 +229,16 @@ export function SettingsPanel({
         />
         <SettingsItem icon={<BugIcon />} label="Report a Bug" onClick={onOpenBug} />
       </nav>
+
+      <p className="mt-6 border-t border-white/20 pt-4 text-sm text-white/70">
+        Contact the creator:{' '}
+        <a
+          href={`mailto:${FEEDBACK_EMAIL}`}
+          className="break-all underline decoration-white/40 underline-offset-2 hover:text-white"
+        >
+          {FEEDBACK_EMAIL}
+        </a>
+      </p>
     </div>
   );
 }
