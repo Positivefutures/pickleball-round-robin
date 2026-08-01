@@ -1,12 +1,15 @@
 import { APP_URL } from './appInfo';
 
 export const SHARE_TITLE = 'Pickleball Round Robin Generator';
-export const SHARE_TEXT =
-  'Free tool for running pickleball round robins — balanced matchups, no signup.';
 
+/**
+ * No `text` field on purpose. Share targets append it to the url, so anything
+ * here rides along in the message body — the share should be the link alone.
+ * `title` is metadata: targets like Mail use it as the subject, and the ones
+ * that send a plain message (Messages, WhatsApp) ignore it.
+ */
 export interface SharePayload {
   title: string;
-  text: string;
   url: string;
 }
 
@@ -24,7 +27,7 @@ export type ShareOutcome = 'shared' | 'dismissed' | 'unsupported' | 'failed';
 type ShareFn = (data: SharePayload) => Promise<void>;
 
 export function sharePayload(): SharePayload {
-  return { title: SHARE_TITLE, text: SHARE_TEXT, url: APP_URL };
+  return { title: SHARE_TITLE, url: APP_URL };
 }
 
 function defaultShare(): ShareFn | undefined {

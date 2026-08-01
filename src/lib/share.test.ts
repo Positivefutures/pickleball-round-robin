@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { shareApp, sharePayload, SHARE_TITLE, SHARE_TEXT } from './share';
+import { shareApp, sharePayload, SHARE_TITLE } from './share';
 import { APP_URL } from './appInfo';
 
 function abortError() {
@@ -9,12 +9,15 @@ function abortError() {
 }
 
 describe('sharePayload', () => {
-  it('carries the title, pitch and app address', () => {
-    expect(sharePayload()).toEqual({
-      title: SHARE_TITLE,
-      text: SHARE_TEXT,
-      url: APP_URL,
-    });
+  it('carries the title and the app address', () => {
+    expect(sharePayload()).toEqual({ title: SHARE_TITLE, url: APP_URL });
+  });
+
+  // Share targets append `text` to the url, so any message body here ends up in
+  // the sent message. The share must be the bare link.
+  it('sends no message body alongside the link', () => {
+    expect(sharePayload()).not.toHaveProperty('text');
+    expect(Object.keys(sharePayload()).sort()).toEqual(['title', 'url']);
   });
 
   it('shares a real https address', () => {
