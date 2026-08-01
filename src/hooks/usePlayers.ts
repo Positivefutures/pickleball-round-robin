@@ -16,7 +16,7 @@ export function usePlayers() {
   const addPlayer = useCallback(
     (name: string, rating: number, gender: Gender, rosterIds: string[]) => {
       const newPlayer: Player = { id: generateId(), name, rating, gender, rosterIds };
-      // Functional update: the core-players import calls this 28 times in one tick
+      // Functional update, so rapid successive adds don't clobber each other
       setPlayers((prev) => [...prev, newPlayer]);
     },
     [setPlayers]
@@ -73,6 +73,48 @@ export function usePlayers() {
     [setPlayers]
   );
 
+  /**
+   * Loads an imported group into the pool in one write. A name already in the
+   * pool is linked into the new roster rather than duplicated, and keeps its
+   * existing rating and gender — the file only supplies those for new people.
+   * Counts are computed against the current pool, which nothing else is writing
+   * to mid-import, so they can be returned synchronously.
+   */
+  const importPlayers = useCallback(
+    (rows: { name: string; rating: number; gender: Gender }[], rosterId: string) => {
+      const byName = new Map(players.map((p) => [p.name.trim().toLowerCase(), p]));
+      const linkIds = new Set<string>();
+      const created: Player[] = [];
+
+      for (const row of rows) {
+        const existing = byName.get(row.name.trim().toLowerCase());
+        if (existing) {
+          linkIds.add(existing.id);
+        } else {
+          created.push({
+            id: generateId(),
+            name: row.name,
+            rating: row.rating,
+            gender: row.gender,
+            rosterIds: [rosterId],
+          });
+        }
+      }
+
+      setPlayers((prev) => [
+        ...prev.map((p) =>
+          linkIds.has(p.id)
+            ? { ...p, rosterIds: Array.from(new Set([...p.rosterIds, rosterId])) }
+            : p
+        ),
+        ...created,
+      ]);
+
+      return { added: created.length, linked: linkIds.size };
+    },
+    [players, setPlayers]
+  );
+
   /** Bulk membership rewrite, used when a roster is deleted. */
   const reassignRoster = useCallback(
     (fromRosterId: string, toRosterId: string | null) => {
@@ -96,6 +138,7 @@ export function usePlayers() {
     updatePlayer,
     setPlayerRosters,
     addPlayersToRosters,
+    importPlayers,
     removeFromRoster,
     deletePlayer,
     reassignRoster,

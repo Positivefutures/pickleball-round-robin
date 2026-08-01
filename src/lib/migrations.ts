@@ -5,8 +5,6 @@ export const KEYS = {
   rosters: 'pb-rosters',
   activeRoster: 'pb-active-roster',
   players: 'pb-roster',
-  coreImportedRosters: 'pb-core-imported-rosters',
-  legacyCoreImported: 'pb-core-imported',
   scheduleRoster: 'pb-schedule-roster',
   schedule: 'pb-schedule',
   completedRounds: 'pb-completed-rounds',
@@ -73,13 +71,6 @@ export function runMigrations() {
     return { ...p, rosterIds: next };
   });
   if (playersChanged) write(KEYS.players, migrated);
-
-  // The old core-import flag was a single global boolean; it now tracks which
-  // rosters have been seeded, so a new roster can still import.
-  if (window.localStorage.getItem(KEYS.coreImportedRosters) === null) {
-    const legacy = read<boolean>(KEYS.legacyCoreImported, false);
-    write(KEYS.coreImportedRosters, legacy ? [activeId] : []);
-  }
 
   // Round completion used to be a prefix count (rounds 1..N complete). It is now
   // an arbitrary set of round numbers. Convert a mid-session count so an

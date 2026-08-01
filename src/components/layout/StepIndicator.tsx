@@ -1,10 +1,4 @@
-export type Step = 'roster' | 'setup' | 'schedule';
-
-const steps: { key: Step; label: string }[] = [
-  { key: 'roster', label: '1. Players' },
-  { key: 'setup', label: '2. Setup' },
-  { key: 'schedule', label: '3. Schedule' },
-];
+import { STEPS as steps, type Step } from '../../lib/steps';
 
 interface Props {
   current: Step;

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import type { Player, Partnership } from '../../types';
 import { PlayerSelector } from './PlayerSelector';
 import { PartnerPairing } from './PartnerPairing';
+import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
+import { resolvePairs } from '../../lib/partnerships';
 
 interface Props {
   players: Player[];
@@ -60,6 +62,13 @@ export function SetupPage({
     : '';
 
   const selectedPlayers = players.filter((p) => selectedIds.includes(p.id));
+
+  // Paired players are listed in the pairs panel instead of the checkbox grid,
+  // so the two views never show the same player twice. Unlinking a pair drops
+  // both back into the grid, still selected.
+  const pairs = resolvePairs(partnerships, selectedPlayers);
+  const pairedIds = new Set(pairs.flatMap((pr) => [pr.p1.id, pr.p2.id]));
+  const selectablePlayers = players.filter((p) => !pairedIds.has(p.id));
 
   function handleGenerate() {
     if (canGenerate) {
@@ -144,10 +153,25 @@ export function SetupPage({
 
       {buttonRow}
 
+      {mode === 'select' && pairs.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="mb-3">
+            <h3 className="font-medium text-gray-700">
+              Partners ({pairs.length} {pairs.length === 1 ? 'pair' : 'pairs'})
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              These players stay together all session. Tap the broken-link icon to
+              separate a pair and return them to the list below.
+            </p>
+          </div>
+          <PairList pairs={pairs} onUnpair={onRemovePartnership} />
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-6">
         {mode === 'select' ? (
           <PlayerSelector
-            players={players}
+            players={selectablePlayers}
             selectedIds={selectedIds}
             onToggle={onTogglePlayer}
             onSelectAll={onSelectAll}

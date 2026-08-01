@@ -27,7 +27,10 @@ export function PlayerList({
   onToggleSelectAll,
 }: Props) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // The row whose Edit/Remove buttons are showing. At most one at a time.
+  const [activeId, setActiveId] = useState<string | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   const allSelected = players.length > 0 && selectedIds.length === players.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
@@ -36,6 +39,26 @@ export function PlayerList({
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
   }, [someSelected, selecting]);
+
+  // Multi-select mode owns the row tap, so the single-row buttons step aside.
+  // Adjusted during render rather than in an effect — no second paint.
+  const [prevSelecting, setPrevSelecting] = useState(selecting);
+  if (selecting !== prevSelecting) {
+    setPrevSelecting(selecting);
+    if (activeId) setActiveId(null);
+  }
+
+  // Anything clicked outside the table — any other button on the page, or just
+  // blank space — puts the row back to showing gender and rating. Clicks inside
+  // the table are handled by the row itself.
+  useEffect(() => {
+    if (!activeId) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (!tableRef.current?.contains(e.target as Node)) setActiveId(null);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [activeId]);
 
   // Players in several rosters just get dropped from this one after a light
   // confirm. Players in only this roster fall through to the parent, which
@@ -61,7 +84,7 @@ export function PlayerList({
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div ref={tableRef} className="overflow-x-auto">
         <table className="roster-table w-full">
           <thead>
             <tr className="border-b-2 border-gray-200">
@@ -77,17 +100,14 @@ export function PlayerList({
                   />
                 </th>
               )}
-              <th className="text-left py-2 px-2 text-sm font-semibold text-gray-600">
+              <th className="text-left py-2 px-2 text-[1.05rem] font-semibold text-gray-600">
                 Name
               </th>
-              <th className="col-gender text-center py-2 px-1 text-sm font-semibold text-gray-600 w-12">
+              <th className="col-gender text-center py-2 px-1 text-[1.05rem] font-semibold text-gray-600 w-16">
                 Gender
               </th>
-              <th className="col-rating text-center py-2 px-1 text-sm font-semibold text-gray-600 w-14">
+              <th className="col-rating text-center py-2 px-1 text-[1.05rem] font-semibold text-gray-600 w-20">
                 Rating
-              </th>
-              <th className="text-right py-2 px-2 text-sm font-semibold text-gray-600">
-                Actions
               </th>
             </tr>
           </thead>
@@ -95,55 +115,76 @@ export function PlayerList({
             {players
               .slice()
               .sort((a, b) => a.name.localeCompare(b.name))
-              .map((player) => (
-                <tr
-                  key={player.id}
-                  // The row is the tap target while selecting — the checkbox alone
-                  // is small on a phone, and the row's other controls are inert.
-                  onClick={selecting ? () => onToggleSelect?.(player.id) : undefined}
-                  className={`border-b border-gray-100 hover:bg-gray-50 ${
-                    selecting ? 'cursor-pointer' : ''
-                  } ${selecting && selectedIds.includes(player.id) ? 'bg-green-50' : ''}`}
-                >
-                  {selecting && (
-                    <td className="py-2 pl-2 pr-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(player.id)}
-                        onChange={() => onToggleSelect?.(player.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Select ${player.name}`}
-                        className="w-4 h-4 accent-green-600 align-middle"
-                      />
-                    </td>
-                  )}
-                  <td className="py-2 px-2 font-medium">{player.name}</td>
-                  <td className="col-gender py-2 px-1 text-center text-sm text-gray-600">
-                    {player.gender}
-                  </td>
-                  <td className="col-rating py-2 px-1 text-center">
-                    <span className="rating-badge inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">
-                      {player.rating.toFixed(1)}
-                    </span>
-                  </td>
-                  <td className="py-2 px-2 text-right">
-                    <button
-                      onClick={() => onEdit(player)}
-                      disabled={selecting}
-                      className="text-blue-600 hover:text-blue-800 text-sm mr-3 font-medium disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => requestRemove(player.id)}
-                      disabled={selecting}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-300"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              .map((player) => {
+                const isActive = !selecting && activeId === player.id;
+                return (
+                  <tr
+                    key={player.id}
+                    // The row is the tap target: while selecting it toggles the
+                    // checkbox, otherwise it swaps gender/rating for the buttons.
+                    // Tapping a different row moves the buttons there.
+                    onClick={
+                      selecting
+                        ? () => onToggleSelect?.(player.id)
+                        : () => setActiveId(isActive ? null : player.id)
+                    }
+                    className={`border-b border-gray-100 cursor-pointer ${
+                      isActive ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    } ${selecting && selectedIds.includes(player.id) ? 'bg-green-50' : ''}`}
+                  >
+                    {selecting && (
+                      <td className="py-3 pl-2 pr-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(player.id)}
+                          onChange={() => onToggleSelect?.(player.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${player.name}`}
+                          className="w-4 h-4 accent-green-600 align-middle"
+                        />
+                      </td>
+                    )}
+                    <td className="py-3 px-2 font-medium">{player.name}</td>
+                    {isActive ? (
+                      <td colSpan={2} className="py-1.5 px-1 whitespace-nowrap">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveId(null);
+                              onEdit(player);
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveId(null);
+                              requestRemove(player.id);
+                            }}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="col-gender py-3 px-1 text-center text-sm text-gray-600">
+                          {player.gender}
+                        </td>
+                        <td className="col-rating py-3 px-1 text-center">
+                          <span className="rating-badge inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">
+                            {player.rating.toFixed(1)}
+                          </span>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>

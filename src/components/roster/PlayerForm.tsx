@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import type { Player, Gender, Roster } from '../../types';
-
-const DEFAULT_RATING = '4.0';
 
 interface Props {
   onSubmit: (name: string, rating: number, gender: Gender) => void;
+  /** Rating a new player starts with — set from Settings. */
+  defaultRating: number;
   editingPlayer?: Player | null;
   onCancelEdit?: () => void;
   /** Roster checkboxes — only rendered when editing an existing player. */
@@ -15,6 +15,7 @@ interface Props {
 
 export function PlayerForm({
   onSubmit,
+  defaultRating,
   editingPlayer,
   onCancelEdit,
   rosters,
@@ -22,28 +23,50 @@ export function PlayerForm({
   onRosterToggle,
 }: Props) {
   const [name, setName] = useState('');
-  const [rating, setRating] = useState(DEFAULT_RATING);
+  const [rating, setRating] = useState(String(defaultRating));
   const [gender, setGender] = useState<Gender>('M');
+  // Set when submit is pressed with an empty name, to point at the field.
+  const [nameMissing, setNameMissing] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (editingPlayer) {
-      setName(editingPlayer.name);
-      setRating(String(editingPlayer.rating));
-      setGender(editingPlayer.gender);
+  // Populate the fields when a different player is picked for editing. Done
+  // during render rather than in an effect so the form paints once, already
+  // filled in. See https://react.dev/learn/you-might-not-need-an-effect
+  const editing = editingPlayer ?? null;
+  const [prevEditing, setPrevEditing] = useState<Player | null>(null);
+  if (editing !== prevEditing) {
+    setPrevEditing(editing);
+    if (editing) {
+      setName(editing.name);
+      setRating(String(editing.rating));
+      setGender(editing.gender);
     }
-  }, [editingPlayer]);
+  }
+
+  // A new default from Settings applies to the waiting Add Player form too —
+  // but never overwrites the rating of the player currently being edited.
+  const [prevDefault, setPrevDefault] = useState(defaultRating);
+  if (defaultRating !== prevDefault) {
+    setPrevDefault(defaultRating);
+    if (!editing) setRating(String(defaultRating));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setNameMissing(true);
+      nameRef.current?.focus();
+      return;
+    }
 
     const r = parseFloat(rating);
     if (isNaN(r) || r < 3 || r > 5) return;
 
     onSubmit(trimmed, r, gender);
+    setNameMissing(false);
     setName('');
-    setRating(DEFAULT_RATING);
+    setRating(String(defaultRating));
     setGender('M');
   }
 
@@ -63,7 +86,7 @@ export function PlayerForm({
           onClick={() => {
             onCancelEdit();
             setName('');
-            setRating(DEFAULT_RATING);
+            setRating(String(defaultRating));
             setGender('M');
           }}
           className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
@@ -82,11 +105,20 @@ export function PlayerForm({
           Player Name
         </label>
         <input
+          ref={nameRef}
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameMissing(false);
+          }}
           placeholder="Enter name"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          aria-invalid={nameMissing}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent ${
+            nameMissing
+              ? 'border-red-500 bg-red-50 ring-2 ring-red-300 focus:ring-red-500'
+              : 'border-gray-300 focus:ring-green-500'
+          }`}
         />
       </div>
       <div>

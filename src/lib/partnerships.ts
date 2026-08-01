@@ -1,4 +1,4 @@
-import type { Partnership } from '../types';
+import type { Partnership, Player } from '../types';
 
 // A stable key for a pair of player ids, order-independent, so two players are
 // looked up the same way regardless of which was tapped first.
@@ -37,6 +37,19 @@ export function arePartners(
       (p.player1Id === id1 && p.player2Id === id2) ||
       (p.player1Id === id2 && p.player2Id === id1)
   );
+}
+
+// Resolves partnerships against a set of players, keeping only the pairs whose
+// two members are both present. A partnership survives in storage while one of
+// its members is deselected, but it isn't an active pair until both are back.
+export function resolvePairs(
+  partnerships: Partnership[],
+  players: Player[]
+): { p1: Player; p2: Player }[] {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  return partnerships
+    .map((pr) => ({ p1: byId.get(pr.player1Id), p2: byId.get(pr.player2Id) }))
+    .filter((pr): pr is { p1: Player; p2: Player } => !!pr.p1 && !!pr.p2);
 }
 
 // Drops any partnership that references a player no longer in `validIds`.

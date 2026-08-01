@@ -5,6 +5,7 @@ import { arePartners, partnerKey } from '../../lib/partnerships';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
+import { ShuffleIcon } from './icons';
 
 export interface CourtSlot {
   kind: 'court';
@@ -289,41 +290,31 @@ export function SchedulePage({
 
   return (
     <div className="space-y-6 no-print">
-      <div className="space-y-3">
-        {/* Row 1: Back to Setup (left) and Start New Session (right) */}
-        <div className="flex justify-between items-center flex-wrap gap-3">
+      {/* Setup, Reshuffle, New Session. Printing lives on the header's printer
+          button. Reshuffle drops out once every round is complete, leaving the
+          other two at the edges. */}
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <button
+          onClick={handleBack}
+          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+        >
+          &larr; Setup
+        </button>
+        {!allComplete && (
           <button
-            onClick={handleBack}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+            onClick={handleRegenerate}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
-            &larr; Back to Setup
+            <ShuffleIcon />
+            Reshuffle
           </button>
-          <button
-            onClick={() => setConfirmingNewSession(true)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-          >
-            Start New Session
-          </button>
-        </div>
-        {/* Row 2: Regenerate (left) and Print / Save PDF (right) */}
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <div>
-            {!allComplete && (
-              <button
-                onClick={handleRegenerate}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-              >
-                Regenerate
-              </button>
-            )}
-          </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
-          >
-            Print / Save PDF
-          </button>
-        </div>
+        )}
+        <button
+          onClick={() => setConfirmingNewSession(true)}
+          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+        >
+          New Session
+        </button>
       </div>
 
       {orderedRounds.map(({ round, roundIdx, complete }) => {
@@ -372,9 +363,10 @@ export function SchedulePage({
         <div className="flex justify-end">
           <button
             onClick={handleRegenerate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
           >
-            Regenerate
+            <ShuffleIcon />
+            Reshuffle
           </button>
         </div>
       )}
@@ -395,7 +387,7 @@ export function SchedulePage({
           <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">Start a new session?</p>
             <p className="text-sm text-gray-600 text-center mb-4">
-              This clears the current schedule and its completed rounds. Your groups are kept.
+              This clears the current schedule.
             </p>
             <div className="flex gap-3">
               <button

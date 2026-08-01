@@ -243,6 +243,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           styles={TEAM1_STYLES}
         />
 
+        {/* Sits in the gap between the two columns, centred against the taller one */}
+        <span className="self-center shrink-0 text-xs font-medium text-gray-400">Vs.</span>
+
         <TeamColumn
           team={court.team2}
           teamKey="team2"

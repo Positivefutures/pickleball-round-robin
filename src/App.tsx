@@ -3,24 +3,39 @@ import type { Schedule, LockedPair, Partnership } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useScrollLock } from './hooks/useScrollLock';
 import { KEYS } from './lib/migrations';
 import { generateSchedule, reshuffleSchedule, regenerateRemaining } from './lib/pairing';
 import { prunePartnerships, arePartners } from './lib/partnerships';
+import { toCsv, parseGroupCsv, uniqueGroupName, fileNameStem, toFileName } from './lib/groupFile';
+import { downloadTextFile } from './utils/download';
 import { Header } from './components/layout/Header';
+import { SettingsPanel } from './components/layout/SettingsPanel';
+import { InstructionsPanel } from './components/layout/InstructionsPanel';
+import { DefaultRatingPanel } from './components/layout/DefaultRatingPanel';
+import { ImportExportPanel } from './components/layout/ImportExportPanel';
+import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
-import type { Step } from './components/layout/StepIndicator';
+import { stepLabel, type Step } from './lib/steps';
+import { FeedbackPanel } from './components/layout/FeedbackPanel';
+import { DonatePanel } from './components/layout/DonatePanel';
+import type { FeedbackKind } from './lib/feedback';
+import { APP_VERSION } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import { PrintSchedule } from './components/print/PrintSchedule';
+
+// Shown in the banner on the Players step, and as the settings drawer's heading.
+const APP_TITLE = 'Pickleball Round Robin Generator';
 
 function App() {
   const {
     players: allPlayers,
     addPlayer,
     updatePlayer,
-    setPlayerRosters,
     addPlayersToRosters,
+    importPlayers,
     removeFromRoster,
     deletePlayer,
     reassignRoster,
@@ -41,6 +56,7 @@ function App() {
   // they survive a refresh and carry into the next session with the same crowd.
   const [partnerships, setPartnerships] = useLocalStorage<Partnership[]>(KEYS.partnerships, []);
   const [largeText, setLargeText] = useLocalStorage<boolean>('pb-large-text', false);
+  const [defaultRating, setDefaultRating] = useLocalStorage('pb-default-rating', 4.0);
   const [numCourts, setNumCourts] = useLocalStorage('pb-num-courts', 3);
   const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 8);
   const [genderedEnabled, setGenderedEnabled] = useLocalStorage('pb-gendered-enabled', false);
@@ -60,6 +76,19 @@ function App() {
 
   const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
   const [pendingRosterSwitch, setPendingRosterSwitch] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [showDefaultRating, setShowDefaultRating] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
+  const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
+  const [showDonate, setShowDonate] = useState(false);
+
+  // The panel must sit still while it's slid aside, so the settings button stays
+  // exactly where the user left it — including after closing a settings dialog.
+  useScrollLock(
+    settingsOpen || showInstructions || showDefaultRating || showImportExport ||
+    !!feedbackKind || showDonate
+  );
 
   // A saved session belongs to the roster it was built from. On boot, follow it
   // rather than stranding the user in a schedule full of another roster's players.
@@ -229,14 +258,110 @@ function App() {
   }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
       genderedFrequency, setSchedule, setRemovedIds]);
 
+  const handleExportGroup = useCallback(
+    (rosterId: string) => {
+      const roster = rosters.find((r) => r.id === rosterId);
+      if (!roster) return;
+      const members = allPlayers.filter((p) => p.rosterIds.includes(rosterId));
+      downloadTextFile(toFileName(roster.name), toCsv(roster.name, members));
+    },
+    [rosters, allPlayers]
+  );
+
+  // Always builds a new group rather than merging into an existing one — a merge
+  // that silently changed a group you were about to play would be far worse than
+  // an extra group you can delete.
+  const handleImportGroup = useCallback(
+    async (file: File): Promise<ImportResult> => {
+      let text: string;
+      try {
+        text = await file.text();
+      } catch {
+        return { ok: false, title: "Couldn't read that file.", details: [] };
+      }
+
+      const parsed = parseGroupCsv(text, fileNameStem(file.name), defaultRating);
+      if (parsed.rows.length === 0) {
+        return {
+          ok: false,
+          title: 'No players found in that file.',
+          details: ['Expected a CSV with Name, Rating and Gender columns.'],
+        };
+      }
+
+      const desired = parsed.group;
+      const name = uniqueGroupName(desired, rosters.map((r) => r.name));
+      const roster = addRoster(name);
+      const { added, linked } = importPlayers(parsed.rows, roster.id);
+
+      const details: string[] = [];
+      if (name !== desired.trim()) {
+        details.push(`A group called "${desired.trim()}" already existed, so this one is "${name}".`);
+      }
+      details.push(`${added} player${added === 1 ? '' : 's'} added.`);
+      if (linked > 0) {
+        details.push(
+          `${linked} player${linked === 1 ? '' : 's'} already existed and ${
+            linked === 1 ? 'was' : 'were'
+          } added to this group.`
+        );
+      }
+      if (parsed.skipped > 0) {
+        details.push(`${parsed.skipped} row${parsed.skipped === 1 ? '' : 's'} skipped.`);
+      }
+
+      if (schedule) {
+        details.push('Your session is still running — switch groups from My Groups when ready.');
+      } else {
+        setActiveRosterId(roster.id);
+        setSelectedIds([]);
+        setPartnerships([]);
+        setStep('roster');
+      }
+
+      return { ok: true, title: `"${name}" created.`, details };
+    },
+    [rosters, defaultRating, addRoster, importPlayers, schedule, setActiveRosterId,
+     setSelectedIds, setPartnerships]
+  );
+
   const handleStartNewSession = useCallback(() => {
     clearSession(true); // keep the selected players for the next session
     setStep('roster');
   }, [clearSession]);
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${largeText ? 'text-large' : ''}`}>
-      <Header largeText={largeText} onToggleLargeText={() => setLargeText((v) => !v)} />
+    <div
+      className={`relative min-h-screen overflow-x-hidden bg-gray-800 ${
+        largeText ? 'text-large' : ''
+      }`}
+    >
+      <SettingsPanel
+        open={settingsOpen}
+        onToggleLargeText={() => setLargeText((v) => !v)}
+        onOpenDefaultRating={() => setShowDefaultRating(true)}
+        onOpenImportExport={() => setShowImportExport(true)}
+        onOpenInstructions={() => setShowInstructions(true)}
+        onOpenDonate={() => setShowDonate(true)}
+        onOpenFeature={() => setFeedbackKind('feature')}
+        onOpenBug={() => setFeedbackKind('bug')}
+      />
+
+      {/* The whole app rides on this panel. Opening settings slides it left far
+          enough to leave a fifth of it — including the settings button — on screen. */}
+      <div
+        className={`app-panel relative z-10 min-h-screen bg-gray-50 transition-transform duration-300 ease-in-out ${
+          settingsOpen ? '-translate-x-[80%] shadow-2xl shadow-black/50' : ''
+        }`}
+      >
+      <Header
+        // Past the roster step the group being worked on is the useful label
+        title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}
+        settingsOpen={settingsOpen}
+        onToggleSettings={() => setSettingsOpen((v) => !v)}
+        // Only the Schedule step has something worth printing
+        onPrint={step === 'schedule' ? () => window.print() : undefined}
+      />
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
         <StepIndicator current={step} />
 
@@ -252,11 +377,11 @@ function App() {
             onDeleteRoster={handleDeleteRoster}
             onAdd={addPlayer}
             onUpdate={updatePlayer}
-            onSetPlayerRosters={setPlayerRosters}
             onAddPlayersToRosters={addPlayersToRosters}
             onRemoveFromRoster={removeFromRoster}
             onDeletePlayer={deletePlayer}
             onContinue={() => setStep('setup')}
+            defaultRating={defaultRating}
           />
         )}
 
@@ -329,9 +454,57 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v1.10.0
+        Created by Jeff Baker &ndash; positivefutures.ai &middot; v{APP_VERSION}
       </footer>
+      </div>
 
+      {showInstructions && (
+        <InstructionsPanel onClose={() => setShowInstructions(false)} />
+      )}
+
+      {showDonate && <DonatePanel onClose={() => setShowDonate(false)} />}
+
+      {feedbackKind && (
+        <FeedbackPanel
+          kind={feedbackKind}
+          context={{
+            version: APP_VERSION,
+            step: stepLabel(step),
+            groups: rosters.length,
+            players: allPlayers.length,
+            sessionActive: Boolean(schedule),
+            courts: numCourts,
+            rounds: numRounds,
+            largeText,
+            userAgent: navigator.userAgent,
+            screen: `${window.innerWidth}x${window.innerHeight}`,
+            language: navigator.language,
+          }}
+          onClose={() => setFeedbackKind(null)}
+        />
+      )}
+
+      {showImportExport && (
+        <ImportExportPanel
+          rosters={rosters}
+          players={allPlayers}
+          activeRosterId={activeRosterId}
+          onExport={handleExportGroup}
+          onImport={handleImportGroup}
+          onClose={() => setShowImportExport(false)}
+        />
+      )}
+
+      {showDefaultRating && (
+        <DefaultRatingPanel
+          rating={defaultRating}
+          onChange={setDefaultRating}
+          onClose={() => setShowDefaultRating(false)}
+        />
+      )}
+
+      {/* Outside the sliding panel so a print started from the drawer is never
+          caught mid-slide. */}
       <PrintSchedule schedule={schedule} players={attendingPlayers} />
     </div>
   );

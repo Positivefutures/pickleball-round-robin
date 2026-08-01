@@ -29,20 +29,18 @@ describe('runMigrations — rosters', () => {
     expect(read<unknown[]>(KEYS.partnerships)).toEqual(existing);
   });
 
-  it('assigns legacy players (no rosterIds) to the default group and maps the core-import flag', () => {
+  it('assigns legacy players (no rosterIds) to the default group', () => {
     seed({
       [KEYS.players]: [
         { id: 'a', name: 'Jeff B', rating: 4.0, gender: 'M' },
         { id: 'b', name: 'Susan K', rating: 3.5, gender: 'F' },
       ],
-      [KEYS.legacyCoreImported]: true,
     });
     runMigrations();
     const rosters = read<{ id: string }[]>(KEYS.rosters);
     const players = read<Player[]>(KEYS.players);
     expect(players).toHaveLength(2);
     expect(players.every((p) => p.rosterIds.length === 1 && p.rosterIds[0] === rosters[0].id)).toBe(true);
-    expect(read<string[]>(KEYS.coreImportedRosters)).toEqual([rosters[0].id]);
   });
 
   it('is idempotent', () => {

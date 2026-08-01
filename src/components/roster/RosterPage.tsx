@@ -4,9 +4,6 @@ import { PlayerForm } from './PlayerForm';
 import { PlayerList } from './PlayerList';
 import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { corePlayers } from '../../data/corePlayers';
-import { KEYS } from '../../lib/migrations';
 
 interface Props {
   /** Every player in the app, across all rosters. */
@@ -21,11 +18,12 @@ interface Props {
   onDeleteRoster: (id: string, moveTo: string | null) => void;
   onAdd: (name: string, rating: number, gender: Gender, rosterIds: string[]) => void;
   onUpdate: (id: string, updates: Partial<Omit<Player, 'id'>>) => void;
-  onSetPlayerRosters: (id: string, rosterIds: string[]) => void;
   onAddPlayersToRosters: (playerIds: string[], rosterIds: string[]) => void;
   onRemoveFromRoster: (playerId: string, rosterId: string) => void;
   onDeletePlayer: (id: string) => void;
   onContinue: () => void;
+  /** Rating a new player starts with — set from Settings. */
+  defaultRating: number;
 }
 
 export function RosterPage({
@@ -39,11 +37,11 @@ export function RosterPage({
   onDeleteRoster,
   onAdd,
   onUpdate,
-  onSetPlayerRosters,
   onAddPlayersToRosters,
   onRemoveFromRoster,
   onDeletePlayer,
   onContinue,
+  defaultRating,
 }: Props) {
   // Dialog state is stamped with the roster it was opened under, so a roster
   // switch implicitly closes it — saving against a stale context would write to
@@ -52,10 +50,6 @@ export function RosterPage({
   const [orphan, setOrphan] = useState<{ player: Player; rosterId: string } | null>(null);
   const [draftRosterIds, setDraftRosterIds] = useState<string[]>([]);
   const [showManage, setShowManage] = useState(false);
-  const [coreImportedRosters, setCoreImportedRosters] = useLocalStorage<string[]>(
-    KEYS.coreImportedRosters,
-    []
-  );
 
   // Selection is stamped with its group too, so switching groups clears it
   const [selection, setSelection] = useState<{ ids: string[]; rosterId: string } | null>(null);
@@ -178,26 +172,7 @@ export function RosterPage({
     setOrphan(null);
   }
 
-  function handleImportCorePlayers() {
-    const byName = new Map(allPlayers.map((p) => [p.name.toLowerCase(), p]));
-    for (const p of corePlayers) {
-      const existing = byName.get(p.name.toLowerCase());
-      if (existing) {
-        // Same person, already in the app — just add them to this roster
-        if (!existing.rosterIds.includes(activeRosterId)) {
-          onSetPlayerRosters(existing.id, [...existing.rosterIds, activeRosterId]);
-        }
-      } else {
-        onAdd(p.name, p.rating, p.gender, [activeRosterId]);
-      }
-    }
-    setCoreImportedRosters((prev) =>
-      prev.includes(activeRosterId) ? prev : [...prev, activeRosterId]
-    );
-  }
-
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
-  const alreadyImported = coreImportedRosters.includes(activeRosterId);
 
   return (
     <div className="space-y-6">
@@ -233,9 +208,24 @@ export function RosterPage({
         </div>
       )}
 
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={onContinue}
+          disabled={players.length < 4}
+          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Continue to Setup &rarr;
+        </button>
+        {players.length < 4 && players.length > 0 && (
+          <p className="text-amber-600 text-sm">
+            Need at least 4 players to continue
+          </p>
+        )}
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Add Player</h2>
-        <PlayerForm onSubmit={handleSubmit} />
+        <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} />
       </div>
 
       {/* The delete prompt replaces the edit modal rather than stacking on it —
@@ -246,6 +236,7 @@ export function RosterPage({
             <h2 className="text-lg font-semibold mb-4">Edit Player</h2>
             <PlayerForm
               onSubmit={handleSubmit}
+              defaultRating={defaultRating}
               editingPlayer={editingPlayer}
               onCancelEdit={closeEdit}
               rosters={rosters}
@@ -303,21 +294,6 @@ export function RosterPage({
         />
       )}
 
-      <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={onContinue}
-          disabled={players.length < 4}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Continue to Setup &rarr;
-        </button>
-        {players.length < 4 && players.length > 0 && (
-          <p className="text-amber-600 text-sm">
-            Need at least 4 players to continue
-          </p>
-        )}
-      </div>
-
       <div className="roster-panel bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
           <h2 className="text-lg font-semibold">
@@ -363,21 +339,6 @@ export function RosterPage({
           onToggleSelectAll={toggleSelectAll}
         />
       </div>
-
-      {!alreadyImported && (
-        <div className="text-center pt-2">
-          <button
-            onClick={handleImportCorePlayers}
-            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-          >
-            Import Core Players
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            Will import the most common players, such as Susan, Jeff, Adonica, etc.
-          </p>
-        </div>
-      )}
-
     </div>
   );
 }
