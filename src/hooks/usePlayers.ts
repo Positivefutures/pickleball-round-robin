@@ -3,6 +3,8 @@ import type { Player, Gender } from '../types';
 import { useLocalStorage } from './useLocalStorage';
 import { generateId } from '../utils/helpers';
 import { KEYS } from '../lib/migrations';
+import { planImport } from '../lib/groupImport';
+import type { ImportGroup } from '../lib/groupImport';
 
 /**
  * One global pool of players. Roster membership lives on each player as
@@ -74,46 +76,29 @@ export function usePlayers() {
   );
 
   /**
-   * Loads an imported group into the pool in one write. A name already in the
-   * pool is linked into the new roster rather than duplicated, and keeps its
-   * existing rating and gender — the file only supplies those for new people.
-   * Counts are computed against the current pool, which nothing else is writing
-   * to mid-import, so they can be returned synchronously.
+   * Loads every group of an imported file into the pool in one write. The plan
+   * is worked out by planImport — see there for why all groups go together
+   * rather than one call per group. Counts are computed against the current
+   * pool, which nothing else is writing to mid-import, so they can be returned
+   * synchronously.
    */
-  const importPlayers = useCallback(
-    (rows: { name: string; rating: number; gender: Gender }[], rosterId: string) => {
-      const byName = new Map(players.map((p) => [p.name.trim().toLowerCase(), p]));
-      const linkIds = new Set<string>();
-      const created: Player[] = [];
-
-      for (const row of rows) {
-        const existing = byName.get(row.name.trim().toLowerCase());
-        if (existing) {
-          linkIds.add(existing.id);
-        } else {
-          created.push({
-            id: generateId(),
-            name: row.name,
-            rating: row.rating,
-            gender: row.gender,
-            rosterIds: [rosterId],
-          });
-        }
-      }
+  const importGroups = useCallback(
+    (groups: ImportGroup[]) => {
+      const plan = planImport(players, groups, generateId);
 
       setPlayers((prev) => [
-        ...prev.map((p) =>
-          linkIds.has(p.id)
-            ? { ...p, rosterIds: Array.from(new Set([...p.rosterIds, rosterId])) }
-            : p
-        ),
-        ...created,
+        ...prev.map((p) => {
+          const extra = plan.links.get(p.id);
+          return extra ? { ...p, rosterIds: Array.from(new Set([...p.rosterIds, ...extra])) } : p;
+        }),
+        ...plan.created,
       ]);
 
-      return { added: created.length, linked: linkIds.size };
+      return plan.counts;
     },
     [players, setPlayers]
   );
+
 
   /** Bulk membership rewrite, used when a roster is deleted. */
   const reassignRoster = useCallback(
@@ -138,7 +123,7 @@ export function usePlayers() {
     updatePlayer,
     setPlayerRosters,
     addPlayersToRosters,
-    importPlayers,
+    importGroups,
     removeFromRoster,
     deletePlayer,
     reassignRoster,

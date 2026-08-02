@@ -1,15 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
   toCsv,
-  parseGroupCsv,
+  toGroupsCsv,
+  parseGroupsCsv,
   uniqueGroupName,
   fileNameStem,
   toFileName,
+  toAllGroupsFileName,
 } from './groupFile';
 import type { Player } from '../types';
 
 function player(name: string, rating: number, gender: 'M' | 'F'): Player {
   return { id: `id-${name}`, name, rating, gender, rosterIds: ['r1'] };
+}
+
+/** Most cases below describe a single-group file; this reads the one group. */
+function parseOne(text: string, fallback: string, defaultRating?: number) {
+  const groups = parseGroupsCsv(text, fallback, defaultRating);
+  return groups[0] ?? { group: fallback, rows: [], skipped: 0 };
 }
 
 describe('toCsv', () => {
@@ -39,13 +47,13 @@ describe('toCsv', () => {
   });
 });
 
-describe('parseGroupCsv', () => {
+describe('parseGroupsCsv', () => {
   it('round-trips an exported file, quoting and all', () => {
     const players = [
       player('Baker, Jeff', 4.5, 'M'),
       player('Renée "Ren" D', 3.2, 'F'),
     ];
-    const parsed = parseGroupCsv(toCsv('Tuesday Crowd', players), 'ignored');
+    const parsed = parseOne(toCsv('Tuesday Crowd', players), 'ignored');
     expect(parsed.group).toBe('Tuesday Crowd');
     expect(parsed.skipped).toBe(0);
     expect(parsed.rows).toEqual([
@@ -55,14 +63,14 @@ describe('parseGroupCsv', () => {
   });
 
   it('accepts LF-only input and a header in any case', () => {
-    const parsed = parseGroupCsv('group,NAME,Rating,gender\nTue,Al,4,m\n', 'x');
+    const parsed = parseOne('group,NAME,Rating,gender\nTue,Al,4,m\n', 'x');
     expect(parsed.group).toBe('Tue');
     expect(parsed.rows).toEqual([{ name: 'Al', rating: 4, gender: 'M' }]);
   });
 
   it('reads the legacy players.csv shape: BOM, no Group column, extra Include column', () => {
     const legacy = '\uFEFFName,Include,Gender,Rating\r\nAdonica M,Yes,F,4\r\nAndrew M,Yes,M,4\r\n';
-    const parsed = parseGroupCsv(legacy, 'players');
+    const parsed = parseOne(legacy, 'players');
     expect(parsed.group).toBe('players'); // falls back to the file name
     expect(parsed.rows).toEqual([
       { name: 'Adonica M', rating: 4, gender: 'F' },
@@ -72,35 +80,87 @@ describe('parseGroupCsv', () => {
 
   it('clamps out-of-range ratings and falls back on junk', () => {
     const csv = 'Group,Name,Rating,Gender\nG,Low,1.2,M\nG,High,9,M\nG,Junk,abc,M\nG,Blank,,M\n';
-    const parsed = parseGroupCsv(csv, 'x', 4.0);
+    const parsed = parseOne(csv, 'x', 4.0);
     expect(parsed.rows.map((r) => r.rating)).toEqual([3, 5, 4, 4]);
   });
 
   it('reads gender leniently and defaults to M', () => {
     const csv = 'Group,Name,Rating,Gender\nG,A,4,female\nG,B,4,f\nG,C,4,\nG,D,4,x\n';
-    expect(parseGroupCsv(csv, 'x').rows.map((r) => r.gender)).toEqual(['F', 'F', 'M', 'M']);
+    expect(parseOne(csv, 'x').rows.map((r) => r.gender)).toEqual(['F', 'F', 'M', 'M']);
   });
 
   it('skips nameless rows and repeats of a name already in the file', () => {
     const csv = 'Group,Name,Rating,Gender\nG,Jeff B,4,M\nG, ,4,M\nG,jeff b,5,F\nG,Sue,3.5,F\n';
-    const parsed = parseGroupCsv(csv, 'x');
+    const parsed = parseOne(csv, 'x');
     expect(parsed.rows.map((r) => r.name)).toEqual(['Jeff B', 'Sue']);
     expect(parsed.skipped).toBe(2);
   });
 
   it('takes the group name from the first row that has one', () => {
     const csv = 'Group,Name,Rating,Gender\n,Jeff B,4,M\nTue,Sue,4,F\n';
-    expect(parseGroupCsv(csv, 'fallback').group).toBe('Tue');
+    expect(parseOne(csv, 'fallback').group).toBe('Tue');
   });
 
   it('returns nothing usable for a file with no Name column', () => {
-    const parsed = parseGroupCsv('just some text\nnot a csv at all\n', 'fallback');
+    const parsed = parseOne('just some text\nnot a csv at all\n', 'fallback');
     expect(parsed.rows).toEqual([]);
     expect(parsed.group).toBe('fallback');
   });
 
   it('returns nothing usable for an empty file', () => {
-    expect(parseGroupCsv('', 'fallback').rows).toEqual([]);
+    expect(parseOne('', 'fallback').rows).toEqual([]);
+  });
+});
+
+describe('all-groups files', () => {
+  it('round-trips several groups in file order', () => {
+    const csv = toGroupsCsv([
+      { name: 'Tuesday', players: [player('Ana', 4.5, 'F'), player('Ben', 4, 'M')] },
+      { name: 'Sunday', players: [player('Cara', 3.5, 'F')] },
+    ]);
+    const groups = parseGroupsCsv(csv, 'ignored');
+    expect(groups.map((g) => g.group)).toEqual(['Tuesday', 'Sunday']);
+    expect(groups[0].rows.map((r) => r.name)).toEqual(['Ana', 'Ben']);
+    expect(groups[1].rows).toEqual([{ name: 'Cara', rating: 3.5, gender: 'F' }]);
+  });
+
+  it('keeps a player who is in two groups in both, without calling it a repeat', () => {
+    const ana = player('Ana', 4.5, 'F');
+    const csv = toGroupsCsv([
+      { name: 'Tuesday', players: [ana, player('Ben', 4, 'M')] },
+      { name: 'Sunday', players: [ana] },
+    ]);
+    const groups = parseGroupsCsv(csv, 'ignored');
+    expect(groups[0].rows.map((r) => r.name)).toEqual(['Ana', 'Ben']);
+    expect(groups[1].rows.map((r) => r.name)).toEqual(['Ana']);
+    expect(groups.every((g) => g.skipped === 0)).toBe(true);
+  });
+
+  it('still skips a name repeated inside one group', () => {
+    const csv =
+      'Group,Name,Rating,Gender\nTue,Ana,4,F\nTue,ana,5,F\nSun,Ana,4,F\nSun,Ben,4,M\n';
+    const groups = parseGroupsCsv(csv, 'x');
+    expect(groups[0].rows.map((r) => r.name)).toEqual(['Ana']);
+    expect(groups[0].skipped).toBe(1);
+    expect(groups[1].rows.map((r) => r.name)).toEqual(['Ana', 'Ben']);
+    expect(groups[1].skipped).toBe(0);
+  });
+
+  it('treats one group name plus blank rows as a single group, not two', () => {
+    const csv = 'Group,Name,Rating,Gender\n,Jeff B,4,M\nTue,Sue,4,F\n';
+    const groups = parseGroupsCsv(csv, 'fallback');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].group).toBe('Tue');
+    expect(groups[0].rows.map((r) => r.name)).toEqual(['Jeff B', 'Sue']);
+  });
+
+  it('splits as soon as a second group is named', () => {
+    const csv = 'Group,Name,Rating,Gender\nTue,Jeff B,4,M\nSun,Sue,4,F\n';
+    expect(parseGroupsCsv(csv, 'fallback').map((g) => g.group)).toEqual(['Tue', 'Sun']);
+  });
+
+  it('names an all-groups download after the day it was made', () => {
+    expect(toAllGroupsFileName(new Date(2026, 7, 1))).toBe('pickleball-groups-2026-08-01.csv');
   });
 });
 

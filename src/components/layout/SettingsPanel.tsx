@@ -214,7 +214,7 @@ export function SettingsPanel({
         />
         <SettingsItem
           icon={<ImportExportIcon />}
-          label="Import / Export Group"
+          label="Import / Export Groups"
           onClick={onOpenImportExport}
         />
         <SettingsItem icon={<HelpIcon />} label="Instructions" onClick={onOpenInstructions} />

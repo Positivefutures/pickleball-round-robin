@@ -1,6 +1,11 @@
 import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 
+/** Stands in for a roster id in the export picker: every group in one file. */
+export const ALL_GROUPS = '__all__';
+
+const playerCount = (n: number) => `${n} ${n === 1 ? 'Player' : 'Players'}`;
+
 export interface ImportResult {
   ok: boolean;
   /** Headline line — the new group's name, or what went wrong. */
@@ -26,14 +31,24 @@ export function ImportExportPanel({
   onImport,
   onClose,
 }: Props) {
-  const [selectedId, setSelectedId] = useState(activeRosterId);
+  // Backing everything up is the common reason to open this, so lead with it —
+  // falling back to the active group when there is only one and All Groups
+  // isn't offered.
+  const [selectedId, setSelectedId] = useState(
+    rosters.length > 1 ? ALL_GROUPS : activeRosterId
+  );
   const [result, setResult] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const countFor = (rosterId: string) =>
     players.filter((p) => p.rosterIds.includes(rosterId)).length;
-  const selectedCount = countFor(selectedId);
+
+  // Distinct people, not the sum of the group sizes — anyone in two groups
+  // would otherwise be counted twice.
+  const allGroupsCount = players.filter((p) => p.rosterIds.length > 0).length;
+  const exportingAll = selectedId === ALL_GROUPS;
+  const selectedCount = exportingAll ? allGroupsCount : countFor(selectedId);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,7 +74,7 @@ export function ImportExportPanel({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-center text-lg font-semibold text-gray-800">
-          Import / Export Group
+          Import / Export Groups
         </h2>
 
         <section className="mt-5">
@@ -70,9 +85,12 @@ export function ImportExportPanel({
             aria-label="Group to export"
             className="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
           >
+            {rosters.length > 1 && (
+              <option value={ALL_GROUPS}>All Groups ({playerCount(allGroupsCount)})</option>
+            )}
             {rosters.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.name} ({countFor(r.id)})
+                {r.name} ({playerCount(countFor(r.id))})
               </option>
             ))}
           </select>
@@ -86,8 +104,12 @@ export function ImportExportPanel({
           </button>
           <p className="mt-2 text-xs text-gray-500">
             {selectedCount === 0
-              ? 'This group has no players to export.'
-              : 'Saves the group name and every player, with their rating and gender.'}
+              ? exportingAll
+                ? 'There are no players to export yet.'
+                : 'This group has no players to export.'
+              : exportingAll
+                ? 'Saves every group and player in one file — keep it as a backup, or import it on another device.'
+                : 'Saves the group name and every player, with their rating and gender.'}
           </p>
         </section>
 
@@ -108,7 +130,9 @@ export function ImportExportPanel({
           >
             {busy ? 'Reading…' : 'Choose a File…'}
           </button>
-          <p className="mt-2 text-xs text-gray-500">Creates a new group.</p>
+          <p className="mt-2 text-xs text-gray-500">
+            Always creates new groups — the ones you already have are never changed.
+          </p>
 
           {result && (
             <div
