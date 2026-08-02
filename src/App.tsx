@@ -112,6 +112,14 @@ function App() {
     !!feedbackKind || showDonate || showShare || showInstall
   );
 
+  // Every step starts at the top. The button that moved you here is often the
+  // one at the foot of a long page — Generate Schedule below the player list,
+  // Continue to Setup below the roster — and keeping that offset would drop you
+  // into the middle of the next step instead of its heading.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
   // Straight to the OS share sheet where there is one. The copy-link panel is
   // only for browsers without it — someone who cancelled the sheet gets nothing,
   // which is what cancelling should do.
