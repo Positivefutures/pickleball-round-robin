@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
@@ -17,6 +18,8 @@ interface Props {
   canUncomplete: boolean;
   onToggleComplete: () => void;
   onToggleExpand: () => void;
+  /** Shown on this round's "Sitting out" line — only the first unplayed round gets one. */
+  sitOutAction?: ReactNode;
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -46,6 +49,7 @@ export function RoundCard({
   canUncomplete,
   onToggleComplete,
   onToggleExpand,
+  sitOutAction,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
@@ -142,6 +146,7 @@ export function RoundCard({
             onRequestRemove={onRequestRemove}
             allPlayers={allPlayers}
             readOnly={isComplete}
+            action={sitOutAction}
           />
         </>
       )}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
@@ -11,6 +12,8 @@ interface Props {
   onRequestRemove: (player: Player) => void;
   allPlayers: Player[];
   readOnly?: boolean;
+  /** Right-aligned on the "Sitting out" line — the Add Player button. */
+  action?: ReactNode;
 }
 
 function SitOutBox({
@@ -82,12 +85,24 @@ export function SitOutList({
   onRequestRemove,
   allPlayers,
   readOnly = false,
+  action,
 }: Props) {
-  if (players.length === 0) return null;
+  // With nobody sitting out there is nothing to label, but the row still has to
+  // render when it carries the Add Player button — the full-courts case is
+  // exactly when a host wants to add someone.
+  const anySitting = players.length > 0;
+  if (!anySitting && !action) return null;
 
   return (
     <div className="mt-4">
-      <p className="text-sm text-gray-500 font-medium mb-2">Sitting out</p>
+      <div
+        className={`mb-2 flex items-center gap-3 ${
+          anySitting ? 'justify-between' : 'justify-end'
+        }`}
+      >
+        {anySitting && <p className="text-sm font-medium text-gray-500">Sitting out</p>}
+        {action}
+      </div>
       <div className="flex flex-wrap gap-2">
         {players.map((player, sitOutIdx) => (
           <SitOutBox

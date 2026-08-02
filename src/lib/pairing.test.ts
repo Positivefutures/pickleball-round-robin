@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule, regenerateRemaining, effectiveCourtCount } from './pairing';
+import { addToRemainingSitOuts } from './sitout';
+import { partnerKey } from './partnerships';
 import type { Player, Schedule } from '../types';
 
 function makePlayers(n: number): Player[] {
@@ -146,6 +148,87 @@ describe('regenerateRemaining', () => {
     for (const r of regen.rounds.slice(4)) {
       expect(r.courts).toHaveLength(2);
       expect(r.sitOuts).toHaveLength(0);
+    }
+  });
+
+  it('honours a lock on a rebuilt round', () => {
+    const [a, b] = players;
+    const regen = regenerateRemaining(
+      players, 3, original.rounds, [1, 2, 3, 4], false, 2, [],
+      { 4: [{ player1Id: a.id, player2Id: b.id, courtIdx: 0, team: 'team1' }] }
+    );
+    const team1 = regen.rounds[4].courts[0].team1.map((p) => p.id);
+    expect(team1).toContain(a.id);
+    expect(team1).toContain(b.id);
+  });
+
+  it('frees a couple broken for one round only', () => {
+    const [a, b] = players;
+    const couple = [{ player1Id: a.id, player2Id: b.id }];
+    const regen = regenerateRemaining(
+      players, 3, original.rounds, [1, 2, 3, 4], false, 2, couple,
+      {}, { 4: [partnerKey(a.id, b.id)] }
+    );
+
+    const together = (roundIdx: number) =>
+      regen.rounds[roundIdx].courts.some((c) =>
+        [c.team1, c.team2].some(
+          (t) => t.some((p) => p.id === a.id) && t.some((p) => p.id === b.id)
+        )
+      );
+
+    expect(together(4)).toBe(false); // broken here
+    expect(together(5)).toBe(true); // and nowhere else
+  });
+});
+
+// The scenario from the feature request: a latecomer joins a session already
+// several rounds in, and should not immediately displace someone who has yet to
+// sit out. Nothing special-cases this — determineSitOuts orders by games played,
+// and the newcomer has none.
+describe('a player added mid-session', () => {
+  it('sits only after everyone who has not sat out yet', () => {
+    const nine = makePlayers(9);
+    const original = generateSchedule(nine, 2, 8); // 8 play, 1 sits each round
+    const completed = [1, 2, 3, 4];
+
+    const satAlready = new Set(
+      original.rounds
+        .filter((r) => completed.includes(r.roundNumber))
+        .flatMap((r) => r.sitOuts.map((p) => p.id))
+    );
+    const neverSat = nine.filter((p) => !satAlready.has(p.id));
+    expect(satAlready.size).toBe(4);
+    expect(neverSat).toHaveLength(5);
+
+    // Drop the newcomer into the unplayed rounds, then reshuffle as the host would.
+    const latecomer: Player = {
+      id: 'late', name: 'Zoe', rating: 4, gender: 'F', rosterIds: ['r1'],
+    };
+    const withLatecomer = addToRemainingSitOuts(original.rounds, completed, latecomer);
+    const regen = regenerateRemaining([...nine, latecomer], 2, withLatecomer, completed);
+
+    // Round 5: ten players over two courts, so two sit — and both should come
+    // from the five who have never sat, not the newcomer.
+    const firstRebuilt = regen.rounds[4];
+    expect(firstRebuilt.sitOuts).toHaveLength(2);
+    expect(firstRebuilt.sitOuts.map((p) => p.id)).not.toContain(latecomer.id);
+    for (const p of firstRebuilt.sitOuts) {
+      expect(neverSat.map((n) => n.id)).toContain(p.id);
+    }
+  });
+
+  it('is left in the sit-outs of unplayed rounds until the host acts', () => {
+    const nine = makePlayers(9);
+    const original = generateSchedule(nine, 2, 8);
+    const latecomer: Player = {
+      id: 'late', name: 'Zoe', rating: 4, gender: 'F', rosterIds: ['r1'],
+    };
+    const next = addToRemainingSitOuts(original.rounds, [1, 2], latecomer);
+
+    expect(next[0].sitOuts.map((p) => p.id)).not.toContain(latecomer.id);
+    for (const r of next.slice(2)) {
+      expect(r.sitOuts.map((p) => p.id)).toContain(latecomer.id);
     }
   });
 });

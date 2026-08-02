@@ -5,6 +5,7 @@ import { arePartners, partnerKey } from '../../lib/partnerships';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
+import { AddPlayerDialog } from './AddPlayerDialog';
 import { ShuffleIcon } from './icons';
 
 export interface CourtSlot {
@@ -52,6 +53,9 @@ interface Props {
   onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
   onStartNewSession: () => void;
+  /** Group members not in this session yet, offered by Add Player. */
+  addablePlayers: Player[];
+  onAddPlayer: (playerId: string) => void;
 }
 
 // The padlocks shown for a round: every intact (non-broken) couple found in the
@@ -92,6 +96,8 @@ export function SchedulePage({
   onCompletedRoundsChange,
   onRemovePlayer,
   onStartNewSession,
+  addablePlayers,
+  onAddPlayer,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
@@ -101,6 +107,7 @@ export function SchedulePage({
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
   const [confirmingSetup, setConfirmingSetup] = useState(false);
+  const [addingPlayer, setAddingPlayer] = useState(false);
 
   const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
@@ -307,6 +314,22 @@ export function SchedulePage({
   const currentCourts = effectiveCourtCount(players.length, numCourts);
   const nextCourts = effectiveCourtCount(players.length - 1, numCourts);
 
+  // Add Player lands on the earliest round still to be played — one button, not
+  // one per round, since adding affects every unplayed round alike. Keyed off
+  // the original index because completed rounds are re-sorted for display.
+  const firstOpenIdx = schedule.rounds.findIndex((r) => !completedSet.has(r.roundNumber));
+  const canAddPlayer = firstOpenIdx !== -1 && addablePlayers.length > 0;
+
+  const addPlayerButton = (
+    <button
+      type="button"
+      onClick={() => setAddingPlayer(true)}
+      className="no-print shrink-0 whitespace-nowrap rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
+    >
+      + Add Player
+    </button>
+  );
+
   return (
     <div className="space-y-6 no-print">
       {/* Setup, Reshuffle, New Session. Printing lives on the header's printer
@@ -377,6 +400,9 @@ export function SchedulePage({
             canUncomplete={canUncomplete}
             onToggleComplete={() => handleToggleComplete(round.roundNumber)}
             onToggleExpand={() => handleToggleExpand(round.roundNumber)}
+            sitOutAction={
+              canAddPlayer && roundIdx === firstOpenIdx ? addPlayerButton : undefined
+            }
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
@@ -399,6 +425,19 @@ export function SchedulePage({
             Reshuffle
           </button>
         </div>
+      )}
+
+      {addingPlayer && (
+        <AddPlayerDialog
+          candidates={addablePlayers}
+          allPlayers={players}
+          onConfirm={(playerId) => {
+            setAddingPlayer(false);
+            setSelectedSlot(null);
+            onAddPlayer(playerId);
+          }}
+          onCancel={() => setAddingPlayer(false)}
+        />
       )}
 
       {removeCandidate && (

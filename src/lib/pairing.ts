@@ -688,46 +688,16 @@ export function generateSchedule(
   return { rounds };
 }
 
-export function reshuffleSchedule(
-  players: Player[],
-  numCourts: number,
-  numRounds: number,
-  locks: Record<number, LockedPair[]>,
-  genderedEnabled = false,
-  genderedFrequency = 2,
-  partnerships: Partnership[] = [],
-  brokenPairs: Record<number, string[]> = {}
-): Schedule {
-  const history = initHistory(players);
-  const effectiveCourts = effectiveCourtCount(players.length, numCourts);
-  const rounds: Round[] = [];
-  let previousSitOutIds: Set<string> | undefined;
-
-  for (let r = 1; r <= numRounds; r++) {
-    // Couples the host broke for this specific round are freed here only.
-    const broken = new Set(brokenPairs[r - 1] || []);
-    const roundPartnerships = partnerships.filter(
-      (p) => !broken.has(partnerKey(p.player1Id, p.player2Id))
-    );
-    const round = buildRound(r, players, effectiveCourts, history, {
-      isGendered: genderedEnabled && r % genderedFrequency === 0,
-      roundLocks: locks[r - 1] || [],
-      partnerships: roundPartnerships,
-      previousSitOutIds,
-    });
-    previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
-    rounds.push(round);
-  }
-
-  return { rounds };
-}
-
 // Rebuilds only the rounds that are NOT marked complete, leaving the completed
 // ones untouched. Completed rounds can be any subset (the host may play them out
 // of order), so they're identified by round number rather than by position.
 // The pairing history from every completed round is replayed first, so partner/
 // opponent variety and the sit-out rotation carry forward instead of restarting.
 // The returned schedule keeps rounds in their original numeric order.
+//
+// Backs both Reshuffle and the rebuild that follows a removal. `locks` and
+// `brokenPairs` are keyed by position in `allRounds`, matching how the schedule
+// page keys the padlocks the host has set.
 export function regenerateRemaining(
   players: Player[],
   numCourts: number,
@@ -735,7 +705,9 @@ export function regenerateRemaining(
   completedRoundNumbers: number[],
   genderedEnabled = false,
   genderedFrequency = 2,
-  partnerships: Partnership[] = []
+  partnerships: Partnership[] = [],
+  locks: Record<number, LockedPair[]> = {},
+  brokenPairs: Record<number, string[]> = {}
 ): Schedule {
   const completedSet = new Set(completedRoundNumbers);
   const history = initHistory(players);
@@ -763,11 +735,19 @@ export function regenerateRemaining(
 
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
 
-  const rounds = allRounds.map((r) => {
+  const rounds = allRounds.map((r, roundIdx) => {
     if (completedSet.has(r.roundNumber)) return r; // keep verbatim
+
+    // Couples the host broke for this specific round are freed here only.
+    const broken = new Set(brokenPairs[roundIdx] || []);
+    const roundPartnerships = partnerships.filter(
+      (p) => !broken.has(partnerKey(p.player1Id, p.player2Id))
+    );
+
     const round = buildRound(r.roundNumber, players, effectiveCourts, history, {
       isGendered: genderedEnabled && r.roundNumber % genderedFrequency === 0,
-      partnerships,
+      roundLocks: locks[roundIdx] || [],
+      partnerships: roundPartnerships,
       previousSitOutIds,
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));

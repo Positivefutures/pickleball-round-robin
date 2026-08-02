@@ -5,15 +5,19 @@ import { useRosters } from './hooks/useRosters';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useScrollLock } from './hooks/useScrollLock';
 import { KEYS } from './lib/migrations';
-import { generateSchedule, reshuffleSchedule, regenerateRemaining } from './lib/pairing';
+import { generateSchedule, regenerateRemaining } from './lib/pairing';
+import { addToRemainingSitOuts } from './lib/sitout';
 import { prunePartnerships, arePartners } from './lib/partnerships';
-import { toCsv, parseGroupCsv, uniqueGroupName, fileNameStem, toFileName } from './lib/groupFile';
+import {
+  toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
+  toAllGroupsFileName,
+} from './lib/groupFile';
 import { downloadTextFile } from './utils/download';
 import { Header } from './components/layout/Header';
 import { SettingsPanel } from './components/layout/SettingsPanel';
 import { InstructionsPanel } from './components/layout/InstructionsPanel';
 import { DefaultRatingPanel } from './components/layout/DefaultRatingPanel';
-import { ImportExportPanel } from './components/layout/ImportExportPanel';
+import { ImportExportPanel, ALL_GROUPS } from './components/layout/ImportExportPanel';
 import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
 import { stepLabel, type Step } from './lib/steps';
@@ -41,7 +45,7 @@ function App() {
     addPlayer,
     updatePlayer,
     addPlayersToRosters,
-    importPlayers,
+    importGroups,
     removeFromRoster,
     deletePlayer,
     reassignRoster,
@@ -228,30 +232,19 @@ function App() {
     [reassignRoster, deleteRoster, scheduleRosterId, clearSession]
   );
 
-  const handleGenerate = useCallback((
-    locks?: Record<number, LockedPair[]>,
-    brokenPairs?: Record<number, string[]>
-  ) => {
+  // Setup's Generate: a brand new schedule, starting the session over.
+  const handleGenerate = useCallback(() => {
     const attending = rosterPlayers.filter((p) => selectedIds.includes(p.id));
     if (attending.length < 4) return;
     const activePartnerships = prunePartnerships(
       partnerships, new Set(attending.map((p) => p.id))
     );
-    // A call carrying locks or per-round breaks comes from the Schedule tab's
-    // Reshuffle; the initial Generate from Setup carries neither.
-    const isReshuffle =
-      (locks && Object.keys(locks).length > 0) ||
-      (brokenPairs && Object.keys(brokenPairs).length > 0);
-    const result = isReshuffle
-      ? reshuffleSchedule(
-          attending, numCourts, numRounds, locks ?? {}, genderedEnabled,
-          genderedFrequency, activePartnerships, brokenPairs ?? {}
-        )
-      : generateSchedule(
-          attending, numCourts, numRounds, genderedEnabled, genderedFrequency,
-          activePartnerships
-        );
-    setSchedule(result);
+    setSchedule(
+      generateSchedule(
+        attending, numCourts, numRounds, genderedEnabled, genderedFrequency,
+        activePartnerships
+      )
+    );
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
     setCompletedRounds([]);
     setRemovedIds([]);
@@ -288,6 +281,57 @@ function App() {
   }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
       genderedFrequency, setSchedule, setRemovedIds, setScheduleEdited]);
 
+  // Reshuffle rebuilds only the rounds still to be played. Rounds already marked
+  // complete stay exactly as they were played, and their pairings are replayed
+  // into the history so the rebuild carries on from them rather than starting
+  // over. Players removed earlier stay removed.
+  const handleReshuffle = useCallback((
+    locks: Record<number, LockedPair[]>,
+    brokenPairs: Record<number, string[]>
+  ) => {
+    if (!schedule) return;
+    if (attendingPlayers.length < 4) return;
+
+    const activePartnerships = prunePartnerships(
+      partnerships, new Set(attendingPlayers.map((p) => p.id))
+    );
+    setSchedule(
+      regenerateRemaining(
+        attendingPlayers, numCourts, schedule.rounds, completedRounds,
+        genderedEnabled, genderedFrequency, activePartnerships, locks, brokenPairs
+      )
+    );
+    // The remaining rounds are machine-built again, so swaps are gone — but a
+    // removal is still work that going back to Setup would throw away.
+    setScheduleEdited(removedIds.length > 0);
+  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
+      genderedFrequency, removedIds, setSchedule, setScheduleEdited]);
+
+  // Brings a latecomer into a session already under way. They land in the
+  // sit-outs of every unplayed round, leaving those rounds' courts alone; the
+  // host swaps them in, or reshuffles to have them mixed through properly.
+  const handleAddPlayer = useCallback((playerId: string) => {
+    if (!schedule) return;
+    const player = rosterPlayers.find((p) => p.id === playerId);
+    if (!player) return;
+
+    setSchedule({
+      rounds: addToRemainingSitOuts(schedule.rounds, completedRounds, player),
+    });
+    // Selection is what a later reshuffle draws from, and clearing the removal
+    // is what lets someone who left earlier rejoin.
+    setSelectedIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
+    setRemovedIds((prev) => prev.filter((id) => id !== playerId));
+    setScheduleEdited(true);
+  }, [schedule, rosterPlayers, completedRounds, setSchedule, setSelectedIds, setRemovedIds,
+      setScheduleEdited]);
+
+  // Players in the group who aren't in this session yet — including anyone
+  // removed from it earlier, since a player who left may well come back.
+  const addablePlayers = rosterPlayers.filter(
+    (p) => !attendingPlayers.some((a) => a.id === p.id)
+  );
+
   // Swaps made by tapping two players. Separate from setSchedule so only host
   // edits mark the schedule dirty — generation and reshuffles reset the flag.
   const handleUpdateSchedule = useCallback((next: Schedule) => {
@@ -297,6 +341,16 @@ function App() {
 
   const handleExportGroup = useCallback(
     (rosterId: string) => {
+      // Every group in one file — a backup, or the way onto a new device.
+      if (rosterId === ALL_GROUPS) {
+        const groups = rosters.map((r) => ({
+          name: r.name,
+          players: allPlayers.filter((p) => p.rosterIds.includes(r.id)),
+        }));
+        downloadTextFile(toAllGroupsFileName(new Date()), toGroupsCsv(groups));
+        return;
+      }
+
       const roster = rosters.find((r) => r.id === rosterId);
       if (!roster) return;
       const members = allPlayers.filter((p) => p.rosterIds.includes(rosterId));
@@ -317,8 +371,9 @@ function App() {
         return { ok: false, title: "Couldn't read that file.", details: [] };
       }
 
-      const parsed = parseGroupCsv(text, fileNameStem(file.name), defaultRating);
-      if (parsed.rows.length === 0) {
+      const parsed = parseGroupsCsv(text, fileNameStem(file.name), defaultRating);
+      const usable = parsed.filter((g) => g.rows.length > 0);
+      if (usable.length === 0) {
         return {
           ok: false,
           title: 'No players found in that file.',
@@ -326,39 +381,75 @@ function App() {
         };
       }
 
-      const desired = parsed.group;
-      const name = uniqueGroupName(desired, rosters.map((r) => r.name));
-      const roster = addRoster(name);
-      const { added, linked } = importPlayers(parsed.rows, roster.id);
+      // Names are claimed as we go: uniqueGroupName reads the rosters in state,
+      // which won't have caught up mid-loop, so two same-named groups in one
+      // file would otherwise both land on "Tuesday (1)".
+      const taken = rosters.map((r) => r.name);
+      const renamed: { desired: string; name: string }[] = [];
+      const created = usable.map((group) => {
+        const desired = group.group.trim();
+        const name = uniqueGroupName(desired, taken);
+        taken.push(name);
+        if (name !== desired) renamed.push({ desired, name });
+        return { group, name, roster: addRoster(name) };
+      });
 
+      // One write for the whole file, so a player in several groups is linked
+      // into each rather than re-created per group.
+      const counts = importGroups(
+        created.map(({ group, roster }) => ({ rosterId: roster.id, rows: group.rows }))
+      );
+
+      const skipped = usable.reduce((sum, g) => sum + g.skipped, 0);
       const details: string[] = [];
-      if (name !== desired.trim()) {
-        details.push(`A group called "${desired.trim()}" already existed, so this one is "${name}".`);
+      const multi = created.length > 1;
+
+      if (multi) {
+        for (const [i, { group, name }] of created.entries()) {
+          const n = group.rows.length;
+          details.push(`${name} — ${n} player${n === 1 ? '' : 's'}${
+            counts[i].linked > 0 ? `, ${counts[i].linked} already on this device` : ''
+          }.`);
+        }
+        for (const { desired, name } of renamed) {
+          details.push(`"${desired}" already existed, so it came in as "${name}".`);
+        }
+      } else {
+        const { added, linked } = counts[0];
+        if (renamed.length > 0) {
+          details.push(
+            `A group called "${renamed[0].desired}" already existed, so this one is "${renamed[0].name}".`
+          );
+        }
+        details.push(`${added} player${added === 1 ? '' : 's'} added.`);
+        if (linked > 0) {
+          details.push(
+            `${linked} player${linked === 1 ? '' : 's'} already existed and ${
+              linked === 1 ? 'was' : 'were'
+            } added to this group.`
+          );
+        }
       }
-      details.push(`${added} player${added === 1 ? '' : 's'} added.`);
-      if (linked > 0) {
-        details.push(
-          `${linked} player${linked === 1 ? '' : 's'} already existed and ${
-            linked === 1 ? 'was' : 'were'
-          } added to this group.`
-        );
-      }
-      if (parsed.skipped > 0) {
-        details.push(`${parsed.skipped} row${parsed.skipped === 1 ? '' : 's'} skipped.`);
+
+      if (skipped > 0) {
+        details.push(`${skipped} row${skipped === 1 ? '' : 's'} skipped.`);
       }
 
       if (schedule) {
         details.push('Your session is still running — switch groups from My Groups when ready.');
       } else {
-        setActiveRosterId(roster.id);
+        setActiveRosterId(created[0].roster.id);
         setSelectedIds([]);
         setPartnerships([]);
         setStep('roster');
       }
 
-      return { ok: true, title: `"${name}" created.`, details };
+      const title = multi
+        ? `${created.length} groups imported.`
+        : `"${created[0].name}" created.`;
+      return { ok: true, title, details };
     },
-    [rosters, defaultRating, addRoster, importPlayers, schedule, setActiveRosterId,
+    [rosters, defaultRating, addRoster, importGroups, schedule, setActiveRosterId,
      setSelectedIds, setPartnerships]
   );
 
@@ -468,14 +559,19 @@ function App() {
             partnerships={partnerships}
             numCourts={numCourts}
             completedRounds={completedRounds}
+            // Re-adding the last removed player empties this and so re-enables
+            // the Completed checkboxes, even though those rounds were rebuilt
+            // around the removal. Narrow enough to live with.
             canUncomplete={removedIds.length === 0}
-            onRegenerate={handleGenerate}
+            onRegenerate={handleReshuffle}
             onBack={() => setStep('setup')}
             scheduleEdited={scheduleEdited}
             onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onStartNewSession={handleStartNewSession}
+            addablePlayers={addablePlayers}
+            onAddPlayer={handleAddPlayer}
           />
         )}
       </main>

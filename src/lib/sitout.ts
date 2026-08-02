@@ -1,4 +1,26 @@
-import type { Player, PairingHistory, Partnership } from '../types';
+import type { Player, PairingHistory, Partnership, Round } from '../types';
+
+/**
+ * Drops a player into the sit-outs of every round still to be played, leaving
+ * the courts and the already-played rounds exactly as they are. The host then
+ * either swaps them onto a court or reshuffles the remaining rounds around
+ * them.
+ *
+ * Completed rounds come back by reference — they are history, and sharing them
+ * makes that obvious to anything comparing rounds.
+ */
+export function addToRemainingSitOuts(
+  rounds: Round[],
+  completedRoundNumbers: number[],
+  player: Player
+): Round[] {
+  const completed = new Set(completedRoundNumbers);
+  return rounds.map((round) =>
+    completed.has(round.roundNumber)
+      ? round
+      : { ...round, sitOuts: [...round.sitOuts, player] }
+  );
+}
 
 // A sit-out candidate unit: a single player, or a fixed pair that must sit
 // together. Partnered players are never split across the sit-out line.
