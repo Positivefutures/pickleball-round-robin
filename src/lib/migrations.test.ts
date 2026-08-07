@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { runMigrations, KEYS, DEFAULT_ROSTER_NAME } from './migrations';
-import type { Player } from '../types';
+import type { Player, SpecialGameTypes } from '../types';
+import { ROUND_TYPES, orderedTypes } from './roundTypes';
 
 const seed = (obj: Record<string, unknown>) => {
   localStorage.clear();
@@ -107,5 +108,53 @@ describe('runMigrations — completion', () => {
     seed({ [KEYS.completedRounds]: [2, 5], [KEYS.legacyCompletedThrough]: 3 });
     runMigrations();
     expect(read<number[]>(KEYS.completedRounds)).toEqual([2, 5]);
+  });
+});
+
+describe('runMigrations — special game types', () => {
+  it('carries a legacy gendered setting into the three-type config', () => {
+    seed({ [KEYS.legacyGenderedEnabled]: true, [KEYS.legacyGenderedFrequency]: 3 });
+    runMigrations();
+    const cfg = read<SpecialGameTypes>(KEYS.specialTypes);
+    expect(cfg.gendered).toEqual({ enabled: true, frequency: 3, order: 0 });
+    expect(cfg.mixed.enabled).toBe(false);
+    expect(cfg.skill.enabled).toBe(false);
+  });
+
+  it('seeds every type switched off for a first-time user', () => {
+    runMigrations();
+    const cfg = read<SpecialGameTypes>(KEYS.specialTypes);
+    expect(ROUND_TYPES.every((t) => !cfg[t].enabled)).toBe(true);
+    expect(ROUND_TYPES.map((t) => cfg[t].order)).toEqual([0, 1, 2]);
+  });
+
+  // The first release stored no order at all, so it has to be filled in before
+  // anything sorts by it — not left until the host next edits the panel.
+  it('fills in the order missing from a config saved by the first release', () => {
+    seed({
+      [KEYS.specialTypes]: {
+        gendered: { enabled: true, frequency: 2 },
+        mixed: { enabled: true, frequency: 2 },
+        skill: { enabled: false, frequency: 2 },
+      },
+    });
+    runMigrations();
+    const cfg = read<SpecialGameTypes>(KEYS.specialTypes);
+    expect(ROUND_TYPES.map((t) => cfg[t].order)).toEqual([0, 1, 2]);
+    expect(cfg.gendered.enabled).toBe(true);
+    expect(cfg.mixed.frequency).toBe(2);
+  });
+
+  it('leaves an order the host has already set alone', () => {
+    seed({
+      [KEYS.specialTypes]: {
+        gendered: { enabled: true, frequency: 2, order: 2 },
+        mixed: { enabled: true, frequency: 2, order: 0 },
+        skill: { enabled: false, frequency: 2, order: 1 },
+      },
+    });
+    runMigrations();
+    const cfg = read<SpecialGameTypes>(KEYS.specialTypes);
+    expect(orderedTypes(cfg)).toEqual(['mixed', 'skill', 'gendered']);
   });
 });

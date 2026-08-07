@@ -32,8 +32,13 @@ export type RoundType = 'gendered' | 'mixed' | 'skill';
 
 export interface SpecialTypeSetting {
   enabled: boolean;
-  /** Play this type every N rounds. Never below the number of types switched on. */
+  /** Play this type on round 1 and every N rounds after. */
   frequency: number;
+  /**
+   * Where the host has placed this type in the panel, 0 first. Settles which
+   * type takes a round two of them both fall due on.
+   */
+  order: number;
 }
 
 export type SpecialGameTypes = Record<RoundType, SpecialTypeSetting>;

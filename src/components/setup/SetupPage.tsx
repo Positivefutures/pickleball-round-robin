@@ -23,6 +23,7 @@ interface Props {
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
   onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
+  onSpecialTypeMove: (type: RoundType, direction: -1 | 1) => void;
   onGenerate: () => void;
   onBack: () => void;
 }
@@ -42,6 +43,7 @@ export function SetupPage({
   onCourtsChange,
   onRoundsChange,
   onSpecialTypeChange,
+  onSpecialTypeMove,
   onGenerate,
   onBack,
 }: Props) {
@@ -195,6 +197,7 @@ export function SetupPage({
         <SpecialTypesPanel
           specialTypes={specialTypes}
           onChange={onSpecialTypeChange}
+          onMove={onSpecialTypeMove}
           onClose={() => setSpecialTypesOpen(false)}
         />
       )}

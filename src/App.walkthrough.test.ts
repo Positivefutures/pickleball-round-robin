@@ -390,6 +390,13 @@ describe('Special Game Types', () => {
     click(radios[1]); // No is first, Yes second
   }
 
+  /** The reorder arrows carry an aria-label; their text is just an arrow. */
+  function move(label: string) {
+    const button = container.querySelector(`[aria-label="${label}"]`);
+    if (!button) throw new Error(`no button labelled "${label}"`);
+    click(button);
+  }
+
   it('runs from the button to a badge on the schedule', () => {
     mount();
     clickButton(/^Continue to Setup/);
@@ -403,18 +410,19 @@ describe('Special Game Types', () => {
     sayYes('mixed');
     clickButton(/^Done$/);
 
-    // Back on Setup, read-only, with the button still there to reopen it.
+    // Back on Setup, read-only, previewing the rounds it will land on.
     expect(container.textContent).toContain('Mixed every 2 rounds');
+    expect(container.textContent).toContain('rounds 1, 3, 5, 7');
     expect(container.textContent).toContain('Select Special Game Types');
 
     clickButton(/^Generate Schedule/);
-    expect(text(roundCard(2))).toContain('Mixed Round');
-    expect(text(roundCard(1))).not.toContain('Mixed Round');
-    expect(storedSchedule().rounds[1].roundType).toBe('mixed');
-    expect(storedSchedule().rounds[0].roundType).toBeUndefined();
+    expect(text(roundCard(1))).toContain('Mixed Round');
+    expect(text(roundCard(2))).not.toContain('Mixed Round');
+    expect(storedSchedule().rounds[0].roundType).toBe('mixed');
+    expect(storedSchedule().rounds[1].roundType).toBeUndefined();
   });
 
-  it('holds two types apart when both are switched on', () => {
+  it('gives round 1 to a type when two are switched on', () => {
     mount();
     clickButton(/^Continue to Setup/);
     clickButton(/^Select Special Game Types$/);
@@ -422,17 +430,33 @@ describe('Special Game Types', () => {
     sayYes('mixed');
     clickButton(/^Done$/);
 
-    // Neither can run every round now, so both are pulled back to every 2.
+    // Both keep their own frequency, and they take turns from round 1.
     expect(container.textContent).toContain('Gendered every 2 rounds');
     expect(container.textContent).toContain('Mixed every 2 rounds');
 
     clickButton(/^Generate Schedule/);
     const types = storedSchedule().rounds.map((r) => r.roundType);
-    expect(types.filter(Boolean).length).toBeGreaterThan(0);
-    // Two types both due on the same round: one takes it, the other slides on.
+    expect(types[0]).toBe('gendered');
+    expect(types[1]).toBe('mixed');
     expect(types.filter((t) => t === 'gendered').length).toBeGreaterThan(0);
     expect(types.filter((t) => t === 'mixed').length).toBeGreaterThan(0);
   });
+
+  it('lets the host reorder the types, changing which opens the session', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Select Special Game Types$/);
+    sayYes('gendered');
+    sayYes('mixed');
+    move('Move Mixed Games up');
+    clickButton(/^Done$/);
+
+    clickButton(/^Generate Schedule/);
+    const types = storedSchedule().rounds.map((r) => r.roundType);
+    expect(types[0]).toBe('mixed');
+    expect(types[1]).toBe('gendered');
+  });
+
 });
 
 describe('the Setup confirmation', () => {

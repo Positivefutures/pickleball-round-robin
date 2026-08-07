@@ -1,4 +1,4 @@
-import type { Player, Roster } from '../types';
+import type { Player, Roster, SpecialGameTypes } from '../types';
 import { generateId } from '../utils/helpers';
 import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './roundTypes';
 
@@ -105,8 +105,14 @@ export function runMigrations() {
       KEYS.specialTypes,
       normalizeSpecialTypes({
         ...DEFAULT_SPECIAL_TYPES,
-        gendered: { enabled, frequency },
+        gendered: { ...DEFAULT_SPECIAL_TYPES.gendered, enabled, frequency },
       })
     );
+  } else {
+    // Configs stored by the first release have no order on them, and its
+    // minimum frequency could be 2 or 3 where 1 is now allowed. Normalising
+    // once here means the repair does not wait for the host's next edit.
+    const stored = read<SpecialGameTypes>(KEYS.specialTypes, DEFAULT_SPECIAL_TYPES);
+    write(KEYS.specialTypes, normalizeSpecialTypes({ ...DEFAULT_SPECIAL_TYPES, ...stored }));
   }
 }

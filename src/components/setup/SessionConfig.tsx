@@ -1,5 +1,5 @@
 import type { SpecialGameTypes } from '../../types';
-import { summaryLines } from '../../lib/roundTypes';
+import { specialSummary } from '../../lib/roundTypes';
 
 interface Props {
   numCourts: number;
@@ -22,7 +22,7 @@ export function SessionConfig({
 }: Props) {
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
-  const specials = summaryLines(specialTypes);
+  const specials = specialSummary(specialTypes, numRounds);
 
   return (
     <div className="space-y-4">
@@ -77,8 +77,17 @@ export function SessionConfig({
         {specials.length > 0 && (
           <div className="mb-2">
             <h3 className="text-lg font-semibold text-gray-800">Special Game Types</h3>
-            {specials.map((line) => (
-              <p key={line} className="text-sm text-gray-700">{line}</p>
+            {specials.map((s) => (
+              <div key={s.type} className="mt-1">
+                <p className="text-sm text-gray-700">{s.headline}</p>
+                {/* The rounds it lands on, so a setting that never fits the
+                    session is obvious here rather than after generating. */}
+                <p className="text-xs text-gray-500">
+                  {s.rounds.length > 0
+                    ? `round${s.rounds.length > 1 ? 's' : ''} ${s.rounds.join(', ')}`
+                    : 'not in this session'}
+                </p>
+              </div>
             ))}
           </div>
         )}

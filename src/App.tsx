@@ -8,7 +8,7 @@ import { KEYS } from './lib/migrations';
 import { generateSchedule, regenerateRemaining } from './lib/pairing';
 import { addToRemainingSitOuts } from './lib/sitout';
 import { prunePartnerships, arePartners } from './lib/partnerships';
-import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './lib/roundTypes';
+import { DEFAULT_SPECIAL_TYPES, moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
   toAllGroupsFileName,
@@ -243,14 +243,20 @@ function App() {
     [reassignRoster, deleteRoster, scheduleRosterId, clearSession]
   );
 
-  // Switching a game type on can make another one's frequency impossible — two
-  // types cannot both play every round — so every change is pulled back into
-  // range before it is stored.
   const updateSpecialType = useCallback(
     (type: RoundType, patch: Partial<SpecialTypeSetting>) => {
       setSpecialTypes((prev) =>
         normalizeSpecialTypes({ ...prev, [type]: { ...prev[type], ...patch } })
       );
+    },
+    [setSpecialTypes]
+  );
+
+  // Where the host puts a type in the panel decides which of two that both fall
+  // due on the same round gets it.
+  const moveSpecialType = useCallback(
+    (type: RoundType, direction: -1 | 1) => {
+      setSpecialTypes((prev) => moveType(prev, type, direction));
     },
     [setSpecialTypes]
   );
@@ -567,6 +573,7 @@ function App() {
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
             onSpecialTypeChange={updateSpecialType}
+            onSpecialTypeMove={moveSpecialType}
             onGenerate={() => handleGenerate()}
             onBack={() => setStep('roster')}
           />

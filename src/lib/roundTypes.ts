@@ -1,18 +1,15 @@
 import type { Round, RoundType, SpecialGameTypes } from '../types';
 
-/**
- * The order the three types are offered in, and the tie-break order when two of
- * them want the same round.
- */
+/** The three types. The host's own order lives in each setting's `order`. */
 export const ROUND_TYPES: RoundType[] = ['gendered', 'mixed', 'skill'];
 
 /** The most rounds a type can be spaced out by. */
 export const MAX_FREQUENCY = 8;
 
 export const DEFAULT_SPECIAL_TYPES: SpecialGameTypes = {
-  gendered: { enabled: false, frequency: 2 },
-  mixed: { enabled: false, frequency: 2 },
-  skill: { enabled: false, frequency: 2 },
+  gendered: { enabled: false, frequency: 2, order: 0 },
+  mixed: { enabled: false, frequency: 2, order: 1 },
+  skill: { enabled: false, frequency: 2, order: 2 },
 };
 
 interface RoundTypeMeta {
@@ -54,25 +51,59 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
   },
 };
 
+/** The three types in the host's chosen order. */
+export function orderedTypes(cfg: SpecialGameTypes): RoundType[] {
+  return [...ROUND_TYPES].sort((a, b) => rankOf(cfg, a) - rankOf(cfg, b));
+}
+
+/** Enabled types, in the host's chosen order. */
 export function enabledTypes(cfg: SpecialGameTypes): RoundType[] {
-  return ROUND_TYPES.filter((t) => cfg[t].enabled);
+  return orderedTypes(cfg).filter((t) => cfg[t].enabled);
+}
+
+// A config stored by v1.40.0 has no `order` at all. Fall back to the listed
+// order so those settings sort sensibly until normalize writes real ones in.
+function rankOf(cfg: SpecialGameTypes, type: RoundType): number {
+  const order = cfg[type]?.order;
+  return typeof order === 'number' ? order : ROUND_TYPES.indexOf(type);
 }
 
 /**
- * Two types cannot both happen every round, and three cannot both happen every
- * other round, so the floor on every frequency is however many are switched on.
+ * Pulls a config back into shape: every frequency in range, and the order a
+ * clean 0, 1, 2 with no gaps or duplicates. Run after any change to the config,
+ * and over anything read from storage.
  */
-export function minFrequency(cfg: SpecialGameTypes): number {
-  return Math.max(1, enabledTypes(cfg).length);
-}
-
-/** Pulls every frequency back into range. Run this after any change to the config. */
 export function normalizeSpecialTypes(cfg: SpecialGameTypes): SpecialGameTypes {
-  const min = minFrequency(cfg);
+  const ranked = orderedTypes(cfg);
   const next = {} as SpecialGameTypes;
   for (const t of ROUND_TYPES) {
-    const frequency = Math.min(MAX_FREQUENCY, Math.max(min, cfg[t].frequency));
-    next[t] = frequency === cfg[t].frequency ? cfg[t] : { ...cfg[t], frequency };
+    next[t] = {
+      ...cfg[t],
+      frequency: Math.min(MAX_FREQUENCY, Math.max(1, cfg[t].frequency)),
+      order: ranked.indexOf(t),
+    };
+  }
+  return next;
+}
+
+/** Moves a type one place up (-1) or down (1). At either end, nothing happens. */
+export function moveType(
+  cfg: SpecialGameTypes,
+  type: RoundType,
+  direction: -1 | 1
+): SpecialGameTypes {
+  const ranked = orderedTypes(cfg);
+  const from = ranked.indexOf(type);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= ranked.length) return cfg;
+
+  const swapped = [...ranked];
+  swapped[from] = ranked[to];
+  swapped[to] = ranked[from];
+
+  const next = {} as SpecialGameTypes;
+  for (const t of ROUND_TYPES) {
+    next[t] = { ...cfg[t], order: swapped.indexOf(t) };
   }
   return next;
 }
@@ -80,7 +111,7 @@ export function normalizeSpecialTypes(cfg: SpecialGameTypes): SpecialGameTypes {
 /**
  * Works out which type, if any, each round is played in.
  *
- * Every switched-on type is due again `frequency` rounds after it last played.
+ * Every switched-on type wants round 1, then another every `frequency` rounds.
  * When two fall due on the same round the rarer one — the bigger frequency —
  * takes it, because it has fewer chances to happen at all. The one that lost
  * slides to the very next round and counts from there, so it still gets its
@@ -88,14 +119,17 @@ export function normalizeSpecialTypes(cfg: SpecialGameTypes): SpecialGameTypes {
  * robin.
  *
  * Gendered every 4 with mixed every 2 gives:
- * normal, mixed, normal, gendered, mixed, normal, mixed, gendered.
+ * gendered, mixed, normal, mixed, gendered, mixed, normal, mixed.
  */
 export function planRoundTypes(
   cfg: SpecialGameTypes,
   numRounds: number
 ): (RoundType | null)[] {
   const active = enabledTypes(cfg);
-  const nextDue = new Map(active.map((t) => [t, cfg[t].frequency]));
+  // Everything is due in round 1, so a session always opens on a game type and
+  // a short session still gets one. "Every 4 rounds" means 1, 5, 9 — not 4, 8.
+  const nextDue = new Map(active.map((t) => [t, 1]));
+  const played = new Map(active.map((t) => [t, 0]));
   const plan: (RoundType | null)[] = [];
 
   for (let r = 1; r <= numRounds; r++) {
@@ -105,17 +139,21 @@ export function planRoundTypes(
       continue;
     }
 
-    // Rarest type first, then whoever has been waiting longest, then a fixed
-    // order so the same settings always produce the same plan.
+    // Rarest type first, then whoever has waited longest, then whoever has had
+    // fewer turns, and the host's own order settles what is left. Turns must
+    // outrank the host's order: put their order above it and whichever type
+    // sits on top wins every tie for the whole session, starving the others.
     due.sort(
       (a, b) =>
         cfg[b].frequency - cfg[a].frequency ||
         (nextDue.get(a) ?? 0) - (nextDue.get(b) ?? 0) ||
-        ROUND_TYPES.indexOf(a) - ROUND_TYPES.indexOf(b)
+        (played.get(a) ?? 0) - (played.get(b) ?? 0) ||
+        rankOf(cfg, a) - rankOf(cfg, b)
     );
 
     const [winner, ...bumped] = due;
     plan.push(winner);
+    played.set(winner, (played.get(winner) ?? 0) + 1);
     nextDue.set(winner, r + cfg[winner].frequency);
     for (const t of bumped) nextDue.set(t, r + 1);
   }
@@ -123,12 +161,32 @@ export function planRoundTypes(
   return plan;
 }
 
-/** "Gendered every 4 rounds", one line per type switched on. */
-export function summaryLines(cfg: SpecialGameTypes): string[] {
+export interface SpecialSummary {
+  type: RoundType;
+  /** "Gendered every 4 rounds" */
+  headline: string;
+  /** The rounds it actually lands on this session. Empty if it never fits. */
+  rounds: number[];
+}
+
+/**
+ * What Setup reads back. The round numbers come from the plan itself rather
+ * than being worked out again here, so the preview cannot drift from what
+ * Generate builds.
+ */
+export function specialSummary(
+  cfg: SpecialGameTypes,
+  numRounds: number
+): SpecialSummary[] {
+  const plan = planRoundTypes(cfg, numRounds);
   return enabledTypes(cfg).map((t) => {
     const n = cfg[t].frequency;
     const every = n === 1 ? 'every round' : `every ${n} rounds`;
-    return `${ROUND_TYPE_META[t].shortName} ${every}`;
+    return {
+      type: t,
+      headline: `${ROUND_TYPE_META[t].shortName} ${every}`,
+      rounds: plan.flatMap((x, i) => (x === t ? [i + 1] : [])),
+    };
   });
 }
 

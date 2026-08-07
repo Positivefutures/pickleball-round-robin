@@ -1,21 +1,40 @@
 import type { RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
-import {
-  MAX_FREQUENCY, ROUND_TYPES, ROUND_TYPE_META, minFrequency,
-} from '../../lib/roundTypes';
+import { MAX_FREQUENCY, ROUND_TYPE_META, orderedTypes } from '../../lib/roundTypes';
 
 interface Props {
   specialTypes: SpecialGameTypes;
   onChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
+  onMove: (type: RoundType, direction: -1 | 1) => void;
   onClose: () => void;
 }
 
-export function SpecialTypesPanel({ specialTypes, onChange, onClose }: Props) {
-  // Two types cannot both play every round, so the shortest gap any of them can
-  // have is however many are switched on.
-  const min = minFrequency(specialTypes);
-  const options = Array.from(
-    { length: MAX_FREQUENCY - min + 1 }, (_, i) => min + i
+const FREQUENCIES = Array.from({ length: MAX_FREQUENCY }, (_, i) => i + 1);
+
+// Arrows rather than a drag handle: iOS Safari has no HTML5 drag-and-drop, and
+// this app is mostly used on a phone at the side of a court.
+function MoveButton({
+  label, disabled, onClick, children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="min-h-8 min-w-8 rounded-md bg-gray-100 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-30"
+    >
+      {children}
+    </button>
   );
+}
+
+export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: Props) {
+  const ordered = orderedTypes(specialTypes);
 
   return (
     <div
@@ -30,12 +49,30 @@ export function SpecialTypesPanel({ specialTypes, onChange, onClose }: Props) {
           Special Game Types
         </h2>
 
-        {ROUND_TYPES.map((type) => {
+        {ordered.map((type, i) => {
           const meta = ROUND_TYPE_META[type];
           const setting = specialTypes[type];
           return (
             <section key={type} className="mt-6 border-t border-gray-200 pt-5">
-              <h3 className="text-lg font-semibold text-gray-800">{meta.title}</h3>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-lg font-semibold text-gray-800">{meta.title}</h3>
+                <div className="flex shrink-0 gap-1">
+                  <MoveButton
+                    label={`Move ${meta.title} up`}
+                    disabled={i === 0}
+                    onClick={() => onMove(type, -1)}
+                  >
+                    &uarr;
+                  </MoveButton>
+                  <MoveButton
+                    label={`Move ${meta.title} down`}
+                    disabled={i === ordered.length - 1}
+                    onClick={() => onMove(type, 1)}
+                  >
+                    &darr;
+                  </MoveButton>
+                </div>
+              </div>
               <p className="mt-1 text-sm font-medium text-gray-700">{meta.description}</p>
 
               <div className="mt-2 flex items-center gap-3">
@@ -68,7 +105,7 @@ export function SpecialTypesPanel({ specialTypes, onChange, onClose }: Props) {
                       onChange={(e) => onChange(type, { frequency: parseInt(e.target.value) })}
                       className="min-w-14 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
-                      {options.map((n) => (
+                      {FREQUENCIES.map((n) => (
                         <option key={n} value={n}>{n}</option>
                       ))}
                     </select>
@@ -82,10 +119,16 @@ export function SpecialTypesPanel({ specialTypes, onChange, onClose }: Props) {
           );
         })}
 
-        <p className="mt-6 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
-          Special game types come first. A pair from Set Partners is split for that round only if
-          they do not suit the game type, then they are back together next round.
-        </p>
+        <div className="mt-6 space-y-2 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <p>
+            Every type you switch on starts at round 1. When two of them want the same round, the
+            rarer one goes first and your order settles a tie.
+          </p>
+          <p>
+            Special game types come first. A pair from Set Partners is split for that round only if
+            they do not suit the game type, then they are back together next round.
+          </p>
+        </div>
 
         <button
           type="button"
