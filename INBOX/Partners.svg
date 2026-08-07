@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="162px" height="91px" viewBox="0 0 162 91" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Slice 2</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Layer_3" fill="#000000" fill-rule="nonzero">
+            <ellipse id="Oval" cx="39.5" cy="21" rx="21.5" ry="21"></ellipse>
+            <path d="M54.6011538,49 L24.3988462,49 C10.930676,49.0165292 0.0167410637,59.792313 0,73.09 L0,88 C0,89.6568542 1.36036557,91 3.03846154,91 L75.9615385,91 C77.6396344,91 79,89.6568542 79,88 L79,73.09 C78.9832589,59.792313 68.069324,49.0165292 54.6011538,49 L54.6011538,49 Z" id="Path"></path>
+        </g>
+        <g id="Layer_3-Copy" transform="translate(83, 0)" fill="#000000" fill-rule="nonzero">
+            <ellipse id="Oval" cx="39.5" cy="21" rx="21.5" ry="21"></ellipse>
+            <path d="M54.6011538,49 L24.3988462,49 C10.930676,49.0165292 0.0167410637,59.792313 0,73.09 L0,88 C0,89.6568542 1.36036557,91 3.03846154,91 L75.9615385,91 C77.6396344,91 79,89.6568542 79,88 L79,73.09 C78.9832589,59.792313 68.069324,49.0165292 54.6011538,49 L54.6011538,49 Z" id="Path"></path>
+        </g>
+    </g>
+</svg>

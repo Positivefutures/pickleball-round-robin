@@ -26,3 +26,7 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Machine-specific tool permissions. The skills beside it are shared, so this
+# ignores the one file rather than the whole .claude directory.
+.claude/settings.local.json
