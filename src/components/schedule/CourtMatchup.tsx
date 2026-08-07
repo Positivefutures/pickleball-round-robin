@@ -15,6 +15,8 @@ interface Props {
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
   onRequestRemove: (player: Player) => void;
   readOnly?: boolean;
+  /** A court on a special round that the roster could not fill in that format. */
+  offFormat?: boolean;
 }
 
 function LockIcon({ locked }: { locked: boolean }) {
@@ -219,11 +221,21 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false }: Props) {
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex justify-between items-center mb-3">
-        <h4 className="font-semibold text-gray-700">Court {court.courtNumber}</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="font-semibold text-gray-700">Court {court.courtNumber}</h4>
+          {offFormat && (
+            <span
+              className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600"
+              title="There were not enough players left to fill this court in the round's format, so it plays an ordinary game."
+            >
+              Normal game
+            </span>
+          )}
+        </div>
         <BalanceIndicator ratingDiff={court.ratingDiff} />
       </div>
 

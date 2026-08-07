@@ -1,4 +1,4 @@
-import type { Round, RoundType, SpecialGameTypes } from '../types';
+import type { CourtAssignment, Round, RoundType, SpecialGameTypes } from '../types';
 
 /** The three types. The host's own order lives in each setting's `order`. */
 export const ROUND_TYPES: RoundType[] = ['gendered', 'mixed', 'skill'];
@@ -197,4 +197,24 @@ export function specialSummary(
 export function roundTypeOf(round: Round): RoundType | null {
   if (round.roundType) return round.roundType;
   return round.isGendered ? 'gendered' : null;
+}
+
+/**
+ * Did this court actually get played in the round's format? A roster rarely
+ * divides evenly into the format, so a special round fills the courts it can
+ * and plays the rest as an ordinary game. Both the schedule and the printout
+ * mark those courts, and `updateSpecialMissCounts` puts the players on them
+ * first in the queue next time.
+ */
+export function courtMatchesType(court: CourtAssignment, type: RoundType): boolean {
+  const teams = [court.team1, court.team2];
+  switch (type) {
+    case 'gendered':
+      return new Set([...court.team1, ...court.team2].map((p) => p.gender)).size === 1;
+    case 'mixed':
+      return teams.every((t) => t.length === 2 && t[0].gender !== t[1].gender);
+    case 'skill':
+      // Every court in a skill round is a rating band by construction.
+      return true;
+  }
 }

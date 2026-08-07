@@ -28,44 +28,44 @@ export function SessionConfig({
     <div className="space-y-4">
       <div className="flex gap-6 flex-wrap items-start">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-bold text-gray-700 mb-1">
             Number of Courts
           </label>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onCourtsChange(Math.max(1, numCourts - 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               &minus;
             </button>
-            <span className="min-w-10 text-center font-medium text-gray-800">{numCourts}</span>
+            <span className="min-w-10 text-center text-[1.4rem] font-semibold text-gray-800">{numCourts}</span>
             <button
               type="button"
               onClick={() => onCourtsChange(Math.min(16, numCourts + 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               +
             </button>
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-bold text-gray-700 mb-1">
             Number of Rounds
           </label>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onRoundsChange(Math.max(1, numRounds - 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               &minus;
             </button>
-            <span className="min-w-10 text-center font-medium text-gray-800">{numRounds}</span>
+            <span className="min-w-10 text-center text-[1.4rem] font-semibold text-gray-800">{numRounds}</span>
             <button
               type="button"
               onClick={() => onRoundsChange(Math.min(16, numRounds + 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
             >
               +
             </button>
@@ -101,7 +101,7 @@ export function SessionConfig({
       </div>
 
       <div className="space-y-1">
-        <p className="text-base font-bold text-gray-700">
+        <p className="text-[1.2rem] font-bold text-gray-700">
           {numPlayers} of {spotsNeeded} Spots Filled
         </p>
         {sitOutsPerRound > 0 && (

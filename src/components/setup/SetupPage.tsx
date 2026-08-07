@@ -5,6 +5,7 @@ import { PartnerPairing } from './PartnerPairing';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
 import { SpecialTypesPanel } from './SpecialTypesPanel';
+import { LinkIcon } from '../icons';
 import { resolvePairs } from '../../lib/partnerships';
 import { useScrollLock } from '../../hooks/useScrollLock';
 
@@ -112,9 +113,18 @@ export function SetupPage({
         <button
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
-          className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {mode === 'select' ? 'Set Partners' : 'Done Pairing'}
+          {/* The link belongs to pairing players up. The same button ends that
+              mode, where it would be saying the wrong thing. */}
+          {mode === 'select' ? (
+            <>
+              <LinkIcon className="w-[21px] h-[21px]" />
+              Set Partners
+            </>
+          ) : (
+            'Done Pairing'
+          )}
         </button>
         <button
           onClick={handleGenerate}
@@ -135,14 +145,14 @@ export function SetupPage({
       <div>
         <button
           onClick={onBack}
-          className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="px-6 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           &larr; Players
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Setup Round Robin</h2>
+      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Setup Round Robin</h2>
         <SessionConfig
           numCourts={numCourts}
           numRounds={numRounds}
@@ -157,9 +167,9 @@ export function SetupPage({
       {buttonRow}
 
       {mode === 'select' && pairs.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
           <div className="mb-3">
-            <h3 className="font-medium text-gray-700">
+            <h3 className="text-[1.35rem] font-extrabold text-[#222]">
               Partners
             </h3>
             <p className="text-sm text-gray-500 mt-1">
@@ -171,7 +181,7 @@ export function SetupPage({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
         {mode === 'select' ? (
           <PlayerSelector
             players={selectablePlayers}

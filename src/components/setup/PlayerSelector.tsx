@@ -20,7 +20,7 @@ export function PlayerSelector({
   return (
     <div>
       <div className="flex justify-between items-center mb-3">
-        <h3 className="font-medium text-gray-700">
+        <h3 className="text-[1.35rem] font-extrabold text-[#222]">
           Select Players
         </h3>
         <div className="flex gap-2">

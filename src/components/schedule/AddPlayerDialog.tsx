@@ -23,10 +23,10 @@ export function AddPlayerDialog({ candidates, allPlayers, onConfirm, onCancel }:
       {/* A column so the name list, and only the name list, takes whatever height
           is left over — the note and the buttons stay put while it scrolls. */}
       <div
-        className="mx-4 flex max-h-[85vh] w-full max-w-sm flex-col rounded-lg bg-white p-6 shadow-lg"
+        className="mx-4 flex max-h-[85vh] w-full max-w-sm flex-col rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="shrink-0 text-lg font-semibold text-gray-800">Add Player to Session</h2>
+        <h2 className="shrink-0 text-[1.35rem] font-extrabold text-[#222]">Add Player to Session</h2>
 
         {empty ? (
           <p className="mt-3 text-sm text-gray-600">
@@ -71,7 +71,7 @@ export function AddPlayerDialog({ candidates, allPlayers, onConfirm, onCancel }:
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-md bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+            className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
           >
             {empty ? 'Close' : 'Cancel'}
           </button>

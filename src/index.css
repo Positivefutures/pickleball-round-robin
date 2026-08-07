@@ -14,7 +14,9 @@
 /* Large-text mode makes the roster table wide enough to clip the Edit/Remove
    buttons of a selected row on a phone. When it's on, tighten everything around
    that table: less panel padding, less margin to the screen edge, and unscaled
-   column labels — freeing width for those buttons. */
+   column labels — freeing width for those buttons.
+   The margin rule now matches the normal one, which already sits at 0.5rem. It
+   stays so that widening the page later cannot quietly widen this mode too. */
 .text-large main {
   padding-left: 0.5rem;
   padding-right: 0.5rem;

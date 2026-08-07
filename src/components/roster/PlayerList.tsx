@@ -186,7 +186,7 @@ export function PlayerList({
 
       {confirmingPlayer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">
               Remove {confirmingPlayer.name} from {rosterName ?? 'this group'}?
             </p>
@@ -196,7 +196,7 @@ export function PlayerList({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmingId(null)}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
               </button>

@@ -88,10 +88,10 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg bg-white p-6 shadow-lg"
+        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-center text-lg font-semibold text-gray-800">{copy.title}</h2>
+        <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">{copy.title}</h2>
 
         {sent ? (
           <>
@@ -114,7 +114,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 rounded-md bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
               >
                 Done
               </button>
@@ -200,7 +200,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 w-full rounded-md bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+              className="mt-4 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
             >
               Cancel
             </button>

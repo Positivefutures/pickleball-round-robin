@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import type { RoundType, SpecialGameTypes } from '../types';
+import type { CourtAssignment, Gender, Player, RoundType, SpecialGameTypes } from '../types';
 import {
-  DEFAULT_SPECIAL_TYPES, ROUND_TYPES, moveType, normalizeSpecialTypes, orderedTypes,
-  planRoundTypes, roundTypeOf, specialSummary,
+  DEFAULT_SPECIAL_TYPES, ROUND_TYPES, courtMatchesType, moveType, normalizeSpecialTypes,
+  orderedTypes, planRoundTypes, roundTypeOf, specialSummary,
 } from './roundTypes';
 
 function config(
@@ -219,5 +219,48 @@ describe('roundTypeOf', () => {
 
   it('returns nothing for an ordinary round', () => {
     expect(roundTypeOf(bare)).toBeNull();
+  });
+});
+
+describe('courtMatchesType', () => {
+  const player = (gender: Gender, rating = 4.0): Player =>
+    ({ id: `${gender}${rating}${Math.random()}`, name: 'P', rating, gender, rosterIds: ['r1'] });
+
+  const court = (g1: Gender, g2: Gender, g3: Gender, g4: Gender): CourtAssignment => ({
+    courtNumber: 1,
+    team1: [player(g1), player(g2)],
+    team2: [player(g3), player(g4)],
+    ratingDiff: 0,
+  });
+
+  it('accepts a court of one gender on a gendered round', () => {
+    expect(courtMatchesType(court('M', 'M', 'M', 'M'), 'gendered')).toBe(true);
+    expect(courtMatchesType(court('F', 'F', 'F', 'F'), 'gendered')).toBe(true);
+  });
+
+  it('rejects the leftovers a gendered round could not fill', () => {
+    expect(courtMatchesType(court('M', 'F', 'M', 'F'), 'gendered')).toBe(false);
+    // Men against women is not men playing men, however tidy the teams look.
+    expect(courtMatchesType(court('M', 'M', 'F', 'F'), 'gendered')).toBe(false);
+  });
+
+  it('wants one of each gender on both teams of a mixed round', () => {
+    expect(courtMatchesType(court('M', 'F', 'F', 'M'), 'mixed')).toBe(true);
+    expect(courtMatchesType(court('M', 'M', 'F', 'F'), 'mixed')).toBe(false);
+    expect(courtMatchesType(court('M', 'F', 'M', 'M'), 'mixed')).toBe(false);
+  });
+
+  it('takes every court of a skill round, which is a band by construction', () => {
+    expect(courtMatchesType(court('M', 'F', 'M', 'F'), 'skill')).toBe(true);
+  });
+
+  it('rejects a short-handed mixed court rather than reading past the end', () => {
+    const short: CourtAssignment = {
+      courtNumber: 1,
+      team1: [player('M')],
+      team2: [player('F'), player('M')],
+      ratingDiff: 0,
+    };
+    expect(courtMatchesType(short, 'mixed')).toBe(false);
   });
 });

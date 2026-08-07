@@ -89,7 +89,7 @@ export function PlayerForm({
             setRating(String(defaultRating));
             setGender('M');
           }}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="px-4 py-2 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           Cancel
         </button>
@@ -129,7 +129,7 @@ export function PlayerForm({
           <button
             type="button"
             onClick={() => setRating(String(Math.max(3, Math.round((parseFloat(rating) - 0.1) * 10) / 10)))}
-            className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
           >
             &minus;
           </button>
@@ -137,7 +137,7 @@ export function PlayerForm({
           <button
             type="button"
             onClick={() => setRating(String(Math.min(5, Math.round((parseFloat(rating) + 0.1) * 10) / 10)))}
-            className="min-w-9 min-h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
+            className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
           >
             +
           </button>

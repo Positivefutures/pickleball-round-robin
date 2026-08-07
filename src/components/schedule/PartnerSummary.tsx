@@ -45,8 +45,8 @@ export function PartnerSummary({ schedule, players }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-800 mb-4">Player Summary</h3>
+    <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      <h3 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Player Summary</h3>
 
       <div className="mb-4">
         <h4 className="font-medium text-gray-700 mb-2">Games Played</h4>

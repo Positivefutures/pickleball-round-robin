@@ -1,5 +1,6 @@
 import type { RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { MAX_FREQUENCY, ROUND_TYPE_META, orderedTypes } from '../../lib/roundTypes';
+import { MixedGamesIcon } from '../icons';
 
 interface Props {
   specialTypes: SpecialGameTypes;
@@ -26,12 +27,15 @@ function MoveButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="min-h-8 min-w-8 rounded-md bg-gray-100 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-200 disabled:opacity-30"
+      className="min-h-8 min-w-8 rounded-md border border-[#999] bg-gray-100 text-sm font-bold text-gray-600 transition-colors hover:border border-[#999] bg-gray-200 disabled:opacity-30"
     >
       {children}
     </button>
   );
 }
+
+// Artwork Jeff has supplied so far. A type with no entry simply shows no icon.
+const TYPE_ICONS: Partial<Record<RoundType, true>> = { mixed: true };
 
 export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: Props) {
   const ordered = orderedTypes(specialTypes);
@@ -42,10 +46,10 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg bg-white p-6 shadow-lg"
+        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-center text-lg font-semibold text-gray-800">
+        <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">
           Special Game Types
         </h2>
 
@@ -55,7 +59,12 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
           return (
             <section key={type} className="mt-6 border-t border-gray-200 pt-5">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-semibold text-gray-800">{meta.title}</h3>
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+                  {meta.title}
+                  {TYPE_ICONS[type] && (
+                    <MixedGamesIcon className="w-[26px] h-[26px] text-[#60697c]" />
+                  )}
+                </h3>
                 <div className="flex shrink-0 gap-1">
                   <MoveButton
                     label={`Move ${meta.title} up`}
@@ -133,7 +142,7 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded-md bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+          className="mt-4 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
         >
           Done
         </button>

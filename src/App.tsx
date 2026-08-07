@@ -521,7 +521,9 @@ function App() {
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? () => window.print() : undefined}
       />
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+      {/* Narrow side margins on purpose: every pixel across is a pixel the
+          roster table and the court grid can use on a phone. */}
+      <main className="max-w-5xl mx-auto px-2 py-6 space-y-4">
         {/* Held back until there's a real roster worth keeping. The route check
             matters: browsers with no install path at all (desktop Firefox) must
             never be offered one. */}
@@ -605,7 +607,7 @@ function App() {
 
       {pendingRosterSwitch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">Switch groups?</p>
             <p className="text-sm text-gray-600 text-center mb-4">
               You have a round robin session in progress for{' '}
@@ -615,7 +617,7 @@ function App() {
             <div className="flex gap-3">
               <button
                 onClick={() => setPendingRosterSwitch(null)}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
               </button>

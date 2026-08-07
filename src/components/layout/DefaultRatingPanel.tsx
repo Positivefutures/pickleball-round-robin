@@ -20,10 +20,10 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-lg"
+        className="mx-4 w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-center text-lg font-semibold text-gray-800">
+        <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">
           Default Player Rating
         </h2>
         <p className="mt-1 mb-4 text-center text-sm text-gray-600">
@@ -36,7 +36,7 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
             onClick={() => onChange(step(rating, -0.1))}
             disabled={rating <= MIN}
             aria-label="Lower the default rating"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
           >
             &minus;
           </button>
@@ -48,7 +48,7 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
             onClick={() => onChange(step(rating, 0.1))}
             disabled={rating >= MAX}
             aria-label="Raise the default rating"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
           >
             +
           </button>

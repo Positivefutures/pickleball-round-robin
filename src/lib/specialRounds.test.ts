@@ -154,9 +154,16 @@ describe('equal skill rounds', () => {
     const skill = generateSchedule(players, 4, 4, everyRound('skill'));
     const normal = generateSchedule(players, 4, 4);
 
+    const normalSpreads = normal.rounds.map(spread);
     const worstSkill = Math.max(...skill.rounds.map(spread));
-    const bestNormal = Math.min(...normal.rounds.map(spread));
-    expect(worstSkill).toBeLessThan(bestNormal);
+    const meanNormal = normalSpreads.reduce((a, b) => a + b, 0) / normalSpreads.length;
+
+    // Bounds measured over 300 schedules: the widest skill court is 0.625 in
+    // every one of them, and an ordinary round averages 1.28 at its narrowest.
+    // This used to compare against the *tightest* ordinary round, which dips to
+    // 0.625 about once in 300 and tied the assertion into failing.
+    expect(worstSkill).toBeLessThanOrEqual(0.625);
+    expect(meanNormal).toBeGreaterThan(1.0);
   });
 
   it('does not sit the same four players together every skill round', () => {

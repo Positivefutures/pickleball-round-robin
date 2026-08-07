@@ -324,7 +324,7 @@ export function SchedulePage({
     <button
       type="button"
       onClick={() => setAddingPlayer(true)}
-      className="no-print shrink-0 whitespace-nowrap rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
+      className="no-print shrink-0 whitespace-nowrap rounded-md border border-[#999] bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
     >
       + Add Player
     </button>
@@ -340,7 +340,7 @@ export function SchedulePage({
       <div className="flex flex-nowrap justify-between items-center gap-3">
         <button
           onClick={handleSetupClick}
-          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           &larr; Setup
         </button>
@@ -356,7 +356,7 @@ export function SchedulePage({
         <button
           onClick={() => setConfirmingNewSession(true)}
           aria-label="Start a new session"
-          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           <span className="session-long hidden min-[430px]:inline">New Session</span>
           <span className="session-short min-[430px]:hidden">New</span>
@@ -455,7 +455,7 @@ export function SchedulePage({
           which builds a fresh schedule and drops swaps, completions and removals. */}
       {confirmingSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">Go back to Setup?</p>
             <p className="text-sm text-gray-600 text-center mb-4">
               Generating again from Setup discards this schedule, including any swaps
@@ -464,7 +464,7 @@ export function SchedulePage({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmingSetup(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
               >
                 Keep Schedule
               </button>
@@ -481,7 +481,7 @@ export function SchedulePage({
 
       {confirmingNewSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">Start a new session?</p>
             <p className="text-sm text-gray-600 text-center mb-4">
               This clears the current schedule.
@@ -489,7 +489,7 @@ export function SchedulePage({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmingNewSession(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
               </button>

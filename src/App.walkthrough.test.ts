@@ -8,14 +8,16 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
-import type { Schedule, Round } from './types';
+import type { Schedule, Round, CourtAssignment } from './types';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-const NAMES = ['Ava', 'Ben', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy', 'Jo'];
+const NAMES = [
+  'Ava', 'Ben', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy', 'Jo', 'Kit', 'Lex',
+];
 
 /** Seeds a group of `inGroup` players with the first `selected` of them attending. */
 function seed(inGroup: number, selected: number, courts: number) {
@@ -117,6 +119,11 @@ function fingerprint(round: Round): string {
     .map((c) => `${c.team1.map((p) => p.name).join('+')} vs ${c.team2.map((p) => p.name).join('+')}`)
     .join(' | ');
   return `R${round.roundNumber}: ${courts} // out: ${round.sitOuts.map((p) => p.name).join(',')}`;
+}
+
+/** How many genders are on a court. One means it is a gendered court. */
+function genderCount(court: CourtAssignment): number {
+  return new Set([...court.team1, ...court.team2].map((p) => p.gender)).size;
 }
 
 function onCourt(round: Round): string[] {
@@ -457,6 +464,53 @@ describe('Special Game Types', () => {
     expect(types[1]).toBe('gendered');
   });
 
+  // 12 players, six of each gender, on 3 courts. Four men fill one court and
+  // four women another; the two men and two women left over cannot make a
+  // gendered court, so they play an ordinary game on court 3. Both the schedule
+  // and the printout have to say so, or the round looks like it went wrong.
+  describe('a court the format cannot fill', () => {
+    beforeEach(() => seed(12, 12, 3));
+
+    function printedRound(n: number): string {
+      const cards = [...container.querySelectorAll('.print-only .round-card')];
+      const card = cards.find((c) => text(c.querySelector('h2') ?? c).startsWith(`Round ${n}`));
+      if (!card) throw new Error(`no printed card for Round ${n}`);
+      return text(card);
+    }
+
+    it('marks the leftover court on a gendered round, on screen and on paper', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Select Special Game Types$/);
+      sayYes('gendered');
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      const round1 = storedSchedule().rounds[0];
+      expect(round1.roundType).toBe('gendered');
+      expect(round1.courts).toHaveLength(3);
+      expect(round1.courts.filter((c) => genderCount(c) === 1)).toHaveLength(2);
+
+      const marks = [...roundCard(1).querySelectorAll('span')].filter(
+        (s) => text(s) === 'Normal game'
+      );
+      expect(marks).toHaveLength(1);
+      expect(printedRound(1).match(/\(normal game\)/g)).toHaveLength(1);
+    });
+
+    it('says nothing when every court is in format', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Select Special Game Types$/);
+      sayYes('mixed'); // six of each gender fills all three mixed courts
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      expect(storedSchedule().rounds[0].roundType).toBe('mixed');
+      expect(text(roundCard(1))).not.toContain('Normal game');
+      expect(printedRound(1)).not.toContain('normal game');
+    });
+  });
 });
 
 describe('the Setup confirmation', () => {

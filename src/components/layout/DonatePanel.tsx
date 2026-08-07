@@ -16,10 +16,10 @@ export function DonatePanel({ onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 w-full max-w-sm rounded-lg bg-white p-6 shadow-lg"
+        className="mx-4 w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-center text-lg font-semibold text-gray-800">Donate</h2>
+        <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">Donate</h2>
 
         <p className="mt-3 text-gray-600">
           This app is free, has no ads, and never tracks you or your players. If it&rsquo;s
@@ -47,7 +47,7 @@ export function DonatePanel({ onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full rounded-md bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+          className="mt-3 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
         >
           Close
         </button>

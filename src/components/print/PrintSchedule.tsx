@@ -1,6 +1,6 @@
 import type { Schedule, Player } from '../../types';
 import { getDisplayName } from '../../utils/helpers';
-import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
+import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
 
 interface Props {
   schedule: Schedule | null;
@@ -29,10 +29,13 @@ export function PrintSchedule({ schedule, players }: Props) {
             )}
           </h2>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6pt' }}>
+          {/* Fixed widths so the columns sit in the same place on every round.
+              Left to itself the court column widens for "(normal game)" and
+              that round alone comes out shifted. */}
+          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', marginBottom: '6pt' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
+                <th style={{ width: '26%', textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
                 </th>
                 <th style={{ textAlign: 'left', padding: '4pt 8pt', borderBottom: '1px solid #999', fontSize: '10pt' }}>
                   SERVING
@@ -47,6 +50,12 @@ export function PrintSchedule({ schedule, players }: Props) {
                 <tr key={court.courtNumber}>
                   <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '10pt' }}>
                     Court {court.courtNumber}
+                    {/* The roster would not stretch to this court in the round's
+                        format, so it plays an ordinary game. Without the note the
+                        printed round reads as if the format had gone wrong. */}
+                    {roundType && !courtMatchesType(court, roundType) && (
+                      <span style={{ fontWeight: 'normal', color: '#666' }}> (normal game)</span>
+                    )}
                   </td>
                   <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '12.5pt' }}>
                     {court.team1.map((p) => getDisplayName(p, players)).join(' & ')}

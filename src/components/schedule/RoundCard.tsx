@@ -3,7 +3,7 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
-import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
+import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
 
 interface Props {
   round: Round;
@@ -65,15 +65,15 @@ export function RoundCard({
 
   return (
     <div
-      className={`round-card rounded-lg shadow p-[1.2rem] ${
-        isComplete ? 'bg-gray-50 border border-gray-200' : 'bg-white'
+      className={`round-card rounded-lg shadow border border-[#ddd] px-[0.6rem] pt-[0.83rem] pb-[1.2rem] ${
+        isComplete ? 'bg-gray-50' : 'bg-white'
       }`}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <h3
-              className={`text-lg font-bold uppercase ${isComplete ? 'text-gray-500' : 'text-gray-800'}`}
+              className={`text-[1.35rem] font-extrabold uppercase ${isComplete ? 'text-gray-500' : 'text-[#222]'}`}
             >
               Round {round.roundNumber}
             </h3>
@@ -144,6 +144,7 @@ export function RoundCard({
                   onToggleLock={onToggleLock}
                   onRequestRemove={onRequestRemove}
                   readOnly={isComplete}
+                  offFormat={!!roundType && !courtMatchesType(court, roundType)}
                 />
               );
             })}

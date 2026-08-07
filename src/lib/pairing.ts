@@ -4,7 +4,9 @@ import type {
 } from '../types';
 import { determineSitOuts } from './sitout';
 import { partnerKey } from './partnerships';
-import { ROUND_TYPES, DEFAULT_SPECIAL_TYPES, planRoundTypes, roundTypeOf } from './roundTypes';
+import {
+  ROUND_TYPES, DEFAULT_SPECIAL_TYPES, courtMatchesType, planRoundTypes, roundTypeOf,
+} from './roundTypes';
 import { findSpecialAssignment, partnershipFitsType } from './specialRounds';
 import {
   effectiveCourtCount,
@@ -70,20 +72,6 @@ function updateHistory(
   }
 }
 
-/** Did this court actually get played in the round's format? */
-function isCourtOfType(court: CourtAssignment, type: RoundType): boolean {
-  const teams = [court.team1, court.team2];
-  switch (type) {
-    case 'gendered':
-      return new Set([...court.team1, ...court.team2].map((p) => p.gender)).size === 1;
-    case 'mixed':
-      return teams.every((t) => t.length === 2 && t[0].gender !== t[1].gender);
-    case 'skill':
-      // Every court in a skill round is a rating band by construction.
-      return true;
-  }
-}
-
 /**
  * Notes who did not get the round's format — they sat out, or the roster only
  * stretched to so many special courts and they got an ordinary one. Next time
@@ -98,7 +86,7 @@ function updateSpecialMissCounts(
   const misses = history.specialMissCounts[type];
   const missed = [...sitOuts];
   for (const court of courts) {
-    if (isCourtOfType(court, type)) continue;
+    if (courtMatchesType(court, type)) continue;
     missed.push(...court.team1, ...court.team2);
   }
   for (const p of missed) {

@@ -4,6 +4,11 @@ import { PlayerForm } from './PlayerForm';
 import { PlayerList } from './PlayerList';
 import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
+import { AddPlayerSolidIcon, GroupSolidIcon, SelectPlayersIcon } from '../icons';
+
+// The panel headings all carry their icon in #60697c. It is written out at each
+// use rather than held in a constant, because Tailwind only generates a class it
+// can see written in the source.
 
 interface Props {
   /** Every player in the app, across all rosters. */
@@ -176,17 +181,22 @@ export function RosterPage({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        {/* Still a label, not a heading, so it stays tied to the select below */}
-        <label className="block text-sm font-bold text-gray-700 mb-2" htmlFor="roster-select">
+      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        {/* Still a label, not a heading, so it stays tied to the select below.
+            Sized to match "Add Player" further down the page. */}
+        <label
+          className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-2"
+          htmlFor="roster-select"
+        >
           My Groups
+          <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
         </label>
         <div className="flex items-center gap-3 flex-wrap">
           <select
             id="roster-select"
             value={activeRosterId}
             onChange={(e) => handleSelectRoster(e.target.value)}
-            className="flex-1 min-w-[160px] px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+            className="flex-1 min-w-[160px] min-h-10 px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
           >
             {rosters.map((r) => (
               <option key={r.id} value={r.id}>
@@ -196,7 +206,7 @@ export function RosterPage({
           </select>
           <button
             onClick={() => setShowManage(true)}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             Manage
           </button>
@@ -228,8 +238,11 @@ export function RosterPage({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Add Player</h2>
+      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
+          Add Player
+          <AddPlayerSolidIcon className="w-[26px] h-[26px] text-[#60697c]" />
+        </h2>
         <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} />
       </div>
 
@@ -237,8 +250,8 @@ export function RosterPage({
           two fixed overlays would double-dim the page and trap clicks. */}
       {editingPlayer && !orphanCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Edit Player</h2>
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
+            <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Edit Player</h2>
             <PlayerForm
               onSubmit={handleSubmit}
               defaultRating={defaultRating}
@@ -254,7 +267,7 @@ export function RosterPage({
 
       {orphanCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-gray-800 text-center font-medium mb-2">
               Delete {orphanCandidate.name} permanently?
             </p>
@@ -264,7 +277,7 @@ export function RosterPage({
             <div className="flex gap-3">
               <button
                 onClick={cancelOrphanDelete}
-                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
               </button>
@@ -302,21 +315,22 @@ export function RosterPage({
       {/* An empty group replaces the whole panel — heading and Select Players
           included, since neither can be acted on with nobody in the list. */}
       {players.length === 0 ? (
-        <div className="roster-panel bg-white rounded-lg shadow p-6 py-12 text-center">
+        <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 py-12 text-center">
           <p className="text-xl font-medium text-gray-400">Add your first player!</p>
           <p className="mt-2 text-sm text-gray-400">
             You&rsquo;ll need at least 4 to build a schedule.
           </p>
         </div>
       ) : (
-        <div className="roster-panel bg-white rounded-lg shadow p-6">
+        <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
           <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
-            <h2 className="text-lg font-semibold">
+            <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
               {activeRoster?.name ?? 'Player Roster'} ({players.length})
+              <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
             </h2>
             {selecting ? (
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+                <span className="text-sm font-bold text-gray-600">{selectedIds.length} selected</span>
                 <button
                   onClick={() => setShowAddToGroup(true)}
                   disabled={selectedIds.length === 0}
@@ -326,7 +340,7 @@ export function RosterPage({
                 </button>
                 <button
                   onClick={stopSelecting}
-                  className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+                  className="px-4 py-1.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                 >
                   Cancel
                 </button>
@@ -336,8 +350,9 @@ export function RosterPage({
                 onClick={startSelecting}
                 disabled={rosters.length < 2 || players.length === 0}
                 title={rosters.length < 2 ? 'Create another group first' : undefined}
-                className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <SelectPlayersIcon className="w-[21px] h-[21px]" />
                 Select Players
               </button>
             )}

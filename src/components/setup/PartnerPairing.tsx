@@ -30,7 +30,7 @@ export function PartnerPairing({
   return (
     <div>
       <div className="mb-3">
-        <h3 className="font-medium text-gray-700">
+        <h3 className="text-[1.35rem] font-extrabold text-[#222]">
           Set Partners
         </h3>
         <p className="text-sm text-gray-500 mt-1">

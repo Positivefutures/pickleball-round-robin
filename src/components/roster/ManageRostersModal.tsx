@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
+import { GroupSolidIcon } from '../icons';
 
 interface Props {
   rosters: Roster[];
@@ -58,7 +59,7 @@ export function ManageRostersModal({
   if (confirmingDelete) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-sm w-full">
+        <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
           <p className="text-gray-800 text-center font-medium mb-2">
             Delete &ldquo;{confirmingDelete.name}&rdquo;?
           </p>
@@ -101,7 +102,7 @@ export function ManageRostersModal({
             </button>
             <button
               onClick={() => setConfirmingDelete(null)}
-              className="w-full px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
             >
               Cancel
             </button>
@@ -113,8 +114,13 @@ export function ManageRostersModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg shadow-lg p-6 mx-4 max-w-md w-full">
-        <h2 className="text-lg font-semibold mb-4">Manage Groups</h2>
+      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
+        {/* Same treatment as the panel headings behind it: icon on the right,
+            in the shared heading grey. */}
+        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
+          Manage Groups
+          <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
+        </h2>
 
         <div className="space-y-2 mb-5 max-h-72 overflow-y-auto">
           {rosters.map((r) => (
@@ -187,7 +193,7 @@ export function ManageRostersModal({
 
         <button
           onClick={onClose}
-          className="w-full px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           Done
         </button>
