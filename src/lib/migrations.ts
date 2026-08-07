@@ -1,5 +1,6 @@
 import type { Player, Roster } from '../types';
 import { generateId } from '../utils/helpers';
+import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './roundTypes';
 
 export const KEYS = {
   rosters: 'pb-rosters',
@@ -10,6 +11,9 @@ export const KEYS = {
   completedRounds: 'pb-completed-rounds',
   legacyCompletedThrough: 'pb-completed-through',
   partnerships: 'pb-partnerships',
+  specialTypes: 'pb-special-types',
+  legacyGenderedEnabled: 'pb-gendered-enabled',
+  legacyGenderedFrequency: 'pb-gendered-frequency',
 } as const;
 
 // Only ever applied on a fresh install (see the freshInstall branch below), so
@@ -89,5 +93,20 @@ export function runMigrations() {
   // reads a valid value on first run.
   if (window.localStorage.getItem(KEYS.partnerships) === null) {
     write(KEYS.partnerships, []);
+  }
+
+  // Gendered games used to be the only special format, with a flag and a
+  // frequency of its own. Carry that setting into the three-type config so
+  // anyone part-way through setting up a session keeps what they chose.
+  if (window.localStorage.getItem(KEYS.specialTypes) === null) {
+    const enabled = read<boolean>(KEYS.legacyGenderedEnabled, false);
+    const frequency = read<number>(KEYS.legacyGenderedFrequency, 2);
+    write(
+      KEYS.specialTypes,
+      normalizeSpecialTypes({
+        ...DEFAULT_SPECIAL_TYPES,
+        gendered: { enabled, frequency },
+      })
+    );
   }
 }

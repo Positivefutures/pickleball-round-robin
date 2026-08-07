@@ -1,5 +1,6 @@
 import type { Schedule, Player } from '../../types';
 import { getDisplayName } from '../../utils/helpers';
+import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
 
 interface Props {
   schedule: Schedule | null;
@@ -15,13 +16,15 @@ export function PrintSchedule({ schedule, players }: Props) {
         Pickleball Round Robin
       </h1>
 
-      {schedule.rounds.map((round) => (
+      {schedule.rounds.map((round) => {
+        const roundType = roundTypeOf(round);
+        return (
         <div key={round.roundNumber} className="round-card" style={{ marginBottom: '16pt' }}>
           <h2 style={{ fontSize: '15.4pt', fontWeight: 'bold', marginBottom: '8pt', borderBottom: '1px solid #ccc', paddingBottom: '4pt' }}>
             Round {round.roundNumber}
-            {round.isGendered && (
-              <span style={{ fontSize: '9pt', fontWeight: 'normal', marginLeft: '8pt', color: '#666' }}>
-                (Gendered Round)
+            {roundType && (
+              <span style={{ fontSize: '9pt', fontWeight: 'normal', marginLeft: '8pt', color: ROUND_TYPE_META[roundType].printColor }}>
+                ({ROUND_TYPE_META[roundType].badge})
               </span>
             )}
           </h2>
@@ -62,7 +65,8 @@ export function PrintSchedule({ schedule, players }: Props) {
             </p>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

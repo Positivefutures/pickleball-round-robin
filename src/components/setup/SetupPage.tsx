@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import type { Player, Partnership } from '../../types';
+import type { Player, Partnership, RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { PlayerSelector } from './PlayerSelector';
 import { PartnerPairing } from './PartnerPairing';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
+import { SpecialTypesPanel } from './SpecialTypesPanel';
 import { resolvePairs } from '../../lib/partnerships';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface Props {
   players: Player[];
@@ -12,8 +14,7 @@ interface Props {
   partnerships: Partnership[];
   numCourts: number;
   numRounds: number;
-  genderedEnabled: boolean;
-  genderedFrequency: number;
+  specialTypes: SpecialGameTypes;
   onTogglePlayer: (id: string) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -21,8 +22,7 @@ interface Props {
   onRemovePartnership: (id1: string, id2: string) => void;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
-  onGenderedToggle: (enabled: boolean) => void;
-  onGenderedFrequencyChange: (n: number) => void;
+  onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
   onGenerate: () => void;
   onBack: () => void;
 }
@@ -33,8 +33,7 @@ export function SetupPage({
   partnerships,
   numCourts,
   numRounds,
-  genderedEnabled,
-  genderedFrequency,
+  specialTypes,
   onTogglePlayer,
   onSelectAll,
   onDeselectAll,
@@ -42,14 +41,18 @@ export function SetupPage({
   onRemovePartnership,
   onCourtsChange,
   onRoundsChange,
-  onGenderedToggle,
-  onGenderedFrequencyChange,
+  onSpecialTypeChange,
   onGenerate,
   onBack,
 }: Props) {
   const [showError, setShowError] = useState(false);
   const [mode, setMode] = useState<'select' | 'pair'>('select');
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [specialTypesOpen, setSpecialTypesOpen] = useState(false);
+
+  // Hold the page still behind the panel, so Setup is exactly where it was
+  // when Done closes it.
+  useScrollLock(specialTypesOpen);
 
   const playersNeeded = numCourts * 4;
   const notEnoughPlayers = selectedIds.length < playersNeeded;
@@ -144,10 +147,8 @@ export function SetupPage({
           onCourtsChange={onCourtsChange}
           onRoundsChange={onRoundsChange}
           numPlayers={selectedIds.length}
-          genderedEnabled={genderedEnabled}
-          genderedFrequency={genderedFrequency}
-          onGenderedToggle={onGenderedToggle}
-          onGenderedFrequencyChange={onGenderedFrequencyChange}
+          specialTypes={specialTypes}
+          onOpenSpecialTypes={() => setSpecialTypesOpen(true)}
         />
       </div>
 
@@ -189,6 +190,14 @@ export function SetupPage({
       </div>
 
       {buttonRow}
+
+      {specialTypesOpen && (
+        <SpecialTypesPanel
+          specialTypes={specialTypes}
+          onChange={onSpecialTypeChange}
+          onClose={() => setSpecialTypesOpen(false)}
+        />
+      )}
     </div>
   );
 }

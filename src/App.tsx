@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Schedule, LockedPair, Partnership } from './types';
+import type { Schedule, LockedPair, Partnership, RoundType, SpecialGameTypes, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -8,6 +8,7 @@ import { KEYS } from './lib/migrations';
 import { generateSchedule, regenerateRemaining } from './lib/pairing';
 import { addToRemainingSitOuts } from './lib/sitout';
 import { prunePartnerships, arePartners } from './lib/partnerships';
+import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './lib/roundTypes';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
   toAllGroupsFileName,
@@ -69,8 +70,10 @@ function App() {
   const [defaultRating, setDefaultRating] = useLocalStorage('pb-default-rating', 4.0);
   const [numCourts, setNumCourts] = useLocalStorage('pb-num-courts', 3);
   const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 8);
-  const [genderedEnabled, setGenderedEnabled] = useLocalStorage('pb-gendered-enabled', false);
-  const [genderedFrequency, setGenderedFrequency] = useLocalStorage('pb-gendered-frequency', 2);
+  // Gendered, mixed and equal-skill rounds, each with its own frequency.
+  const [specialTypes, setSpecialTypes] = useLocalStorage<SpecialGameTypes>(
+    KEYS.specialTypes, DEFAULT_SPECIAL_TYPES
+  );
 
   // Live session state — persisted so a refresh mid-session doesn't lose the
   // schedule or which rounds have already been played.
@@ -240,6 +243,18 @@ function App() {
     [reassignRoster, deleteRoster, scheduleRosterId, clearSession]
   );
 
+  // Switching a game type on can make another one's frequency impossible — two
+  // types cannot both play every round — so every change is pulled back into
+  // range before it is stored.
+  const updateSpecialType = useCallback(
+    (type: RoundType, patch: Partial<SpecialTypeSetting>) => {
+      setSpecialTypes((prev) =>
+        normalizeSpecialTypes({ ...prev, [type]: { ...prev[type], ...patch } })
+      );
+    },
+    [setSpecialTypes]
+  );
+
   // Setup's Generate: a brand new schedule, starting the session over.
   const handleGenerate = useCallback(() => {
     const attending = rosterPlayers.filter((p) => selectedIds.includes(p.id));
@@ -249,8 +264,7 @@ function App() {
     );
     setSchedule(
       generateSchedule(
-        attending, numCourts, numRounds, genderedEnabled, genderedFrequency,
-        activePartnerships
+        attending, numCourts, numRounds, specialTypes, activePartnerships
       )
     );
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
@@ -259,8 +273,8 @@ function App() {
     setScheduleEdited(false);
     setScheduleRosterId(activeRosterId);
     setStep('schedule');
-  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, genderedEnabled,
-      genderedFrequency, activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
+  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
+      activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
       setScheduleEdited, setScheduleRosterId]);
 
   const attendingPlayers = rosterPlayers.filter(
@@ -281,13 +295,13 @@ function App() {
     setSchedule(
       regenerateRemaining(
         remaining, numCourts, schedule.rounds, completedRounds,
-        genderedEnabled, genderedFrequency, activePartnerships
+        specialTypes, activePartnerships
       )
     );
     setRemovedIds((prev) => [...prev, playerId]);
     setScheduleEdited(true);
-  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
-      genderedFrequency, setSchedule, setRemovedIds, setScheduleEdited]);
+  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
+      setSchedule, setRemovedIds, setScheduleEdited]);
 
   // Reshuffle rebuilds only the rounds still to be played. Rounds already marked
   // complete stay exactly as they were played, and their pairings are replayed
@@ -306,14 +320,14 @@ function App() {
     setSchedule(
       regenerateRemaining(
         attendingPlayers, numCourts, schedule.rounds, completedRounds,
-        genderedEnabled, genderedFrequency, activePartnerships, locks, brokenPairs
+        specialTypes, activePartnerships, locks, brokenPairs
       )
     );
     // The remaining rounds are machine-built again, so swaps are gone — but a
     // removal is still work that going back to Setup would throw away.
     setScheduleEdited(removedIds.length > 0);
-  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, genderedEnabled,
-      genderedFrequency, removedIds, setSchedule, setScheduleEdited]);
+  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
+      removedIds, setSchedule, setScheduleEdited]);
 
   // Brings a latecomer into a session already under way. They land in the
   // sit-outs of every unplayed round, leaving those rounds' courts alone; the
@@ -544,8 +558,7 @@ function App() {
             partnerships={partnerships}
             numCourts={numCourts}
             numRounds={numRounds}
-            genderedEnabled={genderedEnabled}
-            genderedFrequency={genderedFrequency}
+            specialTypes={specialTypes}
             onTogglePlayer={togglePlayer}
             onSelectAll={selectAll}
             onDeselectAll={deselectAll}
@@ -553,8 +566,7 @@ function App() {
             onRemovePartnership={removePartnership}
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
-            onGenderedToggle={setGenderedEnabled}
-            onGenderedFrequencyChange={setGenderedFrequency}
+            onSpecialTypeChange={updateSpecialType}
             onGenerate={() => handleGenerate()}
             onBack={() => setStep('roster')}
           />

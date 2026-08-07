@@ -3,6 +3,7 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
+import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
 
 interface Props {
   round: Round;
@@ -53,6 +54,14 @@ export function RoundCard({
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
+  const roundType = roundTypeOf(round);
+  const typeBadge = roundType && (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded ${ROUND_TYPE_META[roundType].badgeClass}`}
+    >
+      {ROUND_TYPE_META[roundType].badge}
+    </span>
+  );
 
   return (
     <div
@@ -61,28 +70,29 @@ export function RoundCard({
       }`}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <h3
-            className={`text-lg font-bold uppercase ${isComplete ? 'text-gray-500' : 'text-gray-800'}`}
-          >
-            Round {round.roundNumber}
-          </h3>
-          {round.isGendered && (
-            <span className="text-xs font-medium bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
-              Gendered Round
-            </span>
-          )}
-          {isComplete && (
-            <button
-              type="button"
-              onClick={onToggleExpand}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors no-print"
-              aria-expanded={isExpanded}
+        <div>
+          <div className="flex items-center gap-2">
+            <h3
+              className={`text-lg font-bold uppercase ${isComplete ? 'text-gray-500' : 'text-gray-800'}`}
             >
-              {isExpanded ? 'Hide' : 'View'}
-              <ChevronIcon expanded={isExpanded} />
-            </button>
-          )}
+              Round {round.roundNumber}
+            </h3>
+            {/* A completed round also carries View/Hide, which leaves no room
+                for the badge alongside — it drops to its own line instead. */}
+            {!isComplete && typeBadge}
+            {isComplete && (
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors no-print"
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? 'Hide' : 'View'}
+                <ChevronIcon expanded={isExpanded} />
+              </button>
+            )}
+          </div>
+          {isComplete && typeBadge && <div className="mt-1">{typeBadge}</div>}
         </div>
 
         <label

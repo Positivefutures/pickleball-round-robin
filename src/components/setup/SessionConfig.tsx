@@ -1,13 +1,14 @@
+import type { SpecialGameTypes } from '../../types';
+import { summaryLines } from '../../lib/roundTypes';
+
 interface Props {
   numCourts: number;
   numRounds: number;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
   numPlayers: number;
-  genderedEnabled: boolean;
-  genderedFrequency: number;
-  onGenderedToggle: (enabled: boolean) => void;
-  onGenderedFrequencyChange: (n: number) => void;
+  specialTypes: SpecialGameTypes;
+  onOpenSpecialTypes: () => void;
 }
 
 export function SessionConfig({
@@ -16,13 +17,12 @@ export function SessionConfig({
   onCourtsChange,
   onRoundsChange,
   numPlayers,
-  genderedEnabled,
-  genderedFrequency,
-  onGenderedToggle,
-  onGenderedFrequencyChange,
+  specialTypes,
+  onOpenSpecialTypes,
 }: Props) {
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
+  const specials = summaryLines(specialTypes);
 
   return (
     <div className="space-y-4">
@@ -71,48 +71,24 @@ export function SessionConfig({
             </button>
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Play Gendered Games?
-          </label>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input
-                type="radio"
-                name="gendered"
-                checked={!genderedEnabled}
-                onChange={() => onGenderedToggle(false)}
-                className="text-green-600 focus:ring-green-500"
-              />
-              <span className="text-sm text-gray-700">No</span>
-            </label>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input
-                type="radio"
-                name="gendered"
-                checked={genderedEnabled}
-                onChange={() => onGenderedToggle(true)}
-                className="text-green-600 focus:ring-green-500"
-              />
-              <span className="text-sm text-gray-700">Yes</span>
-            </label>
-            {genderedEnabled && (
-              <div className="flex items-center gap-1.5 ml-2">
-                <span className="text-sm text-gray-700">Every</span>
-                <select
-                  value={genderedFrequency}
-                  onChange={(e) => onGenderedFrequencyChange(parseInt(e.target.value))}
-                  className="min-w-14 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                >
-                  {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-                <span className="text-sm text-gray-700">Rounds</span>
-              </div>
-            )}
+      </div>
+
+      <div>
+        {specials.length > 0 && (
+          <div className="mb-2">
+            <h3 className="text-lg font-semibold text-gray-800">Special Game Types</h3>
+            {specials.map((line) => (
+              <p key={line} className="text-sm text-gray-700">{line}</p>
+            ))}
           </div>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={onOpenSpecialTypes}
+          className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          Select Special Game Types
+        </button>
       </div>
 
       <div className="space-y-1">

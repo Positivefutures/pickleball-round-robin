@@ -157,10 +157,17 @@ export function InstructionsPanel({ onClose }: Props) {
               icon to split one up.
             </p>
 
-            <h4 className="pt-1 font-semibold text-gray-800">Gendered games</h4>
+            <h4 className="pt-1 font-semibold text-gray-800">Special game types</h4>
             <p className="text-gray-600">
-              Answer <strong>Yes</strong> and choose a frequency to make every Nth round
-              men's and women's doubles instead of mixed.
+              <strong>Select Special Game Types</strong> opens three formats you can drop into
+              the session: <strong>Gendered</strong> (men against men, women against women),
+              <strong> Mixed</strong> (a man and a woman on each team) and{' '}
+              <strong>Equal Skill</strong> (grouped by rating). Say Yes to any of them and
+              choose how often it comes round. Everything else stays a normal round robin.
+            </p>
+            <p className="text-gray-600">
+              A special round beats Set Partners, but only where it has to. A pair is split for
+              that round alone if they do not suit the format, then they are back together.
             </p>
           </Section>
 

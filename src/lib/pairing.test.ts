@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateSchedule, regenerateRemaining, effectiveCourtCount } from './pairing';
 import { addToRemainingSitOuts } from './sitout';
 import { partnerKey } from './partnerships';
+import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 import type { Player, Schedule } from '../types';
 
 function makePlayers(n: number): Player[] {
@@ -167,7 +168,7 @@ describe('regenerateRemaining', () => {
   it('honours a lock on a rebuilt round', () => {
     const [a, b] = players;
     const regen = regenerateRemaining(
-      players, 3, original.rounds, [1, 2, 3, 4], false, 2, [],
+      players, 3, original.rounds, [1, 2, 3, 4], DEFAULT_SPECIAL_TYPES, [],
       { 4: [{ player1Id: a.id, player2Id: b.id, courtIdx: 0, team: 'team1' }] }
     );
     const team1 = regen.rounds[4].courts[0].team1.map((p) => p.id);
@@ -192,7 +193,7 @@ describe('regenerateRemaining', () => {
 
     const rebuild = (brokenPairs: Record<number, string[]> = {}) =>
       regenerateRemaining(
-        players, 3, original.rounds, [1, 2, 3, 4], false, 2, couple, {}, brokenPairs
+        players, 3, original.rounds, [1, 2, 3, 4], DEFAULT_SPECIAL_TYPES, couple, {}, brokenPairs
       );
 
     it('keeps an unbroken couple together in every rebuilt round', () => {
@@ -218,7 +219,7 @@ describe('regenerateRemaining', () => {
       const split = Array.from({ length: 6 }, () => {
         const base = generateSchedule(players, 3, 8);
         const regen = regenerateRemaining(
-          players, 3, base.rounds, [1, 2, 3, 4], false, 2, couple, {},
+          players, 3, base.rounds, [1, 2, 3, 4], DEFAULT_SPECIAL_TYPES, couple, {},
           { 4: [partnerKey(a.id, b.id)] }
         );
         return !together(regen, 4);

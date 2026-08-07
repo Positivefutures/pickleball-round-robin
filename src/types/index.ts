@@ -26,10 +26,28 @@ export interface CourtAssignment {
   ratingDiff: number;
 }
 
+// The three formats a round can be played in, on top of the ordinary round
+// robin. A round is at most one of them.
+export type RoundType = 'gendered' | 'mixed' | 'skill';
+
+export interface SpecialTypeSetting {
+  enabled: boolean;
+  /** Play this type every N rounds. Never below the number of types switched on. */
+  frequency: number;
+}
+
+export type SpecialGameTypes = Record<RoundType, SpecialTypeSetting>;
+
 export interface Round {
   roundNumber: number;
   courts: CourtAssignment[];
   sitOuts: Player[];
+  roundType?: RoundType;
+  /**
+   * Written by versions that only knew about gendered rounds. Schedules saved
+   * before this field became `roundType` still carry it, so read rounds through
+   * `roundTypeOf` rather than either field directly.
+   */
   isGendered?: boolean;
 }
 
@@ -57,5 +75,10 @@ export interface PairingHistory {
   opponentCounts: Record<string, Record<string, number>>;
   sitOutCounts: Record<string, number>;
   gamesPlayed: Record<string, number>;
-  genderedMixedCounts: Record<string, number>;
+  /**
+   * Per type, how many rounds of that type a player has missed out on — they
+   * sat out, or the roster only stretched to so many special courts and they
+   * got an ordinary one. Whoever has missed most goes first next time.
+   */
+  specialMissCounts: Record<RoundType, Record<string, number>>;
 }

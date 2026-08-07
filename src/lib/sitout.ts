@@ -28,15 +28,22 @@ interface SitOutUnit {
   players: Player[];
   avgGames: number;
   prevSat: boolean; // any member sat out the previous round
+  misses: number; // rounds of this round's game type the unit has missed
 }
 
+/**
+ * @param missCounts On a special round, how many rounds of that type each player
+ *   has already missed. Used only to break ties that fair rotation leaves open,
+ *   so someone owed the game type keeps their place on court.
+ */
 export function determineSitOuts(
   players: Player[],
   numCourts: number,
   history: PairingHistory,
   excludeIds?: Set<string>,
   previousSitOutIds?: Set<string>,
-  partnerships?: Partnership[]
+  partnerships?: Partnership[],
+  missCounts?: Record<string, number>
 ): Player[] {
   const maxActive = numCourts * 4;
   const candidates = excludeIds
@@ -51,6 +58,8 @@ export function determineSitOuts(
   const numSitOuts = totalActive - maxActive;
   if (numSitOuts <= 0) return [];
 
+  const missed = (p: Player) => (missCounts ? missCounts[p.id] ?? 0 : 0);
+
   // No partnerships → original per-player behaviour (unchanged).
   if (!partnerships || partnerships.length === 0) {
     const sorted = [...candidates].sort((a, b) => {
@@ -64,6 +73,9 @@ export function determineSitOuts(
         const bPrev = previousSitOutIds.has(b.id) ? 1 : 0;
         if (aPrev !== bPrev) return aPrev - bPrev; // non-previous first
       }
+
+      // Everything else equal, sit whoever has already had this game type
+      if (missCounts && missed(a) !== missed(b)) return missed(a) - missed(b);
 
       return Math.random() - 0.5;
     });
@@ -96,19 +108,22 @@ export function determineSitOuts(
       players: [p1, p2],
       avgGames: (games(p1) + games(p2)) / 2,
       prevSat: sat(p1) || sat(p2),
+      misses: Math.min(missed(p1), missed(p2)),
     });
   }
 
   // Everyone else is a single unit.
   for (const p of candidates) {
     if (claimed.has(p.id)) continue;
-    units.push({ players: [p], avgGames: games(p), prevSat: sat(p) });
+    units.push({ players: [p], avgGames: games(p), prevSat: sat(p), misses: missed(p) });
   }
 
-  // Highest games-played sits first; avoid back-to-back sit-outs; random tie-break.
+  // Highest games-played sits first; avoid back-to-back sit-outs; then sit
+  // whoever has already had this round's game type; random tie-break.
   units.sort((a, b) => {
     if (b.avgGames !== a.avgGames) return b.avgGames - a.avgGames;
     if (a.prevSat !== b.prevSat) return (a.prevSat ? 1 : 0) - (b.prevSat ? 1 : 0);
+    if (missCounts && a.misses !== b.misses) return a.misses - b.misses;
     return Math.random() - 0.5;
   });
 
