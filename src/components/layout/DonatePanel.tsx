@@ -23,31 +23,6 @@ function LinkIcon() {
   );
 }
 
-/** The Ko-fi mug: steam ticks, a cup with a handle, and a heart on the side. */
-function CupIcon() {
-  return (
-    <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        <path d="M7 4.4 6.2 2.6M12 3.8V1.8M17 4.4l.8-1.8" />
-      </g>
-      <path
-        fill="currentColor"
-        d="M4 8.2h13a1 1 0 0 1 1 1v5.3a5.5 5.5 0 0 1-5.5 5.5h-4A5.5 5.5 0 0 1 3 14.5V9.2a1 1 0 0 1 1-1Z"
-      />
-      <path
-        stroke="currentColor"
-        strokeWidth="1.6"
-        d="M18.4 10.2h1.1a2.4 2.4 0 0 1 0 4.8h-1.1"
-      />
-      {/* Knocked out of the mug, so the heart reads as the button's green */}
-      <path
-        fill="#0D8D31"
-        d="M10.5 17.4c-.2 0-.4-.06-.55-.2l-2.5-2.3a2.2 2.2 0 0 1 3.05-3.15 2.2 2.2 0 0 1 3.05 3.15l-2.5 2.3a.8.8 0 0 1-.55.2Z"
-      />
-    </svg>
-  );
-}
-
 export function DonatePanel({ onClose }: Props) {
   return (
     <div
@@ -114,7 +89,7 @@ export function DonatePanel({ onClose }: Props) {
           rel="noopener noreferrer"
           className="mt-3 flex w-full items-center justify-center gap-3 rounded-xl border border-[#0A7A29] bg-gradient-to-b from-[#1AAA3A] to-[#0D8D31] px-4 py-3.5 text-lg font-bold text-white shadow-md transition-colors hover:from-[#149132] hover:to-[#0A7A29]"
         >
-          <CupIcon />
+          <img src="/donate-cup.png" alt="" width={123} height={112} className="h-8 w-auto" />
           Open Ko-fi &rarr;
         </a>
 
