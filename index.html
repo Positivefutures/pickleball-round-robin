@@ -11,6 +11,45 @@
     <meta name="theme-color" content="#15803d" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pickleball Round Robin</title>
+    <meta
+      name="description"
+      content="Build fair pickleball round robins in seconds. Free, no ads, and no account needed."
+    />
+
+    <!--
+      Share previews. iOS builds the thumbnail on its share sheet by fetching this
+      page and reading og:image; with no og tags at all it showed Safari's generic
+      compass instead of the robin. Messages, WhatsApp and Slack read the same
+      tags.
+
+      These URLs must be absolute — a scraper has no page context to resolve "/"
+      against — which means the host is written out here as well as in APP_URL in
+      src/lib/appInfo.ts. Change one and change the other. index.html is static,
+      so it cannot import the constant.
+
+      twitter:card is "summary" rather than "summary_large_image" on purpose: the
+      icon is square, and the large-image card would crop it to a letterbox.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Pickleball Round Robin Generator" />
+    <meta property="og:title" content="Pickleball Round Robin Generator" />
+    <meta
+      property="og:description"
+      content="Build fair pickleball round robins in seconds. Free, no ads, and no account needed."
+    />
+    <meta property="og:url" content="https://app.pbroundrobin.com/" />
+    <meta property="og:image" content="https://app.pbroundrobin.com/icon-512.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="The Pickleball Round Robin Generator robin icon" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Pickleball Round Robin Generator" />
+    <meta
+      name="twitter:description"
+      content="Build fair pickleball round robins in seconds. Free, no ads, and no account needed."
+    />
+    <meta name="twitter:image" content="https://app.pbroundrobin.com/icon-512.png" />
   </head>
   <body>
     <div id="root"></div>
