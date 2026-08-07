@@ -5,11 +5,11 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.60.0';
+export const APP_VERSION = '1.60.1';
 
 /** Public address of the app — what Share App sends, and the one place to
  *  change if a custom domain ever points here. */
-export const APP_URL = 'https://pickleball-round-robin.vercel.app/';
+export const APP_URL = 'https://app.pbroundrobin.com/';
 
 /** Where Suggest a Feature and Report a Bug are sent. */
 export const FEEDBACK_EMAIL = 'jeff@positivefutures.com';
