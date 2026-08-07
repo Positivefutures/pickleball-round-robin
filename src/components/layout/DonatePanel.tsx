@@ -1,4 +1,5 @@
 import { DONATE_URL } from '../../lib/appInfo';
+import { ExternalLinkIcon } from '../icons';
 
 interface Props {
   onClose: () => void;
@@ -7,20 +8,6 @@ interface Props {
 /** "https://ko-fi.com/pbroundrobin" -> "ko-fi.com/pbroundrobin" */
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-}
-
-/** Box with an arrow leaving it: the link opens away from the app. */
-function LinkIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        clipRule="evenodd"
-        fillRule="evenodd"
-        fill="currentColor"
-        d="m21.0035 10c.5523 0 1-.44772 1-1v-6c0-.55228-.4477-1-1-1h-6.0036c-.5523 0-1 .44771-1 1 0 .55228.4477 1 1 1h3.5896l-8.60667 8.6066c-.39052.3905-.39052 1.0237 0 1.4142.39057.3906 1.02367.3906 1.41417 0l8.6065-8.60643v3.58563c0 .55228.4477 1 1 1zm-16.0035-5c-1.65685 0-3 1.34315-3 3v11c0 1.6569 1.34315 3 3 3h11c1.6569 0 3-1.3431 3-3v-6c0-.5523-.4477-1-1-1s-1 .4477-1 1v6c0 .5523-.4477 1-1 1h-11c-.55228 0-1-.4477-1-1v-11c0-.55228.44772-1 1-1h6c.5523 0 1-.44772 1-1s-.4477-1-1-1z"
-      />
-    </svg>
-  );
 }
 
 export function DonatePanel({ onClose }: Props) {
@@ -69,7 +56,7 @@ export function DonatePanel({ onClose }: Props) {
           className="mt-4 flex items-center gap-3 rounded-xl border border-[#D8EBD4] bg-[#EFF7ED] p-3 transition-colors hover:bg-[#E4F2E0]"
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#CDE7C7] text-[#166534]">
-            <LinkIcon />
+            <ExternalLinkIcon className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block text-[13px] leading-snug text-gray-600">

@@ -142,3 +142,131 @@ export function MixedGamesIcon({ className }: { className?: string }) {
     </Solid>
   );
 }
+
+/**
+ * A stroked wrapper for the handful of icons drawn as outlines rather than
+ * filled shapes. Same sizing contract as `Solid`.
+ */
+function Stroked({
+  className = 'w-4 h-4',
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      {children}
+    </svg>
+  );
+}
+
+/**
+ * A tray with an arrow leaving the top — the share glyph people already know.
+ * On the Share App item in the settings drawer and on the panel's Share button,
+ * which are the same action seen twice, so they must look the same.
+ */
+export function ShareIcon({ className }: { className?: string }) {
+  return (
+    <Stroked className={className}>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </Stroked>
+  );
+}
+
+/**
+ * A box with an arrow leaving its corner: this link opens away from the app.
+ * On the Donate callout.
+ *
+ * `INBOX/share.svg` verbatim, with its fill dropped so it takes the surrounding
+ * text colour. Despite the filename this is an external-link mark, not the share
+ * glyph above — keep the two apart.
+ */
+export function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <path
+        clipRule="evenodd"
+        fillRule="evenodd"
+        d="m21.0035 10c.5523 0 1-.44772 1-1v-6c0-.55228-.4477-1-1-1h-6.0036c-.5523 0-1 .44771-1 1 0 .55228.4477 1 1 1h3.5896l-8.60667 8.6066c-.39052.3905-.39052 1.0237 0 1.4142.39057.3906 1.02367.3906 1.41417 0l8.6065-8.60643v3.58563c0 .55228.4477 1 1 1zm-16.0035-5c-1.65685 0-3 1.34315-3 3v11c0 1.6569 1.34315 3 3 3h11c1.6569 0 3-1.3431 3-3v-6c0-.5523-.4477-1-1-1s-1 .4477-1 1v6c0 .5523-.4477 1-1 1h-11c-.55228 0-1-.4477-1-1v-11c0-.55228.44772-1 1-1h6c.5523 0 1-.44772 1-1s-.4477-1-1-1z"
+      />
+    </Solid>
+  );
+}
+
+/**
+ * Two stacked sheets. The Copy link button on the Share panel.
+ *
+ * `INBOX/copy.svg` verbatim, with its hard-coded black fill dropped so it takes
+ * the button's text colour.
+ */
+export function CopyIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <path d="m5.4521 22h9.0957c1.7485 0 3.1822-1.3118 3.4064-3h.5936c1.9034 0 3.4522-1.5488 3.4522-3.4521v-10.0958c0-1.9033-1.5488-3.4521-3.4521-3.4521h-9.0958c-1.9033 0-3.4521 1.5488-3.4521 3.4521v.5479h-.5479c-1.9033 0-3.4521 1.5488-3.4521 3.4521v9.0957c0 1.9034 1.5488 3.4522 3.4521 3.4522zm2.5479-16.5479c0-.8007.6514-1.4521 1.4521-1.4521h9.0957c.8008 0 1.4522.6514 1.4522 1.4521v10.0957c0 .8008-.6514 1.4522-1.4521 1.4522h-.5479v-7.5479c0-1.9033-1.5488-3.4521-3.4521-3.4521h-6.5479zm-4 4c0-.8007.6514-1.4521 1.4521-1.4521h9.0957c.8008 0 1.4522.6514 1.4522 1.4521v9.0957c0 .8008-.6514 1.4522-1.4521 1.4522h-9.0958c-.8007 0-1.4521-.6514-1.4521-1.4521z" />
+    </Solid>
+  );
+}
+
+/**
+ * An outlined five-pointed star. Opens the Share panel's footer line.
+ *
+ * `INBOX/star.svg` verbatim, keeping the 511 grid and its -10 y-offset. The two
+ * degenerate subpaths at the end are in the artwork as supplied; they draw
+ * nothing and are left alone rather than hand-edited.
+ */
+export function StarIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className} viewBox="0 -10 511.98685 511">
+      <path d="m114.59375 491.140625c-5.609375 0-11.179688-1.75-15.933594-5.1875-8.855468-6.417969-12.992187-17.449219-10.582031-28.09375l32.9375-145.089844-111.703125-97.960937c-8.210938-7.167969-11.347656-18.519532-7.976562-28.90625 3.371093-10.367188 12.542968-17.707032 23.402343-18.710938l147.796875-13.417968 58.433594-136.746094c4.308594-10.046875 14.121094-16.535156 25.023438-16.535156 10.902343 0 20.714843 6.488281 25.023437 16.511718l58.433594 136.769532 147.773437 13.417968c10.882813.980469 20.054688 8.34375 23.425782 18.710938 3.371093 10.367187.253906 21.738281-7.957032 28.90625l-111.703125 97.941406 32.9375 145.085938c2.414063 10.667968-1.726562 21.699218-10.578125 28.097656-8.832031 6.398437-20.609375 6.890625-29.910156 1.300781l-127.445312-76.160156-127.445313 76.203125c-4.308594 2.558594-9.109375 3.863281-13.953125 3.863281zm141.398438-112.875c4.84375 0 9.640624 1.300781 13.953124 3.859375l120.277344 71.9375-31.085937-136.941406c-2.21875-9.746094 1.089843-19.921875 8.621093-26.515625l105.472657-92.5-139.542969-12.671875c-10.046875-.917969-18.6875-7.234375-22.613281-16.492188l-55.082031-129.046875-55.148438 129.066407c-3.882812 9.195312-12.523438 15.511718-22.546875 16.429687l-139.5625 12.671875 105.46875 92.5c7.554687 6.613281 10.859375 16.769531 8.621094 26.539062l-31.0625 136.9375 120.277343-71.914062c4.308594-2.558594 9.109376-3.859375 13.953126-3.859375zm-84.585938-221.847656s0 .023437-.023438.042969zm169.128906-.0625.023438.042969c0-.023438 0-.023438-.023438-.042969zm0 0" />
+    </Solid>
+  );
+}
+
+/**
+ * A pickleball paddle, outlined. Closes the Share panel's footer line.
+ *
+ * `INBOX/paddle.svg` verbatim, keeping the 64 grid it was drawn on, with its
+ * hard-coded black fill dropped.
+ */
+export function PaddleIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className} viewBox="0 0 64 64">
+      <path
+        fillRule="nonzero"
+        d="M57.6,31.316 C60.6865118,28.2206056 60.6865118,23.2113944 57.6,20.116 L43.85,6.364 C40.7552878,3.27583844 35.7447122,3.27583844 32.65,6.364 L17.765,21.249 C15.6345154,23.3651661 14.8929297,26.5087604 15.853,29.354 L18.718,37.954 L7,49.668 C6.18615627,49.5476105 5.36377834,49.8233468 4.787,50.41 C3.80305574,51.3969982 3.80305574,52.9940018 4.787,53.981 L9.987,59.181 C10.4599582,59.6563878 11.1034184,59.9228459 11.774,59.9210095 C12.4671368,59.9180839 13.1292457,59.6332399 13.608,59.132 C14.0843028,58.6603943 14.3512776,58.0172769 14.349,57.347 C14.3459552,57.216573 14.3332537,57.0865506 14.311,56.958 L26.016,45.249 L34.616,48.114 C35.4296879,48.3862329 36.28198,48.5253551 37.14,48.526 C39.234249,48.5226672 41.2410058,47.6857089 42.717,46.2 L57.6,31.316 Z M12.142,57.766 C11.9340975,57.9644769 11.6069025,57.9644769 11.399,57.766 L6.199,52.566 C6.09660622,52.4561947 6.04394665,52.3090708 6.05340628,52.1592302 C6.06286591,52.0093896 6.13360991,51.8700563 6.249,51.774 C6.34687191,51.6750041 6.48029114,51.6192933 6.6195,51.6192933 C6.75870886,51.6192933 6.89212809,51.6750041 6.99,51.774 L12.19,56.974 C12.2890885,57.0715466 12.3446152,57.2049551 12.3440051,57.344 C12.3390269,57.506819 12.2656979,57.6600114 12.142,57.766 L12.142,57.766 Z M13.242,55.195 L8.772,50.725 L19.862,39.634 L24.333,44.105 L13.242,55.195 Z M35.242,46.217 L26.283,43.231 L20.735,37.68 L17.749,28.721 C17.0328419,26.5941296 17.5873328,24.2451047 19.179,22.663 L34.064,7.778 C36.3770287,5.46894967 40.1229713,5.46894967 42.436,7.778 L56.188,21.53 C58.4959496,23.843484 58.4959496,27.588516 56.188,29.902 L41.3,44.787 C39.7174019,46.3755714 37.3710852,46.9296974 35.245,46.217 L35.242,46.217 Z"
+      />
+    </Solid>
+  );
+}
+
+/**
+ * A disc with a heart knocked out of it, closing the Share panel's pitch.
+ *
+ * `INBOX/green-heart.svg` verbatim on its 254000 grid. The heart is a second
+ * subpath, so `fillRule="evenodd"` is what makes it a hole rather than filling
+ * solid — drop it and the icon becomes a plain circle. The hole shows the card
+ * through it, so this only reads correctly on a plain background.
+ */
+export function GreenHeartIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className} viewBox="0 0 254000 254000">
+      <path
+        fillRule="evenodd"
+        d="m127000 0c-70140 0-127000 56860-127000 127000s56860 127000 127000 127000 127000-56860 127000-127000-56860-127000-127000-127000zm-75526 90035c-7151 50957 43994 74242 75526 105773 31532-31531 82677-54816 75526-105773-4919-39462-58913-40135-75526-13617-16613-26518-70607-25845-75526 13617z"
+      />
+    </Solid>
+  );
+}

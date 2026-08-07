@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { shareApp, sharePayload, SHARE_TITLE } from './share';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { canShare, shareApp, sharePayload, SHARE_TITLE } from './share';
 import { APP_URL } from './appInfo';
 
 function abortError() {
@@ -57,5 +57,39 @@ describe('shareApp', () => {
     const pending = shareApp(share); // not awaited yet
     expect(calledSynchronously).toBe(true);
     await pending;
+  });
+});
+
+// The Share panel leaves its "Share…" button out entirely when this is false,
+// so a wrong answer either hides a working button or offers a dead one.
+describe('canShare', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, 'navigator', original);
+  });
+
+  function withNavigator(value: unknown) {
+    Object.defineProperty(globalThis, 'navigator', {
+      value,
+      configurable: true,
+      writable: true,
+    });
+  }
+
+  it('is true when the browser has a share sheet', () => {
+    withNavigator({ share: () => Promise.resolve() });
+    expect(canShare()).toBe(true);
+  });
+
+  it('is false when navigator has no share method', () => {
+    withNavigator({});
+    expect(canShare()).toBe(false);
+  });
+
+  // Server-side rendering and the vitest node environment both hit this path.
+  it('is false when there is no navigator at all', () => {
+    withNavigator(undefined);
+    expect(canShare()).toBe(false);
   });
 });

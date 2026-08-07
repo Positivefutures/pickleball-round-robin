@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { DONATE_URL, FEEDBACK_EMAIL } from '../../lib/appInfo';
+import { ShareIcon } from '../icons';
 
 interface Props {
   open: boolean;
@@ -29,16 +30,8 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-// Box with an arrow leaving the top — the share glyph people already know.
-function ShareIcon() {
-  return (
-    <Icon>
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <polyline points="16 6 12 2 8 6" />
-      <line x1="12" y1="2" x2="12" y2="15" />
-    </Icon>
-  );
-}
+// ShareIcon lives in ../icons: the Share panel's button shows the same action,
+// and the two must not drift apart.
 
 // A phone with a plus — put this on your device.
 function AddToHomeScreenIcon() {
@@ -194,7 +187,7 @@ export function SettingsPanel({
         </h2>
       </div>
       <nav className="mt-3 space-y-1">
-        <SettingsItem icon={<ShareIcon />} label="Share App" onClick={onShare} />
+        <SettingsItem icon={<ShareIcon className="h-6 w-6" />} label="Share App" onClick={onShare} />
         {showInstallItem && (
           <SettingsItem
             icon={<AddToHomeScreenIcon />}

@@ -8,6 +8,8 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
+import { APP_URL } from './lib/appInfo';
+import { sharePayload } from './lib/share';
 import type { Schedule, Round, CourtAssignment } from './types';
 
 declare global {
@@ -535,5 +537,86 @@ describe('the Setup confirmation', () => {
     clickButton(/Setup$/);
     clickButton(/^Go to Setup$/);
     expect(container.textContent).toContain('Generate Schedule');
+  });
+});
+
+describe('Share App', () => {
+  beforeEach(() => seed(6, 4, 1));
+
+  /** The Share overlay, found by its heading rather than by position. */
+  function sharePanel(): HTMLElement {
+    const found = [...container.querySelectorAll('.fixed.inset-0')].find((d) =>
+      text(d).includes('Share the App')
+    );
+    if (!found) throw new Error('Share panel not open');
+    return found as HTMLElement;
+  }
+
+  function openShare() {
+    click(container.querySelector('[aria-label="Open settings"]')!);
+    clickButton(/^Share App$/);
+  }
+
+  // The panel used to be a fallback: the sheet was tried first and this only
+  // appeared where there was none, which is almost no one. It now opens first.
+  it('opens the panel rather than going straight to the OS share sheet', () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, 'share', {
+      value: share,
+      configurable: true,
+    });
+
+    mount();
+    openShare();
+
+    expect(sharePanel()).toBeTruthy();
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it('shows the app address, the copy line and the footer', () => {
+    mount();
+    openShare();
+
+    const body = text(sharePanel());
+    expect(body).toContain(APP_URL);
+    expect(body).toContain("Then share it anywhere you'd like");
+    expect(body).toContain('Thanks for being part of the pickleball community!');
+    expect(sharePanel().querySelector('img[src="/share-top.png"]')).toBeTruthy();
+  });
+
+  it('offers the OS sheet when the browser has one, and hands it the payload', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, 'share', {
+      value: share,
+      configurable: true,
+    });
+
+    mount();
+    openShare();
+    clickButton(/^Share/, sharePanel());
+
+    expect(share).toHaveBeenCalledWith(sharePayload());
+  });
+
+  // A button that cannot do anything is worse than no button.
+  it('leaves the Share button out where there is no share sheet', () => {
+    Object.defineProperty(window.navigator, 'share', {
+      value: undefined,
+      configurable: true,
+    });
+
+    mount();
+    openShare();
+
+    const panel = sharePanel();
+    expect(buttons(/^Copy link/, panel)).toHaveLength(1);
+    expect(buttons(/^Share…|^Share\.\.\./, panel)).toHaveLength(0);
+  });
+
+  it('closes on Close', () => {
+    mount();
+    openShare();
+    clickButton(/^Close$/, sharePanel());
+    expect(container.textContent).not.toContain('Share the App');
   });
 });

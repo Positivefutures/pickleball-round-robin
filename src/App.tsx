@@ -27,7 +27,6 @@ import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
-import { shareApp } from './lib/share';
 import { isStandalone, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
@@ -123,12 +122,11 @@ function App() {
     window.scrollTo(0, 0);
   }, [step]);
 
-  // Straight to the OS share sheet where there is one. The copy-link panel is
-  // only for browsers without it — someone who cancelled the sheet gets nothing,
-  // which is what cancelling should do.
-  async function handleShare() {
-    const outcome = await shareApp();
-    if (outcome === 'unsupported' || outcome === 'failed') setShowShare(true);
+  // The panel opens first on every browser, and offers the OS share sheet from
+  // a button inside it. Going straight to the sheet meant the panel only ever
+  // appeared on browsers without one, which is almost nobody.
+  function handleShare() {
+    setShowShare(true);
   }
 
   // A saved session belongs to the roster it was built from. On boot, follow it

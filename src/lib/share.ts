@@ -36,6 +36,18 @@ function defaultShare(): ShareFn | undefined {
 }
 
 /**
+ * Whether this browser has a share sheet at all. The Share panel asks so it can
+ * leave the "Share…" button out entirely rather than offering a button that
+ * cannot do anything — Firefox desktop being the usual case.
+ *
+ * A plain function, not a hook: `navigator.share` cannot appear or disappear
+ * part-way through a session, so there is nothing to subscribe to.
+ */
+export function canShare(): boolean {
+  return defaultShare() !== undefined;
+}
+
+/**
  * Opens the OS share sheet. The share function is injectable so this is testable
  * without a browser.
  *
