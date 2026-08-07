@@ -73,6 +73,17 @@ export function SessionConfig({
         </div>
       </div>
 
+      <div className="space-y-1">
+        <p className="text-[1.2rem] font-bold text-gray-700">
+          {numPlayers} of {spotsNeeded} Spots Filled
+        </p>
+        {sitOutsPerRound > 0 && (
+          <p className="text-sm text-amber-600">
+            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
+          </p>
+        )}
+      </div>
+
       <div>
         {specials.length > 0 && (
           <div className="mb-2">
@@ -94,21 +105,10 @@ export function SessionConfig({
         <button
           type="button"
           onClick={onOpenSpecialTypes}
-          className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="min-h-10 px-4 flex items-center justify-center bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
         >
           Select Special Game Types
         </button>
-      </div>
-
-      <div className="space-y-1">
-        <p className="text-[1.2rem] font-bold text-gray-700">
-          {numPlayers} of {spotsNeeded} Spots Filled
-        </p>
-        {sitOutsPerRound > 0 && (
-          <p className="text-sm text-amber-600">
-            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
-          </p>
-        )}
       </div>
     </div>
   );
