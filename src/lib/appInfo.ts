@@ -5,21 +5,20 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.70.3';
+export const APP_VERSION = '1.70.4';
 
 /**
  * Master switch for the accounts feature.
  *
- * Off since 2026-08-08: sign-in did not work on Jeff's phone and there was no
- * time to find out why, so the Account item is hidden rather than left in the
- * menu half working. Everything behind it is still here and still tested -
- * flipping this back to true is the whole of turning it on again.
+ * Back on 2026-08-08 to carry on testing. It was briefly off after a sign-in
+ * email arrived with no code in it; that turned out to be a Supabase email
+ * template, not app code, so there was nothing here to fix.
  *
  * It is deliberately separate from isSupabaseConfigured(), which answers a
  * different question: whether the app *could* talk to a server. This one says
- * whether it should offer to.
+ * whether it should offer to. Set it to false to hide the feature outright.
  */
-export const ACCOUNTS_ENABLED = false;
+export const ACCOUNTS_ENABLED = true;
 
 /**
  * Public address of the app — what Share App sends.
