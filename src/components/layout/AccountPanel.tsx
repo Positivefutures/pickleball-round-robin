@@ -57,6 +57,21 @@ function SyncNote() {
     );
   }
 
+  if (sync.state === 'unready') {
+    return (
+      <div className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>
+        <p>{sync.problem}</p>
+        <p className="mt-2">Your groups and players are safe on this device.</p>
+        {/* The raw message, small. This state should be rare, and when it
+            happens the one thing nobody can get at is what the server
+            actually said — least of all on a phone. */}
+        {sync.detail && (
+          <p className="mt-2 break-all font-mono text-xs text-amber-700">{sync.detail}</p>
+        )}
+      </div>
+    );
+  }
+
   if (sync.state === 'blocked') {
     return (
       <p className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>

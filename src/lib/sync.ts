@@ -56,6 +56,14 @@ export type SyncStatus =
   | { state: 'saved' }
   /** Changes are held locally. `problem` is null when they are simply queued. */
   | { state: 'waiting'; pending: number; problem: string | null }
+  /**
+   * Could not find out what this device is, so sync has not started. Distinct
+   * from `waiting` on purpose: nothing is queued, because nothing is being
+   * tracked yet. Reporting a count here would say "0 changes still to save",
+   * which is true and useless — the changes are not saved, they are simply not
+   * counted, and the number invites exactly the wrong conclusion.
+   */
+  | { state: 'unready'; problem: string; detail: string | null }
   /** Nothing is being pushed, and will not be until merging exists. */
   | { state: 'blocked'; reason: 'server-has-data' | 'other-account' };
 
@@ -80,7 +88,9 @@ export const syncStatusStore = {
 
 function settle(problem: string | null = null) {
   const pending = pendingCount();
-  if (pending === 0 && problem === null) setStatus({ state: 'saved' });
+  // Nothing queued means everything that mattered got through, whatever
+  // happened on the way. Warning about an empty queue is noise.
+  if (pending === 0) setStatus({ state: 'saved' });
   else setStatus({ state: 'waiting', pending, problem });
 }
 
@@ -274,16 +284,22 @@ async function flush(): Promise<void> {
 
 /** Short, and about what the user should expect rather than what broke. */
 function describe(error: unknown): string {
-  const text = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase();
-  if (
+  if (looksOffline(error)) return "You're offline. These will go up when you're back on.";
+  return "Couldn't reach your account just now. Trying again.";
+}
+
+function looksOffline(error: unknown): boolean {
+  const text = raw(error).toLowerCase();
+  return (
     text.includes('failed to fetch') ||
     text.includes('network') ||
     text.includes('load failed') ||
     text.includes('offline')
-  ) {
-    return "You're offline. These will go up when you're back on.";
-  }
-  return "Couldn't reach your account just now. This will try again.";
+  );
+}
+
+function raw(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? '');
 }
 
 // ------------------------------------------------------------ first sign-in --
@@ -324,6 +340,7 @@ async function onSignedIn(id: string) {
   const owner = account.get();
 
   if (owner === id) {
+    cancelRetry();
     startTracking();
     settle();
     void flush();
@@ -342,6 +359,7 @@ async function onSignedIn(id: string) {
   try {
     const supabase = await getSupabase();
     if (await serverHasData(supabase)) {
+      cancelRetry();
       setStatus({ state: 'blocked', reason: 'server-has-data' });
       return;
     }
@@ -359,15 +377,61 @@ async function onSignedIn(id: string) {
     // gap between the snapshot and the subscription.
     startTracking();
     seed();
+    cancelRetry();
     await flush();
   } catch (error) {
-    settle(describe(error));
+    // The decision could not be made, so this device does not yet know what it
+    // is. Releasing the id is the point: onSignedIn returns early when it is
+    // already set, so leaving it would wedge sync for the rest of the session —
+    // one bad moment of signal at exactly the wrong second and nothing would
+    // ever be saved, while the panel claimed it was trying.
+    userId = null;
+    setStatus({
+      state: 'unready',
+      problem: looksOffline(error)
+        ? "You're offline, so nothing has been sent up yet. Trying again."
+        : "Couldn't check your account. Nothing has been sent up yet. Trying again.",
+      detail: raw(error) || null,
+    });
+    scheduleRetry(id);
   }
+}
+
+/**
+ * How long to wait before asking again, doubling up to a ceiling. Sync has
+ * nothing urgent to do — the data is safe on the device either way — so the
+ * failure mode to avoid is a phone with no signal retrying in a tight loop
+ * until its battery is flat.
+ */
+const RETRY_BASE_MS = 15_000;
+const RETRY_CAP_MS = 5 * 60_000;
+
+let attempt = 0;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRetry(id: string) {
+  if (retryTimer) clearTimeout(retryTimer);
+  const wait = Math.min(RETRY_BASE_MS * 2 ** attempt, RETRY_CAP_MS);
+  attempt += 1;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    const auth = authStore.get();
+    // Only if the same person is still signed in. Retrying against a session
+    // that has since changed hands is how one account's data reaches another.
+    if (auth.status === 'signed-in' && auth.userId === id) void onSignedIn(id);
+  }, wait);
+}
+
+function cancelRetry() {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+  attempt = 0;
 }
 
 function onSignedOut() {
   userId = null;
   stopTracking();
+  cancelRetry();
   if (timer) {
     clearTimeout(timer);
     timer = null;
@@ -375,6 +439,17 @@ function onSignedOut() {
   // The outbox is kept. Those changes belong to the account, not to the
   // session, and signing back in should take them up rather than lose them.
   setStatus({ state: 'off' });
+}
+
+/**
+ * Reads the auth store and does whatever it now implies. Safe to call at any
+ * time: signing in twice for the same person is a no-op, and calling it after a
+ * failed start is how a wedged device gets going again.
+ */
+function follow() {
+  const auth = authStore.get();
+  if (auth.status === 'signed-in') void onSignedIn(auth.userId);
+  else if (auth.status === 'signed-out') onSignedOut();
 }
 
 // ---------------------------------------------------------------- the start --
@@ -391,19 +466,18 @@ export function startSync(): void {
   started = true;
   if (!ACCOUNTS_ENABLED || !isSupabaseConfigured()) return;
 
-  const follow = () => {
-    const auth = authStore.get();
-    if (auth.status === 'signed-in') void onSignedIn(auth.userId);
-    else if (auth.status === 'signed-out') onSignedOut();
-  };
-
   authStore.subscribe(follow);
   follow();
 
   // Only wake the client for somebody who is actually signed in.
   if (hasStoredSession() || hasAuthCallback()) void initAuth();
 
+  // Coming back from a dead spot. follow() covers the case where the first
+  // attempt never got far enough to know what this device was; scheduleFlush
+  // covers the ordinary backlog.
   window.addEventListener('online', () => {
+    cancelRetry();
+    follow();
     if (userId !== null) scheduleFlush(0);
   });
 }
@@ -415,10 +489,12 @@ export const __testing = {
     userId = null;
     pushing = false;
     stopTracking();
+    cancelRetry();
     if (timer) clearTimeout(timer);
     timer = null;
     status = { state: 'off' };
   },
+  follow,
   account,
   flush,
   seed,

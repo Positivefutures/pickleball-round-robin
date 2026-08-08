@@ -26,6 +26,8 @@ const server = {
   /** Every upsert that reached the client, in order. */
   pushed: [] as { table: string; rows: Record<string, unknown>[] }[],
   failPush: false,
+  /** Makes the first-sign-in probe fail, the way a dead spot would. */
+  failProbe: null as string | null,
 };
 
 const client = {
@@ -41,6 +43,10 @@ const client = {
       select() {
         return {
           limit() {
+            probes += 1;
+            if (server.failProbe) {
+              return Promise.resolve({ data: null, error: { message: server.failProbe } });
+            }
             const data = table === 'preferences' ? [] : server[table];
             return Promise.resolve({ data, error: null });
           },
@@ -49,6 +55,9 @@ const client = {
     };
   },
 };
+
+/** How many times the empty-account probe has been asked. */
+let probes = 0;
 
 let authState: AuthState = { status: 'signed-out' };
 const authListeners = new Set<() => void>();
@@ -117,6 +126,8 @@ beforeEach(() => {
   server.players = [];
   server.pushed = [];
   server.failPush = false;
+  server.failProbe = null;
+  probes = 0;
   __testing.reset();
   outbox.set({});
   seedLocalData();
@@ -157,6 +168,97 @@ describe('first sign-in on a device that has never synced', () => {
     expect(__testing.account.get()).toBe(ME);
     expect(pendingCount()).toBeGreaterThan(0);
     expect(syncStatusStore.get().state).toBe('waiting');
+  });
+});
+
+// ------------------------------------- a start that could not get started --
+
+describe('when the first sign-in cannot reach the server', () => {
+  it('does not sit there claiming to be trying, and actually retries', async () => {
+    // Reported from a phone on 2026-08-08: the panel read "0 changes still to
+    // save. Couldn't reach your account just now. This will try again." It
+    // never did. onSignedIn returns early once userId is set, so one bad
+    // moment of signal meant nothing was ever saved for the rest of the
+    // session, while the panel said otherwise.
+    server.failProbe = 'Failed to fetch';
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    // Not "waiting", which would report a count of zero and read as if
+    // everything were saved.
+    expect(syncStatusStore.get().state).toBe('unready');
+    expect(__testing.account.get()).toBeNull();
+    expect(server.pushed).toEqual([]);
+
+    // The dead spot ends.
+    server.failProbe = null;
+    await vi.advanceTimersByTimeAsync(20_000);
+    await settle();
+
+    expect(__testing.account.get()).toBe(ME);
+    expect(rowsFor('players').map((r) => r.id)).toEqual(['p1', 'p2']);
+    expect(syncStatusStore.get()).toEqual({ state: 'saved' });
+  });
+
+  it('picks the retry up straight away when the network comes back', async () => {
+    server.failProbe = 'Failed to fetch';
+    startSync();
+    signIn(ME);
+    await settle();
+    expect(syncStatusStore.get().state).toBe('unready');
+
+    server.failProbe = null;
+    window.dispatchEvent(new Event('online'));
+    await settle();
+
+    expect(syncStatusStore.get()).toEqual({ state: 'saved' });
+  });
+
+  it('carries the underlying message, since nobody can read a console on a phone', async () => {
+    server.failProbe = 'JWT expired';
+    startSync();
+    signIn(ME);
+    await settle();
+
+    const status = syncStatusStore.get();
+    expect(status).toMatchObject({ state: 'unready', detail: 'JWT expired' });
+  });
+
+  it('backs off rather than hammering a phone with no signal', async () => {
+    server.failProbe = 'Failed to fetch';
+    startSync();
+    signIn(ME);
+    await settle();
+
+    const before = probes;
+    // Four minutes of no signal should be a handful of tries, not hundreds. A
+    // phone in a dead spot retrying in a tight loop is a flat battery.
+    await vi.advanceTimersByTimeAsync(4 * 60_000);
+
+    expect(probes - before).toBeLessThan(10);
+    expect(probes - before).toBeGreaterThan(0);
+  });
+
+  it('drops a pending retry when somebody else signs in on the device', async () => {
+    server.failProbe = 'Failed to fetch';
+    startSync();
+    signIn(ME);
+    await settle();
+
+    // The other person's sign-in succeeds and claims this never-synced device.
+    server.failProbe = null;
+    signIn(SOMEONE_ELSE);
+    await settle();
+    expect(__testing.account.get()).toBe(SOMEONE_ELSE);
+
+    // ME's retry now falls due. It must not fire against the new session.
+    const pushesBefore = server.pushed.length;
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    expect(server.pushed.length).toBe(pushesBefore);
+    expect(__testing.account.get()).toBe(SOMEONE_ELSE);
   });
 });
 
