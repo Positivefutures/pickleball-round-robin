@@ -32,7 +32,7 @@ import { InstallBanner } from './components/layout/InstallBanner';
 import { isStandalone, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
-import { APP_VERSION } from './lib/appInfo';
+import { APP_VERSION, FEEDBACK_EMAIL } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
@@ -627,7 +627,7 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
-        Created by Jeff Baker &ndash; positivefutures.ai &middot; v{APP_VERSION}
+        Created by Jeff Baker &ndash; {FEEDBACK_EMAIL} &middot; v{APP_VERSION}
       </footer>
       </div>
 
