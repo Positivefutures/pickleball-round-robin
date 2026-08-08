@@ -32,7 +32,7 @@ import { InstallBanner } from './components/layout/InstallBanner';
 import { isStandalone, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
-import { APP_VERSION, FEEDBACK_EMAIL } from './lib/appInfo';
+import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
@@ -92,7 +92,10 @@ function App() {
   // Opens by itself when the page load looks like a return trip from the
   // emailed link, so following it lands somewhere that says what happened
   // rather than back on the roster with no sign anything worked.
-  const [showAccount, setShowAccount] = useState(hasAuthCallback);
+  // Gated as well as the menu item, or someone returning from a magic link
+  // they were emailed earlier would land straight in a panel that is supposed
+  // to be switched off.
+  const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
   const { canPrompt, promptInstall } = useInstallPrompt();
@@ -488,7 +491,7 @@ function App() {
         open={settingsOpen}
         onShare={handleShare}
         onOpenAccount={() => setShowAccount(true)}
-        showAccountItem={isSupabaseConfigured()}
+        showAccountItem={ACCOUNTS_ENABLED && isSupabaseConfigured()}
         onOpenInstall={() => setShowInstall(true)}
         showInstallItem={!installed}
         onToggleLargeText={() => setLargeText((v) => !v)}

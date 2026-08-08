@@ -5,7 +5,21 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.70.2';
+export const APP_VERSION = '1.70.3';
+
+/**
+ * Master switch for the accounts feature.
+ *
+ * Off since 2026-08-08: sign-in did not work on Jeff's phone and there was no
+ * time to find out why, so the Account item is hidden rather than left in the
+ * menu half working. Everything behind it is still here and still tested -
+ * flipping this back to true is the whole of turning it on again.
+ *
+ * It is deliberately separate from isSupabaseConfigured(), which answers a
+ * different question: whether the app *could* talk to a server. This one says
+ * whether it should offer to.
+ */
+export const ACCOUNTS_ENABLED = false;
 
 /**
  * Public address of the app — what Share App sends.
