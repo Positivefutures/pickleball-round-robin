@@ -190,7 +190,7 @@ function SyncNote() {
   if (sync.state === 'saved') {
     return (
       <p className={`${note} border-green-200 bg-green-50 text-green-900`}>
-        Your groups and players haven't saved to your account.
+        Your groups and players have been saved to your account.
       </p>
     );
   }
