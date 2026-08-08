@@ -1,0 +1,84 @@
+import type { Player, Roster, Schedule, Partnership, SpecialGameTypes } from '../types';
+import { createStoredValue } from './store';
+import { KEYS, DEFAULT_ROSTER_NAME } from './migrations';
+import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
+
+/**
+ * Every persisted value in the app, in one place.
+ *
+ * They are module-level on purpose. A store is the sole owner of its key, and
+ * two stores over one key would each hold their own copy and drift apart. None
+ * of them reads storage until first use, so runMigrations() still gets to
+ * reshape everything first — see main.tsx.
+ *
+ * The split below is the one that matters for accounts: what belongs to the
+ * person, and what belongs to the device they happen to be holding.
+ */
+
+// ---------------------------------------------------------------- The person
+// Groups, players and preferences. This is what a host would lose by changing
+// phone, and what an account exists to keep.
+
+/** runMigrations() guarantees at least one roster and a valid active id. */
+export const rosters = createStoredValue<Roster[]>(KEYS.rosters, [
+  { id: 'default', name: DEFAULT_ROSTER_NAME },
+]);
+
+export const activeRosterId = createStoredValue<string>(
+  KEYS.activeRoster,
+  () => rosters.get()[0]?.id ?? 'default'
+);
+
+/**
+ * One global pool of players. Roster membership lives on each player as
+ * `rosterIds`, because a player may belong to any number of groups — so the
+ * active group's list is a filter over the pool rather than a store of its own.
+ */
+export const players = createStoredValue<Player[]>(KEYS.players, []);
+
+export const defaultRating = createStoredValue('pb-default-rating', 4.0);
+export const numCourts = createStoredValue('pb-num-courts', 3);
+export const numRounds = createStoredValue('pb-num-rounds', 8);
+export const largeText = createStoredValue<boolean>('pb-large-text', false);
+
+/** Gendered, mixed and equal-skill rounds, each with its own frequency. */
+export const specialTypes = createStoredValue<SpecialGameTypes>(
+  KEYS.specialTypes,
+  DEFAULT_SPECIAL_TYPES
+);
+
+// ---------------------------------------------------------------- The device
+// The session being run right now, and what this browser has been told. Two
+// phones at one court both ticking a round complete is a conflict with no
+// sensible answer, and a session lasts an afternoon — so this half stays where
+// it is rather than following the person around.
+
+/** Persisted so a refresh mid-session doesn't lose the schedule. */
+export const schedule = createStoredValue<Schedule | null>(KEYS.schedule, null);
+
+/**
+ * Round numbers marked complete. An arbitrary set — the host may complete
+ * rounds out of order.
+ */
+export const completedRounds = createStoredValue<number[]>(KEYS.completedRounds, []);
+
+export const selectedIds = createStoredValue<string[]>('pb-selected-ids', []);
+export const removedIds = createStoredValue<string[]>('pb-removed-ids', []);
+
+/**
+ * Fixed partnerships: couples kept on the same team every round. Persisted so
+ * they survive a refresh and carry into the next session with the same crowd.
+ */
+export const partnerships = createStoredValue<Partnership[]>(KEYS.partnerships, []);
+
+/**
+ * True once the host has hand-modified the generated schedule — a swap or a
+ * player removal. Persisted alongside the schedule so a refresh mid-session
+ * doesn't make an edited schedule look untouched.
+ */
+export const scheduleEdited = createStoredValue<boolean>('pb-schedule-edited', false);
+
+/** Which group the saved session was built from. */
+export const scheduleRosterId = createStoredValue<string | null>(KEYS.scheduleRoster, null);
+
+export const installDismissed = createStoredValue('pb-install-dismissed', false);

@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Schedule, LockedPair, Partnership, RoundType, SpecialGameTypes, SpecialTypeSetting } from './types';
+import type { Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import { useStoredValue } from './hooks/useStoredValue';
 import { useScrollLock } from './hooks/useScrollLock';
-import { KEYS } from './lib/migrations';
+import * as stores from './lib/stores';
 import { generateSchedule, regenerateRemaining } from './lib/pairing';
 import { addToRemainingSitOuts } from './lib/sitout';
 import { prunePartnerships, arePartners } from './lib/partnerships';
-import { DEFAULT_SPECIAL_TYPES, moveType, normalizeSpecialTypes } from './lib/roundTypes';
+import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
   toAllGroupsFileName,
@@ -60,35 +60,23 @@ function App() {
     deleteRoster,
   } = useRosters();
 
-  // Session config state
-  const [selectedIds, setSelectedIds] = useLocalStorage<string[]>('pb-selected-ids', []);
-  // Fixed partnerships: couples kept on the same team every round. Persisted so
-  // they survive a refresh and carry into the next session with the same crowd.
-  const [partnerships, setPartnerships] = useLocalStorage<Partnership[]>(KEYS.partnerships, []);
-  const [largeText, setLargeText] = useLocalStorage<boolean>('pb-large-text', false);
-  const [defaultRating, setDefaultRating] = useLocalStorage('pb-default-rating', 4.0);
-  const [numCourts, setNumCourts] = useLocalStorage('pb-num-courts', 3);
-  const [numRounds, setNumRounds] = useLocalStorage('pb-num-rounds', 8);
-  // Gendered, mixed and equal-skill rounds, each with its own frequency.
-  const [specialTypes, setSpecialTypes] = useLocalStorage<SpecialGameTypes>(
-    KEYS.specialTypes, DEFAULT_SPECIAL_TYPES
-  );
+  // Session config state. Every persisted value is declared in lib/stores.ts,
+  // which is also where the comment explaining each one lives.
+  const [selectedIds, setSelectedIds] = useStoredValue(stores.selectedIds);
+  const [partnerships, setPartnerships] = useStoredValue(stores.partnerships);
+  const [largeText, setLargeText] = useStoredValue(stores.largeText);
+  const [defaultRating, setDefaultRating] = useStoredValue(stores.defaultRating);
+  const [numCourts, setNumCourts] = useStoredValue(stores.numCourts);
+  const [numRounds, setNumRounds] = useStoredValue(stores.numRounds);
+  const [specialTypes, setSpecialTypes] = useStoredValue(stores.specialTypes);
 
   // Live session state — persisted so a refresh mid-session doesn't lose the
   // schedule or which rounds have already been played.
-  const [schedule, setSchedule] = useLocalStorage<Schedule | null>('pb-schedule', null);
-  // Round numbers marked complete. An arbitrary set — the host may complete
-  // rounds out of order.
-  const [completedRounds, setCompletedRounds] = useLocalStorage<number[]>(KEYS.completedRounds, []);
-  const [removedIds, setRemovedIds] = useLocalStorage<string[]>('pb-removed-ids', []);
-  // True once the host has hand-modified the generated schedule — a swap or a
-  // player removal. Persisted alongside the schedule so a refresh mid-session
-  // doesn't make an edited schedule look untouched.
-  const [scheduleEdited, setScheduleEdited] = useLocalStorage<boolean>('pb-schedule-edited', false);
-  const [scheduleRosterId, setScheduleRosterId] = useLocalStorage<string | null>(
-    KEYS.scheduleRoster,
-    null
-  );
+  const [schedule, setSchedule] = useStoredValue(stores.schedule);
+  const [completedRounds, setCompletedRounds] = useStoredValue(stores.completedRounds);
+  const [removedIds, setRemovedIds] = useStoredValue(stores.removedIds);
+  const [scheduleEdited, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
+  const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
 
   const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
   const [pendingRosterSwitch, setPendingRosterSwitch] = useState<string | null>(null);
@@ -100,7 +88,7 @@ function App() {
   const [showDonate, setShowDonate] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
-  const [installDismissed, setInstallDismissed] = useLocalStorage('pb-install-dismissed', false);
+  const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
   const { canPrompt, promptInstall } = useInstallPrompt();
 
   // Read once: it cannot change without a reload, and re-reading per render

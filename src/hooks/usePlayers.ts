@@ -1,19 +1,19 @@
 import { useCallback } from 'react';
 import type { Player, Gender } from '../types';
-import { useLocalStorage } from './useLocalStorage';
+import { useStoredValue } from './useStoredValue';
 import { generateId } from '../utils/helpers';
-import { KEYS } from '../lib/migrations';
+import * as stores from '../lib/stores';
 import { planImport } from '../lib/groupImport';
 import type { ImportGroup } from '../lib/groupImport';
 
 /**
  * One global pool of players. Roster membership lives on each player as
- * `rosterIds`, so the active roster's list is a filter rather than a separate
- * storage key — useLocalStorage can't re-read when its key changes, so sharding
- * per roster would render one roster's data while writing to another's.
+ * `rosterIds`, so the active roster's list is a filter over the pool rather
+ * than a store of its own — a player may belong to any number of groups, and
+ * sharding by group would have to write the same person into several places.
  */
 export function usePlayers() {
-  const [players, setPlayers] = useLocalStorage<Player[]>(KEYS.players, []);
+  const [players, setPlayers] = useStoredValue(stores.players);
 
   const addPlayer = useCallback(
     (name: string, rating: number, gender: Gender, rosterIds: string[]) => {

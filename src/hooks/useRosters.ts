@@ -1,18 +1,13 @@
 import { useCallback } from 'react';
 import type { Roster } from '../types';
-import { useLocalStorage } from './useLocalStorage';
+import { useStoredValue } from './useStoredValue';
 import { generateId } from '../utils/helpers';
-import { KEYS, DEFAULT_ROSTER_NAME } from '../lib/migrations';
+import * as stores from '../lib/stores';
 
 export function useRosters() {
   // runMigrations() guarantees at least one roster and a valid active id
-  const [rosters, setRosters] = useLocalStorage<Roster[]>(KEYS.rosters, [
-    { id: 'default', name: DEFAULT_ROSTER_NAME },
-  ]);
-  const [activeRosterId, setActiveRosterId] = useLocalStorage<string>(
-    KEYS.activeRoster,
-    rosters[0]?.id ?? 'default'
-  );
+  const [rosters, setRosters] = useStoredValue(stores.rosters);
+  const [activeRosterId, setActiveRosterId] = useStoredValue(stores.activeRosterId);
 
   const addRoster = useCallback(
     (name: string) => {
