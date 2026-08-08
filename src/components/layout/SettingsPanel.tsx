@@ -5,6 +5,9 @@ import { ShareIcon } from '../icons';
 interface Props {
   open: boolean;
   onShare: () => void;
+  onOpenAccount: () => void;
+  /** Hidden when there are no Supabase env vars, so there is never a dead button. */
+  showAccountItem: boolean;
   onOpenInstall: () => void;
   /** Hidden once launched from a home-screen icon — nothing left to install. */
   showInstallItem: boolean;
@@ -32,6 +35,16 @@ function Icon({ children }: { children: ReactNode }) {
 
 // ShareIcon lives in ../icons: the Share panel's button shows the same action,
 // and the two must not drift apart.
+
+// Head and shoulders — your account.
+function PersonIcon() {
+  return (
+    <Icon>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </Icon>
+  );
+}
 
 // A phone with a plus — put this on your device.
 function AddToHomeScreenIcon() {
@@ -157,6 +170,8 @@ function SettingsItem({
 export function SettingsPanel({
   open,
   onShare,
+  onOpenAccount,
+  showAccountItem,
   onOpenInstall,
   showInstallItem,
   onToggleLargeText,
@@ -188,6 +203,10 @@ export function SettingsPanel({
       </div>
       <nav className="mt-3 space-y-1">
         <SettingsItem icon={<ShareIcon className="h-6 w-6" />} label="Share App" onClick={onShare} />
+        {/* No Supabase configured means no item, the same rule Donate follows */}
+        {showAccountItem && (
+          <SettingsItem icon={<PersonIcon />} label="Account" onClick={onOpenAccount} />
+        )}
         {showInstallItem && (
           <SettingsItem
             icon={<AddToHomeScreenIcon />}

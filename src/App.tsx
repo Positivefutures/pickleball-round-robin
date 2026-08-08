@@ -25,6 +25,8 @@ import { stepLabel, type Step } from './lib/steps';
 import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
+import { AccountPanel } from './components/layout/AccountPanel';
+import { isSupabaseConfigured, hasAuthCallback } from './lib/supabase';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { isStandalone, installRoute } from './lib/install';
@@ -87,6 +89,10 @@ function App() {
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
   const [showDonate, setShowDonate] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  // Opens by itself when the page load looks like a return trip from the
+  // emailed link, so following it lands somewhere that says what happened
+  // rather than back on the roster with no sign anything worked.
+  const [showAccount, setShowAccount] = useState(hasAuthCallback);
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
   const { canPrompt, promptInstall } = useInstallPrompt();
@@ -99,7 +105,7 @@ function App() {
   // exactly where the user left it — including after closing a settings dialog.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
-    !!feedbackKind || showDonate || showShare || showInstall
+    !!feedbackKind || showDonate || showShare || showAccount || showInstall
   );
 
   // Every step starts at the top. The button that moved you here is often the
@@ -481,6 +487,8 @@ function App() {
       <SettingsPanel
         open={settingsOpen}
         onShare={handleShare}
+        onOpenAccount={() => setShowAccount(true)}
+        showAccountItem={isSupabaseConfigured()}
         onOpenInstall={() => setShowInstall(true)}
         showInstallItem={!installed}
         onToggleLargeText={() => setLargeText((v) => !v)}
@@ -628,6 +636,8 @@ function App() {
       )}
 
       {showShare && <SharePanel onClose={() => setShowShare(false)} />}
+
+      {showAccount && <AccountPanel onClose={() => setShowAccount(false)} />}
 
       {showInstall && (
         <InstallPanel

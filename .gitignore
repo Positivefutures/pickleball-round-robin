@@ -30,3 +30,9 @@ dist-ssr
 # Machine-specific tool permissions. The skills beside it are shared, so this
 # ignores the one file rather than the whole .claude directory.
 .claude/settings.local.json
+
+# Supabase keys. The `*.local` line above does NOT match `.env.local` — it only
+# matches names ending in ".local" — so these need saying explicitly.
+.env
+.env.*
+!.env.example
