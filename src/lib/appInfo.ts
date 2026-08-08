@@ -17,7 +17,7 @@ export const APP_VERSION = '1.70.0';
 export const APP_URL = 'https://app.pbroundrobin.com/';
 
 /** Where Suggest a Feature and Report a Bug are sent. */
-export const FEEDBACK_EMAIL = 'jeff@positivefutures.com';
+export const FEEDBACK_EMAIL = 'jeff@pbroundrobin.com';
 
 /**
  * Ko-fi page behind the Donate item. Blanking this hides Donate from the menu,
