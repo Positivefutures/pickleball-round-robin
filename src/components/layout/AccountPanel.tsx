@@ -7,6 +7,7 @@ import {
   signOut,
   changeEmail,
 } from '../../lib/auth';
+import { syncStatusStore } from '../../lib/sync';
 
 interface Props {
   onClose: () => void;
@@ -21,6 +22,58 @@ const primary =
   'w-full rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400';
 const secondary =
   'w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300';
+
+/**
+ * What has and has not reached the account.
+ *
+ * Worth stating plainly rather than reducing to a tick. Someone who has just
+ * driven away from a court with an edited group wants to know whether it is
+ * safe, and "3 changes waiting" is the true answer often enough to be the one
+ * worth writing well.
+ */
+function SyncNote() {
+  const sync = useSyncExternalStore(
+    syncStatusStore.subscribe,
+    syncStatusStore.get,
+    syncStatusStore.get
+  );
+
+  const note = 'mt-4 rounded-md border px-3 py-2 text-sm';
+
+  if (sync.state === 'saved') {
+    return (
+      <p className={`${note} border-green-200 bg-green-50 text-green-900`}>
+        Your groups and players are saved to your account.
+      </p>
+    );
+  }
+
+  if (sync.state === 'waiting') {
+    return (
+      <p className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>
+        {sync.pending === 1 ? '1 change' : `${sync.pending} changes`} still to save.{' '}
+        {sync.problem ?? 'Saving now.'}
+      </p>
+    );
+  }
+
+  if (sync.state === 'blocked') {
+    return (
+      <p className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>
+        {sync.reason === 'server-has-data'
+          ? 'This account already has groups saved to it, so nothing on this device is being sent up yet. Combining the two is coming next.'
+          : 'The groups on this device were last saved to a different account, so nothing is being sent up. Combining the two is coming next.'}
+      </p>
+    );
+  }
+
+  // off, starting, saving
+  return (
+    <p className={`${note} border-gray-200 bg-gray-50 text-gray-600`}>
+      {sync.state === 'saving' ? 'Saving to your account...' : 'Checking your account...'}
+    </p>
+  );
+}
 
 function Problem({ children }: { children: string }) {
   return (
@@ -140,7 +193,7 @@ export function AccountPanel({ onClose }: Props) {
         {auth.status === 'signed-out' && !sentTo && (
           <>
             <p className="mt-1 mb-4 text-center text-sm text-gray-600">
-              Sign in and your groups can follow you to a new phone. There is no password.
+              Sign in and your groups are backed up to your account. There is no password.
             </p>
 
             <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="acct-email">
@@ -235,13 +288,7 @@ export function AccountPanel({ onClose }: Props) {
               {auth.email ?? 'this account'}
             </p>
 
-            {/* Phase 2 signs people in and moves nothing. Saying so is the
-                whole point: an account that looks like a backup and is not
-                would be worse than no account at all. */}
-            <p className="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-              Your groups and players are still only on this device. Syncing them to your
-              account is coming next.
-            </p>
+            <SyncNote />
 
             {notice && (
               <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">

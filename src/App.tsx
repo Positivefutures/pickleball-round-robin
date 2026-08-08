@@ -27,6 +27,7 @@ import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
 import { AccountPanel } from './components/layout/AccountPanel';
 import { isSupabaseConfigured, hasAuthCallback } from './lib/supabase';
+import { startSync } from './lib/sync';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { isStandalone, installRoute } from './lib/install';
@@ -118,6 +119,13 @@ function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [step]);
+
+  // Sync starts itself, or doesn't. It returns immediately when accounts are
+  // switched off, unconfigured, or nobody is signed in on this browser, so an
+  // ordinary visit still loads no Supabase code and makes no request.
+  useEffect(() => {
+    startSync();
+  }, []);
 
   // The panel opens first on every browser, and offers the OS share sheet from
   // a button inside it. Going straight to the sheet meant the panel only ever

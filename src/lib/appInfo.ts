@@ -5,7 +5,7 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.70.4';
+export const APP_VERSION = '1.80.0';
 
 /**
  * Master switch for the accounts feature.

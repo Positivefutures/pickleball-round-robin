@@ -53,6 +53,31 @@ export function getSupabase(): Promise<SupabaseClient> {
 }
 
 /**
+ * Whether this browser already holds a Supabase session.
+ *
+ * Cheap, synchronous, and answered without loading the client — which is the
+ * point. Sync has to know on boot whether anyone is signed in, and asking the
+ * SDK would mean every visitor downloading it. Someone who has never signed in
+ * still makes no network request at all, exactly as before accounts existed.
+ *
+ * The key is whatever the SDK chose to store under; matching its shape rather
+ * than rebuilding its name means a false negative at worst, which costs a
+ * deferred sync rather than a wrong answer.
+ */
+export function hasStoredSession(): boolean {
+  try {
+    const storage = window.localStorage;
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key?.startsWith('sb-') && key.endsWith('-auth-token')) return true;
+    }
+  } catch {
+    // Private-mode Safari, or no window at all.
+  }
+  return false;
+}
+
+/**
  * Whether this page load looks like a return trip from the emailed link.
  *
  * Checked before anything is imported, so an ordinary visit never pays for the
