@@ -1,11 +1,15 @@
 /**
  * @vitest-environment happy-dom
  *
- * The branch taken on first sign-in, which is the only part of push-only sync
- * that can do real harm. Pushing is safe by construction — the server only
- * accumulates — but pushing into the *wrong account* is not, and neither is
- * seeding on top of data that was already there. Both are refusals here, and a
- * refusal that quietly stops refusing is exactly the regression worth pinning.
+ * What the engine does with an account, and more importantly what it refuses to
+ * do without being asked.
+ *
+ * Two properties are worth pinning above all others. A pull must never discard
+ * an edit the user has made and not yet sent, and neither branch of the merge
+ * may run without an answer — combining silently would fold two people's data
+ * together, replacing silently would throw one of them away. Both are refusals,
+ * and a refusal that quietly stops refusing is exactly the regression that
+ * would cost somebody their groups.
  *
  * The Supabase client and the auth store are both stood in for. What is being
  * tested is which calls get made and which do not, and a real client would only
@@ -13,51 +17,88 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { AuthState } from './auth';
+import type { Player } from '../types';
 
 // ------------------------------------------------------------ the stand-ins --
 
-interface FakeRow {
-  id: string;
+type FakeRow = Record<string, unknown> & { id?: string };
+
+/** Server timestamps that increase, so cursor assertions can be exact. */
+let clock = 0;
+function tick(): string {
+  clock += 1;
+  return `2026-03-01T00:00:${String(clock).padStart(2, '0')}.000Z`;
 }
 
 const server = {
   rosters: [] as FakeRow[],
   players: [] as FakeRow[],
+  preferences: [] as FakeRow[],
   /** Every upsert that reached the client, in order. */
-  pushed: [] as { table: string; rows: Record<string, unknown>[] }[],
+  pushed: [] as { table: string; rows: FakeRow[] }[],
   failPush: false,
-  /** Makes the first-sign-in probe fail, the way a dead spot would. */
-  failProbe: null as string | null,
+  /** Makes reads fail, the way a dead spot would. */
+  failRead: null as string | null
 };
 
+/** How many reads have been asked for, for the backoff test. */
+let reads = 0;
+
+type Table = 'rosters' | 'players' | 'preferences';
+
+/**
+ * A PostgREST builder is awaitable and chainable at the same time. The thenable
+ * below is the smallest thing that behaves like one.
+ */
+function builder(table: Table, keep: (row: FakeRow) => boolean) {
+  const run = () => {
+    reads += 1;
+    if (server.failRead) {
+      return Promise.resolve({
+        data: null,
+        error: { message: server.failRead }
+      });
+    }
+    return Promise.resolve({ data: server[table].filter(keep), error: null });
+  };
+
+  return {
+    gte(column: string, value: string) {
+      return builder(table, (row) => keep(row) && String(row[column]) >= value);
+    },
+    then(onOk: (v: unknown) => unknown, onErr?: (e: unknown) => unknown) {
+      return run().then(onOk, onErr);
+    }
+  };
+}
+
 const client = {
-  from(table: 'rosters' | 'players' | 'preferences') {
+  from(table: Table) {
     return {
-      upsert(rows: Record<string, unknown>[]) {
+      upsert(rows: FakeRow[]) {
         if (server.failPush) {
           return Promise.resolve({ error: { message: 'Failed to fetch' } });
         }
         server.pushed.push({ table, rows });
+        // Land them, so a pull straight afterwards sees what was written.
+        for (const row of rows) {
+          const stamped = { ...row, server_updated_at: tick() };
+          if (table === 'preferences') {
+            server.preferences = [stamped];
+            continue;
+          }
+          const at = server[table].findIndex((existing) => existing.id === row.id);
+          if (at === -1) server[table].push(stamped);
+          else server[table][at] = stamped;
+        }
         return Promise.resolve({ error: null });
       },
       select() {
-        return {
-          limit() {
-            probes += 1;
-            if (server.failProbe) {
-              return Promise.resolve({ data: null, error: { message: server.failProbe } });
-            }
-            const data = table === 'preferences' ? [] : server[table];
-            return Promise.resolve({ data, error: null });
-          },
-        };
-      },
+        return builder(table, () => true);
+      }
     };
-  },
+  }
 };
-
-/** How many times the empty-account probe has been asked. */
-let probes = 0;
 
 let authState: AuthState = { status: 'signed-out' };
 const authListeners = new Set<() => void>();
@@ -71,7 +112,7 @@ vi.mock('./supabase', () => ({
   isSupabaseConfigured: () => true,
   hasStoredSession: () => true,
   hasAuthCallback: () => false,
-  getSupabase: () => Promise.resolve(client),
+  getSupabase: () => Promise.resolve(client)
 }));
 
 vi.mock('./auth', () => ({
@@ -81,13 +122,14 @@ vi.mock('./auth', () => ({
     subscribe(listener: () => void) {
       authListeners.add(listener);
       return () => authListeners.delete(listener);
-    },
-  },
+    }
+  }
 }));
 
 // Imported after the mocks are registered.
-const { startSync, syncStatusStore, __testing } = await import('./sync');
-const { outbox, pendingCount } = await import('./outbox');
+const { startSync, syncStatusStore, combineWithAccount, adoptAccountCopy, __testing } =
+  await import('./sync');
+const { outbox, pendingCount, playerRow, entryKey } = await import('./outbox');
 const stores = await import('./stores');
 
 // --------------------------------------------------------------------------
@@ -95,7 +137,7 @@ const stores = await import('./stores');
 const ME = 'user-me';
 const SOMEONE_ELSE = 'user-else';
 
-/** Runs the debounce timer and lets the pushes it starts settle. */
+/** Runs the debounce timer and lets the pushes and pulls it starts settle. */
 async function settle() {
   await vi.advanceTimersByTimeAsync(2000);
   await vi.advanceTimersByTimeAsync(2000);
@@ -107,27 +149,77 @@ function seedLocalData() {
     'pb-roster',
     JSON.stringify([
       { id: 'p1', name: 'Ava', rating: 4, gender: 'F', rosterIds: ['g1'] },
-      { id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g1'] },
+      { id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g1'] }
     ])
   );
   localStorage.setItem('pb-active-roster', JSON.stringify('g1'));
+}
+
+/** Marks this device as already belonging to ME, the way a previous run would. */
+function alreadySynced() {
+  __testing.account.set(ME);
+  __testing.mirror.set({
+    rosters: stores.rosters.get(),
+    players: stores.players.get()
+  });
+}
+
+function serverRoster(id: string, name: string, deleted: string | null = null): FakeRow {
+  const at = tick();
+  return {
+    id,
+    name,
+    deleted_at: deleted,
+    updated_at: at,
+    server_updated_at: at
+  };
+}
+
+function serverPlayer(
+  id: string,
+  name: string,
+  rosterIds: string[],
+  extra: Partial<{
+    rating: number;
+    gender: string;
+    deleted_at: string | null;
+  }> = {}
+): FakeRow {
+  const at = tick();
+  return {
+    id,
+    name,
+    rating: 4,
+    gender: 'F',
+    roster_ids: rosterIds,
+    deleted_at: null,
+    updated_at: at,
+    server_updated_at: at,
+    ...extra
+  };
 }
 
 function rowsFor(table: string) {
   return server.pushed.filter((p) => p.table === table).flatMap((p) => p.rows);
 }
 
+function names(players: Player[]) {
+  return players.map((p) => p.name);
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
+  clock = 0;
+  reads = 0;
   authState = { status: 'signed-out' };
   authListeners.clear();
   server.rosters = [];
   server.players = [];
+  server.preferences = [];
   server.pushed = [];
   server.failPush = false;
-  server.failProbe = null;
-  probes = 0;
+  server.failRead = null;
   __testing.reset();
   outbox.set({});
   seedLocalData();
@@ -180,7 +272,7 @@ describe('when the first sign-in cannot reach the server', () => {
     // never did. onSignedIn returns early once userId is set, so one bad
     // moment of signal meant nothing was ever saved for the rest of the
     // session, while the panel said otherwise.
-    server.failProbe = 'Failed to fetch';
+    server.failRead = 'Failed to fetch';
 
     startSync();
     signIn(ME);
@@ -193,7 +285,7 @@ describe('when the first sign-in cannot reach the server', () => {
     expect(server.pushed).toEqual([]);
 
     // The dead spot ends.
-    server.failProbe = null;
+    server.failRead = null;
     await vi.advanceTimersByTimeAsync(20_000);
     await settle();
 
@@ -203,13 +295,13 @@ describe('when the first sign-in cannot reach the server', () => {
   });
 
   it('picks the retry up straight away when the network comes back', async () => {
-    server.failProbe = 'Failed to fetch';
+    server.failRead = 'Failed to fetch';
     startSync();
     signIn(ME);
     await settle();
     expect(syncStatusStore.get().state).toBe('unready');
 
-    server.failProbe = null;
+    server.failRead = null;
     window.dispatchEvent(new Event('online'));
     await settle();
 
@@ -217,7 +309,7 @@ describe('when the first sign-in cannot reach the server', () => {
   });
 
   it('carries the underlying message, since nobody can read a console on a phone', async () => {
-    server.failProbe = 'JWT expired';
+    server.failRead = 'JWT expired';
     startSync();
     signIn(ME);
     await settle();
@@ -227,28 +319,28 @@ describe('when the first sign-in cannot reach the server', () => {
   });
 
   it('backs off rather than hammering a phone with no signal', async () => {
-    server.failProbe = 'Failed to fetch';
+    server.failRead = 'Failed to fetch';
     startSync();
     signIn(ME);
     await settle();
 
-    const before = probes;
+    const before = reads;
     // Four minutes of no signal should be a handful of tries, not hundreds. A
     // phone in a dead spot retrying in a tight loop is a flat battery.
     await vi.advanceTimersByTimeAsync(4 * 60_000);
 
-    expect(probes - before).toBeLessThan(10);
-    expect(probes - before).toBeGreaterThan(0);
+    expect(reads - before).toBeLessThan(30);
+    expect(reads - before).toBeGreaterThan(0);
   });
 
   it('drops a pending retry when somebody else signs in on the device', async () => {
-    server.failProbe = 'Failed to fetch';
+    server.failRead = 'Failed to fetch';
     startSync();
     signIn(ME);
     await settle();
 
     // The other person's sign-in succeeds and claims this never-synced device.
-    server.failProbe = null;
+    server.failRead = null;
     signIn(SOMEONE_ELSE);
     await settle();
     expect(__testing.account.get()).toBe(SOMEONE_ELSE);
@@ -262,11 +354,12 @@ describe('when the first sign-in cannot reach the server', () => {
   });
 });
 
-// ----------------------------------------------------------- the refusals --
+// ----------------------------------------------------------- the questions --
 
-describe('what it refuses to do', () => {
-  it('pushes nothing when the account already has groups on it', async () => {
-    server.rosters = [{ id: 'existing' }];
+describe('what it will not decide on its own', () => {
+  it('asks rather than merging when the account already has groups', async () => {
+    server.rosters = [serverRoster('sg', 'Thursday')];
+    server.players = [serverPlayer('sp', 'Ava', ['sg']), serverPlayer('sp2', 'Cal', ['sg'])];
 
     startSync();
     signIn(ME);
@@ -274,31 +367,293 @@ describe('what it refuses to do', () => {
 
     expect(server.pushed).toEqual([]);
     expect(__testing.account.get()).toBeNull();
-    expect(syncStatusStore.get()).toEqual({ state: 'blocked', reason: 'server-has-data' });
+    expect(syncStatusStore.get()).toEqual({
+      state: 'choice',
+      reason: 'server-has-data',
+      account: { rosters: 1, players: 2 },
+      device: { rosters: 1, players: 2 },
+      // Named up front, so nobody folds two different people together without
+      // having been shown it.
+      matched: ['Ava']
+    });
   });
 
-  it('pushes nothing when this device belongs to a different account', async () => {
+  it('asks before letting one person data into another person account', async () => {
+    // The account is empty, so seeding would look harmless. It is not: the rows
+    // on this device belong to whoever was signed in before.
     __testing.account.set(SOMEONE_ELSE);
 
     startSync();
     signIn(ME);
     await settle();
 
-    // The one unrecoverable mistake available here is uploading one person's
-    // groups into another person's account.
     expect(server.pushed).toEqual([]);
     expect(__testing.account.get()).toBe(SOMEONE_ELSE);
-    expect(syncStatusStore.get()).toEqual({ state: 'blocked', reason: 'other-account' });
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'choice',
+      reason: 'other-account',
+      account: { rosters: 0, players: 0 }
+    });
   });
 
   it('sends nothing at all before anyone signs in', async () => {
     startSync();
     await settle();
-    stores.players.set((prev) => [...prev, { id: 'p3', name: 'Cara', rating: 4, gender: 'F', rosterIds: ['g1'] }]);
+    stores.players.set((prev) => [
+      ...prev,
+      { id: 'p3', name: 'Cara', rating: 4, gender: 'F', rosterIds: ['g1'] }
+    ]);
     await settle();
 
     expect(server.pushed).toEqual([]);
     expect(syncStatusStore.get()).toEqual({ state: 'off' });
+  });
+});
+
+// -------------------------------------------------------------- the merge --
+
+describe('combining this device with the account', () => {
+  async function asked() {
+    server.rosters = [serverRoster('sg', 'tuesday'), serverRoster('sg2', 'Thursday')];
+    // The account has Ava in Thursday. This device has her in Tuesday. One
+    // person, two groups, and being in a group is not an opinion two devices
+    // can hold differently.
+    server.players = [serverPlayer('sp', 'ava', ['sg2'], { rating: 4.5 })];
+    startSync();
+    signIn(ME);
+    await settle();
+    expect(syncStatusStore.get().state).toBe('choice');
+    server.pushed = [];
+  }
+
+  it('adopts the account ids, so merging cannot make two of everything', async () => {
+    await asked();
+    await combineWithAccount();
+    await settle();
+
+    // The local group was called Tuesday and the account calls it tuesday.
+    // One group, under the account's id.
+    expect(stores.rosters.get().map((r) => r.id)).toEqual(['sg', 'sg2']);
+    expect(names(stores.players.get()).sort()).toEqual(['Ben', 'ava']);
+    // The account keeps its own rating, exactly as a file import does, and
+    // ends up in both groups rather than one side's.
+    expect(stores.players.get().find((p) => p.id === 'sp')?.rating).toBe(4.5);
+    expect(stores.players.get().find((p) => p.id === 'sp')?.rosterIds).toEqual(['sg2', 'sg']);
+    // Ava's local id is gone, so nothing refers to her twice.
+    expect(stores.players.get().some((p) => p.id === 'p1')).toBe(false);
+
+    expect(__testing.account.get()).toBe(ME);
+    expect(syncStatusStore.get().state).toBe('saved');
+  });
+
+  it('sends up only what the account was missing', async () => {
+    await asked();
+    await combineWithAccount();
+    await settle();
+
+    // Ben is new to the account. Ava is not, but she has joined a group the
+    // account did not have her in, so her row has to go up too.
+    expect(rowsFor('rosters')).toEqual([]);
+    expect(
+      rowsFor('players')
+        .map((r) => r.id)
+        .sort()
+    ).toEqual(['p2', 'sp']);
+  });
+
+  it('follows the adopted ids into a session that is already under way', async () => {
+    stores.selectedIds.set(['p1', 'p2']);
+    stores.partnerships.set([{ player1Id: 'p1', player2Id: 'p2' }]);
+    await asked();
+    await combineWithAccount();
+
+    // p1 became sp. A session still naming p1 would draw fine and quietly stop
+    // applying the partnership, which is the worst kind of broken.
+    expect(stores.selectedIds.get()).toEqual(['sp', 'p2']);
+    expect(stores.partnerships.get()).toEqual([{ player1Id: 'sp', player2Id: 'p2' }]);
+  });
+
+  it('reports what it did, in the words the import summaries use', async () => {
+    await asked();
+    const report = await combineWithAccount();
+
+    expect(report.title).toBe('Combined.');
+    expect(report.details.join(' ')).toContain('2 groups and 2 players');
+    expect(report.details.join(' ')).toContain('ava');
+  });
+});
+
+describe('taking the account copy instead', () => {
+  it('replaces what is on the device and clears the session it belonged to', async () => {
+    server.rosters = [serverRoster('sg', 'Thursday')];
+    server.players = [serverPlayer('sp', 'Cal', ['sg'])];
+    stores.schedule.set({ rounds: [] });
+    stores.selectedIds.set(['p1']);
+
+    startSync();
+    signIn(ME);
+    await settle();
+    server.pushed = [];
+
+    await adoptAccountCopy();
+    await settle();
+
+    expect(stores.rosters.get()).toEqual([{ id: 'sg', name: 'Thursday' }]);
+    expect(names(stores.players.get())).toEqual(['Cal']);
+    expect(stores.activeRosterId.get()).toBe('sg');
+    // Every id that session referred to has gone.
+    expect(stores.schedule.get()).toBeNull();
+    expect(stores.selectedIds.get()).toEqual([]);
+    expect(__testing.account.get()).toBe(ME);
+  });
+
+  it('does not carry the previous account queued rows into this one', async () => {
+    // The most damaging thing available here: rows belonging to whoever was
+    // signed in before, sitting unsent, pushed into somebody else's account.
+    __testing.account.set(SOMEONE_ELSE);
+    outbox.set({
+      'players:p1': {
+        table: 'players',
+        id: 'p1',
+        row: playerRow(
+          { id: 'p1', name: 'Ava', rating: 4, gender: 'F', rosterIds: ['g1'] },
+          '2026-01-01T00:00:00.000Z'
+        )
+      }
+    });
+
+    startSync();
+    signIn(ME);
+    await settle();
+    expect(syncStatusStore.get().state).toBe('choice');
+
+    await adoptAccountCopy();
+    await settle();
+
+    expect(rowsFor('players')).toEqual([]);
+    expect(pendingCount()).toBe(0);
+  });
+});
+
+// --------------------------------------------------------------- the pull --
+
+describe('reading the account back', () => {
+  it('brings down a group and a player added on another device', async () => {
+    alreadySynced();
+    server.rosters = [serverRoster('g1', 'Tuesday'), serverRoster('g2', 'Sunday')];
+    server.players = [serverPlayer('p9', 'Cal', ['g2'])];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Tuesday', 'Sunday']);
+    expect(names(stores.players.get())).toEqual(['Ava', 'Ben', 'Cal']);
+  });
+
+  it('applies a delete made elsewhere instead of pushing the row back up', async () => {
+    alreadySynced();
+    server.rosters = [serverRoster('g1', 'Tuesday')];
+    server.players = [
+      serverPlayer('p2', 'Ben', ['g1'], {
+        deleted_at: '2026-03-01T00:00:00.000Z'
+      })
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(names(stores.players.get())).toEqual(['Ava']);
+    // A physical delete would be undone the moment this device pushed its copy
+    // back. Nothing about Ben goes up.
+    expect(rowsFor('players')).toEqual([]);
+  });
+
+  it('keeps an unsent local edit rather than overwriting it with the server copy', async () => {
+    alreadySynced();
+    // The user renamed Ava a moment ago. It is in the store and in the outbox,
+    // and it has not gone up yet.
+    const renamed: Player = {
+      id: 'p1',
+      name: 'Ava Renamed',
+      rating: 4,
+      gender: 'F',
+      rosterIds: ['g1']
+    };
+    stores.players.set((prev) => prev.map((p) => (p.id === 'p1' ? renamed : p)));
+    outbox.set({
+      [entryKey('players', 'p1')]: {
+        table: 'players',
+        id: 'p1',
+        row: playerRow(renamed, '2026-03-02T00:00:00.000Z')
+      }
+    });
+    server.players = [serverPlayer('p1', 'Ava Stale', ['g1'])];
+    // The push cannot get through, so nothing repairs a bad apply. This is the
+    // shape the bug would take in real life: a dead spot, an edit on screen,
+    // and a pull that quietly replaces it with the copy it was meant to fix.
+    server.failPush = true;
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    // The local copy is newer by definition: it is the one still on its way up.
+    expect(stores.players.get().find((p) => p.id === 'p1')?.name).toBe('Ava Renamed');
+    expect(pendingCount()).toBe(1);
+  });
+
+  it('does not send back what it has just read', async () => {
+    alreadySynced();
+    server.players = [serverPlayer('p9', 'Cal', ['g1'])];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(names(stores.players.get())).toContain('Cal');
+    expect(server.pushed).toEqual([]);
+  });
+
+  it('remembers how far it read, so the next pull asks for less', async () => {
+    alreadySynced();
+    server.rosters = [serverRoster('g2', 'Sunday')];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(__testing.cursorFor(ME).get()).toBe(server.rosters[0].server_updated_at);
+  });
+
+  it('checks again when the tab comes back to the front', async () => {
+    alreadySynced();
+    startSync();
+    signIn(ME);
+    await settle();
+    expect(names(stores.players.get())).toEqual(['Ava', 'Ben']);
+
+    // The phone at the court added somebody while this window sat open.
+    server.players = [serverPlayer('p9', 'Cal', ['g1'])];
+    document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+
+    expect(names(stores.players.get())).toContain('Cal');
+  });
+
+  it('moves the open group off one that was deleted elsewhere', async () => {
+    alreadySynced();
+    server.rosters = [
+      serverRoster('g1', 'Tuesday', '2026-03-01T00:00:00.000Z'),
+      serverRoster('g2', 'Sunday')
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.activeRosterId.get()).toBe('g2');
   });
 });
 
@@ -319,7 +674,7 @@ describe('once it is running', () => {
     await settle();
 
     expect(rowsFor('players')).toEqual([
-      expect.objectContaining({ id: 'p1', rating: 4.75, deleted_at: null }),
+      expect.objectContaining({ id: 'p1', rating: 4.75, deleted_at: null })
     ]);
   });
 
@@ -353,7 +708,10 @@ describe('once it is running', () => {
     await settle();
 
     expect(rowsFor('preferences')).toHaveLength(1);
-    expect(rowsFor('preferences')[0]).toMatchObject({ num_courts: 5, large_text: true });
+    expect(rowsFor('preferences')[0]).toMatchObject({
+      num_courts: 5,
+      large_text: true
+    });
   });
 
   it('leaves the schedule alone, because a live session belongs to the device', async () => {
@@ -374,7 +732,10 @@ describe('once it is running', () => {
     await settle();
 
     expect(pendingCount()).toBe(1);
-    expect(syncStatusStore.get()).toMatchObject({ state: 'waiting', pending: 1 });
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'waiting',
+      pending: 1
+    });
 
     server.failPush = false;
     window.dispatchEvent(new Event('online'));
@@ -382,5 +743,26 @@ describe('once it is running', () => {
 
     expect(rowsFor('players')).toEqual([expect.objectContaining({ id: 'p1', rating: 5 })]);
     expect(pendingCount()).toBe(0);
+  });
+
+  it('catches up an edit made while signed out, which nothing was watching', async () => {
+    await signedInAndSeeded();
+
+    // Signing out stops the subscriptions. An edit now is in no outbox and no
+    // diff, and the next pull would have written straight over it.
+    authState = { status: 'signed-out' };
+    for (const listener of authListeners) listener();
+    stores.players.set((prev) =>
+      prev.map((p) => (p.id === 'p1' ? { ...p, name: 'Ava Offline' } : p))
+    );
+    await settle();
+    expect(server.pushed).toEqual([]);
+
+    signIn(ME);
+    await settle();
+
+    expect(rowsFor('players')).toEqual([
+      expect.objectContaining({ id: 'p1', name: 'Ava Offline' })
+    ]);
   });
 });

@@ -7,7 +7,13 @@ import {
   signOut,
   changeEmail,
 } from '../../lib/auth';
-import { syncStatusStore } from '../../lib/sync';
+import {
+  syncStatusStore,
+  combineWithAccount,
+  adoptAccountCopy,
+  type Counts,
+  type SyncReport
+} from '../../lib/sync';
 
 interface Props {
   onClose: () => void;
@@ -23,6 +29,123 @@ const primary =
 const secondary =
   'w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300';
 
+const note = 'mt-4 rounded-md border px-3 py-2 text-sm';
+
+function tally(counts: Counts): string {
+  const groups = `${counts.rosters} ${counts.rosters === 1 ? 'group' : 'groups'}`;
+  const players = `${counts.players} ${counts.players === 1 ? 'player' : 'players'}`;
+  return `${groups}, ${players}`;
+}
+
+/**
+ * The one decision this app will not make on anybody's behalf.
+ *
+ * It comes up when the account already holds groups, or when this device's
+ * groups were last saved to a different account. Either way both sides hold
+ * real work, and both answers are reasonable, so the numbers go on screen and
+ * the person picks. Combining is offered first when the two sides are probably
+ * the same person, and replacing first when they are probably not.
+ */
+function MergeChoice({
+  reason,
+  account,
+  device,
+  matched,
+  onDone
+}: {
+  reason: 'server-has-data' | 'other-account';
+  account: Counts;
+  device: Counts;
+  matched: string[];
+  onDone: (report: SyncReport) => void;
+}) {
+  const [busy, setBusy] = useState<null | 'combine' | 'replace'>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function run(which: 'combine' | 'replace') {
+    setBusy(which);
+    onDone(await (which === 'combine' ? combineWithAccount() : adoptAccountCopy()));
+  }
+
+  const combine = (
+    <button
+      type="button"
+      onClick={() => void run('combine')}
+      disabled={busy !== null}
+      className={reason === 'server-has-data' ? primary : secondary}
+    >
+      {busy === 'combine' ? 'Combining...' : 'Combine them'}
+    </button>
+  );
+
+  const replace = (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      disabled={busy !== null}
+      className={reason === 'server-has-data' ? secondary : primary}
+    >
+      Use the account&rsquo;s copy
+    </button>
+  );
+
+  return (
+    <div className={`${note} border-amber-300 bg-amber-50 text-amber-900`}>
+      <p className="font-medium">
+        {reason === 'server-has-data'
+          ? 'Your account already has groups saved to it.'
+          : 'The groups on this device were saved to a different account.'}
+      </p>
+      <p className="mt-2">Pick what to keep. Nothing moves until you do.</p>
+
+      <ul className="mt-3 space-y-1">
+        <li>
+          On your account: <span className="font-medium">{tally(account)}</span>
+        </li>
+        <li>
+          On this device: <span className="font-medium">{tally(device)}</span>
+        </li>
+      </ul>
+
+      {matched.length > 0 && (
+        <p className="mt-3">Combining folds these into one person each: {matched.join(', ')}.</p>
+      )}
+
+      {confirming ? (
+        <>
+          <p className="mt-3 font-medium">
+            Replace what is on this device? Anything here that is not already on your account will
+            be gone.
+          </p>
+          <div className="mt-3 space-y-3">
+            <button
+              type="button"
+              onClick={() => void run('replace')}
+              disabled={busy !== null}
+              className={primary}
+            >
+              {busy === 'replace' ? 'Replacing...' : 'Yes, replace'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              disabled={busy !== null}
+              className={secondary}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {reason === 'server-has-data' ? combine : replace}
+          {reason === 'server-has-data' ? replace : combine}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * What has and has not reached the account.
  *
@@ -37,8 +160,32 @@ function SyncNote() {
     syncStatusStore.get,
     syncStatusStore.get
   );
+  const [report, setReport] = useState<SyncReport | null>(null);
 
-  const note = 'mt-4 rounded-md border px-3 py-2 text-sm';
+  if (sync.state === 'choice') {
+    return (
+      <MergeChoice
+        reason={sync.reason}
+        account={sync.account}
+        device={sync.device}
+        matched={sync.matched}
+        onDone={setReport}
+      />
+    );
+  }
+
+  if (report) {
+    return (
+      <div className={`${note} border-green-200 bg-green-50 text-green-900`}>
+        <p className="font-medium">{report.title}</p>
+        {report.details.map((line) => (
+          <p key={line} className="mt-1">
+            {line}
+          </p>
+        ))}
+      </div>
+    );
+  }
 
   if (sync.state === 'saved') {
     return (
@@ -69,16 +216,6 @@ function SyncNote() {
           <p className="mt-2 break-all font-mono text-xs text-amber-700">{sync.detail}</p>
         )}
       </div>
-    );
-  }
-
-  if (sync.state === 'blocked') {
-    return (
-      <p className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>
-        {sync.reason === 'server-has-data'
-          ? 'This account already has groups saved to it, so nothing on this device is being sent up yet. Combining the two is coming next.'
-          : 'The groups on this device were last saved to a different account, so nothing is being sent up. Combining the two is coming next.'}
-      </p>
     );
   }
 

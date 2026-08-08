@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Player, Roster } from '../types';
+import type { Player, Roster, SpecialGameTypes } from '../types';
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore, initAuth } from './auth';
+import { DEFAULT_ROSTER_NAME } from './migrations';
 import {
   drop,
   enqueue,
@@ -10,41 +11,49 @@ import {
   playerRow,
   rosterRow,
   diffRows,
+  entryKey,
   PREFERENCES_ID,
   type OutboxEntry,
   type Row,
-  type SyncTable,
+  type SyncTable
 } from './outbox';
-import { createStoredValue } from './store';
+import { createStoredValue, type StoredValue } from './store';
 import * as stores from './stores';
+import { planMerge, remapSession, type Snapshot } from './syncMerge';
 import { getSupabase, hasAuthCallback, hasStoredSession, isSupabaseConfigured } from './supabase';
 
 /**
- * Push-only sync: what is on this device goes up to the account, and nothing
- * comes back down.
+ * Two-device sync: what is on this device goes up, and what is on the account
+ * comes down.
  *
- * That asymmetry is the whole safety argument for this step. The server can
- * only accumulate, so the worst a bug here can do is write bad rows into tables
- * nothing yet reads. Local data cannot be harmed, because no code path writes
- * to a store. Pulling — where a wrong answer overwrites someone's work — is a
- * step of its own, and arrives on top of a push path that has been running.
+ * Pushing was the safe half and shipped on its own, because the worst a bug
+ * could do was write rows nobody read. Pulling is the half where a wrong answer
+ * overwrites someone's work, so it is built on three rules rather than one
+ * clever mechanism:
  *
- * Two cases are handled, and the rest are refused rather than guessed at:
+ * 1. **Only touched rows are pushed.** The outbox holds what the user actually
+ *    changed. A device that has been in a bag for a month uploads the two
+ *    players it edited, not its whole stale cache over the top of newer work.
+ * 2. **A pending local edit beats an incoming row.** If the outbox holds a row,
+ *    the pull skips it. The user's unsent change is not discarded to make room
+ *    for the copy it was about to replace.
+ * 3. **Deletes are tombstones.** A physical delete would be undone the moment
+ *    the other device pushed its copy back up, having no way to know the row
+ *    was meant to be gone.
  *
- * - **This device has never synced and the account is empty.** Seed it. Every
- *   roster, player and preference goes up under the id it already has locally,
- *   so both sides refer to the same person by the same id from then on and
- *   every later push is an ordinary idempotent upsert.
- * - **This device has synced to this same account.** Push what changed.
- *
- * An account that already has rows needs a merge, and a device whose data
- * belongs to somebody else's account needs the same machinery. Both are the
- * next step; here they stop the engine and say so, because pushing one
- * person's groups into another person's account is the one thing that would be
- * unrecoverable.
+ * When neither side can be assumed — an account that already has groups, or a
+ * device whose cache belongs to somebody else — nothing moves and the panel
+ * asks. Guessing is what would lose data here, and the question is one sentence
+ * long.
  */
 
 // --------------------------------------------------------------- the status --
+
+/** How much is on each side, so the question can be asked in numbers. */
+export interface Counts {
+  rosters: number;
+  players: number;
+}
 
 export type SyncStatus =
   /** Not configured, flag off, or nobody signed in. The app before accounts. */
@@ -64,8 +73,21 @@ export type SyncStatus =
    * counted, and the number invites exactly the wrong conclusion.
    */
   | { state: 'unready'; problem: string; detail: string | null }
-  /** Nothing is being pushed, and will not be until merging exists. */
-  | { state: 'blocked'; reason: 'server-has-data' | 'other-account' };
+  /** Waiting on the one decision this code will not make for anybody. */
+  | {
+      state: 'choice';
+      reason: 'server-has-data' | 'other-account';
+      account: Counts;
+      device: Counts;
+      /** Names held on both sides, which combining would fold into one. */
+      matched: string[];
+    };
+
+/** The outcome of a merge, shaped like the import summaries already on screen. */
+export interface SyncReport {
+  title: string;
+  details: string[];
+}
 
 let status: SyncStatus = { state: 'off' };
 const listeners = new Set<() => void>();
@@ -83,7 +105,7 @@ export const syncStatusStore = {
     return () => {
       listeners.delete(listener);
     };
-  },
+  }
 };
 
 function settle(problem: string | null = null) {
@@ -105,11 +127,45 @@ function settle(problem: string | null = null) {
  */
 const account = createStoredValue<string | null>('pb-sync-account', null);
 
+/**
+ * What this device believes the account already holds.
+ *
+ * Without it, a change made while signed out would be invisible twice over:
+ * never pushed, because nothing was watching, and then quietly overwritten by
+ * the first pull. Tracking starts by diffing the live stores against this, so
+ * those edits are caught up rather than lost.
+ */
+const mirror = createStoredValue<Snapshot | null>('pb-sync-mirror', null);
+
+/**
+ * How far this device has read the account, on the *server's* clock.
+ *
+ * Deliberately not the client clock that orders conflicts. A device an hour
+ * fast can win a conflict it should have lost, which costs one edit, but it can
+ * never stamp a row into the past and make itself invisible to the other
+ * device, which would cost everything after it.
+ *
+ * Kept per account, so signing into a second account on one browser starts from
+ * the beginning rather than inheriting someone else's place.
+ */
+const cursors = new Map<string, StoredValue<string | null>>();
+
+function cursorFor(id: string): StoredValue<string | null> {
+  let store = cursors.get(id);
+  if (!store) {
+    store = createStoredValue<string | null>(`pb-sync-cursor:${id}`, null);
+    cursors.set(id, store);
+  }
+  return store;
+}
+
 // ------------------------------------------------------------- the tracking --
 
 let untrack: (() => void)[] = [];
 let lastRosters: Roster[] = [];
 let lastPlayers: Player[] = [];
+/** True while a pull is writing to the stores, so it is not read back as an edit. */
+let applying = false;
 
 function preferencesRow(at: string): Row {
   return {
@@ -119,12 +175,16 @@ function preferencesRow(at: string): Row {
     num_rounds: stores.numRounds.get(),
     large_text: stores.largeText.get(),
     special_types: stores.specialTypes.get(),
-    updated_at: at,
+    updated_at: at
   };
 }
 
 function preferencesEntry(at: string): OutboxEntry {
   return { table: 'preferences', id: PREFERENCES_ID, row: preferencesRow(at) };
+}
+
+function snapshotNow(): Snapshot {
+  return { rosters: stores.rosters.get(), players: stores.players.get() };
 }
 
 /**
@@ -138,11 +198,27 @@ function preferencesEntry(at: string): OutboxEntry {
 function startTracking() {
   if (untrack.length > 0) return;
 
-  lastRosters = stores.rosters.get();
-  lastPlayers = stores.players.get();
+  const base = mirror.get();
+  const now = snapshotNow();
+
+  // Anything edited while signed out happened with nothing watching, so it is
+  // not in the outbox and the subscriptions below will never see it. Catch it
+  // up first, or the next pull would overwrite work that had never been sent.
+  if (base) {
+    const at = stamp();
+    const caught = [
+      ...diffRows('rosters', base.rosters, now.rosters, rosterRow, at),
+      ...diffRows('players', base.players, now.players, playerRow, at)
+    ];
+    if (caught.length > 0) enqueue(caught);
+  }
+
+  lastRosters = now.rosters;
+  lastPlayers = now.players;
 
   untrack.push(
     stores.rosters.subscribe(() => {
+      if (applying) return;
       const next = stores.rosters.get();
       const entries = diffRows('rosters', lastRosters, next, rosterRow, stamp());
       lastRosters = next;
@@ -155,6 +231,7 @@ function startTracking() {
 
   untrack.push(
     stores.players.subscribe(() => {
+      if (applying) return;
       const next = stores.players.get();
       const entries = diffRows('players', lastPlayers, next, playerRow, stamp());
       lastPlayers = next;
@@ -173,11 +250,12 @@ function startTracking() {
     stores.numCourts,
     stores.numRounds,
     stores.largeText,
-    stores.specialTypes,
+    stores.specialTypes
   ];
   for (const store of preferenceStores) {
     untrack.push(
       store.subscribe(() => {
+        if (applying) return;
         enqueue([preferencesEntry(stamp())]);
         scheduleFlush();
       })
@@ -191,10 +269,17 @@ function stopTracking() {
 }
 
 /**
+ * Records the stores as the account's copy, but only once nothing is queued.
+ * A mirror written while rows were still waiting would mark them as sent.
+ */
+function saveMirror() {
+  if (pendingCount() > 0) return;
+  mirror.set(snapshotNow());
+}
+
+/**
  * The client clock, which is what orders a conflict. An edit made offline on
  * Tuesday must not lose to one made on Wednesday just because it synced later.
- * The pull cursor uses the server clock instead, so a device with a wrong clock
- * can win a conflict it should have lost but can never make itself invisible.
  */
 function stamp(): string {
   return new Date().toISOString();
@@ -206,7 +291,7 @@ const CONFLICT_TARGET: Record<SyncTable, string> = {
   rosters: 'user_id,id',
   players: 'user_id,id',
   // One row per person, so the owner column is the whole key.
-  preferences: 'user_id',
+  preferences: 'user_id'
 };
 
 /** Rosters first, so a push that only half succeeds leaves the groups standing. */
@@ -216,6 +301,7 @@ const FLUSH_DELAY_MS = 1500;
 
 let userId: string | null = null;
 let pushing = false;
+let pulling = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -238,6 +324,7 @@ async function flush(): Promise<void> {
   const keys = Object.keys(entries);
   if (keys.length === 0) {
     settle();
+    saveMirror();
     return;
   }
 
@@ -259,21 +346,25 @@ async function flush(): Promise<void> {
       // user_id is left off every row: the column defaults to auth.uid(), so
       // the server names the owner and the with-check policy verifies it. A
       // client that has no say in whose row it is writing cannot get it wrong.
-      const { error } = await supabase
-        .from(table)
-        .upsert(
-          batch.map((key) => entries[key].row),
-          { onConflict: CONFLICT_TARGET[table] }
-        );
+      const { error } = await supabase.from(table).upsert(
+        batch.map((key) => entries[key].row),
+        { onConflict: CONFLICT_TARGET[table] }
+      );
       if (error) throw new Error(error.message);
       done.push(...batch);
     }
 
     drop(done);
     settle();
+    saveMirror();
 
     // Anything enqueued while that was in flight is still sitting there.
     if (pendingCount() > 0) scheduleFlush(0);
+    // Rows this device just wrote have moved the account on. Reading straight
+    // back is what makes two browsers open side by side keep up with each
+    // other without a subscription. It cannot loop: applying a pull is not
+    // seen as an edit, so nothing new is queued.
+    else void pullNow();
   } catch (error) {
     drop(done);
     settle(describe(error));
@@ -302,17 +393,207 @@ function raw(error: unknown): string {
   return error instanceof Error ? error.message : String(error ?? '');
 }
 
+// ----------------------------------------------------------------- the pull --
+
+interface Pulled {
+  rosters: Row[];
+  players: Row[];
+  preferences: Row | null;
+  /** The newest server_updated_at seen, or null when nothing came back. */
+  cursor: string | null;
+}
+
+async function fetchSince(supabase: SupabaseClient, since: string | null): Promise<Pulled> {
+  const read = (table: SyncTable) => {
+    const query = supabase.from(table).select('*');
+    // Greater-than-or-equal, not greater-than. A row written in the same tick
+    // as the newest one this device saw would otherwise be stepped over and
+    // never read again. Re-reading one row costs nothing, and applying a row
+    // already held is a no-op.
+    return since ? query.gte('server_updated_at', since) : query;
+  };
+
+  const [rosters, players, preferences] = await Promise.all([
+    read('rosters'),
+    read('players'),
+    read('preferences')
+  ]);
+
+  for (const result of [rosters, players, preferences]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+
+  const rosterRows = (rosters.data ?? []) as Row[];
+  const playerRows = (players.data ?? []) as Row[];
+  const preferenceRows = (preferences.data ?? []) as Row[];
+
+  let cursor: string | null = null;
+  for (const row of [...rosterRows, ...playerRows, ...preferenceRows]) {
+    const at = row.server_updated_at;
+    if (typeof at === 'string' && (cursor === null || at > cursor)) cursor = at;
+  }
+
+  return {
+    rosters: rosterRows,
+    players: playerRows,
+    preferences: preferenceRows[0] ?? null,
+    cursor
+  };
+}
+
+function toRoster(row: Row): Roster {
+  return { id: String(row.id), name: String(row.name) };
+}
+
+function toPlayer(row: Row): Player {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    // Number(), not a cast. The column is `real` precisely so PostgREST hands
+    // back a JS number, but a schema drift to `numeric` would return the string
+    // "3.75" and quietly break every rating comparison in the pairing code.
+    rating: Number(row.rating),
+    gender: row.gender === 'F' ? 'F' : 'M',
+    rosterIds: Array.isArray(row.roster_ids) ? (row.roster_ids as string[]) : []
+  };
+}
+
+function isGone(row: Row): boolean {
+  return row.deleted_at !== null && row.deleted_at !== undefined;
+}
+
+/**
+ * Folds incoming rows into a local list.
+ *
+ * A row the outbox is still holding is left alone. That is the rule that stops
+ * a pull from discarding an edit the user made a moment ago and has not managed
+ * to send yet — the local copy is newer by definition, and it is on its way up.
+ */
+function foldIn<T extends { id: string }>(
+  table: SyncTable,
+  current: T[],
+  rows: Row[],
+  toLocal: (row: Row) => T
+): T[] {
+  const queued = outbox.get();
+  const next = [...current];
+  const at = new Map(next.map((item, index) => [item.id, index]));
+
+  for (const row of rows) {
+    const id = String(row.id);
+    if (queued[entryKey(table, id)]) continue;
+
+    const index = at.get(id);
+    if (isGone(row)) {
+      if (index !== undefined) {
+        next.splice(index, 1);
+        at.clear();
+        next.forEach((item, i) => at.set(item.id, i));
+      }
+      continue;
+    }
+
+    if (index === undefined) {
+      at.set(id, next.length);
+      next.push(toLocal(row));
+    } else {
+      next[index] = toLocal(row);
+    }
+  }
+
+  return next;
+}
+
+function applyPulled(pulled: Pulled) {
+  if (pulled.rosters.length === 0 && pulled.players.length === 0 && pulled.preferences === null) {
+    return;
+  }
+
+  applying = true;
+  try {
+    if (pulled.rosters.length > 0) {
+      const next = foldIn('rosters', stores.rosters.get(), pulled.rosters, toRoster);
+      // The app assumes at least one group exists, and every screen is built
+      // around the active one. An account that somehow tombstoned them all is
+      // not a reason to hand back a broken app.
+      if (next.length > 0) stores.rosters.set(next);
+    }
+
+    if (pulled.players.length > 0) {
+      stores.players.set(foldIn('players', stores.players.get(), pulled.players, toPlayer));
+    }
+
+    if (pulled.preferences && !outbox.get()[entryKey('preferences', PREFERENCES_ID)]) {
+      applyPreferences(pulled.preferences);
+    }
+
+    // A group deleted on the other device may have been the one open here.
+    const rosters = stores.rosters.get();
+    if (!rosters.some((r) => r.id === stores.activeRosterId.get())) {
+      stores.activeRosterId.set(rosters[0]?.id ?? '');
+    }
+  } finally {
+    applying = false;
+    lastRosters = stores.rosters.get();
+    lastPlayers = stores.players.get();
+  }
+
+  saveMirror();
+}
+
+function applyPreferences(row: Row) {
+  const { active_roster_id, default_rating, num_courts, num_rounds, large_text, special_types } =
+    row;
+
+  // Only if this device knows the group. Pointing at one it has not pulled yet
+  // would empty every screen until it arrived.
+  if (
+    typeof active_roster_id === 'string' &&
+    stores.rosters.get().some((r) => r.id === active_roster_id)
+  ) {
+    stores.activeRosterId.set(active_roster_id);
+  }
+  if (typeof default_rating === 'number') stores.defaultRating.set(default_rating);
+  if (typeof num_courts === 'number') stores.numCourts.set(num_courts);
+  if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
+  if (typeof large_text === 'boolean') stores.largeText.set(large_text);
+  if (special_types && typeof special_types === 'object') {
+    stores.specialTypes.set(special_types as SpecialGameTypes);
+  }
+}
+
+async function pullNow(): Promise<void> {
+  const id = userId;
+  if (pulling || id === null || account.get() !== id) return;
+
+  pulling = true;
+  try {
+    const supabase = await getSupabase();
+    const cursor = cursorFor(id);
+    const pulled = await fetchSince(supabase, cursor.get());
+    applyPulled(pulled);
+    if (pulled.cursor) cursor.set(pulled.cursor);
+  } catch (error) {
+    settle(describe(error));
+  } finally {
+    pulling = false;
+  }
+}
+
+/** Read, then write. Reading first means an incoming delete is not fought over. */
+async function syncNow(): Promise<void> {
+  await pullNow();
+  await flush();
+}
+
 // ------------------------------------------------------------ first sign-in --
 
-/** Does the account already hold groups or players? Tombstones count. */
-async function serverHasData(supabase: SupabaseClient): Promise<boolean> {
-  const [groups, people] = await Promise.all([
-    supabase.from('rosters').select('id').limit(1),
-    supabase.from('players').select('id').limit(1),
-  ]);
-  if (groups.error) throw new Error(groups.error.message);
-  if (people.error) throw new Error(people.error.message);
-  return (groups.data?.length ?? 0) > 0 || (people.data?.length ?? 0) > 0;
+/** Everything on the account, live rows only, as the local types spell them. */
+function liveSnapshot(pulled: Pulled): Snapshot {
+  return {
+    rosters: pulled.rosters.filter((row) => !isGone(row)).map(toRoster),
+    players: pulled.players.filter((row) => !isGone(row)).map(toPlayer)
+  };
 }
 
 /** Queues everything this device holds, under the ids it already holds them by. */
@@ -322,15 +603,27 @@ function seed() {
     ...stores.rosters.get().map((roster) => ({
       table: 'rosters' as const,
       id: roster.id,
-      row: rosterRow(roster, at),
+      row: rosterRow(roster, at)
     })),
     ...stores.players.get().map((player) => ({
       table: 'players' as const,
       id: player.id,
-      row: playerRow(player, at),
+      row: playerRow(player, at)
     })),
-    preferencesEntry(at),
+    preferencesEntry(at)
   ]);
+}
+
+/** The account as it was when the question was asked, held until it is answered. */
+let choice: {
+  id: string;
+  server: Snapshot;
+  preferences: Row | null;
+  cursor: string | null;
+} | null = null;
+
+function counts(snapshot: Snapshot): Counts {
+  return { rosters: snapshot.rosters.length, players: snapshot.players.length };
 }
 
 async function onSignedIn(id: string) {
@@ -343,42 +636,53 @@ async function onSignedIn(id: string) {
     cancelRetry();
     startTracking();
     settle();
-    void flush();
-    return;
-  }
-
-  if (owner !== null) {
-    // Someone else's data is on this device. Pushing it into this account would
-    // be the one mistake with no way back, so nothing moves until the merge
-    // machinery exists to do it deliberately.
-    setStatus({ state: 'blocked', reason: 'other-account' });
+    void syncNow();
     return;
   }
 
   setStatus({ state: 'starting' });
   try {
     const supabase = await getSupabase();
-    if (await serverHasData(supabase)) {
+    const pulled = await fetchSince(supabase, null);
+    const server = liveSnapshot(pulled);
+    const bare = server.rosters.length === 0 && server.players.length === 0;
+
+    // A device that has never synced, meeting an account with nothing on it.
+    // There is nothing to reconcile, so this is silent, and it is the common
+    // case: one person, one account, a second device.
+    if (owner === null && bare) {
+      account.set(id);
+      if (pulled.cursor) cursorFor(id).set(pulled.cursor);
+      mirror.set({ rosters: [], players: [] });
+      // Tracking starts before the seed is queued, so an edit made while the
+      // first push is in flight lands in the outbox rather than falling in the
+      // gap between the snapshot and the subscription.
+      startTracking();
+      seed();
       cancelRetry();
-      setStatus({ state: 'blocked', reason: 'server-has-data' });
+      await flush();
       return;
     }
 
-    // Recorded before the push, not after. The decision this device is making
-    // is "my cache belongs to this account", and that is settled the moment the
-    // account is known to be empty. If the push then fails, the outbox holds
-    // the rows and retries; if the flag waited for success, a half-finished
-    // seed would look like an account with data on the next launch and lock
-    // this device out of its own rows.
-    account.set(id);
-
-    // Tracking starts before the seed is queued, so an edit made while the
-    // first push is in flight lands in the outbox rather than falling in the
-    // gap between the snapshot and the subscription.
-    startTracking();
-    seed();
+    // Either the account already holds groups, or this device's groups were
+    // last saved to somebody else's. Both need an answer no code should give on
+    // the user's behalf: one would fold two people's data together, the other
+    // would throw one of them away.
+    const plan = planMerge(snapshotNow(), server);
+    choice = {
+      id,
+      server,
+      preferences: pulled.preferences,
+      cursor: pulled.cursor
+    };
     cancelRetry();
-    await flush();
+    setStatus({
+      state: 'choice',
+      reason: owner === null ? 'server-has-data' : 'other-account',
+      account: counts(server),
+      device: counts(snapshotNow()),
+      matched: plan.matched.players
+    });
   } catch (error) {
     // The decision could not be made, so this device does not yet know what it
     // is. Releasing the id is the point: onSignedIn returns early when it is
@@ -391,11 +695,168 @@ async function onSignedIn(id: string) {
       problem: looksOffline(error)
         ? "You're offline, so nothing has been sent up yet. Trying again."
         : "Couldn't check your account. Nothing has been sent up yet. Trying again.",
-      detail: raw(error) || null,
+      detail: raw(error) || null
     });
     scheduleRetry(id);
   }
 }
+
+// ---------------------------------------------------------------- the merge --
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * Takes the account over as this device's, whichever way the user answered.
+ *
+ * The outbox is emptied first in both directions. In the other-account case it
+ * holds rows belonging to the person who was signed in before, and sending
+ * those into this account is the one mistake with no way back. In the
+ * server-has-data case the merge has just recomputed everything those rows were
+ * describing, so they are stale rather than dangerous.
+ */
+function claim(id: string, cursor: string | null) {
+  account.set(id);
+  if (cursor) cursorFor(id).set(cursor);
+  else cursorFor(id).set(null);
+}
+
+export async function combineWithAccount(): Promise<SyncReport> {
+  const answered = choice;
+  if (!answered) return { title: 'Nothing to combine.', details: [] };
+
+  const local = snapshotNow();
+  const plan = planMerge(local, answered.server);
+
+  outbox.set({});
+  stopTracking();
+
+  applying = true;
+  try {
+    stores.rosters.set(plan.rosters);
+    stores.players.set(plan.players);
+    // Adopted ids leave dangling references behind in the live session. The
+    // schedule would still draw, because it holds whole player objects, but
+    // partnerships would stop applying and the sat-out list would read as
+    // empty. Nothing would look wrong, which is the worst kind of wrong.
+    const session = remapSession(
+      {
+        activeRosterId: stores.activeRosterId.get(),
+        scheduleRosterId: stores.scheduleRosterId.get(),
+        schedule: stores.schedule.get(),
+        selectedIds: stores.selectedIds.get(),
+        removedIds: stores.removedIds.get(),
+        partnerships: stores.partnerships.get()
+      },
+      plan.changes
+    );
+    stores.scheduleRosterId.set(session.scheduleRosterId);
+    stores.schedule.set(session.schedule);
+    stores.selectedIds.set(session.selectedIds);
+    stores.removedIds.set(session.removedIds);
+    stores.partnerships.set(session.partnerships);
+    stores.activeRosterId.set(
+      plan.rosters.some((r) => r.id === session.activeRosterId)
+        ? session.activeRosterId
+        : (plan.rosters[0]?.id ?? session.activeRosterId)
+    );
+
+    // The account's preferences win. They are single scalars, trivially re-set,
+    // and not worth a second question.
+    if (answered.preferences) applyPreferences(answered.preferences);
+  } finally {
+    applying = false;
+  }
+
+  claim(answered.id, answered.cursor);
+  mirror.set({ rosters: plan.rosters, players: plan.players });
+  startTracking();
+
+  const at = stamp();
+  enqueue([
+    ...plan.push.rosters.map((roster) => ({
+      table: 'rosters' as const,
+      id: roster.id,
+      row: rosterRow(roster, at)
+    })),
+    ...plan.push.players.map((player) => ({
+      table: 'players' as const,
+      id: player.id,
+      row: playerRow(player, at)
+    }))
+  ]);
+
+  choice = null;
+  settle();
+  await flush();
+
+  const details = [
+    `${plural(plan.rosters.length, 'group', 'groups')} and ${plural(plan.players.length, 'player', 'players')} on this device now.`
+  ];
+  if (plan.matched.players.length > 0) {
+    details.push(`Held on both, now one: ${plan.matched.players.join(', ')}.`);
+  }
+  if (plan.push.rosters.length + plan.push.players.length > 0) {
+    details.push(
+      `${plural(plan.push.rosters.length + plan.push.players.length, 'row', 'rows')} sent up to your account.`
+    );
+  }
+  return { title: 'Combined.', details };
+}
+
+export async function adoptAccountCopy(): Promise<SyncReport> {
+  const answered = choice;
+  if (!answered) return { title: 'Nothing to replace.', details: [] };
+
+  outbox.set({});
+  stopTracking();
+
+  applying = true;
+  try {
+    // The account may be empty, which is a real answer on a shared device: the
+    // person signing in has nothing yet. The app still needs one group to open
+    // on, so it gets the same starting group a fresh install would.
+    stores.rosters.set(
+      answered.server.rosters.length > 0
+        ? answered.server.rosters
+        : [{ id: 'default', name: DEFAULT_ROSTER_NAME }]
+    );
+    stores.players.set(answered.server.players);
+    stores.activeRosterId.set(stores.rosters.get()[0]?.id ?? 'default');
+
+    // Every id the session referred to has just gone. Clearing it is honest;
+    // leaving it would show a schedule of people who are no longer in the pool.
+    stores.schedule.set(null);
+    stores.scheduleRosterId.set(null);
+    stores.scheduleEdited.set(false);
+    stores.completedRounds.set([]);
+    stores.selectedIds.set([]);
+    stores.removedIds.set([]);
+    stores.partnerships.set([]);
+
+    if (answered.preferences) applyPreferences(answered.preferences);
+  } finally {
+    applying = false;
+  }
+
+  claim(answered.id, answered.cursor);
+  mirror.set(snapshotNow());
+  startTracking();
+
+  choice = null;
+  settle();
+  await flush();
+
+  return {
+    title: 'Using your account.',
+    details: [
+      `${plural(stores.rosters.get().length, 'group', 'groups')} and ${plural(stores.players.get().length, 'player', 'players')} on this device now.`
+    ]
+  };
+}
+
+// ---------------------------------------------------------------- the retry --
 
 /**
  * How long to wait before asking again, doubling up to a ceiling. Sync has
@@ -430,6 +891,7 @@ function cancelRetry() {
 
 function onSignedOut() {
   userId = null;
+  choice = null;
   stopTracking();
   cancelRetry();
   if (timer) {
@@ -473,12 +935,18 @@ export function startSync(): void {
   if (hasStoredSession() || hasAuthCallback()) void initAuth();
 
   // Coming back from a dead spot. follow() covers the case where the first
-  // attempt never got far enough to know what this device was; scheduleFlush
-  // covers the ordinary backlog.
+  // attempt never got far enough to know what this device was; syncNow covers
+  // the ordinary backlog in both directions.
   window.addEventListener('online', () => {
     cancelRetry();
     follow();
-    if (userId !== null) scheduleFlush(0);
+    if (userId !== null) void syncNow();
+  });
+
+  // Coming back to the tab. This is what makes a phone edited at the court show
+  // up on the desktop that has been sitting open all afternoon.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && userId !== null) void syncNow();
   });
 }
 
@@ -488,6 +956,10 @@ export const __testing = {
     started = false;
     userId = null;
     pushing = false;
+    pulling = false;
+    applying = false;
+    choice = null;
+    cursors.clear();
     stopTracking();
     cancelRetry();
     if (timer) clearTimeout(timer);
@@ -496,7 +968,10 @@ export const __testing = {
   },
   follow,
   account,
+  mirror,
+  cursorFor,
   flush,
+  pullNow,
   seed,
-  preferencesRow,
+  preferencesRow
 };
