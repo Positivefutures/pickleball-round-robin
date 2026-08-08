@@ -205,7 +205,7 @@ export function SettingsPanel({
         <SettingsItem icon={<ShareIcon className="h-6 w-6" />} label="Share App" onClick={onShare} />
         {/* No Supabase configured means no item, the same rule Donate follows */}
         {showAccountItem && (
-          <SettingsItem icon={<PersonIcon />} label="Account" onClick={onOpenAccount} />
+          <SettingsItem icon={<PersonIcon />} label="My Account" onClick={onOpenAccount} />
         )}
         {showInstallItem && (
           <SettingsItem

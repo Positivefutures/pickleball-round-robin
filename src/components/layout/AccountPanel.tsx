@@ -1,149 +1,13 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  authStore,
-  initAuth,
-  sendSignInEmail,
-  verifyCode,
-  signOut,
-  changeEmail,
-} from '../../lib/auth';
-import {
-  syncStatusStore,
-  combineWithAccount,
-  adoptAccountCopy,
-  type Counts,
-  type SyncReport
-} from '../../lib/sync';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { authStore, initAuth, signOut, changeEmail } from '../../lib/auth';
+import { syncStatusStore, type SyncReport } from '../../lib/sync';
+import { AccountShell, Problem } from './AccountShell';
+import { MergeChoicePanel } from './MergeChoicePanel';
+import { SignInPanel } from './SignInPanel';
+import { blurb, field, label, note, primary, row, rowNote, rowTitle, secondary } from './accountStyles';
 
 interface Props {
   onClose: () => void;
-}
-
-/** Long enough for the shortest code Supabase will issue, short enough to reject a typo. */
-const MIN_CODE = 6;
-
-const field =
-  'w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500';
-const primary =
-  'w-full rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400';
-const secondary =
-  'w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300';
-
-const note = 'mt-4 rounded-md border px-3 py-2 text-sm';
-
-function tally(counts: Counts): string {
-  const groups = `${counts.rosters} ${counts.rosters === 1 ? 'group' : 'groups'}`;
-  const players = `${counts.players} ${counts.players === 1 ? 'player' : 'players'}`;
-  return `${groups}, ${players}`;
-}
-
-/**
- * The one decision this app will not make on anybody's behalf.
- *
- * It comes up when the account already holds groups, or when this device's
- * groups were last saved to a different account. Either way both sides hold
- * real work, and both answers are reasonable, so the numbers go on screen and
- * the person picks. Combining is offered first when the two sides are probably
- * the same person, and replacing first when they are probably not.
- */
-function MergeChoice({
-  reason,
-  account,
-  device,
-  matched,
-  onDone
-}: {
-  reason: 'server-has-data' | 'other-account';
-  account: Counts;
-  device: Counts;
-  matched: string[];
-  onDone: (report: SyncReport) => void;
-}) {
-  const [busy, setBusy] = useState<null | 'combine' | 'replace'>(null);
-  const [confirming, setConfirming] = useState(false);
-
-  async function run(which: 'combine' | 'replace') {
-    setBusy(which);
-    onDone(await (which === 'combine' ? combineWithAccount() : adoptAccountCopy()));
-  }
-
-  const combine = (
-    <button
-      type="button"
-      onClick={() => void run('combine')}
-      disabled={busy !== null}
-      className={reason === 'server-has-data' ? primary : secondary}
-    >
-      {busy === 'combine' ? 'Combining...' : 'Combine them'}
-    </button>
-  );
-
-  const replace = (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      disabled={busy !== null}
-      className={reason === 'server-has-data' ? secondary : primary}
-    >
-      Use the account&rsquo;s copy
-    </button>
-  );
-
-  return (
-    <div className={`${note} border-amber-300 bg-amber-50 text-amber-900`}>
-      <p className="font-medium">
-        {reason === 'server-has-data'
-          ? 'Your account already has groups saved to it.'
-          : 'The groups on this device were saved to a different account.'}
-      </p>
-      <p className="mt-2">Pick what to keep. Nothing moves until you do.</p>
-
-      <ul className="mt-3 space-y-1">
-        <li>
-          On your account: <span className="font-medium">{tally(account)}</span>
-        </li>
-        <li>
-          On this device: <span className="font-medium">{tally(device)}</span>
-        </li>
-      </ul>
-
-      {matched.length > 0 && (
-        <p className="mt-3">Combining folds these into one person each: {matched.join(', ')}.</p>
-      )}
-
-      {confirming ? (
-        <>
-          <p className="mt-3 font-medium">
-            Replace what is on this device? Anything here that is not already on your account will
-            be gone.
-          </p>
-          <div className="mt-3 space-y-3">
-            <button
-              type="button"
-              onClick={() => void run('replace')}
-              disabled={busy !== null}
-              className={primary}
-            >
-              {busy === 'replace' ? 'Replacing...' : 'Yes, replace'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={busy !== null}
-              className={secondary}
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {reason === 'server-has-data' ? combine : replace}
-          {reason === 'server-has-data' ? replace : combine}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**
@@ -154,30 +18,17 @@ function MergeChoice({
  * safe, and "3 changes waiting" is the true answer often enough to be the one
  * worth writing well.
  */
-function SyncNote() {
+function SyncNote({ report }: { report: SyncReport | null }) {
   const sync = useSyncExternalStore(
     syncStatusStore.subscribe,
     syncStatusStore.get,
     syncStatusStore.get
   );
-  const [report, setReport] = useState<SyncReport | null>(null);
-
-  if (sync.state === 'choice') {
-    return (
-      <MergeChoice
-        reason={sync.reason}
-        account={sync.account}
-        device={sync.device}
-        matched={sync.matched}
-        onDone={setReport}
-      />
-    );
-  }
 
   if (report) {
     return (
       <div className={`${note} border-green-200 bg-green-50 text-green-900`}>
-        <p className="font-medium">{report.title}</p>
+        <p className="font-bold">{report.title}</p>
         {report.details.map((line) => (
           <p key={line} className="mt-1">
             {line}
@@ -221,57 +72,27 @@ function SyncNote() {
 
   // off, starting, saving
   return (
-    <p className={`${note} border-gray-200 bg-gray-50 text-gray-600`}>
+    <p className={`${note} border-[#D8DEE4] bg-[#F8F9FB] text-[#495668]`}>
       {sync.state === 'saving' ? 'Saving to your account...' : 'Checking your account...'}
     </p>
   );
 }
 
-function Problem({ children }: { children: string }) {
-  return (
-    <p
-      role="alert"
-      className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
-    >
-      {children}
-    </p>
-  );
-}
-
-/**
- * Signing in, and what you can do once you have.
- *
- * One panel rather than two, because which one you want depends on state the
- * drawer does not know: the client has to load before anyone can say whether
- * you are signed in. Loading it here, on open, is also what keeps the Supabase
- * chunk off the critical path for everyone else.
- *
- * Nothing in here moves data. Signing in at this stage changes what this panel
- * says and nothing else, and the panel says so rather than implying a backup
- * that does not exist yet.
- */
-export function AccountPanel({ onClose }: Props) {
-  const auth = useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
-
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [sentTo, setSentTo] = useState<string | null>(null);
+/** Signed in: who you are, whether your data is safe, and the two account jobs. */
+function SignedIn({
+  email,
+  report,
+  onClose
+}: {
+  email: string | null;
+  report: SyncReport | null;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const [nextEmail, setNextEmail] = useState('');
-
-  const codeRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    void initAuth();
-  }, []);
-
-  // The code field is the only thing anyone wants once the email is away.
-  useEffect(() => {
-    if (sentTo) codeRef.current?.focus();
-  }, [sentTo]);
 
   async function run(action: () => Promise<{ ok: boolean; message?: string }>) {
     setBusy(true);
@@ -282,31 +103,11 @@ export function AccountPanel({ onClose }: Props) {
     return result.ok;
   }
 
-  async function handleSend() {
-    const address = email.trim();
-    if (await run(() => sendSignInEmail(address))) {
-      setSentTo(address);
-      setCode('');
-    }
-  }
-
-  async function handleVerify() {
-    if (!sentTo) return;
-    if (await run(() => verifyCode(sentTo, code))) {
-      setSentTo(null);
-      setCode('');
-      setEmail('');
-    }
-  }
-
-  async function handleSignOut() {
-    if (await run(signOut)) {
-      setNotice(null);
-      setChanging(false);
-    }
-  }
-
   async function handleChangeEmail() {
+    if (!nextEmail.trim()) {
+      setProblem('Enter the new email address.');
+      return;
+    }
     if (await run(() => changeEmail(nextEmail))) {
       setChanging(false);
       setNextEmail('');
@@ -317,216 +118,162 @@ export function AccountPanel({ onClose }: Props) {
   }
 
   return (
-    <div
-      className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">Account</h2>
+    <AccountShell statusLine="You are signed in" onClose={onClose}>
+      <p className="mt-1 text-center text-lg font-bold break-all text-[#1F293D]">
+        {email ?? 'this account'}
+      </p>
 
-        {auth.status === 'unknown' && (
-          <p className="mt-4 text-center text-sm text-gray-600">Checking...</p>
-        )}
+      <SyncNote report={report} />
 
-        {auth.status === 'unavailable' && (
-          <>
-            <p className="mt-4 text-center text-sm text-gray-600">
-              Couldn&rsquo;t reach the server. Check your connection and try again.
-            </p>
-            <p className="mt-3 text-center text-sm text-gray-600">
-              Your groups and players are on this device either way. Nothing is lost.
-            </p>
-          </>
-        )}
+      {notice && (
+        <p className={`${note} border-green-200 bg-green-50 text-green-900`}>{notice}</p>
+      )}
 
-        {auth.status === 'signed-out' && !sentTo && (
-          <>
-            <p className="mt-1 mb-4 text-center text-sm text-gray-600">
-              Sign in and your groups are backed up to your account. There is no password.
-            </p>
-
-            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="acct-email">
-              Your email
+      {changing ? (
+        <>
+          <div className="mt-5">
+            <label className={label} htmlFor="acct-next-email">
+              New email address
             </label>
             <input
-              id="acct-email"
+              id="acct-next-email"
               type="email"
               inputMode="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={nextEmail}
+              onChange={(e) => setNextEmail(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleSend();
+                if (e.key === 'Enter') void handleChangeEmail();
               }}
               className={field}
             />
+          </div>
 
-            {problem && <Problem>{problem}</Problem>}
+          {problem && <Problem>{problem}</Problem>}
 
-            <button
-              type="button"
-              onClick={() => void handleSend()}
-              disabled={busy || !email.trim()}
-              className={`mt-5 ${primary}`}
-            >
-              {busy ? 'Sending...' : 'Email me a code'}
-            </button>
-          </>
-        )}
+          <button
+            type="button"
+            onClick={() => void handleChangeEmail()}
+            disabled={busy}
+            className={`mt-4 ${primary}`}
+          >
+            {busy ? 'Sending...' : 'Send confirmation'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setChanging(false);
+              setNextEmail('');
+              setProblem(null);
+            }}
+            disabled={busy}
+            className={`mt-3 ${secondary}`}
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <>
+          {problem && <Problem>{problem}</Problem>}
 
-        {auth.status === 'signed-out' && sentTo && (
-          <>
-            <p className="mt-1 text-center text-sm text-gray-600">
-              Check your email. We sent a link and a code to{' '}
-              <span className="font-medium text-gray-800">{sentTo}</span>.
-            </p>
-            <p className="mt-3 text-center text-sm text-gray-600">
-              Using the app from your home screen? Type the code. The link opens your browser
-              instead, which signs you in there rather than here.
-            </p>
-
-            <label className="mt-4 mb-1 block text-sm font-medium text-gray-700" htmlFor="acct-code">
-              Code from the email
-            </label>
-            <input
-              id="acct-code"
-              ref={codeRef}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={10}
-              value={code}
-              // Digits only, so a pasted code with a stray space still works.
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleVerify();
-              }}
-              className={`${field} text-center text-2xl tracking-[0.4em]`}
-            />
-
-            {problem && <Problem>{problem}</Problem>}
-
-            <button
-              type="button"
-              onClick={() => void handleVerify()}
-              disabled={busy || code.length < MIN_CODE}
-              className={`mt-5 ${primary}`}
-            >
-              {busy ? 'Signing in...' : 'Sign in'}
-            </button>
-
+          {/* Two rows reading as a list, then one button. The old panel stacked
+              three identical grey slabs and Sign out looked exactly like Close. */}
+          <div className="mt-5 space-y-3">
             <button
               type="button"
               onClick={() => {
-                setSentTo(null);
-                setCode('');
-                setProblem(null);
+                setChanging(true);
+                setNotice(null);
               }}
               disabled={busy}
-              className="mt-3 w-full text-sm text-gray-600 underline underline-offset-2 hover:text-gray-800"
+              className={row}
             >
-              Use a different address
+              <span>
+                <span className={rowTitle}>Change Email</span>
+                <span className={rowNote}>Requires confirming from both email addresses</span>
+              </span>
             </button>
-          </>
-        )}
 
-        {auth.status === 'signed-in' && (
-          <>
-            <p className="mt-1 text-center text-sm text-gray-600">Signed in as</p>
-            <p className="mt-1 break-all text-center font-medium text-gray-800">
-              {auth.email ?? 'this account'}
-            </p>
+            <button
+              type="button"
+              onClick={() => void run(signOut)}
+              disabled={busy}
+              className={row}
+            >
+              <span>
+                <span className={rowTitle}>{busy ? 'Signing out...' : 'Sign Out'}</span>
+                <span className={rowNote}>Your data stays safe on this device</span>
+              </span>
+            </button>
+          </div>
 
-            <SyncNote />
+          <button type="button" onClick={onClose} className={`mt-4 ${secondary}`}>
+            Close
+          </button>
+        </>
+      )}
+    </AccountShell>
+  );
+}
 
-            {notice && (
-              <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-                {notice}
-              </p>
-            )}
+/**
+ * The My Account entry point, and the only thing App knows about.
+ *
+ * It routes rather than draws: which screen you want depends on state the drawer
+ * cannot know, because the Supabase client has to load before anyone can say
+ * whether you are signed in. Loading it here, on open, is also what keeps that
+ * chunk off the critical path for everyone else.
+ */
+export function AccountPanel({ onClose }: Props) {
+  const auth = useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
+  const sync = useSyncExternalStore(
+    syncStatusStore.subscribe,
+    syncStatusStore.get,
+    syncStatusStore.get
+  );
+  const [report, setReport] = useState<SyncReport | null>(null);
 
-            {changing ? (
-              <>
-                <label
-                  className="mt-4 mb-1 block text-sm font-medium text-gray-700"
-                  htmlFor="acct-next-email"
-                >
-                  New email address
-                </label>
-                <input
-                  id="acct-next-email"
-                  type="email"
-                  inputMode="email"
-                  value={nextEmail}
-                  onChange={(e) => setNextEmail(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void handleChangeEmail();
-                  }}
-                  className={field}
-                />
-                {problem && <Problem>{problem}</Problem>}
-                <button
-                  type="button"
-                  onClick={() => void handleChangeEmail()}
-                  disabled={busy || !nextEmail.trim()}
-                  className={`mt-4 ${primary}`}
-                >
-                  {busy ? 'Sending...' : 'Send confirmation'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChanging(false);
-                    setNextEmail('');
-                    setProblem(null);
-                  }}
-                  disabled={busy}
-                  className="mt-3 w-full text-sm text-gray-600 underline underline-offset-2 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                {problem && <Problem>{problem}</Problem>}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChanging(true);
-                    setNotice(null);
-                  }}
-                  disabled={busy}
-                  className={`mt-4 ${secondary}`}
-                >
-                  Change email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSignOut()}
-                  disabled={busy}
-                  className={`mt-3 ${secondary}`}
-                >
-                  {busy ? 'Signing out...' : 'Sign out'}
-                </button>
-                <p className="mt-2 text-center text-xs text-gray-500">
-                  Signing out leaves your groups and players on this device.
-                </p>
-              </>
-            )}
-          </>
-        )}
+  useEffect(() => {
+    void initAuth();
+  }, []);
 
-        <button
-          type="button"
-          onClick={onClose}
-          className={`mt-4 ${secondary}`}
-        >
+  if (auth.status === 'unknown') {
+    return (
+      <AccountShell onClose={onClose}>
+        <p className={blurb}>Checking...</p>
+      </AccountShell>
+    );
+  }
+
+  if (auth.status === 'unavailable') {
+    return (
+      <AccountShell onClose={onClose}>
+        <p className={blurb}>Couldn&rsquo;t reach the server. Check your connection and try again.</p>
+        <p className="mt-3 text-center leading-snug text-[#69727F]">
+          Your groups and players are on this device either way. Nothing is lost.
+        </p>
+        <button type="button" onClick={onClose} className={`mt-5 ${secondary}`}>
           Close
         </button>
-      </div>
-    </div>
-  );
+      </AccountShell>
+    );
+  }
+
+  if (auth.status === 'signed-out') {
+    return <SignInPanel onClose={onClose} />;
+  }
+
+  // The decision takes the whole card until it is answered.
+  if (sync.state === 'choice' && !report) {
+    return (
+      <MergeChoicePanel
+        reason={sync.reason}
+        account={sync.account}
+        device={sync.device}
+        matched={sync.matched}
+        onDone={setReport}
+      />
+    );
+  }
+
+  return <SignedIn email={auth.email} report={report} onClose={onClose} />;
 }

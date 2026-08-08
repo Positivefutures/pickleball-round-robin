@@ -33,13 +33,16 @@
       small card would letterbox a 1.91:1 image.
 
       The banner is built to survive that choice on a phone. iOS square-crops the
-      middle of og:image for its share sheet, so the robin and both lines of type
-      sit inside the centre 630x630 and the crop loses nothing. Re-cropping it
-      that way is the check to run if the artwork is ever recomposed.
+      middle of og:image for its share sheet, so all three lines of the name, the
+      tagline, the FREE / NO ADS / NO TRACKING badge and the address sit inside
+      the centre 630x630. Re-cropping it that way is the check to run whenever
+      the artwork is recomposed, and it is worth actually running: the artwork
+      this replaced put the type hard right, and the square crop cut it to
+      "Pickleba / Round Ro / Generato".
 
-      Its field is #FEFEFE, not white, because the robin PNG has no alpha and its
-      dark ring touches all four edges. On any other background it would show as
-      a white box with a clipped ring.
+      The robin is the one thing the square loses. It sits at the left edge and
+      falls outside the crop, which is the deliberate trade — the wide card is
+      what Messages, Slack and Twitter render, and there the robin is present.
     -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Pickleball Round Robin Generator" />
@@ -55,7 +58,7 @@
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="The Pickleball Round Robin Generator robin, above the app name"
+      content="The Pickleball Round Robin Generator robin, beside the app name"
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Pickleball Round Robin Generator" />
