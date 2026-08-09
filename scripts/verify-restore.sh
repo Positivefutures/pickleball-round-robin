@@ -146,6 +146,42 @@ select case when exists (select 1 from public.profiles
 echo "New signups still get a profile row: ${TRIGGER}"
 [ "$TRIGGER" = "yes" ] || FAIL=1
 
+# The per-account limits from 0003. Same failure shape as the trigger above: a
+# restore that lost these looks perfect and serves everyone their data, while
+# quietly letting one account fill the database again. Checked by using the
+# limit rather than by reading the catalogue, because a trigger that exists and
+# does not fire would pass a catalogue check.
+CAPS="$("$PSQL" "$CONN" -tAc "
+do \$\$
+declare uid uuid := gen_random_uuid();
+begin
+  insert into auth.users (id, email) values (uid, 'verify-caps@example.invalid');
+  insert into public.rosters (user_id, id, name)
+    select uid, 'cap'||g, 'C'||g from generate_series(1, public.row_cap('rosters') + 1) g;
+  raise exception 'the group limit did not fire';
+exception
+  when others then
+    if sqlerrm like 'This account is full%' then raise notice 'held';
+    else raise; end if;
+end \$\$;" 2>&1 | grep -c 'held')"
+SIZES="$("$PSQL" "$CONN" -tAc "
+select case when exists (
+  select 1 from pg_constraint
+  where contype='c' and connamespace='public'::regnamespace
+    and conname in ('players_name_len','players_id_len','players_roster_ids_size',
+                    'rosters_name_len','rosters_id_len',
+                    'preferences_special_types_size')
+  having count(*) = 6
+) then 'yes' else 'no' end;" 2>/dev/null | tail -1)"
+if [ "${CAPS:-0}" = "1" ] && [ "$SIZES" = "yes" ]; then
+  echo "One account still cannot fill the database: yes"
+else
+  echo "One account still cannot fill the database: NO"
+  echo "  Either the dump lost the limits, or it was taken before 0003_row_caps.sql"
+  echo "  existed. Restoring this file means running that migration afterwards."
+  FAIL=1
+fi
+
 if [ "${UNEXPECTED:-0}" != "0" ]; then
   echo
   echo "Unexpected errors during restore:" >&2

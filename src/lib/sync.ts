@@ -376,7 +376,18 @@ async function flush(): Promise<void> {
 /** Short, and about what the user should expect rather than what broke. */
 function describe(error: unknown): string {
   if (looksOffline(error)) return "You're offline. These will go up when you're back on.";
+  // The per-account limits in supabase/migrations/0003_row_caps.sql. Nothing
+  // else in this file can produce an error that retrying will never fix, and
+  // "trying again" would be a lie: the same batch is refused every time. The
+  // limits are set far above real use, so reaching this means either an account
+  // being used as storage or a limit set too low, and both need saying out loud
+  // rather than looking like a bad connection.
+  if (isAccountFull(error)) return raw(error);
   return "Couldn't reach your account just now. Trying again.";
+}
+
+function isAccountFull(error: unknown): boolean {
+  return raw(error).startsWith('This account is full.');
 }
 
 function looksOffline(error: unknown): boolean {

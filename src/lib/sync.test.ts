@@ -36,7 +36,8 @@ const server = {
   preferences: [] as FakeRow[],
   /** Every upsert that reached the client, in order. */
   pushed: [] as { table: string; rows: FakeRow[] }[],
-  failPush: false,
+  /** true for a dead network, or a string to choose what the server said. */
+  failPush: false as boolean | string,
   /** Makes reads fail, the way a dead spot would. */
   failRead: null as string | null
 };
@@ -77,7 +78,12 @@ const client = {
     return {
       upsert(rows: FakeRow[]) {
         if (server.failPush) {
-          return Promise.resolve({ error: { message: 'Failed to fetch' } });
+          return Promise.resolve({
+            error: {
+              message:
+                typeof server.failPush === 'string' ? server.failPush : 'Failed to fetch'
+            }
+          });
         }
         server.pushed.push({ table, rows });
         // Land them, so a pull straight afterwards sees what was written.
@@ -743,6 +749,25 @@ describe('once it is running', () => {
 
     expect(rowsFor('players')).toEqual([expect.objectContaining({ id: 'p1', rating: 5 })]);
     expect(pendingCount()).toBe(0);
+  });
+
+  it('says so when the account is full, rather than blaming the network', async () => {
+    await signedInAndSeeded();
+
+    // The per-account limits in supabase/migrations/0003_row_caps.sql. Every
+    // other push failure is worth retrying, so the generic message promises a
+    // retry. This one is refused identically every time, and reporting it as
+    // "couldn't reach your account" would send someone looking at their wifi
+    // for a problem that is in their data.
+    server.failPush =
+      'This account is full. It can hold 2000 players, including ones it has deleted.';
+    stores.players.set((prev) => prev.map((p) => (p.id === 'p1' ? { ...p, rating: 5 } : p)));
+    await settle();
+
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'waiting',
+      problem: expect.stringContaining('This account is full')
+    });
   });
 
   it('catches up an edit made while signed out, which nothing was watching', async () => {

@@ -160,6 +160,7 @@ Rows restored:
 Rows pointing at an owner or group that is missing: 0
 Row level security: 16 policies, 0 tables left unprotected
 New signups still get a profile row: yes
+One account still cannot fill the database: yes
 
 PASS
 ```
@@ -184,6 +185,13 @@ changes how the app stores data.
   whenever somebody new signs up. It was quietly being lost in restores, which
   would have meant every new signup after a restore silently half-working. This
   line is there because that bug happened.
+- **One account still cannot fill the database.** There are limits on how much
+  any single account can store, so nobody can use up the free allowance on
+  everyone else's behalf. Same failure shape as the line above: a restore that
+  dropped them would look perfect and serve everyone their data. Note that a
+  backup taken before 2026-08-09 predates those limits and will fail this line
+  honestly. Its data is fine. Restoring one means running
+  `supabase/migrations/0003_row_caps.sql` afterwards.
 
 ---
 

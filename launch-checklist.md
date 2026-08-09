@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.1`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.3`.
 
 ---
 
@@ -305,13 +305,70 @@ dropped straight after, so no real data is exposed while it stands.
 Verified afterwards that the database is byte for byte as it started: four
 tables, three users, thirteen groups, sixty-two players, no decoy, no probes.
 
-### 7. Cap what one account can create **[me]**
+### 7. Cap what one account can create **[me]** DONE 2026-08-09
 
-- [ ] A trigger with per-user row counts on `players` and `rosters`
-- [ ] Set generously, so no real user ever meets it
+- [x] A trigger with per-user row counts on `players` and `rosters`
+- [x] Set generously, so no real user ever meets it
+- [x] Also cap how large a single row may be, without which the row count is
+      theatre
+- [x] Prove it, and prove the proof can fail
 
-The publishable key ships in the bundle, so anyone can sign up and insert rows.
-With no server tier, Postgres is the only place a limit can live.
+`supabase/migrations/0003_row_caps.sql`, applied to the live project. Two
+commands:
+
+```
+node scripts/prove-caps.mjs
+node scripts/prove-caps.mjs --self-test
+```
+
+28 checks green, and the self-test goes 8 for 8 red as it must.
+
+**The limits.** 2,000 players and 500 groups per account. The busiest real
+account holds 31 players and 6 groups, so these are roughly 60x and 80x actual
+use. They are readable from the database itself with `select
+public.row_cap('players')`, which is where the test reads them from, so the
+number being asserted is always the number being enforced.
+
+**A row count alone would have been theatre.** `name` is unbounded text and
+`special_types` unbounded jsonb, and Postgres will store a single value up to a
+gigabyte. Two thousand rows with no size limit is not a limit. So there are
+`check` constraints too: 200 characters on names, 64 on ids, 8 KB of settings,
+32 KB of group ids on a player. Every one is far above what the app produces;
+the longest name in the live database is 25 characters.
+
+**The limits count deleted rows on purpose.** Deleting a group writes a
+tombstone rather than removing the row, because a physical delete would be
+resurrected by the next device to sync. Counting only live rows would let
+anyone insert, delete and insert again without limit, which is no limit at all.
+The numbers are set wide enough to absorb years of churn.
+
+**Three things this had to get right, all tested rather than reasoned about:**
+
+An `after insert ... for each statement` trigger, not `before insert ... for
+each row`. Sync writes with `upsert`, and a per-row trigger fires for every row
+of an `insert ... on conflict do update`, including the ones that are really
+updates. A full account would have been unable to edit what it already owned,
+which is a worse bug than the one being prevented. The transition table holds
+only the rows genuinely inserted, so re-sending what the server already has
+produces a transition table of zero. It also counts once per statement instead
+of once per row.
+
+A batch that would cross the limit lands not at all. Partial success would leave
+rows on the server that the outbox no longer knows about.
+
+Every size probe uses an id of its own. Reusing one would collide on the primary
+key, and a duplicate-key error looks exactly like a size limit doing its job, so
+the whole section would have passed for the wrong reason.
+
+**What it does not stop.** An attacker can still sign up repeatedly. This turns
+filling the database from one account into several hundred, each needing its own
+email address, which is a real change but not a wall. The 100 sign-in emails a
+day from item 3 is the tighter constraint on that.
+
+`src/lib/sync.ts` now reports a refusal in the user's own words rather than as
+"couldn't reach your account". Every other push failure is worth retrying; this
+one is refused identically every time, and blaming the network would send
+someone looking at their wifi for a problem that is in their data.
 
 ### 8. Error monitoring **[me]**
 

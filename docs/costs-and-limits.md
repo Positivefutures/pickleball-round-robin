@@ -119,6 +119,28 @@ the 100 sign-in emails a day from item 3, and the one below.
 
 ---
 
+## What stops one person filling it
+
+Since 2026-08-09 the database enforces its own limits, so a single account
+cannot use up the 500 MB on everyone else's behalf. This matters because the key
+the app signs in with is inside the page, where anyone can read it, so anyone
+can create an account and start sending data.
+
+**Each account can hold 2,000 players and 500 groups.** The busiest real account
+today holds 31 players and 6 groups, so nobody is going to meet these by using
+the app. There are matching limits on how large any single entry can be, because
+a limit on how many without a limit on how big would not be a limit at all.
+
+**If someone ever does hit one**, the app tells them their account is full and
+says the number. Nothing is lost. Their data is still on their own phone, which
+is the copy they actually use, and it simply stops copying up to the account.
+
+Reaching one would mean either an account being used as storage rather than for
+pickleball, or a limit set too low. Either is worth knowing about, and both are
+in `supabase/migrations/0003_row_caps.sql` if a number needs changing.
+
+---
+
 ## The limit that will actually bite
 
 **Supabase pauses free projects that go quiet.**
@@ -260,6 +282,7 @@ month they become interesting.
 | What happens at a Vercel limit? | The feature stops for 30 days |
 | What happens at a Supabase limit? | Warning, grace period, then requests refused |
 | How close are we? | Not close. 11 MB of 500 MB, 3 accounts of 50,000 |
+| Can one account fill it? | No. 2,000 players and 500 groups each, enforced by the database |
 | What will break first? | Supabase pausing the project after a quiet week |
 | Is the donate button allowed? | Yes. Donations are explicitly not commercial |
 | What makes it not allowed? | Charging for anything. Then Vercel Pro is required |
