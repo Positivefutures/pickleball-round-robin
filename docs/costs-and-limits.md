@@ -45,6 +45,12 @@ there is no payment relationship to bill against.
 **Supabase** runs the database and sends the sign-in codes. Their free plan
 works the same way: "you will not be charged while using the Free Plan."
 
+**Sentry** collects crashes, and was added on 2026-08-09. Its free Developer
+plan takes 5,000 crashes a month, needs no credit card, and stops accepting
+events rather than billing when that runs out. See
+[docs/error-monitoring.md](error-monitoring.md), which also covers the one
+setup step still outstanding.
+
 There is exactly one path to a bill, and it is a deliberate one: choosing to
 upgrade. Worth knowing that Vercel offers a free trial of its paid plan, and a
 trial is the usual way people end up on a paid plan without having decided to.
@@ -54,6 +60,7 @@ confirm it still says Hobby and Free.
 
 - Vercel: [vercel.com/account/billing](https://vercel.com/account/billing)
 - Supabase: [supabase.com/dashboard/org/_/billing](https://supabase.com/dashboard/org/_/billing)
+- Sentry: [sentry.io/settings/billing](https://sentry.io/settings/billing/)
 
 That is the whole of the "set a spending cap" job. There is no switch to flip,
 only a thing to confirm.
@@ -74,6 +81,7 @@ difference matters.
 | Supabase | 500 MB of database | Warning, a grace period, then the database refuses all requests |
 | Supabase | 5 GB of data sent out a month | Same |
 | Supabase | 50,000 people signing in a month | Same |
+| Sentry | 5,000 crashes a month | Later crashes are dropped, silently |
 
 **The Vercel one is the harsher of the two.** There is no partial service and no
 way to buy your way out in the moment. Blow through the traffic allowance on the
@@ -283,6 +291,7 @@ month they become interesting.
 | What happens at a Supabase limit? | Warning, grace period, then requests refused |
 | How close are we? | Not close. 11 MB of 500 MB, 3 accounts of 50,000 |
 | Can one account fill it? | No. 2,000 players and 500 groups each, enforced by the database |
+| Will I hear when it breaks? | Once Sentry is set up. Free, and one ten-minute job |
 | What will break first? | Supabase pausing the project after a quiet week |
 | Is the donate button allowed? | Yes. Donations are explicitly not commercial |
 | What makes it not allowed? | Charging for anything. Then Vercel Pro is required |

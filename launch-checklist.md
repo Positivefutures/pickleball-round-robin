@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.3`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.4`.
 
 ---
 
@@ -370,13 +370,87 @@ day from item 3 is the tighter constraint on that.
 one is refused identically every time, and blaming the network would send
 someone looking at their wifi for a problem that is in their data.
 
-### 8. Error monitoring **[me]**
+### 8. Error monitoring **[me, then Jeff]** DONE 2026-08-09, bar the signup
 
-- [ ] Sentry free tier, or equivalent
-- [ ] Wire the release to `APP_VERSION` so a report names the right build
+- [x] Stop a crash being a white screen, which needs nobody's account
+- [x] Sentry free tier, or equivalent
+- [x] Wire the release to `APP_VERSION` so a report names the right build
+- [x] Send no names, and prove it against what actually goes on the wire
+- [x] Prove it, and prove the proof can fail
+- [ ] **Jeff: create the Sentry account and paste one value into Vercel.**
+      Ten minutes, no card. [docs/error-monitoring.md](docs/error-monitoring.md)
+      has the steps
 
-Client crashes are invisible today. There is no server, no logs, and no way to
-learn about a broken render except an email from whoever hit it.
+Two jobs that sound like one, kept apart because only the second needs anything
+outside this repository.
+
+**Telling the person holding the phone.** `ErrorBoundary` in
+`src/components/layout/ErrorBoundary.tsx` replaces the white page with a screen
+that says the groups and players are still saved, offers Reload, and offers to
+send the details by email. Shipped, working, and it needs no account and no
+DSN. This is the half that matters to somebody standing at a court.
+
+**Telling Jeff.** `src/lib/monitoring.ts` reports to Sentry if
+`VITE_SENTRY_DSN` is set. It is not set yet, so today crashes are shown and not
+sent. That is a supported state, not a broken one, and it is the state every
+test runs in unless it says otherwise.
+
+**The version is the join.** `release` is `APP_VERSION`, the same string in the
+footer and on every bug report, which is why it has to be bumped in the commit
+that deploys.
+
+**Sentry is not downloaded until something has already gone wrong.** The eager
+bundle grew by 1.8 KB gzipped; the reporter is a separate 18 KB chunk fetched
+at the moment of the crash. Nobody who never crashes pays for it.
+
+**18 KB rather than 144 KB.** `Sentry.init()` statically references its whole
+default integration list, so Replay, tracing, profiling and the feedback widget
+land in the chunk whether or not they are switched on, and
+`defaultIntegrations: false` does not remove them. Building a `BrowserClient`
+by hand is Sentry's own documented way out. Measured both ways on this app.
+
+**A crash loop cannot spend the month.** The free plan takes 5,000 events and
+drops the rest silently, and a component throwing on every render can produce
+thousands in a second. Each distinct fault is sent once, a session sends at
+most five, and the noise everyone else wastes their allowance on
+(`ResizeObserver loop`, `Script error.`, browser extensions) is dropped before
+anything is even loaded.
+
+**No names leave the browser.** No breadcrumbs, no user, no app state, no page
+URL. The message and the stack are put through `scrub()`, which redacts the
+player and group names actually in storage, plus emails, link query strings and
+long digit runs. It over-redacts on purpose: a player called "Type" turns
+"TypeError" into "[name]Error", which is a worse message and not a leak.
+
+**Two things tested rather than reasoned about.**
+
+`monitoring.delivery.test.ts` runs the real SDK against a server on this
+machine and reads what arrives. That is what caught the one real bug in this
+work: tags passed to `captureException` are a *hint*, not scope data, so every
+report was going out with no tag at all while looking perfectly correct from
+the calling side. No mock could have seen it.
+
+The transport is handed the page's own `fetch`. Left alone Sentry pulls an
+unpatched one out of a hidden iframe, which guards against a page that has
+replaced `window.fetch`. Nothing here replaces it, and the iframe trick has
+nothing to grab outside a real browser, so it would have made the delivery test
+impossible.
+
+```
+npm test
+```
+
+309 tests green, 44 of them this. Fourteen deliberate breakages, one per guard,
+each turning at least one test red.
+
+**What is left, and it needs Jeff.** Creating a Sentry account needs his email
+and his agreement to their terms. Until the DSN is in Vercel, crashes are shown
+to the user and not sent to anybody.
+
+**One knock-on for item 10.** Sentry becomes the fourth processor the privacy
+policy has to name, alongside Vercel, Supabase and Resend. Worth turning off
+"Store IP Addresses" in their project settings while signing up, which
+`docs/error-monitoring.md` covers.
 
 ---
 
@@ -398,12 +472,16 @@ and it covers the GDPR access right.
 
 - [ ] A static file in `public/`, not an in-app panel
 - [ ] Plain language: what is collected, why, and that it is not sold
-- [ ] Name the real processors: Vercel, Supabase, Resend, Ko-fi
+- [ ] Name the real processors: Vercel, Supabase, Resend, Ko-fi, and Sentry
 - [ ] Link it from the settings drawer and the footer
 
 Static, because the app has no router and a policy needs to be linkable from
 Ko-fi, an app store listing, and a scraper. PIPEDA applies here already, and
 GDPR applies the moment there is one EU user.
+
+Sentry joined that list on 2026-08-09 with item 8. The honest sentence is short:
+when the app crashes it sends the error and the version, with names removed, and
+no IP address. `docs/error-monitoring.md` has the detail to write it from.
 
 ### 11. Terms of service **[me]**
 
