@@ -21,7 +21,19 @@ accounts that no longer exist, into a database nobody can sign in to.
   right place for them, and a restore into an empty project needs them run
   first. See below.
 
-## Restoring into a scratch project, which is also the test
+## Proving a dump is good
+
+Two levels, and they answer different questions.
+
+**The quick one, run against a throwaway database on this machine.** It proves
+the file is complete, loads without error, and still holds every row. That is
+the failure that actually happens: a dump that was silently truncated months
+ago. Claude can run this unattended once a dump exists, so ask for it.
+
+**The thorough one, below.** It additionally proves a restored user can still
+sign in and see their groups. Worth doing once. It needs the Supabase dashboard.
+
+## Restoring into a scratch project, which is the thorough test
 
 Do this once now, while nothing depends on it.
 
@@ -32,8 +44,12 @@ Do this once now, while nothing depends on it.
 3. Get the new project's connection string, then load the dump:
 
    ```
-   gzip -dc pbrr-<stamp>.sql.gz | psql "<scratch-connection-string>"
+   gzip -dc pbrr-<stamp>.sql.gz | /opt/homebrew/opt/libpq/bin/psql "<scratch-connection-string>"
    ```
+
+   The full path is deliberate. Homebrew keeps `psql` off the PATH so it cannot
+   collide with a full Postgres install, so the bare command will say "not
+   found" even though it is installed.
 
 4. Expect complaints. `auth.users` already exists in a fresh project and the
    dump will collide with rows the new project created for itself. Errors that

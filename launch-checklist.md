@@ -159,8 +159,13 @@ the prose is Supabase's to reword and the code is not.
 
 - [x] Script a `pg_dump` to external storage. `scripts/backup-db.sh`
 - [x] Write the restore procedure down. `scripts/RESTORE.md`
-- [ ] **Run it once, then run one test restore into a scratch project.** Needs
-      the database password, so this half is Jeff's
+- [x] Install the Postgres client tools, `brew install libpq`
+- [ ] **Jeff: run `./scripts/backup-db.sh` once.** It asks for the connection
+      string on the first run and stores it in the Keychain. Needs the database
+      password, which is why this bit cannot be done for him
+- [ ] Then: prove the dump loads, against a throwaway local database
+- [ ] Then, once: the full restore test into a scratch Supabase project, which
+      is the only thing that proves a restored user can still sign in
 - [ ] Decide whether to automate the schedule, and whether Supabase Pro is
       worth it for daily backups
 
@@ -185,8 +190,14 @@ means either encrypting before upload or paying for storage. Worth revisiting
 once there are enough real accounts to justify it; today the local-first design
 means any device still holding its groups restores them on the next sync.
 
+The script asks for the connection string once and keeps it in the macOS
+Keychain, so the password is never in a file, never in the shell history and
+never in the repository. It also finds `pg_dump` on its own, because Homebrew
+installs it off the PATH and no backup should require editing a shell config.
+
 Note for item 10: backups in Dropbox make Dropbox a processor, so it belongs in
-the privacy policy's list.
+the privacy policy's list. So does the Keychain, in the sense that it is worth
+knowing where the credential lives.
 
 ### 5. Billing caps, and the upgrade trigger **[Jeff]**
 
