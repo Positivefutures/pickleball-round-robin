@@ -157,6 +157,9 @@ the prose is Supabase's to reword and the code is not.
 
 ### 4. Backups **[both]** PART DONE
 
+**Plain-language guide: [docs/backups.md](docs/backups.md).** That is the one to
+read when administering the app. What follows is the engineering detail.
+
 - [x] Script a `pg_dump` to external storage. `scripts/backup-db.sh`
 - [x] Write the restore procedure down. `scripts/RESTORE.md`
 - [x] Install the Postgres client tools, `brew install libpq`
