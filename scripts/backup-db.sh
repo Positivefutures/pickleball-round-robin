@@ -197,28 +197,59 @@ fi
 mkdir -p "$OUT_DIR"
 
 # ---------------------------------------------------------------------------
-# Both schemas, and this is the part that is easy to get wrong. The four tables
-# in `public` are all keyed by user_id against auth.users. Dumping public alone
-# produces rows that reference accounts that no longer exist, which restores
-# into a database nobody can sign in to. The users have to come too.
+# Two dumps, concatenated, and it has to be two.
+#
+# The obvious single command, `--schema=public --table=auth.users`, silently
+# produces a dump of auth.users *only*. pg_dump documents that --table wins:
+# once any table pattern is given, --schema no longer selects anything. The
+# result is a valid, complete, well-formed dump of three user rows and none of
+# their data, which reports success and restores nothing worth having.
+#
+# auth.users goes first because every table in public carries a foreign key to
+# it, and a restore that loads children before parents fails on all of them.
 #
 # --no-owner and --no-privileges because the roles on a fresh project are not
 # the roles here, and a restore that halts on a missing role is not a restore.
 
+# `set -o pipefail` is on, so the pipeline as a whole reports the failure of
+# either pg_dump. Testing a variable set inside the braces would not work: the
+# pipe puts them in a subshell, and the assignment dies with it.
+
 echo "Dumping to $OUT"
-if ! "$PG_DUMP" "$DB_URL" \
-  --schema=public \
-  --table=auth.users \
-  --no-owner \
-  --no-privileges \
-  --quote-all-identifiers \
-  | gzip -9 > "$OUT"
+if ! {
+  "$PG_DUMP" "$DB_URL" \
+    --table=auth.users \
+    --no-owner --no-privileges --quote-all-identifiers &&
+  "$PG_DUMP" "$DB_URL" \
+    --schema=public \
+    --no-owner --no-privileges --quote-all-identifiers
+
+  # Re-create the triggers on auth.users, last.
+  #
+  # They come out with the first dump, where they cannot work: they call
+  # functions that live in public and are not created until the second. Postgres
+  # says so and carries on, so a restore appears to succeed while quietly losing
+  # on_auth_user_created, which is what writes a profile row when someone signs
+  # up. Existing users would be fine and every new one would get no profile.
+  #
+  # Emitted here rather than left to the restore procedure so the file stays
+  # self-sufficient. A backup that needs a remembered manual step is a backup
+  # with a step that will be forgotten.
+  if [ -x "$PSQL" ]; then
+    echo ""
+    echo "-- Triggers on auth.users, replayed after their functions exist."
+    echo "SET search_path = public;"
+    PGCONNECT_TIMEOUT=15 "$PSQL" "$DB_URL" -tA -c \
+      "select pg_get_triggerdef(oid)||';' from pg_trigger
+        where tgrelid='auth.users'::regclass and not tgisinternal;"
+  fi
+} | gzip -9 > "$OUT"
 then
   rm -f "$OUT"
   echo >&2
   echo "The dump failed. The usual causes, in order of likelihood:" >&2
-  echo "  - wrong password in the stored connection string" >&2
   echo "  - the database is paused; open the Supabase dashboard to wake it" >&2
+  echo "  - the password changed since it was stored" >&2
   echo "  - no network" >&2
   echo >&2
   echo "To re-enter the connection string, run:" >&2
@@ -228,18 +259,58 @@ fi
 
 SIZE="$(du -h "$OUT" | cut -f1)"
 
-# A dump that failed halfway still leaves a valid gzip file, so size alone
-# proves nothing. Postgres writes this marker as the last line of a complete
-# dump, and its absence is the difference between a backup and a comforting
-# feeling.
-if ! gzip -dc "$OUT" | tail -5 | grep -q "PostgreSQL database dump complete"; then
-  echo "INCOMPLETE: $OUT does not end with Postgres's completion marker." >&2
-  echo "Treat it as failed and do not rely on it." >&2
+# ---------------------------------------------------------------------------
+# Verify by naming what has to be there.
+#
+# The completion marker alone passed happily on a dump that was missing every
+# table that matters, because that dump really was complete. It was complete and
+# empty. So check the marker for truncation, and check the tables by name for
+# the failure the marker cannot see.
+
+# Decompressed once to a temp file rather than into a shell variable, so this
+# still works when the dump outgrows comfortable memory.
+BODY="$(mktemp -t pbrr-verify)"
+trap 'rm -f "$BODY"' EXIT
+gzip -dc "$OUT" > "$BODY"
+
+if [ "$(grep -c 'PostgreSQL database dump complete' "$BODY")" -lt 2 ]; then
+  echo "INCOMPLETE: $OUT is missing a completion marker, so one of the two" >&2
+  echo "dumps was cut short. Treat it as failed and do not rely on it." >&2
   exit 1
 fi
 
-ROWS="$(gzip -dc "$OUT" | grep -c '^INSERT\|^COPY' || true)"
-echo "OK  $OUT  ($SIZE, $ROWS data statements)"
+MISSING=""
+for t in auth.users public.profiles public.rosters public.players public.preferences; do
+  schema="${t%%.*}"; table="${t##*.}"
+  if ! grep -q "CREATE TABLE \"$schema\".\"$table\"" "$BODY"; then
+    MISSING="$MISSING $t"
+  fi
+done
+
+if [ -n "$MISSING" ]; then
+  echo "INCOMPLETE: $OUT has no definition for:$MISSING" >&2
+  echo "A dump missing a table restores a database missing that table." >&2
+  exit 1
+fi
+
+# The trigger has to appear twice: once where pg_dump puts it and cannot work,
+# and once at the end where it can. One occurrence means the replay is missing.
+if [ "$(grep -c 'on_auth_user_created' "$BODY")" -lt 2 ]; then
+  echo "INCOMPLETE: $OUT does not replay on_auth_user_created at the end." >&2
+  echo "Restoring it would leave new signups without a profile row." >&2
+  exit 1
+fi
+
+echo
+echo "Rows captured:"
+awk '
+  /^COPY /   { name=$2; c=0; inb=1; next }
+  inb && /^\\\.$/ { printf "  %-24s %d\n", name, c; inb=0; next }
+  inb        { c++ }
+' "$BODY"
+
+echo
+echo "OK  $OUT  ($SIZE)"
 
 # Keep the last 30. Deliberately not unlimited: these hold real names and
 # email addresses, so old copies are a liability rather than an asset.

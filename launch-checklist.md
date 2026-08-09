@@ -160,12 +160,11 @@ the prose is Supabase's to reword and the code is not.
 - [x] Script a `pg_dump` to external storage. `scripts/backup-db.sh`
 - [x] Write the restore procedure down. `scripts/RESTORE.md`
 - [x] Install the Postgres client tools, `brew install libpq`
-- [ ] **Jeff: run `./scripts/backup-db.sh` once.** It asks for the connection
-      string on the first run and stores it in the Keychain. Needs the database
-      password, which is why this bit cannot be done for him
-- [ ] Then: prove the dump loads, against a throwaway local database
-- [ ] Then, once: the full restore test into a scratch Supabase project, which
-      is the only thing that proves a restored user can still sign in
+- [x] Run it for real. First good dump: `pbrr-20260809T133033Z.sql.gz`
+- [x] Prove the dump restores. `scripts/verify-restore.sh`, one command, and it
+      passes on the current dump and fails on the broken one
+- [ ] Once: the full restore test into a scratch Supabase project, which is the
+      only thing that proves a restored user can still sign in **from the app**
 - [ ] Decide whether to automate the schedule, and whether Supabase Pro is
       worth it for daily backups
 
@@ -174,9 +173,18 @@ verify.
 
 The script dumps `public` **and** `auth.users`, which is the part that is easy
 to get wrong: every row is keyed by `user_id`, so dumping `public` alone
-restores data belonging to accounts that no longer exist. It also checks for
-Postgres's completion marker, because a dump that failed halfway still leaves a
-perfectly valid gzip file.
+restores data belonging to accounts that no longer exist.
+
+**Two failures got through the first time, and only a real restore found them.**
+The single command `--schema=public --table=auth.users` dumps `auth.users` only,
+because `--table` makes `--schema` select nothing, so the first backup held
+three user rows and none of their data. And `pg_dump` emits the triggers on
+`auth.users` before the functions they call exist, so a restore quietly loses
+`on_auth_user_created` and every new signup after it gets no profile row.
+
+Both now have a named check that fails the backup rather than a comment saying
+to watch out. The completion-marker check that was supposed to catch this passed
+happily on the empty dump, because that dump really was complete.
 
 Dumps land in a sibling folder outside the repository, which puts them inside
 Dropbox and therefore off this machine within seconds. The last 30 are kept and
