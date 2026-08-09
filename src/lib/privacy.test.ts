@@ -90,6 +90,12 @@ describe('the privacy policy page', () => {
   });
 
   it('gives the contact address the rest of the app gives', () => {
+    // Every mailto on the page, not just the printed text and not just the
+    // first one. A link that reads as the right address and opens a different
+    // one is the version of this that nobody notices.
+    const mailtos = [...policy.matchAll(/href="mailto:([^"?]+)/g)].map((m) => m[1]);
+    expect(mailtos.length).toBeGreaterThan(0);
+    expect([...new Set(mailtos)]).toEqual([FEEDBACK_EMAIL]);
     expect(policy).toContain(FEEDBACK_EMAIL);
   });
 

@@ -7,11 +7,10 @@ whoever is administering the app, which today is Jeff.
 
 ## The short version
 
-**This is done and live.** The Sentry account exists, the app is pointed at it,
-and a crash now reaches you by email without anybody pressing anything.
-
-There is one optional two minute tidy-up left, in Sentry's own settings, at
-[One setting worth changing](#one-setting-worth-changing).
+**This is done, live, and proved.** The Sentry account exists, the app is
+pointed at it, and on 2026-08-09 a test crash on the live site showed the right
+screen, arrived in Sentry, and sent the email. Nothing here is waiting on
+anybody.
 
 ---
 
@@ -97,18 +96,23 @@ happen.
 If it ever needs to point somewhere else, set `VITE_SENTRY_DSN` in Vercel, which
 wins over the committed one.
 
-### One setting worth changing
+### One setting, already changed
 
-**Turn off IP addresses.** In Sentry: Settings → Security & Privacy → turn on
-**Prevent Storing of IP Addresses**. The app never sends one, but Sentry can
-infer it from the connection, and there is no reason to keep it. The privacy
-policy says no IP address is kept, so this makes the page match the settings.
+**IP addresses are off.** Sentry → Settings → Security & Privacy → **Prevent
+Storing of IP Addresses**, turned on by Jeff on 2026-08-09. The app never sends
+one, but Sentry can infer it from the connection, and the privacy policy says
+none is kept. The settings and the page now agree.
+
+Worth re-checking if the Sentry project is ever recreated, because a new project
+starts with the default, which is to store them.
 
 ---
 
 ## Checking that it worked
 
-Do this once, after the next deploy, and then never again.
+Done on 2026-08-09: the screen appeared, the issue reached Sentry, and the email
+arrived. Kept here because it is the same check to run after any deploy that
+touches monitoring.
 
 Open this address on your phone or in a browser:
 
@@ -201,7 +205,7 @@ the app.
 |---|---|
 | Can this cost money? | No. Free plan, no card, stops rather than charges |
 | What does a crash look like now? | A screen saying the data is safe, with Reload |
-| Do I have to do anything? | No. One optional setting, to stop Sentry keeping IP addresses |
+| Do I have to do anything? | No. It is set up, proved, and IP addresses are off |
 | How do I know it works? | Visit `?crashtest` and look for it in Sentry |
 | Are names sent? | No, and that is tested against the real network traffic |
 | Is the key in the public repo a problem? | No. It only accepts crashes in |

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL } from '../../lib/appInfo';
+import { DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from '../../lib/appInfo';
 import { ShareIcon } from '../icons';
 
 interface Props {
@@ -252,7 +252,7 @@ export function SettingsPanel({
         </a>
       </p>
 
-      {/* A link rather than a menu item. It belongs down here with the contact
+      {/* Links rather than menu items. They belong down here with the contact
           address, not up there with the things people came to do. target=_blank
           because leaving the app would drop whatever session is on screen. */}
       <p className="mt-3 text-sm text-white/70">
@@ -263,6 +263,15 @@ export function SettingsPanel({
           className="underline decoration-white/40 underline-offset-2 hover:text-white"
         >
           Privacy Policy
+        </a>
+        <span className="mx-2">&middot;</span>
+        <a
+          href={TERMS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline decoration-white/40 underline-offset-2 hover:text-white"
+        >
+          Terms of Service
         </a>
       </p>
     </div>

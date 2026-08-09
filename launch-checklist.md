@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.7`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.8`.
 
 ---
 
@@ -381,10 +381,10 @@ someone looking at their wifi for a problem that is in their data.
       `src/lib/monitoring.ts` rather than set in Vercel, because a DSN only
       accepts crashes coming in and a value that lives only in a dashboard is a
       value that gets silently lost
-- [ ] **Jeff, optional, two minutes.** Sentry → Settings → Security & Privacy →
-      **Prevent Storing of IP Addresses**. The app never sends one, but Sentry
-      infers it from the connection, and the privacy policy says none is kept
-- [ ] Visit `?crashtest` once after the next deploy, and check the issue appears
+- [x] Jeff turned on Sentry → Settings → Security & Privacy → **Prevent Storing
+      of IP Addresses**, so the settings now match what the privacy policy says
+- [x] Jeff visited `?crashtest` on the live site. The screen appeared, the issue
+      reached Sentry, and the email arrived. End to end, proved by use
 
 Two jobs that sound like one, kept apart because only the second needs anything
 outside this repository.
@@ -578,19 +578,64 @@ improvement and is not on this list yet.
 cookies to consent to. And the policy is a single page in English, which is the
 right size for one person running a free app.
 
-### 11. Terms of service **[me]**
+### 11. Terms of service **[me]** DONE 2026-08-09
 
-- [ ] Same shape, same place as the privacy policy
-- [ ] Liability disclaimer: use at your own risk, no warranty, not liable for
+- [x] Same shape, same place as the privacy policy
+- [x] Liability disclaimer: use at your own risk, no warranty, not liable for
       any event outcome. This is the load-bearing part
-- [ ] Acceptable use, so there are grounds to ban someone
-- [ ] Written so a paid tier can be added later without a rewrite
-- [ ] Link it beside Privacy in the footer and the settings drawer
+- [x] Acceptable use, so there are grounds to ban someone
+- [x] Written so a paid tier can be added later without a rewrite
+- [x] Link it beside Privacy in the footer and the settings drawer
 
-Most of the shape is now decided by item 10. Copy `public/privacy.html` to
-`public/terms.html`, keep its styles, add `TERMS_URL` next to `PRIVACY_URL` in
-`src/lib/appInfo.ts`, and put it in the two places the privacy link already
-sits. The footer comment says as much.
+`public/terms.html`, published at
+[app.pbroundrobin.com/terms.html](https://app.pbroundrobin.com/terms.html), and
+`TERMS_URL` sits beside `PRIVACY_URL` in `src/lib/appInfo.ts`. The two pages now
+travel as a pair: each links the other, and both appear in the footer and at the
+bottom of the settings drawer. A store listing asks for both, and a person who
+lands on one should not have to search for the other.
+
+**The liability section is written as a list of situations, not as capitals.**
+The outcome of a session, an argument between two players, an injury at the
+court, a ladder decided on a schedule the app produced, and data lost with a
+phone. That is what this app could plausibly be blamed for, so those are the
+things named. The formal wording follows in one paragraph underneath, capped at
+what has been paid, which for everybody today is nothing.
+
+**The strongest sentence for Jeff is the one about the courts.** The app spreads
+partners and sit-outs well and is still software that can be confidently wrong
+about a round. The page says to check a schedule before reading it out, which is
+both true and the reason the disclaimer is fair.
+
+**Acceptable use exists to make a ban defensible.** Seven lines, each one a thing
+somebody could actually do: harassment, reaching another account, probing the
+service, automated sign-ups, breaking it for others, illegal content, and
+passing the app off as their own. Serious cases end an account without warning,
+smaller ones get an email first, and ending an account never touches what is on
+that person's own device.
+
+**A paid tier will not need this rewritten.** One section says the app is free
+today, that any charge would be new and optional, that the price comes before
+the charge, and that a payment company would handle the card. Donating is
+described separately as a gift that buys nothing, which is what keeps Ko-fi from
+looking like a purchase with a refund attached.
+
+**The test guards the claim that goes stale silently.**
+`src/lib/terms.test.ts` fails the day a payment library appears in
+`package.json` while the page still says nothing is charged for, which is the
+one way this page becomes untrue without anybody editing it. It also holds the
+button names, the contact address, the cross-links, and the two links in the
+app. Fourteen sabotages, fourteen red.
+
+**One real hole the sabotage pass found.** Both legal pages were checked for the
+contact address as text, so a `mailto:` could have pointed anywhere while the
+page still read correctly. Both tests now check every `mailto:` on the page.
+That was a live weakness in item 10's test, fixed here.
+
+**Not covered, and deliberately.** No click-to-accept, because nobody signs up
+to a free scheduling app through a consent gate, and use is the acceptance. No
+lawyer has read this. It is a careful plain-language agreement for a free app
+run by one person, and it should be reviewed by one before any money changes
+hands.
 
 ---
 

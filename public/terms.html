@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terms of Service | Pickleball Round Robin Generator</title>
+    <meta
+      name="description"
+      content="The rules for using the Pickleball Round Robin Generator: it is free, it is used at your own risk, and what happens if somebody misuses it."
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#15803d" />
+
+    <!--
+      The twin of privacy.html, and static for the same reasons.
+
+      The app is a single-page bundle with no router, so an in-app version would
+      have no address of its own, and an address is exactly what Ko-fi and an app
+      store listing ask for. Plain HTML with its own styles, so it cannot break
+      when the app's build changes, and it reads with no JavaScript at all.
+
+      Two things must be kept true when the app changes:
+        - Section "If the app ever charges for anything" describes a free app. The
+          day money is taken, that section is rewritten before the charge, not
+          after.
+        - The Last updated line at the bottom.
+      src/lib/terms.test.ts checks what it can of both.
+    -->
+
+    <style>
+      :root {
+        --ink: #1f2937;
+        --quiet: #4b5563;
+        --line: #e5e7eb;
+        --green: #15803d;
+        --green-dark: #166534;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f9fafb;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        font-size: 1.0625rem;
+        line-height: 1.65;
+        -webkit-text-size-adjust: 100%;
+      }
+      header {
+        background: var(--green);
+        color: #fff;
+        padding: 1.25rem 1rem;
+      }
+      header .inner,
+      main,
+      footer .inner {
+        max-width: 40rem;
+        margin: 0 auto;
+      }
+      header a { color: #fff; }
+      header img {
+        width: 44px;
+        height: 44px;
+        border-radius: 0.5rem;
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+      header h1 {
+        font-size: 1.5rem;
+        line-height: 1.25;
+        margin: 0 0 0.25rem;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      main {
+        padding: 1.5rem 1rem 2.5rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+        line-height: 1.3;
+        margin: 2.25rem 0 0.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--line);
+      }
+      h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 1rem; }
+      h3 {
+        font-size: 1.02rem;
+        margin: 1.5rem 0 0.35rem;
+      }
+      p, ul { margin: 0.75rem 0; }
+      ul { padding-left: 1.25rem; }
+      li { margin: 0.35rem 0; }
+      a { color: var(--green-dark); }
+      strong { font-weight: 600; }
+      .lede {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 0.5rem;
+        padding: 0.25rem 1rem 0.75rem;
+      }
+      .lede ul { margin-bottom: 0.25rem; }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 1.25rem 1rem 2.5rem;
+        color: var(--quiet);
+        font-size: 0.9rem;
+      }
+      footer p { margin: 0.4rem 0; }
+      .back {
+        display: inline-block;
+        margin-top: 1.5rem;
+        padding: 0.6rem 1rem;
+        background: var(--green);
+        color: #fff;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <img src="/icon-192.png" alt="" width="192" height="192" />
+        <h1>Terms of Service</h1>
+        <p>Pickleball Round Robin Generator</p>
+      </div>
+    </header>
+
+    <main>
+      <div class="lede">
+        <h2>The short version</h2>
+        <ul>
+          <li>The app is free, and you use it at your own risk.</li>
+          <li>It sorts players into games. It does not run your club, and it can be wrong about a round.</li>
+          <li>Type in what a game needs, which is a name and a rating. Nothing more about anybody.</li>
+          <li>Do not use it to harass anyone, and do not go looking for other people's accounts.</li>
+          <li>Donating is a gift. It buys nothing and it unlocks nothing.</li>
+          <li>You can stop at any time, and delete your account from inside the app.</li>
+        </ul>
+      </div>
+
+      <h2>Who these terms are with</h2>
+      <p>
+        The Pickleball Round Robin Generator is made and run by Jeff Baker, in
+        Alberta, Canada. It is one person, not a company. Using the app means you
+        accept what is on this page, so if any of it does not suit you, the right
+        move is to not use it.
+      </p>
+      <p>
+        How the app handles information is a separate page, and it is the more
+        useful one. See the
+        <a href="/privacy.html">Privacy Policy</a>.
+      </p>
+
+      <h2>What the app is</h2>
+      <p>
+        It builds round robin schedules. You give it your players, how many courts
+        you have and how many rounds you want, and it works out who plays with
+        whom and who sits out. It keeps that group so you can run it again next
+        week.
+      </p>
+      <p>
+        It is a scheduling aid and nothing else. It does not book courts, take
+        payments from your players, settle an argument about a score, or know
+        anything about the people on your list beyond what you typed.
+      </p>
+
+      <h2>Using it, with or without an account</h2>
+      <p>
+        No account is needed. Most people never make one, and everything works
+        that way, on your own device.
+      </p>
+      <p>
+        An account exists for one reason, which is to copy your groups to your
+        other phone or tablet. It uses your email address and no password, so the
+        sign-in codes that arrive in your inbox are what protects it. Do not pass
+        one on to anybody, and keep the address one you can still open.
+      </p>
+      <p>
+        You need to be old enough to agree to a contract where you live. The app
+        is not built for children and never asks anyone's age.
+      </p>
+
+      <h2>The names you type in belong to other people</h2>
+      <p>
+        This is the part most worth reading. If you run a group, the list is your
+        players' names, not yours, and you are the one who decided to put them in.
+        That makes it your responsibility rather than mine.
+      </p>
+      <ul>
+        <li>Type in what a game needs. A first name and a rating is usually the whole of it.</li>
+        <li>
+          Do not put anything else about a person in there. Not a phone number,
+          not an address, not anything about their health, and not a private
+          remark about how they play.
+        </li>
+        <li>Tell your players the list exists if it would matter to them.</li>
+        <li>Take somebody out when they ask. Deleting a player in the app removes them from the server too.</li>
+      </ul>
+      <p>
+        Your groups, players and schedules stay yours. I claim no ownership of
+        them. If you have an account, you are giving permission for the narrow
+        thing the account does, which is to store that list and hand it back to
+        your own devices, backups included.
+      </p>
+
+      <h2>What you must not do</h2>
+      <p>
+        Short list, and none of it should be a surprise:
+      </p>
+      <ul>
+        <li>Use the app to harass, bully, humiliate or single out anybody.</li>
+        <li>Try to reach an account, a group or a player list that is not yours.</li>
+        <li>Probe, scan or attack the app or the services behind it, or work around any limit in it.</li>
+        <li>Create accounts automatically, or flood it with accounts, groups or players.</li>
+        <li>Do anything that stops the app working for other people.</li>
+        <li>Break the law with it, or put anything illegal into it.</li>
+        <li>Copy it, sell it, or run your own version of it and call it yours.</li>
+      </ul>
+
+      <h2>What happens if you do</h2>
+      <p>
+        I can remove content or end an account that is being used this way. For
+        anything serious, such as harassment or an attempt to reach another
+        person's data, that happens without warning. For anything smaller I would
+        write to you first, at the address on the account.
+      </p>
+      <p>
+        If you think a decision was wrong, email me and say so. Ending an account
+        does not touch what is saved on that person's own device, because the app
+        has always worked without an account.
+      </p>
+
+      <h2>The app is free, and it can change or stop</h2>
+      <p>
+        There is no charge for any part of it today. There is also no promise that
+        it will be running tomorrow, that it will keep every feature it has now,
+        or that it will be available when you are standing at a court about to
+        start.
+      </p>
+      <p>
+        That is not a get-out clause. It is one person paying for the hosting, and
+        the honest position is to say so rather than imply a service level nobody
+        is on call to deliver. If I ever shut it down, I will say so on this site
+        first and give account holders notice by email where I can.
+      </p>
+      <p>
+        Keep your own copy of anything you would hate to lose. Import / Export in
+        the app makes a file you keep, and My Account has a Download My Data
+        button. Both work without asking anybody.
+      </p>
+
+      <h2>If the app ever charges for anything</h2>
+      <p>
+        It might, one day. If that happens it will be something new and optional
+        rather than a gate put across what you already use, you will be told the
+        price before anything is charged, and no card details would ever be
+        handled by this app or by me. A payment company would do that, and this
+        page would be rewritten before the first charge, not after it.
+      </p>
+      <p>
+        <strong>Donating is separate, and it is a gift.</strong> The Donate button
+        opens Ko-fi, which is another company's website with its own terms. A
+        donation buys no feature, no support and no priority, and it is not
+        refundable by me because nothing was sold. Anything you want to raise
+        about a payment there is between you and Ko-fi.
+      </p>
+
+      <h2>No warranty</h2>
+      <p>
+        The app is provided as it is, with no warranty of any kind. I do not
+        promise that it is free of faults, that it will run without interruption,
+        that it suits what you want to do with it, or that a schedule it produces
+        is the fairest one available.
+      </p>
+      <p>
+        Check the schedule before you read it out. The app is good at spreading
+        partners and sit-outs around, and it is still a piece of software that can
+        be wrong about a round while looking perfectly confident.
+      </p>
+      <p>
+        Where the law where you live gives you rights that cannot be signed away,
+        this section does not take them away.
+      </p>
+
+      <h2>What I am not responsible for</h2>
+      <p>
+        This is the part that matters if something goes wrong, so it is written
+        plainly rather than in capital letters.
+      </p>
+      <ul>
+        <li>
+          <strong>How your session goes.</strong> Who plays whom, who sits out,
+          who wins, and any argument that follows. A round robin is a social
+          event, and running it is yours.
+        </li>
+        <li>
+          <strong>Anything that happens at the court.</strong> Injuries included.
+          The app has never seen the court and knows nothing about who should be
+          playing.
+        </li>
+        <li>
+          <strong>A tournament, ladder or league decided with it.</strong> If a
+          result counts for something, check it yourself.
+        </li>
+        <li>
+          <strong>Data that is lost or damaged</strong>, whether by a fault here,
+          a browser clearing its storage, or a lost phone.
+        </li>
+        <li>
+          <strong>What another company does.</strong> Ko-fi and the services that
+          host the app each have their own terms.
+        </li>
+      </ul>
+      <p>
+        More formally: I am not liable for indirect or consequential loss, or for
+        lost profits, lost opportunities or lost data. Where I am liable for
+        anything at all, the total is limited to whatever you have paid me in the
+        twelve months before it happened, which for nearly everybody is nothing,
+        up to a maximum of one hundred Canadian dollars.
+      </p>
+      <p>
+        Nothing here excludes liability that the law does not allow to be
+        excluded, such as fraud, or death or injury caused by my own negligence.
+      </p>
+
+      <h2>What is mine</h2>
+      <p>
+        The app, its name, its look and the way it works are mine. You are welcome
+        to use it, print its schedules and share what it produces with your group.
+        Copying the app itself, or running your own version under another name, is
+        not part of that.
+      </p>
+
+      <h2>Which laws apply</h2>
+      <p>
+        These terms are governed by the laws of the Province of Alberta and the
+        laws of Canada that apply there. Anything that ended up in court would go
+        to the courts of Alberta.
+      </p>
+      <p>
+        If you are a consumer somewhere else, this does not remove the protections
+        your own country gives you.
+      </p>
+
+      <h2>Odds and ends</h2>
+      <p>
+        If any part of this page turns out not to hold up, the rest still stands.
+        Not enforcing something once does not mean giving it up for good. These
+        terms and the <a href="/privacy.html">Privacy Policy</a> are the whole
+        agreement between us about the app.
+      </p>
+
+      <h2>Changes to these terms</h2>
+      <p>
+        If the app changes in a way that makes this page wrong, the page changes
+        with it and the date below changes too. For a significant change I will
+        email account holders rather than quietly rewriting it. Carrying on with
+        the app after a change means accepting it.
+      </p>
+
+      <h2>Getting in touch</h2>
+      <p>
+        Anything on this page, or anything else about the app, goes to
+        <a href="mailto:jeff@pbroundrobin.com">jeff@pbroundrobin.com</a>. It
+        reaches one person, which is me.
+      </p>
+
+      <a class="back" href="/">Back to the app</a>
+    </main>
+
+    <footer>
+      <div class="inner">
+        <p>
+          Last updated 9 August 2026. Questions to
+          <a href="mailto:jeff@pbroundrobin.com">jeff@pbroundrobin.com</a>.
+        </p>
+        <p><a href="/privacy.html">Privacy Policy</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

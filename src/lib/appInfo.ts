@@ -5,7 +5,7 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.9.7';
+export const APP_VERSION = '1.9.8';
 
 /**
  * Master switch for the accounts feature.
@@ -49,6 +49,15 @@ export const FEEDBACK_EMAIL = 'jeff@pbroundrobin.com';
  * anything else, so `/privacy` is not the same thing as `/privacy.html`.
  */
 export const PRIVACY_URL = '/privacy.html';
+
+/**
+ * The terms of service, alongside the policy and for the same reasons: a real
+ * address, no JavaScript, and its own styles so the app's build cannot break it.
+ *
+ * The two pages travel together. Anywhere one is linked the other belongs beside
+ * it, which is what src/lib/terms.test.ts checks.
+ */
+export const TERMS_URL = '/terms.html';
 
 /**
  * Ko-fi page behind the Donate item. Blanking this hides Donate from the menu,

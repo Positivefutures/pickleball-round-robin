@@ -33,7 +33,7 @@ import { InstallBanner } from './components/layout/InstallBanner';
 import { isStandalone, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
-import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL } from './lib/appInfo';
+import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
@@ -639,8 +639,9 @@ function App() {
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>
         <div>Created by Jeff Baker &ndash; {FEEDBACK_EMAIL} &middot; v{APP_VERSION}</div>
-        {/* Every page of the app ends here, so this is the one link that is
-            always in reach. Item 11 puts Terms of Service beside it. */}
+        {/* Every page of the app ends here, so these are the two links that are
+            always in reach. They travel as a pair; a store listing asks for
+            both. */}
         <div className="mt-1">
           <a
             href={PRIVACY_URL}
@@ -649,6 +650,15 @@ function App() {
             className="underline underline-offset-2 hover:text-gray-600"
           >
             Privacy Policy
+          </a>
+          <span className="mx-2">&middot;</span>
+          <a
+            href={TERMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-gray-600"
+          >
+            Terms of Service
           </a>
         </div>
       </footer>
