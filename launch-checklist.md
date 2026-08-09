@@ -121,18 +121,22 @@ real app, and `app.` still returns 200 and is unchanged.
 - [x] Confirm the Supabase auth rate limit. **30 emails an hour**
 - [x] Make a throttled send read differently from a wrong address in the UI
 - [x] Write `ACCOUNTS_ENABLED` into the runbook as the rollback if this goes bad
-- [ ] **Raise the Supabase hourly cap.** This is the binding constraint and it
-      is free to change
+- [x] **Raise the Supabase hourly cap.** Raised from 30 to **100 an hour** on
+      2026-08-09
 - [ ] Decide whether Resend's 100 a day is worth paying to lift
 
 Sign-in is a six-digit code by email. It fails quietly, which is what makes it
 the most likely thing to break first.
 
-**The binding constraint is Supabase, not Resend.** 30 an hour is reached long
-before 100 a day is. Thirty people trying to sign in during one busy hour is a
-single Facebook group post, and everyone after the thirtieth sees a code that
-never arrives. It is a project setting rather than a plan limit, so raising it
-costs nothing and is the single highest-value free change available here.
+**The ceiling has moved.** It used to be Supabase at 30 an hour, which a single
+Facebook group post could exhaust. With that raised to 100, the binding
+constraint is now Resend's **100 a day**, and unlike the last one this one
+costs money to lift. One busy day is now the failure case rather than one busy
+hour, which is roughly a tenfold improvement for no spend.
+
+Worth knowing before paying: the app works without an account, and the copy now
+says so when a send is refused. The ceiling degrades the product, it does not
+break it.
 
 The code half is done. Two different failures used to give the same wrong
 answer, "wait a minute":
@@ -151,15 +155,38 @@ the prose is Supabase's to reword and the code is not.
 
 ## Tier B. Data safety, and being able to see what is happening.
 
-### 4. Backups **[Jeff]**
+### 4. Backups **[both]** PART DONE
 
-- [ ] Script a `pg_dump` to external storage
-- [ ] Run one test restore into a scratch project, so the process is proven
-- [ ] Decide separately whether Supabase Pro is worth it for daily backups
+- [x] Script a `pg_dump` to external storage. `scripts/backup-db.sh`
+- [x] Write the restore procedure down. `scripts/RESTORE.md`
+- [ ] **Run it once, then run one test restore into a scratch project.** Needs
+      the database password, so this half is Jeff's
+- [ ] Decide whether to automate the schedule, and whether Supabase Pro is
+      worth it for daily backups
 
 There are no automated backups today. That is a Pro feature, not something to
-verify. Script the dump first: it is free, it works on any plan, and a restore
-you have actually run beats a backup you have never tested.
+verify.
+
+The script dumps `public` **and** `auth.users`, which is the part that is easy
+to get wrong: every row is keyed by `user_id`, so dumping `public` alone
+restores data belonging to accounts that no longer exist. It also checks for
+Postgres's completion marker, because a dump that failed halfway still leaves a
+perfectly valid gzip file.
+
+Dumps land in a sibling folder outside the repository, which puts them inside
+Dropbox and therefore off this machine within seconds. The last 30 are kept and
+older ones pruned, since they hold real names and addresses and old copies are
+a liability rather than an asset.
+
+**Automation is deliberately not done yet.** The repository is public, and
+GitHub Actions artifacts on a public repository are downloadable by anyone, so
+the obvious free schedule is the one option that is actually unsafe. Automating
+means either encrypting before upload or paying for storage. Worth revisiting
+once there are enough real accounts to justify it; today the local-first design
+means any device still holding its groups restores them on the next sync.
+
+Note for item 10: backups in Dropbox make Dropbox a processor, so it belongs in
+the privacy policy's list.
 
 ### 5. Billing caps, and the upgrade trigger **[Jeff]**
 
