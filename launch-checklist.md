@@ -53,15 +53,46 @@ that scales with users is Supabase, so that is where the attention belongs.
 
 ## Tier A. Do first. All cheap, all high regret if skipped.
 
-### 1. Name clearance search **[both]**
+### 1. Name clearance search **[both]** DONE 2026-08-08
 
-- [ ] Search CIPO, USPTO, the Apple and Google app stores, and the open web
-- [ ] Write the findings down, even if clean, so this is never re-litigated
-- [ ] If a real conflict turns up, decide before building more on the name
+- [x] Search CIPO, USPTO, the Apple and Google app stores, and the open web
+- [x] Write the findings down, even if clean, so this is never re-litigated
+- [x] Decision: no rename. There is no conflict to act on
 
-The name is already in `index.html`, `APP_URL`, `FEEDBACK_EMAIL`, the domain
-and the Ko-fi handle. Every week of use builds more equity into a name nobody
-has checked. An hour of work, and it never gets cheaper than today.
+**Legally clear.** Searched TMview, which aggregates both USPTO and CIPO,
+across Nice classes 9, 41 and 42.
+
+- Nothing in either register combines "pickleball" with "round robin".
+- "pbroundrobin" returns nothing at all, in either register.
+- The one live registered `ROUNDROBIN` word mark is Sahara 23 LLC: Canada
+  TMA1193992, registered 2023-08-09, expiring 2031, classes 9, 38 and 42, plus
+  a pending US application 90502886. It is roundrobin.com, a privacy and
+  identity product covering email forwarding, anonymous search and dark web
+  scanning. Different goods, and no plausible confusion with a tool that draws
+  up pickleball games.
+- The earlier US `ROUNDROBIN` (ILATANET, 85543493) is dead, status "Ended".
+- Canada has 49 live pickleball marks. All are clubs, leagues, facilities and
+  apparel. None is a scheduling tool.
+
+**Why it is clear is also the catch.** "Round robin" is the generic term for
+the format. That is why nobody owns it, and equally why we cannot. A purely
+descriptive name is not registrable without acquired distinctiveness, so
+pursuing registration for the phrase is not worth the money. If a registrable
+mark is ever wanted, it is the robin, or a coined word, not this phrase.
+
+**Commercially crowded, which is the real finding.** Twenty-five apps answer
+"pickleball round robin" in the App Store, on both the US and Canadian
+storefronts. Direct name collisions already shipping: Pickleball Round Robin
+Maker, Dink! Pickleball Round Robins, My Round Robin, Round Robin Assistant,
+Round Robin Rumble, All-Play-All Round Robin. There is also a Robin Pickleball,
+which is worth knowing given our mascot. On the web, `pickleballscheduler.app`
+is positioned almost identically. `pickleballroundrobin.com` is registered to
+someone else and serves an empty page.
+
+**What follows from this.** No rename, and no letter is coming. But the name
+will not pick this app out of a list of twenty-five, so the assets that
+actually distinguish it are the robin and `pbroundrobin`. Lean on those in
+item 21, and do not expect the name to do any work.
 
 ### 2. Point the bare domain at the app **[Jeff]**
 
