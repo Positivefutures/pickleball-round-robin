@@ -27,6 +27,13 @@ dist-ssr
 *.sw?
 .vercel
 
+# Two source images INBOX/README.md lists as deliberately untracked: a 2.1MB raw
+# export that ships as an 18KB file in public/, and a byte-identical copy of
+# logo.png. Named here rather than left merely uncommitted so that one `git add
+# -A` cannot put 2.8MB into a public repository permanently.
+INBOX/coffee-cup-icon.png
+INBOX/favicon.png
+
 # Machine-specific tool permissions. The skills beside it are shared, so this
 # ignores the one file rather than the whole .claude directory.
 .claude/settings.local.json

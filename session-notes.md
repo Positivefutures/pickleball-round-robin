@@ -522,7 +522,113 @@ The share sheet does not use either.
 
 ---
 
-## Current State — 2026-08-07
+## 2026-08-08 — My Account, rebuilt from a mockup
+
+Three deploys. Version went 1.90.0 → 1.90.1 → 1.90.2 → **1.9.1**.
+
+| Commit | Version | What |
+|---|---|---|
+| `ca7a21f` | 1.90.1 | Sync note wording change, as asked |
+| `997cba3` | 1.90.2 | Same note, corrected |
+| `d22390d` | **1.9.1** | My Account rebuilt as three panels, new share banner |
+
+### The wording round trip, worth reading before touching that string again
+
+Jeff asked to change "Your groups and players are saved to your account" to
+"…**haven't** saved to your account", and it shipped as 1.90.1. That string
+lives in the `saved` branch of `SyncNote()` — the **success** state, rendered in
+a green box. It only draws when the outbox is empty and everything has gone up.
+
+The flag went out with the deploy but landed at the bottom of a long message.
+Jeff hit it on his phone the next morning and asked why the app was telling him
+his data had not saved. It now reads "have been saved to your account."
+
+**The lesson is about where a caveat goes, not about the copy.** A warning that
+the change contradicts the state it renders in belongs in the first line, not
+under a list of verification output.
+
+### The rebuild
+
+The account popup was the one panel never brought up to the Donate/Share
+standard: `border-[3px] border-[#444]`, a `text-[1.35rem]` heading, `text-sm`
+grey copy, no hero, and Change email / Sign out / Close as three identical grey
+slabs. Jeff's word was "confusing and unattractive".
+
+It is now three screens instead of eight states in one card:
+
+- **`SignInPanel`** — the mockup: hero, "My Account", green "You are not signed
+  in", three icon rows, `you@example.com` placeholder, solid green CTA, the
+  "New here?" couplet, lock plus "No password needed."
+- **`AccountPanel`** — now a router plus the signed-in screen. Change Email and
+  Sign Out became two-line rows, so they read as a list against the one Close
+  button.
+- **`MergeChoicePanel`** — the decision takes the whole card, **no Close and no
+  backdrop dismiss**. As a note above Sign out, the easiest thing to do with the
+  most consequential question in the app was walk past it.
+- `AccountShell.tsx` and `accountStyles.ts` hold the shared card and tokens.
+  Tokens are a plain `.ts`: a `.tsx` exporting both components and constants
+  trips `react-refresh/only-export-components`.
+
+Four icons went into `icons.tsx` verbatim from Jeff's SVGs (`My Groups.svg`,
+`sync.svg`, `security.svg`, `lock.svg`). The mockup drew a pale green disc
+behind each and Jeff cut it, so the icons carry the green alone.
+
+**Colours were sampled, not eyeballed:** green `#3D7E34` from the button fill,
+confirmed against the icon glyphs at `#3E7A33`; card `#FEFEFE`, which is also
+the background `Account-top.png` was exported against.
+
+### Two faults only the render showed
+
+- **The green button drew itself in its disabled colour the moment the panel
+  opened**, because it was disabled until you typed — the exact "looks dead"
+  fault just criticised in the old panel, reintroduced. It now stays solid and
+  validates on tap, in all three places that pattern appeared.
+- **The merge counts wrapped unevenly.** "2 groups, 14 players" broke to two
+  lines at 390px while "1 group, 9 players" did not, so the two halves of the
+  comparison sat at different heights. Label now sits above value.
+
+Neither is visible in the source. Both were obvious in a screenshot.
+
+### The share banner, and a comment that had gone false
+
+`index.html` documents a check: iOS square-crops the middle of `og:image` for
+its share sheet, so the important content must sit inside the centre 630×630.
+**Running that crop is the whole point of writing it down.** Jeff's first
+replacement put the type hard right and the crop cut it to "Pickleba / Round Ro
+/ Generato". He supplied a recomposed version; that one keeps all three lines of
+the name, the tagline, the badge and the address.
+
+The robin now falls outside the square. The comment claimed the robin *and* the
+type both survive, and `og:image:alt` said the robin sat *above* the name. Both
+were corrected — left alone, the next person to recompose that artwork would
+have followed a note that no longer described the file.
+
+### Worth remembering
+
+- **Look at every state, not the one you changed.** A harness that stubs
+  `lib/auth` and `lib/sync` (esbuild `onResolve` redirecting `/lib/(auth|sync)$/`
+  to stub modules), mounts the real panel in happy-dom, drives it with `act()`
+  and writes each state's `innerHTML` out, renders all eight in about four
+  seconds. It found both layout faults above.
+- **Resolve the hashed CSS filename, never pin it.** `dist/assets/index-*.css`
+  changed hash between two runs; the pinned path screenshotted stale CSS and
+  showed none of the new classes. `readdirSync(DIST).find(f => f.endsWith('.css'))`.
+- **`fileURLToPath`, not `.pathname`.** The project path contains spaces, so
+  `new URL(...).pathname` percent-encodes and esbuild silently wrote its bundle
+  into a directory that does not exist. Same trap as the `file://` URLs, in a new
+  place.
+- **A harness that matches buttons by label is coupled to the copy.** Renaming
+  "Change email" to "Change Email" broke the render mid-run, and the screenshot
+  step then quietly used stale markup. `startsWith` plus checking the render
+  actually completed.
+- **Jeff reset the version series to `1.9.1`.** By the documented scheme 1.90 →
+  2.0.0 was next; he chose 1.9.1 instead. It sorts *below* the 1.90.2 it
+  replaced, which was flagged and accepted, so bug reports spanning the two will
+  look out of order. Carry on from 1.9.1.
+
+---
+
+## Snapshot — 2026-08-07 (superseded, kept for its design backlog)
 
 **`1.60.3` is live at https://app.pbroundrobin.com.** The app also moved to a
 custom domain today. Five commits went out across four deploys:
@@ -596,3 +702,68 @@ when it went live at 1.60.1, so there should be real numbers to look at now.
 - Gender is a strict `'M' | 'F'` union with no third option. Gendered and Mixed rounds both assume it.
 - Donate now looks unlike every other popup. Jeff chose "Donate only, for now" over rolling the new card style out, so whether the others follow is still open. Surveyed since: **17 card sites across 15 files, and no shared modal primitive** — every popup repeats the backdrop and card markup inline. The backdrop string is byte-identical everywhere, so extracting a `ModalCard` first would beat 17 hand edits. Three would not convert: `InstructionsPanel` (full-screen), `SettingsPanel` (slide-out drawer, no backdrop, `z-0`), `InstallBanner` (inline, not an overlay). Five of the 17 depend on `max-h` / `overflow-y-auto` / `overscroll-contain` that the Donate card does not have, so their scrolling would have to be carried across deliberately.
 - The Donate hero and separator are raster PNGs with the card's near-white baked in. If the card background ever changes, both need re-exporting with alpha or they will show as rectangles. `donate-cup.png` is the exception — it has a real alpha channel and composites onto the green button correctly.
+
+---
+
+## Current State — 2026-08-08
+
+**`1.9.1` is live at https://app.pbroundrobin.com**, commit `d22390d`, verified
+against the live host: the footer reads v1.9.1, the app renders, a signed-out
+visitor still does not preload the Supabase chunk, `/account-top.png` and
+`/og-banner.png` both return 200, and the bundle carries "My Account", "Email me
+a login code", "merges these duplicates", "Requires confirming" and "Your data
+stays safe".
+
+Suite is **260 tests across 18 files**. `tsc -b`, `npx eslint src` and the full
+suite all pass. Tracked tree is clean and in sync with `origin/main`.
+
+### Accounts and sync: phases 0 through 4 are shipped
+
+The plan lives outside the repo at
+`~/.claude/plans/pickleball-round-robin-generator-linked-mitten.md`. Seven
+phases; **0, 1, 2, 3 and 4 are done and live.** The server is the source of
+truth, two devices reconcile, and the ask-then-combine flow works — Jeff
+confirmed phone and desktop now show matching groups.
+
+Supabase is configured with RLS on all four tables, SMTP through Resend, and
+both email templates carry a working `href` and `{{ .Token }}`.
+
+### In progress
+
+Nothing mid-edit.
+
+### Immediate next step
+
+**Phase 2b — `SignInBanner`.** It was held back because its promise ("sign in
+and your data is safe") was not yet true. Phase 4 shipped, so it is. Spec is in
+the plan: mirrors `InstallBanner`, gated on `rosterPlayers.length >= 4`, never
+when signed in, dismissal persists to a new `pb-signin-dismissed` key. One
+commit, reverts on its own.
+
+Then Phase 5 (outbox retry/backoff — the "one bar at the court" case; focus
+triggers are partly done) and Phase 6 (service worker).
+
+### Open questions and pending decisions
+
+- **The version series restarted at `1.9.1`** and now sorts below the 1.90.2 it
+  replaced. Flagged and accepted. Next deploy carries on from 1.9.1.
+- **`og-banner.png` is 958KB.** Within every platform's limit, but heavy for a
+  scraper fetch. Not optimised; nobody has asked.
+- **`INBOX/` is now partly tracked.** The assets this session's code cites are
+  committed, so `icons.tsx`'s "verbatim from `INBOX/lock.svg`" comments are
+  checkable. `coffee-cup-icon.png` and `favicon.png` were left untracked as
+  unrelated leftovers. The wider "commit all of INBOX?" question from 2026-08-07
+  is still unsettled.
+- The design backlog and the older open questions in the superseded snapshot
+  above are all still live: Add Player glyphs, `Partners.svg`, heading icons on
+  the left, the `eslint.config.js` ignore fix, whether tests should be
+  typechecked, `node_modules_OLD_BACKUP`.
+- `FEATURE WISH LIST` still holds one item cut off mid-sentence.
+
+### Worth watching
+
+- **`MergeChoicePanel` has never been seen by a real user in a real conflict.**
+  It was verified as a rendered component with fabricated counts. The one live
+  exercise of that path was the seed race, and Phase 4 removed the race.
+- The three new panels have **no automated coverage**. Nothing in the 260 tests
+  mounts them; the eight-state render harness is a throwaway, not a test.
