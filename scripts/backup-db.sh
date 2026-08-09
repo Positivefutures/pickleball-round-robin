@@ -57,6 +57,7 @@ fi
 # Find the connection string: environment first, then Keychain, then ask.
 
 DB_URL="${SUPABASE_DB_URL:-}"
+NEEDS_SAVE=0
 
 if [ -z "$DB_URL" ]; then
   DB_URL="$(security find-generic-password \
@@ -70,13 +71,29 @@ if [ -z "$DB_URL" ]; then
   echo "  1. Open the Supabase dashboard for this project."
   echo "  2. Click Connect, at the top of the page."
   echo "  3. Choose Session pooler, and copy the whole URI."
-  echo "  4. Paste it below and press Return. It will not echo."
+  echo "  4. Paste it below and press Return."
   echo
-  echo "It is saved to your Keychain, so this is the only time you are asked."
+  echo "The screen stays blank while you paste, so that the password is not"
+  echo "left on display. Paste once. You get to check it before it is used."
   echo
   printf "Connection string: "
   read -rs DB_URL
   echo
+
+  # Everything below fixes what a paste can do to a string, in the order the
+  # damage tends to happen. A blank prompt invites a second paste, and a second
+  # paste lands end to end with the first: one string, two of everything,
+  # rejected by the server with a complaint about the username.
+  DB_URL="${DB_URL//[$'\t\r\n']/}"
+  DB_URL="${DB_URL#"${DB_URL%%[![:space:]]*}"}"
+  DB_URL="${DB_URL%"${DB_URL##*[![:space:]]}"}"
+
+  half=$(( ${#DB_URL} / 2 ))
+  if [ "${#DB_URL}" -gt 0 ] && [ $(( ${#DB_URL} % 2 )) -eq 0 ] &&
+     [ "${DB_URL:0:half}" = "${DB_URL:half}" ]; then
+    DB_URL="${DB_URL:0:half}"
+    echo "(That arrived twice. Using one copy.)"
+  fi
 
   if [ -z "$DB_URL" ]; then
     echo "Nothing pasted. Stopping." >&2
@@ -92,16 +109,36 @@ if [ -z "$DB_URL" ]; then
     exit 1
   fi
 
-  if [[ "$DB_URL" != postgres* ]]; then
+  if [[ "$DB_URL" != postgres*://* ]]; then
     echo "That does not look like a connection string. It should start with" >&2
     echo "postgresql:// — copy the URI, not the psql command." >&2
     exit 1
   fi
 
-  security add-generic-password \
-    -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w "$DB_URL" -U
-  echo "Saved to Keychain."
+  ats="$(printf '%s' "$DB_URL" | tr -cd '@' | wc -c | tr -d ' ')"
+  if [ "$ats" != "1" ]; then
+    echo "That has $ats @ signs in it and should have exactly one, so some of" >&2
+    echo "it arrived more than once. Try again, pasting a single time." >&2
+    exit 1
+  fi
+
+  # Read it back with the password blanked. This is the whole answer to the
+  # blank prompt: something visible happened, so there is no reason to paste
+  # again, and a wrong string is caught here instead of by the server.
   echo
+  echo "Read as:"
+  echo "  $(printf '%s' "$DB_URL" | sed -E 's#(://[^:]+:)[^@]*(@)#\1********\2#')"
+  echo
+  printf "Is that right? [y/N] "
+  read -r confirm </dev/tty
+  case "$confirm" in
+    [yY]*) ;;
+    *) echo "Stopping. Nothing was saved." >&2; exit 1 ;;
+  esac
+
+  # Saved only once it has been shown to work, further down. Storing it here
+  # would mean a typo gets remembered, and the next run reuses it silently.
+  NEEDS_SAVE=1
 fi
 
 # The transaction pooler speaks a reduced dialect and cannot serve a dump. It
@@ -111,6 +148,50 @@ if [[ "$DB_URL" == *":6543"* ]]; then
   echo "Use the Session pooler instead. To replace the stored one, run:" >&2
   echo "  security delete-generic-password -s $KEYCHAIN_SERVICE" >&2
   exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Prove the connection before doing anything that depends on it. A dump can run
+# for a while before failing, and a credential that is wrong is wrong instantly.
+
+PSQL="$(dirname "$PG_DUMP")/psql"
+if [ -x "$PSQL" ]; then
+  echo "Checking the connection."
+  # A check that can hang is not a check. Fifteen seconds is long enough for a
+  # cold pooler and short enough that a wrong host fails while you are watching.
+  if ! TEST_ERR="$(PGCONNECT_TIMEOUT=15 "$PSQL" "$DB_URL" -tAc 'select 1' 2>&1 >/dev/null)"; then
+    echo >&2
+    echo "Could not connect. The server said:" >&2
+    echo "  ${TEST_ERR}" >&2
+    echo >&2
+    case "$TEST_ERR" in
+      *"Invalid format for user or db_name"*|*EINVALIDUSERINFO*)
+        echo "That message means the connection string itself is malformed," >&2
+        echo "not that the password is wrong. Usually some of it arrived twice." >&2
+        ;;
+      *"password authentication failed"*|*"Wrong password"*)
+        echo "The password is wrong. Reset it in the Supabase dashboard under" >&2
+        echo "Settings > Database, then run this again." >&2
+        ;;
+      *"could not translate host name"*|*"Operation timed out"*|*"Network is unreachable"*)
+        echo "The host could not be reached. Check your network, and check the" >&2
+        echo "project is not paused in the Supabase dashboard." >&2
+        ;;
+    esac
+    if [ "$NEEDS_SAVE" -eq 0 ]; then
+      echo >&2
+      echo "To re-enter the stored connection string, run:" >&2
+      echo "  security delete-generic-password -s $KEYCHAIN_SERVICE" >&2
+    fi
+    exit 1
+  fi
+fi
+
+if [ "$NEEDS_SAVE" -eq 1 ]; then
+  security add-generic-password \
+    -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w "$DB_URL" -U
+  echo "Connection works. Saved to Keychain, so you will not be asked again."
+  echo
 fi
 
 mkdir -p "$OUT_DIR"
