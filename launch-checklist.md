@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-08, at `1.9.1`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.1`.
 
 ---
 
@@ -210,16 +210,53 @@ Note for item 10: backups in Dropbox make Dropbox a processor, so it belongs in
 the privacy policy's list. So does the Keychain, in the sense that it is worth
 knowing where the credential lives.
 
-### 5. Billing caps, and the upgrade trigger **[Jeff]**
+### 5. Billing caps, and the upgrade trigger **[Jeff]** PART DONE
 
-- [ ] Set spending caps and alerts on both Vercel and Supabase
-- [ ] Write down what happens at each free ceiling: down, throttled, or billed
-- [ ] Pick the number that triggers an upgrade, before you are at it
-- [ ] Resolve whether the donate button puts this outside Vercel Hobby's
-      non-commercial terms. A paid tier later makes that answer definitely yes
+**Plain-language guide: [docs/costs-and-limits.md](docs/costs-and-limits.md).**
+That is the one to read. What follows is the reasoning behind it.
 
-The limits that bite first are Supabase database size, monthly active users and
-egress.
+- [x] ~~Set spending caps~~ **There are none to set.** Both spend controls are
+      paid-plan features, and neither free plan can bill you
+- [x] Write down what happens at each free ceiling. Vercel stops the feature for
+      30 days. Supabase warns, allows a grace period, then refuses requests
+- [x] Pick the number that triggers an upgrade. Supabase Pro at 70% of any
+      allowance, or the second inactivity pause. Vercel Pro on the day the app
+      charges anyone for anything
+- [x] **The donate button is fine.** Vercel's own note: "Asking for Donations
+      does not fall under commercial usage." No payment moves on a Vercel-hosted
+      page either, since the panel links out to Ko-fi
+- [ ] Confirm in both dashboards that neither account has drifted onto a paid
+      plan. This is the only part that needs a browser
+- [ ] Decide what to do about the inactivity pause, described below
+
+**The premise of this item was wrong, and finding that out is most of its
+value.** It was written to prevent a surprise bill. A surprise bill is not
+possible: Vercel Hobby has no billing cycle, and Supabase's free plan states
+that it does not charge. The exposure is downtime, not money.
+
+**The usage ceilings are nowhere near.** Measured 2026-08-09: 10.7 MB of the
+500 MB database allowance, and only 224 KB of that is app data. The rest is
+Postgres's own furniture. That works out to roughly 75 KB an account, so the
+allowance holds several thousand of them. Three accounts against a 50,000 limit.
+Nobody should spend money against these numbers.
+
+**What will actually break is the opposite of overuse.** Supabase pauses a free
+project that sees too little database activity across 7 days. Sign-in, sync and
+the backup script all stop together, while the app itself keeps working for
+everyone who never signed in. So it fails quietly and mostly invisibly. Supabase
+warns by email about a week ahead and again once it has happened, and resuming
+is one click in the dashboard.
+
+That leaves a decision. Live with it and watch for the email, keep the project
+warm with a small daily request, or pay the $25 for Pro, where projects are
+never paused. Pro also brings the daily backups that
+[docs/backups.md](docs/backups.md) is currently standing in for, which makes it
+the better argument for upgrading than any quota on this page.
+
+**For item 22, if subscriptions ever happen:** charging for anything puts this
+outside Vercel Hobby's terms outright, so Vercel Pro at $20 a month becomes
+mandatory rather than optional. Selling through Ko-fi rather than taking
+donations does the same. Both together are $45 a month.
 
 ### 6. Prove RLS with two real accounts **[me]**
 
