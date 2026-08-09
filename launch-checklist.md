@@ -115,17 +115,37 @@ Verified 2026-08-09: apex and `www` both return 307 to
 `https://app.pbroundrobin.com/`, the apex resolves through in one hop to the
 real app, and `app.` still returns 200 and is unchanged.
 
-### 3. Raise the sign-in email ceiling **[both]**
+### 3. Raise the sign-in email ceiling **[both]** PART DONE
 
-- [ ] Confirm the real Resend send limit and raise it before traffic arrives
-- [ ] Confirm the Supabase auth rate limits and tune them to match
-- [ ] Make a throttled send read differently from a wrong address in the UI
-- [ ] Write `ACCOUNTS_ENABLED` into the runbook as the rollback if this goes bad
+- [x] Confirm the real Resend send limit. **100 a day, 3,000 a month**
+- [x] Confirm the Supabase auth rate limit. **30 emails an hour**
+- [x] Make a throttled send read differently from a wrong address in the UI
+- [x] Write `ACCOUNTS_ENABLED` into the runbook as the rollback if this goes bad
+- [ ] **Raise the Supabase hourly cap.** This is the binding constraint and it
+      is free to change
+- [ ] Decide whether Resend's 100 a day is worth paying to lift
 
-Sign-in is a six-digit code by email through Resend. The free tier caps at 100
-sends a day. On a genuinely good day that ceiling arrives before lunch, and
-from then on nobody can sign in or create an account. It fails quietly, which
-is what makes it the most likely thing to break first.
+Sign-in is a six-digit code by email. It fails quietly, which is what makes it
+the most likely thing to break first.
+
+**The binding constraint is Supabase, not Resend.** 30 an hour is reached long
+before 100 a day is. Thirty people trying to sign in during one busy hour is a
+single Facebook group post, and everyone after the thirtieth sees a code that
+never arrives. It is a project setting rather than a plan limit, so raising it
+costs nothing and is the single highest-value free change available here.
+
+The code half is done. Two different failures used to give the same wrong
+answer, "wait a minute":
+
+- The **per-address cooldown** now repeats the real number Supabase names, so
+  someone who taps twice is told to wait 41 seconds rather than a vague minute.
+- The **project ceiling** now says plainly that we cannot send, and points out
+  that the app needs no account. That last part matters more than the apology.
+  Anyone blocked at the ceiling did nothing wrong and can still run their whole
+  session, so a dead end there loses a user for no reason.
+
+Detection reads the error's `code` and `status` rather than its English, since
+the prose is Supabase's to reword and the code is not.
 
 ---
 

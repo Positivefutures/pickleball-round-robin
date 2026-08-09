@@ -58,10 +58,28 @@ export const authStore = {
  * Supabase's errors are written for developers. These are the ones a host can
  * actually hit, in words that say what to do next. Anything unrecognised falls
  * through to a plain apology rather than leaking an internal string.
+ *
+ * `action` changes one answer only. Sending is capped per project rather than
+ * per person, so a rate limit there is usually nothing the user did and the
+ * advice has to differ from a rate limit anywhere else.
  */
-function friendlyError(error: unknown): string {
+function friendlyError(error: unknown, action: 'send' | 'other' = 'other'): string {
   const raw = error instanceof Error ? error.message : String(error ?? '');
-  const text = raw.toLowerCase();
+
+  // Supabase's AuthError carries a code and an HTTP status alongside the
+  // message. Folding those into what is matched means detection survives a
+  // reworded message, which matching English prose on its own does not.
+  //
+  // Underscores become spaces on the way in, so that over_email_send_rate_limit
+  // meets the same "rate limit" test the prose does. Without that the code, the
+  // more reliable of the two signals, is the one that slips past.
+  let tags = '';
+  if (typeof error === 'object' && error !== null) {
+    const { code, status } = error as { code?: unknown; status?: unknown };
+    if (typeof code === 'string') tags += ` ${code.replace(/_/g, ' ')}`;
+    if (typeof status === 'number') tags += ` ${status}`;
+  }
+  const text = `${raw}${tags}`.toLowerCase();
 
   if (text.includes('token has expired') || text.includes('expired')) {
     return 'That code has expired. Ask for a new one.';
@@ -69,7 +87,24 @@ function friendlyError(error: unknown): string {
   if (text.includes('invalid') && (text.includes('token') || text.includes('otp'))) {
     return "That code didn't match. Check it and try again.";
   }
+
+  // The per-address cooldown, and the one rate limit that names its own wait.
+  // Supabase says "you can only request this after 41 seconds", so there is a
+  // real number to repeat rather than rounding it off to "a minute".
+  const wait = /after (\d+) seconds?/i.exec(raw);
+  if (wait) {
+    return `A code was just sent. Ask for another in ${wait[1]} seconds.`;
+  }
+
   if (text.includes('rate limit') || text.includes('too many') || text.includes('429')) {
+    // Sending is capped across the whole project, at 30 emails an hour, and
+    // Resend caps the day at 100 on top of that. Someone who meets either
+    // ceiling did nothing wrong and cannot wait it out in a minute. Saying so
+    // is only half the job: the app needs no account, so the useful thing is
+    // to point them back at it rather than leave them at a dead end.
+    if (action === 'send') {
+      return 'We cannot send sign-in emails just now. Try again later, or keep using the app without an account.';
+    }
     return 'Too many tries just now. Wait a minute, then ask again.';
   }
   if (text.includes('email') && text.includes('invalid')) {
@@ -151,10 +186,10 @@ export async function sendSignInEmail(email: string): Promise<AuthResult> {
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
-    if (error) return { ok: false, message: friendlyError(error) };
+    if (error) return { ok: false, message: friendlyError(error, 'send') };
     return { ok: true };
   } catch (error) {
-    return { ok: false, message: friendlyError(error) };
+    return { ok: false, message: friendlyError(error, 'send') };
   }
 }
 
@@ -208,10 +243,12 @@ export async function changeEmail(next: string): Promise<AuthResult> {
   try {
     const supabase = await getSupabase();
     const { error } = await supabase.auth.updateUser({ email: address });
-    if (error) return { ok: false, message: friendlyError(error) };
+    // 'send' as well: a change goes out as two confirmation emails, so it meets
+    // the same ceiling as signing in does.
+    if (error) return { ok: false, message: friendlyError(error, 'send') };
     return { ok: true };
   } catch (error) {
-    return { ok: false, message: friendlyError(error) };
+    return { ok: false, message: friendlyError(error, 'send') };
   }
 }
 

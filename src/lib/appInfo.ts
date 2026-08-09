@@ -5,7 +5,7 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.9.1';
+export const APP_VERSION = '1.9.2';
 
 /**
  * Master switch for the accounts feature.
@@ -17,6 +17,12 @@ export const APP_VERSION = '1.9.1';
  * It is deliberately separate from isSupabaseConfigured(), which answers a
  * different question: whether the app *could* talk to a server. This one says
  * whether it should offer to. Set it to false to hide the feature outright.
+ *
+ * **This is the rollback if sign-in email breaks under load.** Supabase caps
+ * the project at 30 emails an hour and Resend caps the day at 100, so a busy
+ * enough hour leaves everyone staring at a code that never arrives. Setting
+ * this to false and deploying hides Account entirely, which is honest: the app
+ * has always worked without one, and nobody loses data by not signing in.
  */
 export const ACCOUNTS_ENABLED = true;
 

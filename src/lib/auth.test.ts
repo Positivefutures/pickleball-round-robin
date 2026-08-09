@@ -29,6 +29,43 @@ describe('friendlyError', () => {
     expect(friendlyError(undefined)).toBeTruthy();
     expect(friendlyError('plain string')).toBeTruthy();
   });
+
+  // The two rate limits are different conditions with different answers, and
+  // the old copy gave both the same one. Supabase caps a project at 30 emails
+  // an hour and Resend caps the day at 100, so the ceiling is not something a
+  // user caused or can wait out in a minute.
+  it('repeats the real wait for the per-address cooldown', () => {
+    const cooldown = new Error('For security purposes, you can only request this after 41 seconds.');
+    expect(friendlyError(cooldown, 'send')).toContain('41 seconds');
+    // Not the ceiling's advice: waiting genuinely does work here.
+    expect(friendlyError(cooldown, 'send')).not.toMatch(/without an account/i);
+  });
+
+  it('tells someone the app still works when the project ceiling is hit', () => {
+    const ceiling = Object.assign(new Error('Email rate limit exceeded'), {
+      code: 'over_email_send_rate_limit',
+      status: 429,
+    });
+    const shown = friendlyError(ceiling, 'send');
+    expect(shown).toMatch(/without an account/i);
+    // "Wait a minute" would be a lie against an hourly cap.
+    expect(shown).not.toMatch(/minute/i);
+  });
+
+  it('does not offer the send advice for a rate limit that sent nothing', () => {
+    // Too many verify attempts is the user, and waiting does fix it.
+    const tooMany = Object.assign(new Error('Request rate limit reached'), { status: 429 });
+    expect(friendlyError(tooMany)).toMatch(/wait a minute/i);
+  });
+
+  it('recognises a rate limit from the code alone, whatever the message says', () => {
+    // The message is Supabase's to reword. The code and status are the stable
+    // part, so detection must not depend on the prose.
+    const reworded = Object.assign(new Error('Something unhelpful'), {
+      code: 'over_email_send_rate_limit',
+    });
+    expect(friendlyError(reworded, 'send')).toMatch(/without an account/i);
+  });
 });
 
 describe('fromSession', () => {
