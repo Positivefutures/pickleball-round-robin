@@ -275,6 +275,13 @@ Worth knowing, so none of this is a surprise later:
   from real people to lose.
 - **It captures a moment.** Anything created between the last backup and a
   failure is only on the devices that hold it.
+- **A backup outlives a deletion, for a while.** Since 2026-08-09 anybody can
+  delete their own account from the app, and it goes from the live database
+  straight away. Backups taken before that day still hold it, so a restore would
+  bring it back. That is normal and it is what the 30-file limit is for: keep
+  taking backups and the old copies fall off the end on their own. If somebody
+  ever asks for their data to be gone everywhere, the honest answer is that it
+  is out of the app now and out of the backups within a month.
 
 ---
 

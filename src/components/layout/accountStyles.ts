@@ -56,6 +56,24 @@ export const row =
 export const rowTitle = 'block font-bold text-[#1F293D]';
 export const rowNote = 'block text-sm text-[#6B7684]';
 
+/**
+ * The one row on this panel that cannot be undone.
+ *
+ * Red, but quietly: a bordered white row rather than a filled button, because
+ * it sits below Sign Out and nothing there should be the loudest thing on a
+ * screen people open to check their email address. The full red is saved for
+ * the confirm button, which is the tap that actually does it.
+ */
+export const rowDanger =
+  'flex w-full items-center gap-3 rounded-lg border border-[#E7C3C0] bg-white px-4 py-3 ' +
+  'text-left transition-colors hover:bg-[#FDF3F2] disabled:cursor-not-allowed disabled:opacity-60';
+
+export const rowDangerTitle = 'block font-bold text-[#9B2C2C]';
+
+export const danger =
+  'w-full rounded-lg bg-[#B42318] px-4 py-3.5 text-lg font-bold text-white transition-colors ' +
+  'hover:bg-[#96170F] disabled:cursor-not-allowed disabled:bg-[#DDB3AF]';
+
 /** The sync note and its siblings. Colour is set per state by the caller. */
 export const note = 'mt-4 rounded-xl border px-3.5 py-3';
 

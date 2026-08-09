@@ -2,9 +2,23 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { authStore, initAuth, signOut, changeEmail } from '../../lib/auth';
 import { syncStatusStore, type SyncReport } from '../../lib/sync';
 import { AccountShell, Problem } from './AccountShell';
+import { AccountDeletedPanel, DeleteAccountPanel } from './DeleteAccountPanel';
+import { DownloadMyData } from './DownloadMyData';
 import { MergeChoicePanel } from './MergeChoicePanel';
 import { SignInPanel } from './SignInPanel';
-import { blurb, field, label, note, primary, row, rowNote, rowTitle, secondary } from './accountStyles';
+import {
+  blurb,
+  field,
+  label,
+  note,
+  primary,
+  row,
+  rowDanger,
+  rowDangerTitle,
+  rowNote,
+  rowTitle,
+  secondary
+} from './accountStyles';
 
 interface Props {
   onClose: () => void;
@@ -82,10 +96,12 @@ function SyncNote({ report }: { report: SyncReport | null }) {
 function SignedIn({
   email,
   report,
+  onDelete,
   onClose
 }: {
   email: string | null;
   report: SyncReport | null;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -175,8 +191,8 @@ function SignedIn({
         <>
           {problem && <Problem>{problem}</Problem>}
 
-          {/* Two rows reading as a list, then one button. The old panel stacked
-              three identical grey slabs and Sign out looked exactly like Close. */}
+          {/* Rows reading as a list, then one button. The old panel stacked
+              identical grey slabs and Sign out looked exactly like Close. */}
           <div className="mt-5 space-y-3">
             <button
               type="button"
@@ -193,6 +209,8 @@ function SignedIn({
               </span>
             </button>
 
+            <DownloadMyData variant="row" />
+
             <button
               type="button"
               onClick={() => void run(signOut)}
@@ -202,6 +220,17 @@ function SignedIn({
               <span>
                 <span className={rowTitle}>{busy ? 'Signing out...' : 'Sign Out'}</span>
                 <span className={rowNote}>Your data stays safe on this device</span>
+              </span>
+            </button>
+          </div>
+
+          {/* Set apart, and last. Nothing above it can be undone by pressing it
+              accidentally, and the confirmation is a screen of its own. */}
+          <div className="mt-5 border-t border-[#E6E9EE] pt-4">
+            <button type="button" onClick={onDelete} disabled={busy} className={rowDanger}>
+              <span>
+                <span className={rowDangerTitle}>Delete Account</span>
+                <span className={rowNote}>Ends your account for good. Nothing here is lost</span>
               </span>
             </button>
           </div>
@@ -231,10 +260,16 @@ export function AccountPanel({ onClose }: Props) {
     syncStatusStore.get
   );
   const [report, setReport] = useState<SyncReport | null>(null);
+  const [screen, setScreen] = useState<'account' | 'delete' | 'deleted'>('account');
 
   useEffect(() => {
     void initAuth();
   }, []);
+
+  // Before anything that reads auth. Deleting the account signs the person out,
+  // so every check below would send them back to Sign In as though the tap had
+  // done nothing at all.
+  if (screen === 'deleted') return <AccountDeletedPanel onClose={onClose} />;
 
   if (auth.status === 'unknown') {
     return (
@@ -275,5 +310,22 @@ export function AccountPanel({ onClose }: Props) {
     );
   }
 
-  return <SignedIn email={auth.email} report={report} onClose={onClose} />;
+  if (screen === 'delete') {
+    return (
+      <DeleteAccountPanel
+        email={auth.email}
+        onCancel={() => setScreen('account')}
+        onDeleted={() => setScreen('deleted')}
+      />
+    );
+  }
+
+  return (
+    <SignedIn
+      email={auth.email}
+      report={report}
+      onDelete={() => setScreen('delete')}
+      onClose={onClose}
+    />
+  );
 }

@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.4`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.5`.
 
 ---
 
@@ -456,17 +456,72 @@ policy has to name, alongside Vercel, Supabase and Resend. Worth turning off
 
 ## Tier C. The legal gate. These block sharing widely, not building.
 
-### 9. Delete my account, and download my data **[me]**
+### 9. Delete my account, and download my data **[me]** DONE 2026-08-09
 
-- [ ] A migration adding a `security definer` function that deletes the caller's
+- [x] A migration adding a `security definer` function that deletes the caller's
       `auth.users` row. The existing `on delete cascade` clears `profiles`,
       `rosters`, `players` and `preferences`
-- [ ] A panel to call it, with a confirmation that makes the finality clear
-- [ ] A data export in the same pass
+- [x] A panel to call it, with a confirmation that makes the finality clear
+- [x] A data export in the same pass
+- [x] Leave the device's own groups and players alone, and say so on the screen
+- [x] Prove it against the live database, and prove the proof can fail
 
-This is the only item on the list needing privileges the browser does not have.
-The anon key cannot touch `auth.users`. Export is cheap once you are in there,
-and it covers the GDPR access right.
+This was the only item on the list needing privileges the browser does not have.
+The anon key cannot touch `auth.users`.
+
+`supabase/migrations/0004_delete_account.sql`, applied to the live project. Two
+commands:
+
+```
+node scripts/prove-delete.mjs
+node scripts/prove-delete.mjs --self-test
+```
+
+17 checks green, and the self-test goes 6 for 6 red as it must.
+
+**One function, taking no arguments.** That is the whole security model, and it
+is structural rather than a check that could be got round: there is no account
+id to pass, so there is nothing to aim at somebody else. `auth.uid()` comes from
+the verified token. Execute is granted to `authenticated` only, because Postgres
+grants it to everybody by default and the revoke is doing real work.
+
+**Nothing enumerates tables.** Every foreign key pointing at `auth.users`
+cascades, including Supabase's own, which was checked against the live database
+rather than assumed. Deleting the one row is the entire job, and a table added by
+a later migration is covered without anybody remembering to come back here.
+
+**What stays is the reassuring part, and it is true.** Groups and players live on
+the device. An account is a copy for reaching a second phone, so ending one
+leaves the app exactly as it is for the many people who never made one. The
+screen says that before it asks for anything.
+
+**The confirmation is most of the work.** It names what goes and what stays,
+offers the download right there rather than sending anyone to find it, and will
+not accept a tap alone. Typing the word is the ordinary reason: this is a list of
+grey rows on a phone, and the row above it is Sign Out.
+
+**The download is a record, not a convenience.** JSON, with the server's own
+column names, because an access request should show what is held rather than a
+tidied retelling of it. A `readme` inside the file translates it, and says which
+things never left the device at all. Import / Export is still the way to get a
+spreadsheet.
+
+**Two things that would have been quiet bugs.** PostgREST answers with a plain
+object rather than an `Error`, and every place that reads a message asks
+`instanceof Error` first, so a perfectly good message arrives at the user as
+`[object Object]`. And deleting signs the person out, so unless the finished
+screen is chosen before anything reads the auth state, a successful deletion
+snaps back to Sign In as though the button had done nothing.
+
+**Sign-out keeps the outbox on purpose; deleting cannot.** Those queued writes
+belong to an account that no longer exists, and left alone they would be pushed
+into whichever account signed in next. `forgetAccount()` clears the queue, the
+owner marker, the mirror and the read cursor, and removes the cursor key outright
+because its name carries the deleted account's id.
+
+**One knock-on for backups.** A deleted account is out of the live database at
+once and out of the last-30 dumps within a month. Written up in
+[docs/backups.md](docs/backups.md) so the answer exists before anybody asks.
 
 ### 10. Privacy policy **[me]**
 
@@ -474,10 +529,17 @@ and it covers the GDPR access right.
 - [ ] Plain language: what is collected, why, and that it is not sold
 - [ ] Name the real processors: Vercel, Supabase, Resend, Ko-fi, and Sentry
 - [ ] Link it from the settings drawer and the footer
+- [ ] Say how to delete and how to download, and that both are buttons in My
+      Account rather than an email to anybody
 
 Static, because the app has no router and a policy needs to be linkable from
 Ko-fi, an app store listing, and a scraper. PIPEDA applies here already, and
 GDPR applies the moment there is one EU user.
+
+Item 9 shipped both of the rights this has to describe, on 2026-08-09, so the
+wording is easy: erasure and access are buttons in My Account, and neither one
+needs a request to anybody. Worth saying too that somebody who never signed in
+has nothing here to ask about, since their data never left their device.
 
 Sentry joined that list on 2026-08-09 with item 8. The honest sentence is short:
 when the app crashes it sends the error and the version, with names removed, and

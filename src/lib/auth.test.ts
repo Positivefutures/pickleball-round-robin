@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { __testing } from './auth';
+import { __testing, friendlyError } from './auth';
 import { isSupabaseConfigured, getSupabase } from './supabase';
 
-const { friendlyError, fromSession } = __testing;
+const { fromSession } = __testing;
 
 describe('friendlyError', () => {
   it('names the fix for the errors a host can actually hit', () => {

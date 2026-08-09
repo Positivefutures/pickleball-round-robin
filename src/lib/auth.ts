@@ -63,7 +63,7 @@ export const authStore = {
  * per person, so a rate limit there is usually nothing the user did and the
  * advice has to differ from a rate limit anywhere else.
  */
-function friendlyError(error: unknown, action: 'send' | 'other' = 'other'): string {
+export function friendlyError(error: unknown, action: 'send' | 'other' = 'other'): string {
   const raw = error instanceof Error ? error.message : String(error ?? '');
 
   // Supabase's AuthError carries a code and an HTTP status alongside the
@@ -253,4 +253,4 @@ export async function changeEmail(next: string): Promise<AuthResult> {
 }
 
 /** Exported for the tests; the mapping is the part worth pinning down. */
-export const __testing = { friendlyError, fromSession };
+export const __testing = { fromSession };

@@ -915,6 +915,41 @@ function onSignedOut() {
 }
 
 /**
+ * Forgets the account this device was syncing with, without touching a single
+ * group or player.
+ *
+ * Signing out deliberately keeps the outbox, because those changes belong to
+ * the account and signing back in should take them up. Deleting the account is
+ * the one case where that is wrong: there is nothing left to take them up, and
+ * every one of them would be pushed into whichever account signed in next.
+ *
+ * So this clears the four things that name the dead account — the queue, the
+ * owner marker, the mirror of what the server held, and the read cursor. The
+ * groups and players stay exactly where they are, which is the promise the
+ * delete screen makes.
+ */
+export function forgetAccount(): void {
+  const id = account.get();
+  onSignedOut();
+  outbox.set({});
+  account.set(null);
+  mirror.set(null);
+  if (id) {
+    const cursor = cursorFor(id);
+    cursors.delete(id);
+    // Removed rather than set to null. The key is `pb-sync-cursor:<user id>`,
+    // so leaving it behind would leave the deleted account's id sitting in
+    // this browser after the account it named is gone.
+    try {
+      window.localStorage.removeItem(cursor.key);
+    } catch {
+      // Private-mode Safari. A stale cursor costs one full re-read, not a
+      // wrong answer, so there is nothing to recover from here.
+    }
+  }
+}
+
+/**
  * Reads the auth store and does whatever it now implies. Safe to call at any
  * time: signing in twice for the same person is a no-op, and calling it after a
  * failed start is how a wedged device gets going again.
