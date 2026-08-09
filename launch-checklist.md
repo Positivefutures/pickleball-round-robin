@@ -94,15 +94,26 @@ will not pick this app out of a list of twenty-five, so the assets that
 actually distinguish it are the robin and `pbroundrobin`. Lean on those in
 item 21, and do not expect the name to do any work.
 
-### 2. Point the bare domain at the app **[Jeff]**
+### 2. Point the bare domain at the app **[Jeff]** DONE 2026-08-09
 
-- [ ] Add `pbroundrobin.com` and `www.pbroundrobin.com` to the Vercel project,
+- [x] Add `pbroundrobin.com` and `www.pbroundrobin.com` to the Vercel project,
       redirecting to `app.pbroundrobin.com`
-- [ ] Confirm both return a redirect, not a 404
+- [x] Confirm both return a redirect, not a 404
 
-Today `pbroundrobin.com` returns 404 and `www.pbroundrobin.com` does not
-resolve at all. Only `app.` is wired up. Anyone who hears the name and types it
-gets nothing. Ten minutes. The landing page is item 20, and this is not that.
+Both are attached to the project as **307 temporary** redirects. Temporary and
+not permanent on purpose: item 20 puts a real landing page at the apex, and a
+cached 308 would keep bouncing returning visitors to the app long after the
+redirect was removed.
+
+The apex needed no DNS change. Its A record already pointed at Vercel's anycast
+address, and the 404 was `DEPLOYMENT_NOT_FOUND` from Vercel's own edge, meaning
+the domain simply was not attached to a project. `www` had no record at all and
+got a new CNAME at Namecheap, which is where the domain and its nameservers
+live.
+
+Verified 2026-08-09: apex and `www` both return 307 to
+`https://app.pbroundrobin.com/`, the apex resolves through in one hop to the
+real app, and `app.` still returns 200 and is unchanged.
 
 ### 3. Raise the sign-in email ceiling **[both]**
 
