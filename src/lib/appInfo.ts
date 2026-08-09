@@ -5,7 +5,7 @@
  * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
  * for a batch of features (1.10 → 1.20 → 1.30).
  */
-export const APP_VERSION = '1.9.5';
+export const APP_VERSION = '1.9.6';
 
 /**
  * Master switch for the accounts feature.
@@ -37,6 +37,18 @@ export const APP_URL = 'https://app.pbroundrobin.com/';
 
 /** Where Suggest a Feature and Report a Bug are sent. */
 export const FEEDBACK_EMAIL = 'jeff@pbroundrobin.com';
+
+/**
+ * The privacy policy, as a real address rather than a panel.
+ *
+ * It is a static file in `public/`, so it has a URL that Ko-fi, an app store
+ * listing and a scraper can all be given, and it opens with no JavaScript. The
+ * app has no router, so an in-app version could not have an address at all.
+ *
+ * The extension is deliberate: this deployment serves the filesystem and 404s
+ * anything else, so `/privacy` is not the same thing as `/privacy.html`.
+ */
+export const PRIVACY_URL = '/privacy.html';
 
 /**
  * Ko-fi page behind the Donate item. Blanking this hides Donate from the menu,

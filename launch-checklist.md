@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.5`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.6`.
 
 ---
 
@@ -523,27 +523,56 @@ because its name carries the deleted account's id.
 once and out of the last-30 dumps within a month. Written up in
 [docs/backups.md](docs/backups.md) so the answer exists before anybody asks.
 
-### 10. Privacy policy **[me]**
+### 10. Privacy policy **[me]** DONE 2026-08-09
 
-- [ ] A static file in `public/`, not an in-app panel
-- [ ] Plain language: what is collected, why, and that it is not sold
-- [ ] Name the real processors: Vercel, Supabase, Resend, Ko-fi, and Sentry
-- [ ] Link it from the settings drawer and the footer
-- [ ] Say how to delete and how to download, and that both are buttons in My
+- [x] A static file in `public/`, not an in-app panel
+- [x] Plain language: what is collected, why, and that it is not sold
+- [x] Name the real processors: Vercel, Supabase, Resend, Ko-fi, and Sentry
+- [x] Link it from the settings drawer and the footer
+- [x] Say how to delete and how to download, and that both are buttons in My
       Account rather than an email to anybody
+- [ ] **Jeff, in the same Vercel visit as the Sentry key.** Turn Web Analytics
+      on: the project → Analytics → Enable. The page says Vercel counts page
+      views, `@vercel/analytics` is in the app, and the switch behind it is off,
+      so today nothing is counted at all. Over-saying is the safe direction for a
+      policy, and it is a thirty second job to make it simply true
 
-Static, because the app has no router and a policy needs to be linkable from
-Ko-fi, an app store listing, and a scraper. PIPEDA applies here already, and
-GDPR applies the moment there is one EU user.
+`public/privacy.html`, published at
+[app.pbroundrobin.com/privacy.html](https://app.pbroundrobin.com/privacy.html).
+Plain HTML with its own styles, so it cannot break when the app's build changes
+and it opens with no JavaScript. Deliberately not a panel: the app has no router,
+so an in-app version would have no address, and Ko-fi, an app store listing and
+a scraper all want an address.
 
-Item 9 shipped both of the rights this has to describe, on 2026-08-09, so the
-wording is easy: erasure and access are buttons in My Account, and neither one
-needs a request to anybody. Worth saying too that somebody who never signed in
-has nothing here to ask about, since their data never left their device.
+**The strongest sentence in it is the one about people who never sign in.**
+Nothing they type ever leaves the device, so there is nothing to ask for and
+nothing to be lost by anybody else. That is true of most people using this app,
+and it is worth leading with.
 
-Sentry joined that list on 2026-08-09 with item 8. The honest sentence is short:
-when the app crashes it sends the error and the version, with names removed, and
-no IP address. `docs/error-monitoring.md` has the detail to write it from.
+**Two rights, two buttons, no email to anybody.** Item 9 shipped both the day
+before this was written, so the policy describes what is already there rather
+than promising a process. That is the difference between a policy that is
+accurate and one that creates work.
+
+**Five companies, and a test that keeps it five.** `src/lib/privacy.test.ts`
+reads the page and the real dependency list, and goes red if an SDK is installed
+that the page does not name, if a sixth row appears in the table, if the two
+button names drift, if the contact address drifts, if a script from another host
+is added, or if either link in the app stops pointing at it. Resend is the one
+name nothing in this repo can detect, because it is configured in Supabase's
+dashboard, so the test carries it as a literal on purpose. Eleven sabotages,
+eleven red.
+
+**One thing the page had to be corrected about before it shipped.** The first
+draft said deleted groups and players are kept only briefly. They are not:
+deleting sets a marker and the row stays, name and all, until the account goes.
+The page now says that, and the same overstatement was fixed in the readme
+inside the downloaded file. Purging old markers on a schedule is a real
+improvement and is not on this list yet.
+
+**Known gaps, both deliberate.** There is no cookie banner, because there are no
+cookies to consent to. And the policy is a single page in English, which is the
+right size for one person running a free app.
 
 ### 11. Terms of service **[me]**
 
@@ -552,6 +581,12 @@ no IP address. `docs/error-monitoring.md` has the detail to write it from.
       any event outcome. This is the load-bearing part
 - [ ] Acceptable use, so there are grounds to ban someone
 - [ ] Written so a paid tier can be added later without a rewrite
+- [ ] Link it beside Privacy in the footer and the settings drawer
+
+Most of the shape is now decided by item 10. Copy `public/privacy.html` to
+`public/terms.html`, keep its styles, add `TERMS_URL` next to `PRIVACY_URL` in
+`src/lib/appInfo.ts`, and put it in the two places the privacy link already
+sits. The footer comment says as much.
 
 ---
 

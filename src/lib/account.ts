@@ -45,7 +45,7 @@ const README = [
   'players: one entry per player. roster_ids lists the groups they play in.',
   'settings: courts, rounds, and the rating a new player starts at.',
   '',
-  'An entry with a deleted_at date was deleted. It is kept only until your other devices have seen that it went, and it is not shown anywhere in the app.',
+  'An entry with a deleted_at date was deleted. The server keeps it so your other devices know to remove it too, and it is not shown anywhere in the app.',
   '',
   'Anything not listed here never left your device. The schedule you are running now, who has sat out, and which rounds are finished are all on the phone or computer you built them on.',
   '',

@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy | Pickleball Round Robin Generator</title>
+    <meta
+      name="description"
+      content="What the Pickleball Round Robin Generator collects, why, and how to delete it or take a copy."
+    />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#15803d" />
+
+    <!--
+      A static file, deliberately, and not a panel inside the app.
+
+      The app is a single-page bundle with no router, so an in-app policy would
+      have no address of its own. This one needs an address: Ko-fi asks for it,
+      an app store listing asks for it, and anybody who wants to read the terms
+      before trusting the app should not have to open the app to do it.
+
+      It is plain HTML with its own styles rather than anything built, so it
+      cannot break when the app's build changes, and it renders with no
+      JavaScript at all. Nothing here is loaded from another company's server.
+
+      Two things must be kept true when the app changes:
+        - The list of companies under "Who else can see any of this" is the whole
+          list. Adding a service means adding a row here on the same day.
+        - The Last updated line at the bottom.
+      src/lib/privacy.test.ts checks what it can of both.
+    -->
+
+    <style>
+      :root {
+        --ink: #1f2937;
+        --quiet: #4b5563;
+        --line: #e5e7eb;
+        --green: #15803d;
+        --green-dark: #166534;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #f9fafb;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        font-size: 1.0625rem;
+        line-height: 1.65;
+        -webkit-text-size-adjust: 100%;
+      }
+      header {
+        background: var(--green);
+        color: #fff;
+        padding: 1.25rem 1rem;
+      }
+      header .inner,
+      main,
+      footer .inner {
+        max-width: 40rem;
+        margin: 0 auto;
+      }
+      header a { color: #fff; }
+      header img {
+        width: 44px;
+        height: 44px;
+        border-radius: 0.5rem;
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+      header h1 {
+        font-size: 1.5rem;
+        line-height: 1.25;
+        margin: 0 0 0.25rem;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      main {
+        padding: 1.5rem 1rem 2.5rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+        line-height: 1.3;
+        margin: 2.25rem 0 0.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--line);
+      }
+      h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 1rem; }
+      h3 {
+        font-size: 1.02rem;
+        margin: 1.5rem 0 0.35rem;
+      }
+      p, ul { margin: 0.75rem 0; }
+      ul { padding-left: 1.25rem; }
+      li { margin: 0.35rem 0; }
+      a { color: var(--green-dark); }
+      strong { font-weight: 600; }
+      .lede {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 0.5rem;
+        padding: 0.25rem 1rem 0.75rem;
+      }
+      .lede ul { margin-bottom: 0.25rem; }
+      .table-scroll { overflow-x: auto; margin: 1rem 0; }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 30rem;
+        font-size: 0.95rem;
+        background: #fff;
+      }
+      th, td {
+        border: 1px solid var(--line);
+        padding: 0.5rem 0.65rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th { background: #f3f4f6; font-weight: 600; }
+
+      /* On a phone the four columns cannot fit, and a table you have to drag
+         sideways is a table most people will not read. Under 34rem each row
+         becomes its own card and every value carries its own heading. */
+      @media (max-width: 34rem) {
+        .table-scroll { overflow-x: visible; }
+        table { min-width: 0; }
+        table, tbody, tr, td { display: block; }
+        thead { display: none; }
+        tr {
+          border: 1px solid var(--line);
+          border-radius: 0.5rem;
+          margin-bottom: 0.75rem;
+          overflow: hidden;
+        }
+        td { border: 0; border-bottom: 1px solid var(--line); }
+        tr td:last-child { border-bottom: 0; }
+        td::before {
+          content: attr(data-label) ": ";
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--quiet);
+        }
+        /* The company's own name is the card's heading, so it needs no label. */
+        tr td:first-child {
+          background: #f3f4f6;
+          font-weight: 600;
+        }
+        tr td:first-child::before { content: none; }
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 1.25rem 1rem 2.5rem;
+        color: var(--quiet);
+        font-size: 0.9rem;
+      }
+      .back {
+        display: inline-block;
+        margin-top: 1.5rem;
+        padding: 0.6rem 1rem;
+        background: var(--green);
+        color: #fff;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <img src="/icon-192.png" alt="" width="192" height="192" />
+        <h1>Privacy Policy</h1>
+        <p>Pickleball Round Robin Generator</p>
+      </div>
+    </header>
+
+    <main>
+      <div class="lede">
+        <h2>The short version</h2>
+        <ul>
+          <li>The app works with no account, and if you never make one, nothing you type ever leaves your device.</li>
+          <li>Making an account is optional. It exists for one reason: so your groups appear on your other phone or tablet.</li>
+          <li>If you do make one, the only thing you are asked for is an email address. There is no password.</li>
+          <li>Nothing is sold, rented, or handed to advertisers. There are no ads in the app.</li>
+          <li>You can delete your account, and everything saved with it, from inside the app. You do not have to ask anyone.</li>
+          <li>You can download a copy of everything the account holds, from the same screen.</li>
+        </ul>
+      </div>
+
+      <h2>Who is behind the app</h2>
+      <p>
+        The Pickleball Round Robin Generator is made and run by Jeff Baker, in
+        Canada. It is one person, not a company. For anything on this page, write
+        to <a href="mailto:jeff@pbroundrobin.com">jeff@pbroundrobin.com</a>.
+      </p>
+
+      <h2>Using the app without an account</h2>
+      <p>
+        This is how most people use it, and it is the default. Your groups, your
+        players, their ratings and the schedule you are running are saved in your
+        own browser, on your own device. They are not sent anywhere. There is no
+        copy of them for anyone to look at, including me.
+      </p>
+      <p>
+        That also means they are only as safe as the device. Clearing your
+        browsing data, or losing the phone, loses them. Import / Export in the
+        app makes a file you can keep, and an account makes a copy on the server.
+        Those are the two ways to have a second copy.
+      </p>
+
+      <h2>If you make an account</h2>
+      <p>An account copies four things to a server, so another device can pick them up:</p>
+      <ul>
+        <li><strong>Your email address</strong>, which is how you sign in and the only thing about you personally that is asked for.</li>
+        <li><strong>Your groups</strong>, meaning their names.</li>
+        <li><strong>Your players</strong>, meaning the name you typed, the rating you gave, and which groups they play in.</li>
+        <li><strong>Your settings</strong>, such as how many courts and rounds you usually play, and the rating a new player starts at.</li>
+      </ul>
+      <p>
+        That is the whole list. The schedule you are running right now, which
+        rounds are finished, and who has sat out are not part of it. They stay on
+        the device that built them.
+      </p>
+      <p>
+        The rows are locked to your account by the database itself, so one
+        account cannot read, change, or delete another account's groups and
+        players. That is not a promise about how the app is written. It is a rule
+        the database enforces on every single request, and it has been tested
+        with two real accounts.
+      </p>
+
+      <h3>The names you type in are other people's</h3>
+      <p>
+        Worth saying plainly. If you run a group, you are typing your players'
+        names into your own device, and if you have an account, up to the server
+        as well. Usually that is a first name and a skill rating, which is about
+        as little as a player list can be. Even so, they are your players' names
+        and not yours. Tell them the list exists if that would matter to them,
+        and remove anyone who asks. Deleting a player in the app removes them
+        from the server too.
+      </p>
+
+      <h2>How signing in works</h2>
+      <p>
+        There is no password, and there never has been. You type your email
+        address, a six digit code is emailed to you, and typing that code back in
+        signs you in. Your device then holds a sign-in token so it does not have
+        to ask again for a while.
+      </p>
+      <p>
+        The email itself is sent by Resend on the app's behalf. They handle the
+        delivery of that message, which means they see your address and the code
+        going out.
+      </p>
+
+      <h2>When the app crashes</h2>
+      <p>
+        If the app hits a fault it cannot carry on from, it shows a screen saying
+        so and sends a report to Sentry, a service that collects crashes so that
+        broken things get fixed. What goes in the report is the error message,
+        the place in the code, and the version of the app.
+      </p>
+      <p>
+        Player names, group names, ratings, schedules, email addresses, which
+        screen you were on and what you tapped are <strong>not</strong> in it.
+        Before a report is sent, the app strips out any name it holds on that
+        device, in case one has found its way into the error text. Your IP
+        address is not sent and Sentry is set not to record one.
+      </p>
+
+      <h2>Counting visits</h2>
+      <p>
+        Vercel, the company that hosts the app, counts page views for it. It is a
+        count, not a profile: no cookies, no advertising identifier, and nothing
+        that follows you to any other website. It records the address of the page,
+        the country, and the general type of device and browser. It cannot tell
+        one visitor apart from another, and it is never joined up with an account,
+        a group, or a player.
+      </p>
+
+      <h2>Donating</h2>
+      <p>
+        The Donate button opens Ko-fi, which is a separate website run by another
+        company. Anything you do there is covered by Ko-fi's own privacy policy,
+        not this one. Your card details are handled by them and are never seen by
+        this app or by me. If you donate, I see what Ko-fi shows me, which is
+        typically a name or nickname, the amount, and any message you write.
+      </p>
+
+      <h2>Suggesting a feature, or reporting a bug</h2>
+      <p>
+        Those two buttons do not send anything by themselves. They open your own
+        email app with a message already written, addressed to me, and you decide
+        whether to send it. A bug report has some details about the app attached,
+        such as the version, which screen you were on, and how many groups and
+        players you have as numbers. It does not attach any names. You can read
+        and edit every word before it goes, and deleting the draft sends nothing.
+      </p>
+
+      <h2>Cookies</h2>
+      <p>
+        The app sets no cookies, for tracking or for anything else. It does use
+        your browser's own storage to keep your groups on your device, and to
+        keep you signed in if you have an account. That storage is readable only
+        by this app in your browser, and is not sent to anyone. Clearing your
+        browsing data clears it.
+      </p>
+
+      <h2>Who else can see any of this</h2>
+      <p>
+        Five companies are involved in running the app. None of them is allowed to
+        use anything for their own purposes, and none of them is paid for data.
+        This is the whole list.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>What they do</th>
+              <th>What they hold</th>
+              <th>Where</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- data-label is what the narrow layout above prints as each
+                 value's heading, since the header row is hidden there. -->
+            <tr>
+              <td data-label="Company">Vercel</td>
+              <td data-label="What they do">Hosts the app and serves it to your browser</td>
+              <td data-label="What they hold">The page-view counts described above</td>
+              <td data-label="Where">United States</td>
+            </tr>
+            <tr>
+              <td data-label="Company">Supabase</td>
+              <td data-label="What they do">Runs the database behind accounts</td>
+              <td data-label="What they hold">Your email address, groups, players and settings</td>
+              <td data-label="Where">Canada</td>
+            </tr>
+            <tr>
+              <td data-label="Company">Resend</td>
+              <td data-label="What they do">Delivers the sign-in email</td>
+              <td data-label="What they hold">Your email address, and the code sent to it</td>
+              <td data-label="Where">United States</td>
+            </tr>
+            <tr>
+              <td data-label="Company">Sentry</td>
+              <td data-label="What they do">Collects crash reports</td>
+              <td data-label="What they hold">Error messages and the app version, with names removed</td>
+              <td data-label="Where">United States</td>
+            </tr>
+            <tr>
+              <td data-label="Company">Ko-fi</td>
+              <td data-label="What they do">Takes donations, if you choose to make one</td>
+              <td data-label="What they hold">Whatever you give them on their own site</td>
+              <td data-label="Where">United Kingdom</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Beyond those five, nothing is shared. The one exception anybody has to
+        write down is the law: if a court or the police required it, I would have
+        to comply, and there is no way around that for any app.
+      </p>
+
+      <h2>Where the data is kept, and for how long</h2>
+      <p>
+        The database holding accounts sits in Canada. The other companies above
+        are in the United States and the United Kingdom, so information that
+        reaches them, such as your email address going to Resend so it can send a
+        code, is handled there.
+      </p>
+      <p>
+        There is no schedule that deletes an account for you. Your groups and
+        players stay until you change them or delete them, which is what you want
+        from a list of your regular players. Crash reports are kept for thirty
+        days and then go automatically.
+      </p>
+      <p>
+        Deleting a group or a player leaves a marker on the server saying it
+        went, which is how your other devices know to remove it as well. The
+        marker keeps the name it had, and it stays until you delete the account.
+        Nothing marked that way is shown anywhere in the app, and it is in your
+        downloaded copy so that you can see it is there.
+      </p>
+      <p>
+        Backups of the database are kept so that an accident does not lose
+        everyone's data. A deleted account is out of the live database
+        immediately, and out of the backups within a month as the old ones are
+        replaced.
+      </p>
+
+      <h2>Your rights, and the two buttons that do the work</h2>
+      <p>
+        Both of the things people normally have to write in and ask for are
+        buttons in the app. Open the menu, choose <strong>My Account</strong>, and
+        sign in if you are not already.
+      </p>
+      <ul>
+        <li>
+          <strong>Download My Data</strong> saves a file holding everything the
+          account has on the server. It is the complete answer, in the database's
+          own words, with an explanation of those words written inside the file.
+        </li>
+        <li>
+          <strong>Delete Account</strong> ends the account and everything saved
+          with it, at once and for good. It asks you to type the word DELETE
+          first, because it cannot be undone. It offers you the download on the
+          same screen. It leaves the groups and players on your device alone, so
+          the app carries on working exactly as it does for the many people who
+          never made an account.
+        </li>
+      </ul>
+      <p>
+        If you never made an account, there is nothing to ask for. Everything you
+        have typed is on your device, and clearing your browsing data ends it.
+      </p>
+      <p>
+        You can also ask me to correct something, ask what is held, or object to
+        any of it, at
+        <a href="mailto:jeff@pbroundrobin.com">jeff@pbroundrobin.com</a>. I will
+        answer within thirty days. In Canada, if you are not satisfied with my
+        answer you can complain to the Office of the Privacy Commissioner of
+        Canada. In the UK or the EU, you can complain to your national data
+        protection authority.
+      </p>
+
+      <h2>If you are in the UK or the EU</h2>
+      <p>
+        The reason the app is allowed to hold what it holds is straightforward.
+        Your email address, groups, players and settings are held to provide the
+        account you asked for. Crash reports and visit counts are held because a
+        working app has to be able to find out that it is broken and roughly how
+        many people it broke for, which is a legitimate interest, and both are cut
+        back so they say nothing about you personally. There is no advertising and
+        no profiling here to consent to.
+      </p>
+      <p>
+        Canada, where the database sits, is recognised by the European Commission
+        as providing adequate protection for personal data. Transfers to the
+        companies listed above that are in the United States rely on their
+        standard contractual terms.
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        The app is built for whoever organises a game, not for children, and it
+        is not aimed at them. It never asks anyone's age. If a junior's name is on
+        a player list, it is there because the organiser typed it, and the
+        organiser can remove it at any time.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If what the app collects changes, this page changes on the same day, and
+        the date below changes with it. If a change is a significant one, and you
+        have an account, I will email you about it rather than quietly rewriting
+        this page.
+      </p>
+
+      <a class="back" href="/">Back to the app</a>
+    </main>
+
+    <footer>
+      <div class="inner">
+        <p>
+          Last updated 9 August 2026. Questions to
+          <a href="mailto:jeff@pbroundrobin.com">jeff@pbroundrobin.com</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
