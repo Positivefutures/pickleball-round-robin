@@ -210,7 +210,7 @@ Note for item 10: backups in Dropbox make Dropbox a processor, so it belongs in
 the privacy policy's list. So does the Keychain, in the sense that it is worth
 knowing where the credential lives.
 
-### 5. Billing caps, and the upgrade trigger **[Jeff]** PART DONE
+### 5. Billing caps, and the upgrade trigger **[Jeff]** DONE 2026-08-09
 
 **Plain-language guide: [docs/costs-and-limits.md](docs/costs-and-limits.md).**
 That is the one to read. What follows is the reasoning behind it.
@@ -225,9 +225,11 @@ That is the one to read. What follows is the reasoning behind it.
 - [x] **The donate button is fine.** Vercel's own note: "Asking for Donations
       does not fall under commercial usage." No payment moves on a Vercel-hosted
       page either, since the panel links out to Ko-fi
-- [ ] Confirm in both dashboards that neither account has drifted onto a paid
-      plan. This is the only part that needs a browser
-- [ ] Decide what to do about the inactivity pause, described below
+- [x] Confirm in both dashboards that neither account has drifted onto a paid
+      plan. Both still free, checked 2026-08-09
+- [x] Decide what to do about the inactivity pause. **Live with it and watch for
+      the warning email.** Revisit when there are real groups run by strangers,
+      at which point Pro buys the daily backups as well as the uptime
 
 **The premise of this item was wrong, and finding that out is most of its
 value.** It was written to prevent a surprise bill. A surprise bill is not
@@ -258,16 +260,50 @@ outside Vercel Hobby's terms outright, so Vercel Pro at $20 a month becomes
 mandatory rather than optional. Selling through Ko-fi rather than taking
 donations does the same. Both together are $45 a month.
 
-### 6. Prove RLS with two real accounts **[me]**
+### 6. Prove RLS with two real accounts **[me]** DONE 2026-08-09
 
-- [ ] A script that signs in as two accounts using the publishable key
-- [ ] Attempt cross-account read, update and delete on all four tables
-- [ ] Assert every one of them fails
+- [x] A script that signs in as two accounts using the publishable key
+- [x] Attempt cross-account read, update and delete on all four tables
+- [x] Assert every one of them fails
+- [x] Prove the test itself can fail, with `--self-test`
 
-The policies read correctly: all four tables, `to authenticated` only, and
-every update policy carries both `using` and `with check`, so a row cannot be
-handed to another user. That is not the same as tested. The service role
-bypasses RLS entirely, so it proves nothing and must not appear in the test.
+```
+node scripts/prove-rls.mjs              # 43 checks, 0 failed
+node scripts/prove-rls.mjs --self-test  # 4 checks, 4 red, which is the pass
+```
+
+**43 checks, all green.** The policies were right, and now that is measured
+rather than read. Run it again after any change to the migrations.
+
+It creates two throwaway accounts on the live project, has one try every route
+it can think of to the other's data, then deletes both. The service role key
+bypasses RLS entirely, so it appears nowhere in the file. Everything runs with
+the publishable key that already ships in the browser bundle, which is exactly
+what an attacker has.
+
+What it tries, on all four tables: read, count, update, delete, insert a row
+owned by the other account, and the subtle one, edit its own row to reassign
+`user_id` and hand it away. Then the same again as a signed-out visitor. Then
+six positive controls proving the owner can still do everything the intruder
+could not.
+
+**Two traps this had to avoid, both of which would have produced a green run
+that meant nothing.**
+
+PostgREST answers an update or delete aimed at rows it cannot see with success
+and an empty body. So "no error was raised" is not evidence of anything, and
+every attempt asserts on the rows actually returned instead.
+
+And a suite where every call failed for a dull reason, a mistyped table name,
+would print the same wall of `ok` as a perfect result. That is what the positive
+controls are for, and it is why `--self-test` exists. That builds a table with
+`using (true)` policies, the classic mistake of switching RLS on and then
+letting every signed-in user reach every row, aims the same probes at it, and
+insists all four go red. It does. The decoy holds nothing but probe rows and is
+dropped straight after, so no real data is exposed while it stands.
+
+Verified afterwards that the database is byte for byte as it started: four
+tables, three users, thirteen groups, sixty-two players, no decoy, no probes.
 
 ### 7. Cap what one account can create **[me]**
 
