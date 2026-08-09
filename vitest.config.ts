@@ -16,6 +16,10 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
+      // Blank, not absent. monitoring.ts falls back to a committed DSN when
+      // this is unset, so leaving it out would point the suite at the real
+      // Sentry project. Empty is the documented off switch.
+      VITE_SENTRY_DSN: '',
     },
   },
 });

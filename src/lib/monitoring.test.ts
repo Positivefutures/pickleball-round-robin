@@ -297,6 +297,18 @@ describe('sending', () => {
     expect(sentTags[0]).toEqual({ source: 'promise' });
   });
 
+  it('reports to the committed project when nothing is configured', async () => {
+    // The whole point of committing the DSN is that reporting survives a
+    // dashboard nobody has touched in a year. Deleting the constant would
+    // otherwise fail silently: the app would work perfectly and tell no one.
+    vi.stubEnv('VITE_SENTRY_DSN', undefined);
+    expect(isMonitoringConfigured()).toBe(true);
+
+    reportCrash(new Error('heard without any setup'), 'render');
+    await vi.waitFor(() => expect(clientInit).toHaveBeenCalled());
+    expect(clientOptions.dsn).toMatch(/^https:\/\/\w+@o\d+\.ingest\.[\w.]+\/\d+$/);
+  });
+
   it('does not let one crash tag the next', async () => {
     vi.stubEnv('VITE_SENTRY_DSN', DSN);
     reportCrash(new Error('first'), 'promise');

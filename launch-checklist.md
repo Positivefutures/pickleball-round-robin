@@ -9,7 +9,7 @@ the answer is the first unticked box.
 Tags: **[Jeff]** for work in a dashboard the agent cannot reach, **[me]** for
 code, **[both]** for a handoff.
 
-Last reviewed against the code and the live site: 2026-08-09, at `1.9.6`.
+Last reviewed against the code and the live site: 2026-08-09, at `1.9.7`.
 
 ---
 
@@ -370,16 +370,21 @@ day from item 3 is the tighter constraint on that.
 one is refused identically every time, and blaming the network would send
 someone looking at their wifi for a problem that is in their data.
 
-### 8. Error monitoring **[me, then Jeff]** DONE 2026-08-09, bar the signup
+### 8. Error monitoring **[me, then Jeff]** DONE 2026-08-09
 
 - [x] Stop a crash being a white screen, which needs nobody's account
 - [x] Sentry free tier, or equivalent
 - [x] Wire the release to `APP_VERSION` so a report names the right build
 - [x] Send no names, and prove it against what actually goes on the wire
 - [x] Prove it, and prove the proof can fail
-- [ ] **Jeff: create the Sentry account and paste one value into Vercel.**
-      Ten minutes, no card. [docs/error-monitoring.md](docs/error-monitoring.md)
-      has the steps
+- [x] Jeff created the Sentry account. The DSN is committed in
+      `src/lib/monitoring.ts` rather than set in Vercel, because a DSN only
+      accepts crashes coming in and a value that lives only in a dashboard is a
+      value that gets silently lost
+- [ ] **Jeff, optional, two minutes.** Sentry → Settings → Security & Privacy →
+      **Prevent Storing of IP Addresses**. The app never sends one, but Sentry
+      infers it from the connection, and the privacy policy says none is kept
+- [ ] Visit `?crashtest` once after the next deploy, and check the issue appears
 
 Two jobs that sound like one, kept apart because only the second needs anything
 outside this repository.
@@ -390,10 +395,11 @@ that says the groups and players are still saved, offers Reload, and offers to
 send the details by email. Shipped, working, and it needs no account and no
 DSN. This is the half that matters to somebody standing at a court.
 
-**Telling Jeff.** `src/lib/monitoring.ts` reports to Sentry if
-`VITE_SENTRY_DSN` is set. It is not set yet, so today crashes are shown and not
-sent. That is a supported state, not a broken one, and it is the state every
-test runs in unless it says otherwise.
+**Telling Jeff.** `src/lib/monitoring.ts` reports to Sentry, at the DSN
+committed there on 2026-08-09. Setting `VITE_SENTRY_DSN` in Vercel overrides it,
+and setting that variable to an empty value is the off switch. Sending nothing
+is a supported state, not a broken one, and it is the state every test runs in
+unless it says otherwise.
 
 **The version is the join.** `release` is `APP_VERSION`, the same string in the
 footer and on every bug report, which is why it has to be bumped in the commit

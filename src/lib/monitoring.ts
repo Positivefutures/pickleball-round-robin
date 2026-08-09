@@ -14,8 +14,8 @@
  * configured or not, and it is the half that matters most to whoever is
  * standing at a court.
  *
- * **Telling Jeff.** If VITE_SENTRY_DSN is set, the crash is also sent to
- * Sentry. With no DSN nothing is imported and nothing leaves the browser, which
+ * **Telling Jeff.** The crash is also sent to Sentry, at the DSN committed
+ * below. With no DSN nothing is imported and nothing leaves the browser, which
  * is the state the test suite runs in and the state every build was in before
  * 2026-08-09.
  *
@@ -99,10 +99,35 @@ let sentThisSession = 0;
 let started = false;
 let latest: CrashReport | null = null;
 
+/**
+ * Where crashes are sent. Committed on purpose, on 2026-08-09.
+ *
+ * A DSN is an address, not a password. It only accepts crashes coming in, it
+ * reads nothing back out, and it is meant to be visible in the shipped app,
+ * where anybody can read it out of the bundle anyway. The repository being
+ * public changes nothing about that.
+ *
+ * What it buys is that crash reporting cannot be lost. A value living only in a
+ * dashboard is one that a new project, a restored account or a forgotten step
+ * quietly drops, and the failure is silent: the app carries on perfectly and
+ * simply stops telling anybody.
+ *
+ * To point it somewhere else, set VITE_SENTRY_DSN in Vercel, which wins. To
+ * turn reporting off, set that variable to an empty string.
+ */
+const DEFAULT_DSN =
+  'https://84e709e15a8286159b8ee258a4abb162@o4511883102453760.ingest.us.sentry.io/4511883119558656';
+
 // Read per call rather than into a module constant, exactly as supabase.ts
 // does. Vite still substitutes it literally at build time, so production is
 // unchanged, but a test can stub the environment and exercise both paths.
-const dsn = () => import.meta.env.VITE_SENTRY_DSN as string | undefined;
+//
+// An unset variable falls back; an empty one does not, which is what makes
+// blanking it in Vercel the off switch.
+const dsn = () => {
+  const configured = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+  return configured === undefined ? DEFAULT_DSN : configured;
+};
 
 /**
  * Whether crashes are reported anywhere beyond the screen.

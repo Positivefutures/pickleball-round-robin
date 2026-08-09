@@ -7,12 +7,11 @@ whoever is administering the app, which today is Jeff.
 
 ## The short version
 
-**There is one job left, it takes about ten minutes in a browser, and it needs
-no credit card.** Create a Sentry account, copy one long line of text out of it,
-and paste that into Vercel. Step by step instructions are further down.
+**This is done and live.** The Sentry account exists, the app is pointed at it,
+and a crash now reaches you by email without anybody pressing anything.
 
-Everything else is already done and already live. Until you do this, a crash is
-shown to the person it happened to and is not sent to you.
+There is one optional two minute tidy-up left, in Sentry's own settings, at
+[One setting worth changing](#one-setting-worth-changing).
 
 ---
 
@@ -78,55 +77,38 @@ handful of users should produce single digits a month, and if it ever produces
 
 ---
 
-## Setting it up
+## How it is wired up
 
-Ten minutes. Do it in one sitting, because the value you copy in step 4 is
-easiest to find during signup.
+You created the Sentry account and the project on 2026-08-09. The address of
+that project, its DSN, is written into `src/lib/monitoring.ts` and shipped with
+the app.
 
-**1. Sign up.** Go to [sentry.io](https://sentry.io) and choose the free
-Developer plan. Sign in with GitHub if you would rather not have another
-password. It does not ask for a card.
+**That address is in the public repository on purpose.** A DSN only allows
+crashes to be sent in. It reads nothing back out, it grants no access to the
+account, and it is meant to be visible in the app, where anybody can read it out
+of the downloaded code anyway. Nothing is protected by hiding it.
 
-**2. Create a project.** It will ask what kind. Choose **React**. Name it
-`pickleball-round-robin` so it matches the repository.
+The reason to commit it rather than keep it in a Vercel setting is that a value
+living only in a dashboard is a value that gets lost. A new project, a restored
+account, a forgotten step, and reporting stops. **That failure is silent:** the
+app carries on working perfectly and simply tells nobody. Committed, it cannot
+happen.
 
-**3. Skip the code it shows you.** Sentry will display a page of code to paste
-into the app. Ignore all of it. That work is already done, and pasting it again
-would report everything twice.
+If it ever needs to point somewhere else, set `VITE_SENTRY_DSN` in Vercel, which
+wins over the committed one.
 
-**4. Copy the DSN.** It is a long line starting with `https://` and containing
-`ingest`. If the setup page has moved on, it is always at:
+### One setting worth changing
 
-> Settings → Projects → pickleball-round-robin → Client Keys (DSN)
-
-**A DSN is not a password.** It is an address that only allows sending crashes
-in, not reading anything out, and it is meant to be visible in the app. Nothing
-bad happens if it ends up somewhere public.
-
-**5. Paste it into Vercel.** Go to
-[vercel.com](https://vercel.com) → the pickleball project → Settings →
-Environment Variables, and add:
-
-| Field | Value |
-|---|---|
-| Key | `VITE_SENTRY_DSN` |
-| Value | the line you copied |
-| Environments | tick all three |
-
-**6. Redeploy.** Vercel does not apply a new environment variable to the site
-already built. In Vercel, open the Deployments tab, find the newest one, and use
-the "..." menu → Redeploy. Alternatively, the next time anything is pushed to
-GitHub it will pick it up on its own.
-
-**7. Turn off IP addresses.** In Sentry: Settings → Security & Privacy → turn on
+**Turn off IP addresses.** In Sentry: Settings → Security & Privacy → turn on
 **Prevent Storing of IP Addresses**. The app never sends one, but Sentry can
-infer it from the connection, and there is no reason to keep it.
+infer it from the connection, and there is no reason to keep it. The privacy
+policy says no IP address is kept, so this makes the page match the settings.
 
 ---
 
 ## Checking that it worked
 
-Do this once, right after step 6, and then never again.
+Do this once, after the next deploy, and then never again.
 
 Open this address on your phone or in a browser:
 
@@ -142,8 +124,13 @@ Then open Sentry. Within a minute or so there should be one new issue named
 **Test crash, asked for by the ?crashtest link**, and opening it should show
 **Release** matching the version number in the app's footer.
 
-**If the crash screen appears but Sentry stays empty**, the DSN did not reach the
-site. The usual cause is skipping step 6, so redeploy and try again.
+**If the link does nothing at all**, the site is running an older build. The
+crash screen and this link arrived together, so a build without one has neither.
+Check the version in the app's footer against the newest commit.
+
+**If the crash screen appears but Sentry stays empty**, check whether
+`VITE_SENTRY_DSN` has been set to something in Vercel, since it overrides the
+address in the code.
 
 Those two things together are the whole proof: the person sees something useful,
 and you are told.
@@ -179,9 +166,12 @@ there.
 
 ## Turning it off
 
-Delete `VITE_SENTRY_DSN` from Vercel and redeploy. Nothing else changes: the app
-still catches its crashes, still shows the screen, and still offers the email.
-It just stops telling you automatically.
+In Vercel, add `VITE_SENTRY_DSN` and leave the value **empty**, then redeploy.
+An empty value is the off switch; deleting the variable falls back to the
+address in the code, which is the opposite of what you wanted.
+
+Nothing else changes: the app still catches its crashes, still shows the screen,
+and still offers the email. It just stops telling you automatically.
 
 That is worth knowing because it means this can never be the thing that breaks
 the app.
@@ -211,7 +201,8 @@ the app.
 |---|---|
 | Can this cost money? | No. Free plan, no card, stops rather than charges |
 | What does a crash look like now? | A screen saying the data is safe, with Reload |
-| Do I have to do anything? | Once. Sign up and paste the DSN into Vercel |
+| Do I have to do anything? | No. One optional setting, to stop Sentry keeping IP addresses |
 | How do I know it works? | Visit `?crashtest` and look for it in Sentry |
 | Are names sent? | No, and that is tested against the real network traffic |
-| How do I turn it off? | Delete the Vercel variable and redeploy |
+| Is the key in the public repo a problem? | No. It only accepts crashes in |
+| How do I turn it off? | Set `VITE_SENTRY_DSN` in Vercel to an empty value |
