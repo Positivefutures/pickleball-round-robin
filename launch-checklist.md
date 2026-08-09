@@ -537,11 +537,9 @@ once and out of the last-30 dumps within a month. Written up in
 - [x] Link it from the settings drawer and the footer
 - [x] Say how to delete and how to download, and that both are buttons in My
       Account rather than an email to anybody
-- [ ] **Jeff, in the same Vercel visit as the Sentry key.** Turn Web Analytics
-      on: the project → Analytics → Enable. The page says Vercel counts page
-      views, `@vercel/analytics` is in the app, and the switch behind it is off,
-      so today nothing is counted at all. Over-saying is the safe direction for a
-      policy, and it is a thirty second job to make it simply true
+- [x] Jeff turned Web Analytics on in Vercel, so the sentence about counting
+      page views is now true. Verified: `/_vercel/insights/script.js` returns
+      200, where it 404'd an hour earlier
 
 `public/privacy.html`, published at
 [app.pbroundrobin.com/privacy.html](https://app.pbroundrobin.com/privacy.html).
