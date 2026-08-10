@@ -9,10 +9,13 @@ import {
 } from './roundTypes';
 import { findSpecialAssignment, partnershipFitsType } from './specialRounds';
 import {
+  chooseShortCourtPlayers,
   effectiveCourtCount,
   findBestAssignment,
   findBestAssignmentWithLocks,
   findBestAssignmentWithPartners,
+  pickShortSplit,
+  planCourtSizes,
   type Assignment,
 } from './assign';
 
@@ -24,6 +27,7 @@ function initHistory(players: Player[]): PairingHistory {
     opponentCounts: {},
     sitOutCounts: {},
     gamesPlayed: {},
+    shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
   };
   for (const p of players) {
@@ -31,6 +35,7 @@ function initHistory(players: Player[]): PairingHistory {
     history.opponentCounts[p.id] = {};
     history.sitOutCounts[p.id] = 0;
     history.gamesPlayed[p.id] = 0;
+    history.shortGameCounts[p.id] = 0;
     for (const t of ROUND_TYPES) history.specialMissCounts[t][p.id] = 0;
   }
   return history;
@@ -63,8 +68,16 @@ function updateHistory(
         incrementBidirectional(history.opponentCounts, p1.id, p2.id);
       }
     }
-    for (const p of [...court.team1, ...court.team2]) {
+    const onCourt = [...court.team1, ...court.team2];
+    for (const p of onCourt) {
       history.gamesPlayed[p.id] = (history.gamesPlayed[p.id] ?? 0) + 1;
+    }
+    // Replayed out of the stored rounds as well as counted while building, so
+    // the rotation survives a reshuffle and a reload.
+    if (onCourt.length < 4) {
+      for (const p of onCourt) {
+        history.shortGameCounts[p.id] = (history.shortGameCounts[p.id] ?? 0) + 1;
+      }
     }
   }
   for (const p of sitOuts) {
@@ -151,21 +164,86 @@ function buildRound(
   const sitOutIds = new Set(sitOuts.map((p) => p.id));
   const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
 
+  // A roster that will not divide by four puts a 2v1 or a game of singles on
+  // the last court.
+  const sizes = planCourtSizes(activePlayers.length, effectiveCourts);
+  const shortSize = sizes.length > 0 && sizes[sizes.length - 1] < 4
+    ? sizes[sizes.length - 1]
+    : 0;
+  const fullCourts = shortSize ? sizes.length - 1 : sizes.length;
+
+  // On an ordinary round the short court is drawn first, by whoever has had
+  // fewest short games, and set aside. Every solver below then sees a pool that
+  // is exactly four to a court and none of them has to know about this.
+  //
+  // A special round does it the other way about. Which twelve of fifteen can
+  // make three mixed courts is a question about who is a man and who is a woman,
+  // and picking three people off the top by short-game count answers it wrongly
+  // — it leaves a pool the format cannot fill and costs a mixed court. So the
+  // format goes first and the short court is built from whatever it could not
+  // use, which is already rotated by who is owed the format.
+  const rotateShort = shortSize > 0 && !roundType;
+
+  // The pair side of a 2v1 can be padlocked like any other pair, and the short
+  // court is always the last one, so a lock naming that position is honoured by
+  // seeding those two onto it rather than drawing fresh players.
+  const byActiveId = new Map(activePlayers.map((p) => [p.id, p]));
+  const shortLock = rotateShort
+    ? roundLocks.find((lp) => lp.courtIdx === fullCourts)
+    : undefined;
+  const pinnedShort = shortLock
+    ? ([byActiveId.get(shortLock.player1Id), byActiveId.get(shortLock.player2Id)].filter(
+        Boolean
+      ) as Player[])
+    : [];
+
+  const shortPlayers = rotateShort
+    ? chooseShortCourtPlayers(
+        activePlayers, shortSize, history, keepTogether,
+        pinnedShort.length === 2 ? pinnedShort : []
+      )
+    : [];
+  const shortIds = new Set(shortPlayers.map((p) => p.id));
+  const courtPlayers = rotateShort
+    ? activePlayers.filter((p) => !shortIds.has(p.id))
+    : activePlayers;
+
+  // A padlock names a court by position. The short court carries no padlock, so
+  // anything pointing at it or past it has nowhere to land this round.
+  const fullCourtLocks = roundLocks.filter((lp) => lp.courtIdx < fullCourts);
+
   let result: Assignment;
   if (roundType) {
     result = findSpecialAssignment(
-      roundType, activePlayers, effectiveCourts, history, keepTogether, players
+      roundType, courtPlayers, sizes.length, history, keepTogether, players
     );
   } else if (hasPartnerships) {
     result = findBestAssignmentWithPartners(
-      activePlayers, effectiveCourts, history, sitOutUnits, players
+      courtPlayers, fullCourts, history, sitOutUnits, players
     );
-  } else if (hasLocks) {
+  } else if (fullCourtLocks.length > 0) {
     result = findBestAssignmentWithLocks(
-      activePlayers, effectiveCourts, history, roundLocks, players
+      courtPlayers, fullCourts, history, fullCourtLocks, players
     );
   } else {
-    result = findBestAssignment(activePlayers, effectiveCourts, history, players);
+    result = findBestAssignment(courtPlayers, fullCourts, history, players);
+  }
+
+  if (rotateShort && shortPlayers.length === shortSize) {
+    const coupleKeys = new Set(
+      keepTogether.map((c) => partnerKey(c.player1Id, c.player2Id))
+    );
+    // A padlocked pair takes the pair side for the same reason a couple does.
+    if (pinnedShort.length === 2) {
+      coupleKeys.add(partnerKey(pinnedShort[0].id, pinnedShort[1].id));
+    }
+    result = {
+      courts: [
+        ...result.courts,
+        pickShortSplit(shortPlayers, result.courts.length + 1, coupleKeys),
+      ],
+      extraSitOuts: result.extraSitOuts,
+    };
   }
 
   const allSitOuts = [...sitOuts, ...result.extraSitOuts];

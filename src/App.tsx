@@ -6,7 +6,7 @@ import { useStoredValue } from './hooks/useStoredValue';
 import { useScrollLock } from './hooks/useScrollLock';
 import * as stores from './lib/stores';
 import { generateSchedule, regenerateRemaining } from './lib/pairing';
-import { addToRemainingSitOuts } from './lib/sitout';
+import { addToRemainingRounds } from './lib/sitout';
 import { carryCourtNumbers } from './lib/courtNumbers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
@@ -424,7 +424,7 @@ function App() {
     if (!player) return;
 
     setSchedule({
-      rounds: addToRemainingSitOuts(schedule.rounds, completedRounds, player),
+      rounds: addToRemainingRounds(schedule.rounds, completedRounds, player),
     });
     // Selection is what a later reshuffle draws from, and clearing the removal
     // is what lets someone who left earlier rejoin.

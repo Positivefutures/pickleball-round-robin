@@ -7,6 +7,7 @@ import { SessionConfig } from './SessionConfig';
 import { SpecialTypesPanel } from './SpecialTypesPanel';
 import { LinkIcon } from '../icons';
 import { resolvePairs } from '../../lib/partnerships';
+import { minPlayersForCourts } from '../../lib/assign';
 import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface Props {
@@ -55,9 +56,11 @@ export function SetupPage({
   // when Done closes it.
   useScrollLock(specialTypesOpen);
 
-  const playersNeeded = numCourts * 4;
-  const notEnoughPlayers = selectedIds.length < playersNeeded;
-  const canGenerate = selectedIds.length >= 4 && !notEnoughPlayers;
+  // Not four a court any more: the last court will play a 2v1 or a game of
+  // singles rather than send anybody home. What it will not do is put one person
+  // on a court alone, which is where this floor comes from.
+  const playersNeeded = minPlayersForCourts(numCourts);
+  const canGenerate = selectedIds.length >= playersNeeded;
 
   const errorMessage = !canGenerate
     ? selectedIds.length < 4

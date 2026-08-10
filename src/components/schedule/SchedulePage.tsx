@@ -3,6 +3,7 @@ import type { Schedule, Player, LockedPair, Partnership, Round } from '../../typ
 import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
 import { renumberFrom } from '../../lib/courtNumbers';
+import { courtRatingDiff } from '../../utils/helpers';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
@@ -26,7 +27,19 @@ export interface SitOutSlot {
   sitOutIdx: number;
 }
 
-export type PlayerSlot = CourtSlot | SitOutSlot;
+/**
+ * A place on a court with nobody in it. A team holds at most two players, so an
+ * empty place is simply a team with fewer than two, and it needs no index of its
+ * own — the player joining is pushed onto the end.
+ */
+export interface EmptySlot {
+  kind: 'empty';
+  roundIdx: number;
+  courtIdx: number;
+  team: 'team1' | 'team2';
+}
+
+export type PlayerSlot = CourtSlot | SitOutSlot | EmptySlot;
 
 function sameSlot(a: PlayerSlot, b: PlayerSlot): boolean {
   if (a.kind !== b.kind || a.roundIdx !== b.roundIdx) return false;
@@ -35,6 +48,9 @@ function sameSlot(a: PlayerSlot, b: PlayerSlot): boolean {
   }
   if (a.kind === 'sitout' && b.kind === 'sitout') {
     return a.sitOutIdx === b.sitOutIdx;
+  }
+  if (a.kind === 'empty' && b.kind === 'empty') {
+    return a.courtIdx === b.courtIdx && a.team === b.team;
   }
   return false;
 }
@@ -236,6 +252,75 @@ export function SchedulePage({
     setSelectedSlot(null);
   }
 
+  /**
+   * Somebody steps into an empty place.
+   *
+   * Coming off the bench, they simply join and the empty place is gone — it does
+   * not move to the sit-out line, because a place on a court is not a person.
+   * Coming off another court, the empty place goes back the way they came, which
+   * is what makes it a swap.
+   *
+   * A player may only leave a place if their team keeps somebody, and may only
+   * leave their court if it is full. Otherwise a tap could stand somebody on a
+   * court on their own, or put two players on one side against nobody.
+   */
+  function fillEmptyPlace(empty: EmptySlot, mover: CourtSlot | SitOutSlot) {
+    const round = schedule.rounds[empty.roundIdx];
+
+    if (mover.kind === 'court') {
+      const fromCourt = round.courts[mover.courtIdx];
+      const courtSize = fromCourt.team1.length + fromCourt.team2.length;
+      const sameCourt = mover.courtIdx === empty.courtIdx;
+      if (fromCourt[mover.team].length < 2 || (!sameCourt && courtSize < 4)) {
+        // Nothing doing. Move the selection rather than leaving a dead tap.
+        setSelectedSlot(mover);
+        return;
+      }
+    }
+
+    const player =
+      mover.kind === 'court'
+        ? round.courts[mover.courtIdx][mover.team][mover.playerIdx]
+        : round.sitOuts[mover.sitOutIdx];
+    if (!player) {
+      setSelectedSlot(null);
+      return;
+    }
+
+    // This round and no other. A round with one place spare fills itself when the
+    // player is added, so a tap is only ever needed where there is more than one
+    // place to choose between — and a choice made about this round says nothing
+    // about who should partner whom in the next.
+    const newRounds = schedule.rounds.map((r, ri) => {
+      if (ri !== empty.roundIdx) return r;
+
+      const courts = r.courts.map((c) => ({
+        ...c,
+        team1: [...c.team1],
+        team2: [...c.team2],
+      }));
+      const sitOuts = [...r.sitOuts];
+      const touched: number[] = [];
+
+      if (mover.kind === 'court') {
+        courts[mover.courtIdx][mover.team].splice(mover.playerIdx, 1);
+        touched.push(mover.courtIdx);
+      } else {
+        sitOuts.splice(mover.sitOutIdx, 1);
+      }
+      courts[empty.courtIdx][empty.team].push(player);
+      touched.push(empty.courtIdx);
+
+      for (const c of touched) {
+        courts[c].ratingDiff = courtRatingDiff(courts[c].team1, courts[c].team2);
+      }
+      return { ...r, courts, sitOuts };
+    });
+
+    onUpdateSchedule({ rounds: newRounds });
+    setSelectedSlot(null);
+  }
+
   function handlePlayerTap(slot: PlayerSlot) {
     // Completed rounds are frozen — guard here too so a stale selection can't
     // mutate one after it's been marked complete.
@@ -265,7 +350,24 @@ export function SchedulePage({
       return;
     }
 
-    const from = selectedSlot;
+    // Neither can two empty places, which have nothing to give each other.
+    if (selectedSlot.kind === 'empty' && slot.kind === 'empty') {
+      setSelectedSlot(slot);
+      return;
+    }
+
+    // One of the pair is an empty place: somebody is moving into it rather than
+    // two players changing ends.
+    if (selectedSlot.kind === 'empty' || slot.kind === 'empty') {
+      const empty = (selectedSlot.kind === 'empty' ? selectedSlot : slot) as EmptySlot;
+      const mover = selectedSlot.kind === 'empty' ? slot : selectedSlot;
+      fillEmptyPlace(empty, mover as CourtSlot | SitOutSlot);
+      return;
+    }
+
+    // Both hold a player by this point — the empty places were dealt with above.
+    const from = selectedSlot as CourtSlot | SitOutSlot;
+    const to = slot as CourtSlot | SitOutSlot;
     const newRounds = schedule.rounds.map((round, ri) => {
       if (ri !== slot.roundIdx) return round;
 
@@ -276,27 +378,25 @@ export function SchedulePage({
       }));
       const newSitOuts = [...round.sitOuts];
 
-      const read = (s: PlayerSlot): Player =>
+      const read = (s: CourtSlot | SitOutSlot): Player =>
         s.kind === 'court'
           ? newCourts[s.courtIdx][s.team][s.playerIdx]
           : newSitOuts[s.sitOutIdx];
-      const write = (s: PlayerSlot, p: Player) => {
+      const write = (s: CourtSlot | SitOutSlot, p: Player) => {
         if (s.kind === 'court') newCourts[s.courtIdx][s.team][s.playerIdx] = p;
         else newSitOuts[s.sitOutIdx] = p;
       };
 
       const playerA = read(from);
-      const playerB = read(slot);
+      const playerB = read(to);
       write(from, playerB);
-      write(slot, playerA);
+      write(to, playerA);
 
       // Recalculate ratingDiff for any court touched by the swap
       const recalc = (court: (typeof newCourts)[number]) => {
-        const t1 = court.team1.reduce((s, p) => s + p.rating, 0);
-        const t2 = court.team2.reduce((s, p) => s + p.rating, 0);
-        court.ratingDiff = Math.abs(t1 - t2);
+        court.ratingDiff = courtRatingDiff(court.team1, court.team2);
       };
-      for (const s of [from, slot]) {
+      for (const s of [from, to]) {
         if (s.kind === 'court') recalc(newCourts[s.courtIdx]);
       }
 

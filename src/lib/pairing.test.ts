@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule, regenerateRemaining, effectiveCourtCount } from './pairing';
-import { addToRemainingSitOuts } from './sitout';
+import { addToRemainingRounds } from './sitout';
 import { partnerKey } from './partnerships';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 import type { Player, Schedule } from '../types';
@@ -42,11 +42,13 @@ function sitOutSpread(rounds: Schedule['rounds'], ids: string[]): number {
 const roundNumbers = (s: Schedule) => s.rounds.map((r) => r.roundNumber);
 
 describe('effectiveCourtCount', () => {
-  it('caps courts at what the player count can fill', () => {
+  it('counts the courts a game can be put on, short ones included', () => {
     expect(effectiveCourtCount(12, 3)).toBe(3);
-    expect(effectiveCourtCount(11, 3)).toBe(2); // 11 players -> only 2 full courts
-    expect(effectiveCourtCount(7, 3)).toBe(1);
-    expect(effectiveCourtCount(3, 3)).toBe(0);
+    expect(effectiveCourtCount(11, 3)).toBe(3); // two full and a 2v1
+    expect(effectiveCourtCount(10, 3)).toBe(3); // two full and a game of singles
+    expect(effectiveCourtCount(9, 3)).toBe(2); // the ninth would stand alone
+    expect(effectiveCourtCount(7, 3)).toBe(2);
+    expect(effectiveCourtCount(3, 3)).toBe(1);
   });
 });
 
@@ -90,8 +92,11 @@ describe('regenerateRemaining', () => {
 
     const tail = regen.rounds.slice(4);
     for (const r of tail) {
-      expect(r.courts).toHaveLength(2); // court dropped: 11 players -> 2 courts
-      expect(r.sitOuts).toHaveLength(3);
+      // 11 players over 3 courts: two full and a 2v1, rather than the two courts
+      // and three people on the bench this used to give.
+      expect(r.courts).toHaveLength(3);
+      expect(r.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 3]);
+      expect(r.sitOuts).toHaveLength(0);
     }
     const present = tail.some((r) =>
       [...r.courts.flatMap((c) => [...c.team1, ...c.team2]), ...r.sitOuts].some((p) => p.id === removed.id)
@@ -100,9 +105,11 @@ describe('regenerateRemaining', () => {
   });
 
   it('distributes sit-outs fairly across rebuilt rounds', () => {
+    // Two courts, not three: eleven players over three courts no longer sits
+    // anybody down, it plays a 2v1, and there would be no rotation to measure.
     const removed = players[7];
     const remaining = players.filter((p) => p.id !== removed.id);
-    const regen = regenerateRemaining(remaining, 3, original.rounds, [1, 2, 3, 4]);
+    const regen = regenerateRemaining(remaining, 2, original.rounds, [1, 2, 3, 4]);
     const spread = sitOutSpread(regen.rounds.slice(4), remaining.map((p) => p.id));
     expect(spread).toBeLessThanOrEqual(1);
   });
@@ -144,8 +151,8 @@ describe('regenerateRemaining', () => {
     const regen = regenerateRemaining(remaining, 3, original.rounds, []);
     expect(regen.rounds).toHaveLength(8);
     for (const r of regen.rounds) {
-      expect(r.courts).toHaveLength(2);
-      expect(r.sitOuts).toHaveLength(3);
+      expect(r.courts).toHaveLength(3);
+      expect(r.sitOuts).toHaveLength(0);
     }
   });
 
@@ -252,7 +259,7 @@ describe('a player added mid-session', () => {
     const latecomer: Player = {
       id: 'late', name: 'Zoe', rating: 4, gender: 'F', rosterIds: ['r1'],
     };
-    const withLatecomer = addToRemainingSitOuts(original.rounds, completed, latecomer);
+    const withLatecomer = addToRemainingRounds(original.rounds, completed, latecomer);
     const regen = regenerateRemaining([...nine, latecomer], 2, withLatecomer, completed);
 
     // Round 5: ten players over two courts, so two sit — and both should come
@@ -271,7 +278,7 @@ describe('a player added mid-session', () => {
     const latecomer: Player = {
       id: 'late', name: 'Zoe', rating: 4, gender: 'F', rosterIds: ['r1'],
     };
-    const next = addToRemainingSitOuts(original.rounds, [1, 2], latecomer);
+    const next = addToRemainingRounds(original.rounds, [1, 2], latecomer);
 
     expect(next[0].sitOuts.map((p) => p.id)).not.toContain(latecomer.id);
     for (const r of next.slice(2)) {

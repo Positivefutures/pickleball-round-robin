@@ -1,7 +1,7 @@
 import type {
   CourtAssignment, PairingHistory, Partnership, Player, RoundType,
 } from '../types';
-import { fisherYatesShuffle, sumRatings } from '../utils/helpers';
+import { courtRatingDiff, fisherYatesShuffle } from '../utils/helpers';
 import { scoreAssignment } from './scoring';
 import { partnerKey } from './partnerships';
 import {
@@ -9,6 +9,7 @@ import {
   findBestAssignmentWithPartners,
   getInteractionCount,
   pickBestSplit,
+  pickShortSplit,
   type Assignment,
 } from './assign';
 
@@ -136,11 +137,19 @@ function assignPool(
   keepTogether: Partnership[],
   allPlayers?: Player[]
 ): Assignment {
-  if (numCourts <= 0 || players.length < 4) {
+  if (numCourts <= 0 || players.length < 2) {
     return { courts: [], extraSitOuts: players };
   }
   const ids = new Set(players.map((p) => p.id));
   const relevant = keepTogether.filter((c) => ids.has(c.player1Id) && ids.has(c.player2Id));
+
+  // Two or three left over after the format has taken what it can still make a
+  // game. They used to sit down.
+  if (players.length < 4) {
+    const coupleKeys = new Set(relevant.map((c) => partnerKey(c.player1Id, c.player2Id)));
+    return { courts: [pickShortSplit(players, 1, coupleKeys)], extraSitOuts: [] };
+  }
+
   return relevant.length > 0
     ? findBestAssignmentWithPartners(players, numCourts, history, relevant, allPlayers)
     : findBestAssignment(players, numCourts, history, allPlayers);
@@ -306,7 +315,7 @@ function findMixedAssignment(
         courtNumber: c + 1,
         team1,
         team2,
-        ratingDiff: Math.abs(sumRatings(team1) - sumRatings(team2)),
+        ratingDiff: courtRatingDiff(team1, team2),
       });
     }
 
@@ -376,7 +385,7 @@ function splitBand(
         courtNumber,
         team1,
         team2,
-        ratingDiff: Math.abs(sumRatings(team1) - sumRatings(team2)),
+        ratingDiff: courtRatingDiff(team1, team2),
       };
     }
   }
@@ -424,6 +433,13 @@ function findSkillAssignment(
     // Banding never resolved — fall back rather than leave the round empty.
     const fallback = assignPool(chosen, courtsToFill, history, keepTogether, allPlayers);
     return { courts: fallback.courts, extraSitOuts: [...rest, ...fallback.extraSitOuts] };
+  }
+
+  // Whoever the bands could not take plays an ordinary game on a spare court,
+  // the same as the gendered and mixed rounds do with their leftovers.
+  const spare = numCourts - bestCourts.length;
+  if (spare > 0 && rest.length >= 2) {
+    return combine(bestCourts, assignPool(rest, spare, history, keepTogether, allPlayers));
   }
 
   return { courts: bestCourts, extraSitOuts: rest };

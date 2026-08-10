@@ -116,6 +116,19 @@ describe('the swap hint', () => {
     expect(classes.some((c) => c.startsWith('text-gray'))).toBe(false);
   });
 
+  it('opens with the bulb, and reads a size up from the courts under it', () => {
+    // The bulb is what makes this scan as a tip in the half-second it gets. The
+    // sentence used to be text-sm, the same as a name on a court, which is the
+    // size for something you read all afternoon rather than once.
+    render();
+    const banner = shown();
+    expect(banner.querySelector('svg[viewBox="0 0 60 60"]')).not.toBeNull();
+    const line = [...banner.querySelectorAll('p')].find((p) =>
+      text(p).startsWith('Tap a player')
+    )!;
+    expect(line.className.split(/\s+/)).toContain('text-base');
+  });
+
   it('announces itself without stealing the focus', () => {
     // It appears on arrival rather than in answer to anything, so a screen
     // reader should mention it and then leave the host where they were.

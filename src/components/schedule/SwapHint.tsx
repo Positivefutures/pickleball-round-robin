@@ -1,3 +1,5 @@
+import { TipIcon } from '../icons';
+
 interface Props {
   onDismiss: () => void;
 }
@@ -10,6 +12,10 @@ interface Props {
  * app for the first time and worth nothing to anybody else, so it is now the
  * same green banner the install offer uses, with the same way out. Closing it
  * is remembered, and it does not come back.
+ *
+ * The bulb and the text are both a step up from the courts below, because this
+ * is read once at a glance and then never again, while a name on a court is
+ * read all afternoon.
  */
 export function SwapHint({ onDismiss }: Props) {
   return (
@@ -17,7 +23,8 @@ export function SwapHint({ onDismiss }: Props) {
       role="status"
       className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3"
     >
-      <p className="flex-1 text-sm text-green-900">
+      <TipIcon className="w-7 h-7 text-green-700" />
+      <p className="flex-1 text-base text-green-900">
         Tap a player, then tap another to swap them.
       </p>
       <button

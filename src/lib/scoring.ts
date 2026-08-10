@@ -1,5 +1,5 @@
 import type { CourtAssignment, PairingHistory, Player } from '../types';
-import { sumRatings } from '../utils/helpers';
+import { courtRatingDiff } from '../utils/helpers';
 
 const BALANCE_WEIGHT = 3.0;
 const PARTNER_REPEAT_WEIGHT = 10.0;
@@ -52,9 +52,10 @@ export function scoreAssignment(
   let totalScore = 0;
 
   for (const court of courts) {
-    const team1Rating = sumRatings(court.team1);
-    const team2Rating = sumRatings(court.team2);
-    const ratingDiff = Math.abs(team1Rating - team2Rating);
+    // Averaged when the sides are uneven, or a 2v1 reads as a 3.5 gap and the
+    // hard cap below fines the solver hundreds of points for a court it was
+    // told to build.
+    const ratingDiff = courtRatingDiff(court.team1, court.team2);
     let balancePenalty = ratingDiff * BALANCE_WEIGHT;
     if (ratingDiff > MAX_RATING_DIFF) {
       balancePenalty += HARD_CAP_PENALTY * (ratingDiff - MAX_RATING_DIFF);

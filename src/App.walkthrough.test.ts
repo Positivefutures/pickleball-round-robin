@@ -796,3 +796,273 @@ describe('Share App', () => {
     expect(container.textContent).not.toContain('Share the App');
   });
 });
+
+/**
+ * A roster that will not divide by four.
+ *
+ * Eleven people who have all turned up used to be told the app needed twelve for
+ * three courts, and the host had to drop a court or send somebody home. Now the
+ * last court plays a 2v1 and the schedule comes out. The refusal only survives
+ * where a court would hold one person on their own.
+ */
+describe('a roster short of a full set of courts', () => {
+  it('11 players over 3 courts plays a 2v1 on the last one', () => {
+    seed(11, 11, 3);
+    mount();
+    generate();
+
+    const s = storedSchedule();
+    for (const round of s.rounds) {
+      expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 3]);
+      expect(round.sitOuts).toHaveLength(0);
+    }
+    // The missing fourth place, named on the schedule the host is reading.
+    expect(container.textContent).toContain('EMPTY');
+  });
+
+  it('10 players over 3 courts plays singles on the last one', () => {
+    seed(10, 10, 3);
+    mount();
+    generate();
+
+    const s = storedSchedule();
+    for (const round of s.rounds) {
+      expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 2]);
+    }
+    // Both spare places are drawn, so two latecomers can be tapped straight in.
+    expect(container.textContent).toContain('EMPTY');
+  });
+
+  it('9 players over 3 courts is still refused, and says what it wants', () => {
+    // The tenth court place would be one person alone, which is not a game.
+    seed(9, 9, 3);
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Generate Schedule/);
+
+    expect(container.textContent).toContain('Need at least 10 players for 3 courts (have 9)');
+    expect(storedSchedule()).toBeNull();
+  });
+});
+
+/**
+ * Putting somebody into an empty place.
+ *
+ * An empty place is a slot like any other: tap it, then tap whoever should stand
+ * in it. Off the bench they simply join and the place is gone — a place on a
+ * court is not a person, so nothing goes back to Sitting out in exchange. Off
+ * another court the two places change hands.
+ *
+ * A tap only ever changes the round it was made in. The one case where doing it
+ * round by round would be busywork, a single gap and a single latecomer, never
+ * reaches a tap: adding the player fills it everywhere on its own.
+ */
+describe('filling an empty place', () => {
+  /** The EMPTY button in a round, or null. */
+  function emptyIn(n: number): HTMLElement | null {
+    return (buttons(/^EMPTY$/, roundCard(n))[0] as HTMLElement) ?? null;
+  }
+
+  /** Everybody in a round, on a court or on the bench. */
+  const everyone = (n: number) =>
+    [...onCourt(storedSchedule().rounds[n - 1]), ...storedSchedule().rounds[n - 1].sitOuts
+      .map((p) => p.name)];
+
+  /**
+   * Adds the first candidate the Add Player dialog offers, and names them.
+   * Read off the schedule rather than the dialog, whose label runs the name and
+   * the rating together.
+   */
+  function addPlayer(): string {
+    const before = new Set(everyone(1));
+    clickButton(/\+ Add Player/);
+    click(container.querySelector('input[type="radio"]') as HTMLInputElement);
+    clickButton(/^Add Player$/);
+
+    const added = everyone(1).filter((name) => !before.has(name));
+    expect(added).toHaveLength(1);
+    return added[0];
+  }
+
+  /**
+   * Two places going spare and somebody on the bench: 10 over 3 courts is 4, 4
+   * and a game of singles, and an eleventh has nowhere obvious to stand.
+   */
+  function benchedLatecomer(): string {
+    seed(12, 10, 3);
+    mount();
+    generate();
+    addPlayer();
+
+    const benched = storedSchedule().rounds[0].sitOuts;
+    expect(benched).toHaveLength(1);
+    return benched[0].name;
+  }
+
+  it('walks a latecomer straight onto a court with one place spare', () => {
+    // 11 over 3 courts is 4, 4, 3. There is one gap and only one player to put
+    // in it, so asking the host to tap it in eight times would be busywork.
+    seed(12, 11, 3);
+    mount();
+    generate();
+    const latecomer = addPlayer();
+
+    for (const round of storedSchedule().rounds) {
+      expect(onCourt(round)).toContain(latecomer);
+      expect(round.sitOuts).toEqual([]);
+      expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 4]);
+    }
+    expect(emptyIn(1)).toBeNull();
+  });
+
+  it('benches a latecomer when there is more than one place to choose between', () => {
+    const latecomer = benchedLatecomer();
+
+    for (const round of storedSchedule().rounds) {
+      expect(round.sitOuts.map((p) => p.name)).toContain(latecomer);
+      // The singles court is left alone. Who partners whom is the host's call.
+      expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 2]);
+    }
+  });
+
+  it('benches the next one too, rather than pairing them off unasked', () => {
+    benchedLatecomer();
+    addPlayer();
+
+    const round = storedSchedule().rounds[0];
+    expect(round.sitOuts).toHaveLength(2);
+    expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 2]);
+  });
+
+  it('takes somebody off the bench, and the place is simply gone', () => {
+    const latecomer = benchedLatecomer();
+
+    click(emptyIn(1)!);
+    clickButton(new RegExp(`^${latecomer}`), roundCard(1));
+
+    const round = storedSchedule().rounds[0];
+    expect(round.courts.map((c) => c.team1.length + c.team2.length)).toEqual([4, 4, 3]);
+    expect(round.sitOuts).toEqual([]); // not swapped out for anybody
+  });
+
+  it('puts them in that round and no other', () => {
+    // The host picked a side on this round. That says nothing about who should
+    // partner whom in the next one, so it is not carried anywhere.
+    const latecomer = benchedLatecomer();
+
+    click(emptyIn(1)!);
+    clickButton(new RegExp(`^${latecomer}`), roundCard(1));
+
+    const [first, ...rest] = storedSchedule().rounds;
+    expect(onCourt(first)).toContain(latecomer);
+    for (const round of rest) {
+      expect(round.sitOuts.map((p) => p.name)).toContain(latecomer);
+      expect(onCourt(round)).not.toContain(latecomer);
+    }
+  });
+
+  it('leaves rounds already played alone', () => {
+    const latecomer = benchedLatecomer();
+    markComplete(2);
+
+    const played = fingerprint(storedSchedule().rounds[1]);
+    click(emptyIn(1)!);
+    clickButton(new RegExp(`^${latecomer}`), roundCard(1));
+
+    expect(fingerprint(storedSchedule().rounds[1])).toBe(played);
+  });
+
+  it('swaps the place with a player from a full court', () => {
+    seed(11, 11, 3);
+    mount();
+    generate();
+
+    const before = storedSchedule().rounds[0];
+    const mover = before.courts[0].team1[0];
+
+    click(emptyIn(1)!);
+    clickButton(new RegExp(`^${mover.name}`), roundCard(1));
+
+    const after = storedSchedule().rounds[0];
+    // The player moved to the short court, and the gap went back the other way.
+    expect(onCourt(after)).toContain(mover.name);
+    expect(after.courts[2].team1.concat(after.courts[2].team2).map((p) => p.name))
+      .toContain(mover.name);
+    expect(after.courts.map((c) => c.team1.length + c.team2.length)).toEqual([3, 4, 4]);
+    expect(after.sitOuts).toEqual([]);
+  });
+
+  it('lets a 2v1 be rearranged, so the host picks who plays alone', () => {
+    seed(11, 11, 3);
+    mount();
+    generate();
+
+    const before = storedSchedule().rounds[0];
+    const wasAlone = before.courts[2].team2[0].name;
+    const moving = before.courts[2].team1[0].name;
+
+    // The spare place is on the single's side. Tapping it, then one of the pair,
+    // sends that player across and leaves their partner on their own.
+    click(emptyIn(1)!);
+    clickButton(new RegExp(`^${moving}`), roundCard(1));
+
+    const court = storedSchedule().rounds[0].courts[2];
+    expect(court.team1.length + court.team2.length).toBe(3); // still three-handed
+    expect(court.team2.map((p) => p.name).sort()).toEqual([moving, wasAlone].sort());
+    expect(court.team1).toHaveLength(1); // whoever is left is now the one alone
+    expect(court.team1[0].name).not.toBe(moving);
+  });
+
+  it('will not take the second player off a game of singles', () => {
+    // 10 over 3 courts is 4, 4 and a singles game. Moving one of those two into
+    // the spare place beside the other would leave a side with nobody on it.
+    seed(10, 10, 3);
+    mount();
+    generate();
+
+    const before = fingerprint(storedSchedule().rounds[0]);
+    const receiving = storedSchedule().rounds[0].courts[2].team2[0].name;
+
+    click(buttons(/^EMPTY$/, roundCard(1))[0]); // the spare place beside team 1
+    clickButton(new RegExp(`^${receiving}`), roundCard(1)); // the player on team 2
+
+    expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+  });
+
+  it('will not let one short court rob another', () => {
+    // Two short courts is only reachable by hand: fill one spare place on the
+    // singles court from a full court and both ends up three-handed. Neither can
+    // then give a player to the other without stranding somebody.
+    seed(10, 10, 3);
+    mount();
+    generate();
+
+    const donor = storedSchedule().rounds[0].courts[0].team1[0].name;
+    click(buttons(/^EMPTY$/, roundCard(1))[0]);
+    clickButton(new RegExp(`^${donor}`), roundCard(1));
+
+    const mid = storedSchedule().rounds[0];
+    expect(mid.courts.map((c) => c.team1.length + c.team2.length)).toEqual([3, 4, 3]);
+
+    // Now court 1 is short too. Its spare place cannot be filled from court 3.
+    const before = fingerprint(mid);
+    const victim = mid.courts[2].team1[0].name;
+    click(buttons(/^EMPTY$/, roundCard(1))[0]); // court 1's spare place
+    clickButton(new RegExp(`^${victim}`), roundCard(1));
+
+    expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+  });
+
+  it('is not offered on a round already played', () => {
+    seed(11, 11, 3);
+    mount();
+    generate();
+    markComplete(1);
+
+    // The card is frozen, so the place stays visible but does nothing.
+    const before = fingerprint(storedSchedule().rounds[0]);
+    const empty = emptyIn(1);
+    if (empty) click(empty);
+    expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+  });
+});

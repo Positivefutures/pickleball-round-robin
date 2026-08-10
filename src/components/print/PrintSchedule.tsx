@@ -1,5 +1,5 @@
 import type { Schedule, Player } from '../../types';
-import { getDisplayName } from '../../utils/helpers';
+import { formatTeam, getDisplayName } from '../../utils/helpers';
 import { APP_URL } from '../../lib/appInfo';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
 
@@ -96,10 +96,10 @@ export function PrintSchedule({ schedule, players }: Props) {
                               )}
                             </td>
                             <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '12.5pt', fontWeight: 'bold' }}>
-                              {court.team1.map((p) => getDisplayName(p, players)).join(' & ')}
+                              {formatTeam(court.team1, court)}
                             </td>
                             <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontSize: '12.5pt', fontWeight: 'bold' }}>
-                              {court.team2.map((p) => getDisplayName(p, players)).join(' & ')}
+                              {formatTeam(court.team2, court)}
                             </td>
                           </tr>
                         ))}

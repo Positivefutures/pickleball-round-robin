@@ -81,6 +81,13 @@ export interface PairingHistory {
   sitOutCounts: Record<string, number>;
   gamesPlayed: Record<string, number>;
   /**
+   * How many games on a court the roster could not fill a player has had — a
+   * 2v1 or a game of singles. Fewest goes first, so a roster that never divides
+   * by four passes the short game round rather than parking it on the same
+   * three people all afternoon.
+   */
+  shortGameCounts: Record<string, number>;
+  /**
    * Per type, how many rounds of that type a player has missed out on — they
    * sat out, or the roster only stretched to so many special courts and they
    * got an ordinary one. Whoever has missed most goes first next time.

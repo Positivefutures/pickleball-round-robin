@@ -127,6 +127,48 @@ function PlayerButton({
   );
 }
 
+/**
+ * A place on a court with nobody in it.
+ *
+ * Every court draws four places whatever the roster managed to fill, and this is
+ * what one of them looks like when it is going spare. It is a button like any
+ * other place: tap it, then tap somebody sitting out and they take it, or tap
+ * somebody on a full court and the two places change hands.
+ *
+ * Dashed and grey so it reads as a gap rather than a player, but it must not
+ * look disabled, because it is the thing the host is meant to press.
+ */
+function EmptyPlace({
+  selected,
+  courtNumber,
+  readOnly,
+  onTap,
+}: {
+  selected: boolean;
+  courtNumber: number;
+  readOnly: boolean;
+  onTap: () => void;
+}) {
+  const base =
+    'w-full text-sm px-3 py-2 rounded-md text-left font-medium border border-dashed transition-colors';
+  return (
+    <button
+      type="button"
+      onClick={() => !readOnly && onTap()}
+      aria-label={`Empty place on court ${courtNumber}`}
+      className={
+        selected
+          ? `${base} border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-500`
+          : `${base} border-gray-300 bg-gray-50 text-gray-400${
+              readOnly ? ' cursor-default' : ' hover:bg-gray-100 hover:text-gray-500'
+            }`
+      }
+    >
+      EMPTY
+    </button>
+  );
+}
+
 function TeamColumn({
   team,
   teamKey,
@@ -140,6 +182,8 @@ function TeamColumn({
   allPlayers,
   readOnly,
   styles,
+  lockRow,
+  courtNumber,
 }: {
   team: Player[];
   teamKey: 'team1' | 'team2';
@@ -153,6 +197,13 @@ function TeamColumn({
   allPlayers: Player[];
   readOnly: boolean;
   styles: TeamStyles;
+  /**
+   * Whether a padlock row is drawn on this court at all. Only one side of a 2v1
+   * has a pair to hold together, so the other side draws a gap the same height
+   * and the four places stay level across the court.
+   */
+  lockRow: boolean;
+  courtNumber: number;
 }) {
   function isSelected(playerIdx: number) {
     return (
@@ -163,6 +214,12 @@ function TeamColumn({
       selectedSlot.playerIdx === playerIdx
     );
   }
+
+  const emptySelected =
+    selectedSlot?.kind === 'empty' &&
+    selectedSlot.roundIdx === roundIdx &&
+    selectedSlot.courtIdx === courtIdx &&
+    selectedSlot.team === teamKey;
 
   return (
     // min-w-0 or the column refuses to go narrower than the longest name in
@@ -187,16 +244,19 @@ function TeamColumn({
         />
       )}
 
-      {team.length === 2 && !readOnly && (
-        <button
-          type="button"
-          onClick={() => onToggleLock(roundIdx, courtIdx, teamKey)}
-          className="self-center -my-0.5 z-10 p-0.5 rounded hover:bg-gray-100 transition-colors"
-          aria-label={locked ? 'Unlock pair' : 'Lock pair'}
-        >
-          <LockIcon locked={locked} />
-        </button>
-      )}
+      {lockRow &&
+        (team.length === 2 ? (
+          <button
+            type="button"
+            onClick={() => onToggleLock(roundIdx, courtIdx, teamKey)}
+            className="self-center -my-0.5 z-10 p-0.5 rounded hover:bg-gray-100 transition-colors"
+            aria-label={locked ? 'Unlock pair' : 'Lock pair'}
+          >
+            <LockIcon locked={locked} />
+          </button>
+        ) : (
+          <div aria-hidden="true" className="self-center -my-0.5 p-0.5 w-4 h-4" />
+        ))}
 
       {team[1] && (
         <PlayerButton
@@ -213,6 +273,17 @@ function TeamColumn({
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={styles}
+        />
+      )}
+
+      {/* Two places to a side, always. Whatever the roster could not fill is
+          drawn as a gap somebody can be tapped into. */}
+      {team.length < 2 && (
+        <EmptyPlace
+          selected={emptySelected}
+          courtNumber={courtNumber}
+          readOnly={readOnly}
+          onTap={() => onPlayerTap({ kind: 'empty', roundIdx, courtIdx, team: teamKey })}
         />
       )}
     </div>
@@ -238,6 +309,21 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
   const canEdit = !readOnly && !!onEditNumber;
+
+  // Four places whatever the roster managed to fill, so the ones going spare can
+  // be tapped and somebody put in them.
+  const courtSize = court.team1.length + court.team2.length;
+
+  // A padlock needs a pair to hold. On a 2v1 that is one side only, and on a
+  // game of singles neither, which is why the row is drawn per court rather
+  // than per side — the gap on the other side keeps the places level.
+  const lockRow = !readOnly && (court.team1.length === 2 || court.team2.length === 2);
+
+  // Diff compares one side against the other, and a 2v1 has no comparison worth
+  // making: one player covering a whole court is not half a pair. The number
+  // still exists, averaged, because the scheduler balances on it — it is only
+  // the badge that would invite the wrong reading.
+  const showBalance = courtSize !== 3;
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
@@ -271,7 +357,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
             </span>
           )}
         </div>
-        <BalanceIndicator ratingDiff={court.ratingDiff} />
+        {showBalance && <BalanceIndicator ratingDiff={court.ratingDiff} />}
       </div>
 
       <div className="flex items-start gap-2">
@@ -288,6 +374,8 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={TEAM1_STYLES}
+          lockRow={lockRow}
+          courtNumber={court.courtNumber}
         />
 
         {/* Sits in the gap between the two columns, centred against the taller one */}
@@ -306,6 +394,8 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={TEAM2_STYLES}
+          lockRow={lockRow}
+          courtNumber={court.courtNumber}
         />
       </div>
     </div>

@@ -1,25 +1,61 @@
 import type { Player, PairingHistory, Partnership, Round } from '../types';
+import { courtRatingDiff } from '../utils/helpers';
 
 /**
- * Drops a player into the sit-outs of every round still to be played, leaving
- * the courts and the already-played rounds exactly as they are. The host then
- * either swaps them onto a court or reshuffles the remaining rounds around
- * them.
+ * The one place going spare in a round, or null if there are none or several.
+ *
+ * Several is the interesting case. One gap has only one answer, so the app can
+ * give it. Two gaps and a bench is a choice about who plays with whom, and
+ * guessing at it would be worse than asking.
+ */
+function loneEmptyPlace(round: Round): { courtIdx: number; team: 'team1' | 'team2' } | null {
+  let found: { courtIdx: number; team: 'team1' | 'team2' } | null = null;
+  let spare = 0;
+  round.courts.forEach((court, courtIdx) => {
+    for (const team of ['team1', 'team2'] as const) {
+      const gaps = 2 - court[team].length;
+      if (gaps <= 0) continue;
+      spare += gaps;
+      found ??= { courtIdx, team };
+    }
+  });
+  return spare === 1 ? found : null;
+}
+
+/**
+ * Puts somebody arriving mid-session into every round still to be played,
+ * leaving the rounds already played exactly as they are.
+ *
+ * A round with one place going spare — a 2v1 waiting on a fourth — takes them
+ * straight onto the court, because there is nowhere else they could go and
+ * making the host tap it in for every remaining round is busywork. A round with
+ * two places spare, or none at all, puts them on the bench: the first because
+ * who partners whom is the host's call, the second because there is no room.
  *
  * Completed rounds come back by reference — they are history, and sharing them
  * makes that obvious to anything comparing rounds.
  */
-export function addToRemainingSitOuts(
+export function addToRemainingRounds(
   rounds: Round[],
   completedRoundNumbers: number[],
   player: Player
 ): Round[] {
   const completed = new Set(completedRoundNumbers);
-  return rounds.map((round) =>
-    completed.has(round.roundNumber)
-      ? round
-      : { ...round, sitOuts: [...round.sitOuts, player] }
-  );
+  return rounds.map((round) => {
+    if (completed.has(round.roundNumber)) return round;
+
+    const place = loneEmptyPlace(round);
+    if (!place) return { ...round, sitOuts: [...round.sitOuts, player] };
+
+    const courts = round.courts.map((court, courtIdx) => {
+      if (courtIdx !== place.courtIdx) return court;
+      const next = { ...court, team1: [...court.team1], team2: [...court.team2] };
+      next[place.team].push(player);
+      next.ratingDiff = courtRatingDiff(next.team1, next.team2);
+      return next;
+    });
+    return { ...round, courts };
+  });
 }
 
 // A sit-out candidate unit: a single player, or a fixed pair that must sit
@@ -83,8 +119,10 @@ export function determineSitOuts(
     return sorted.slice(0, numSitOuts);
   }
 
-  // Partnership-aware: build sit-out units so couples sit together. Because a
-  // court is always 4 players, the active count after sitting out is exactly
+  // Partnership-aware: build sit-out units so couples sit together. Nobody sits
+  // out unless every court is full — a roster short of that puts the spare
+  // players on a 2v1 rather than on the bench — so past this point the active
+  // count after sitting out is exactly
   // 4 * effectiveCourts, so a partnership can never occupy more than the
   // available team slots — every unit selection that hits the target is
   // court-feasible. Parity also always resolves: numSitOuts has the same parity

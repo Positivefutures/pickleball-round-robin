@@ -208,6 +208,10 @@ export function roundTypeOf(round: Round): RoundType | null {
  */
 export function courtMatchesType(court: CourtAssignment, type: RoundType): boolean {
   const teams = [court.team1, court.team2];
+  // A court the roster could not fill plays an ordinary game whatever the round
+  // is. A 2v1 cannot be mixed, and calling it gendered or equal-skill would be
+  // a technicality — nobody standing there is playing the format.
+  if (court.team1.length + court.team2.length < 4) return false;
   switch (type) {
     case 'gendered':
       return new Set([...court.team1, ...court.team2].map((p) => p.gender)).size === 1;

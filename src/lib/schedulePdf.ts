@@ -12,7 +12,7 @@
  * without a browser and measured without one.
  */
 import type { Schedule, Player, Round } from '../types';
-import { getDisplayName } from '../utils/helpers';
+import { formatTeam, getDisplayName } from '../utils/helpers';
 import { APP_URL } from './appInfo';
 import { LOGO_IMAGE } from './logoImage';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from './roundTypes';
@@ -192,16 +192,12 @@ function columnHeaderPart(): Part {
   };
 }
 
-function courtRowPart(
-  court: Round['courts'][number],
-  round: Round,
-  players: Player[]
-): Part {
+function courtRowPart(court: Round['courts'][number], round: Round): Part {
   const type = roundTypeOf(round);
   const offFormat = Boolean(type) && !courtMatchesType(court, type!);
   const courtLabel = `COURT ${court.courtNumber}`;
-  const serving = court.team1.map((p) => getDisplayName(p, players)).join(' & ');
-  const receiving = court.team2.map((p) => getDisplayName(p, players)).join(' & ');
+  const serving = formatTeam(court.team1, court);
+  const receiving = formatTeam(court.team2, court);
 
   const courtLines = wrapText(courtLabel, COLUMNS[0].width - CELL_PAD_X * 2, LABEL_SIZE, 'bold');
   const noteLines = offFormat
@@ -277,7 +273,7 @@ export function layoutSchedule(schedule: Schedule, players: Player[]): PdfOp[][]
   for (const round of schedule.rounds) {
     const heading = headingPart(round, false);
     const header = columnHeaderPart();
-    const rows = round.courts.map((court) => courtRowPart(court, round, players));
+    const rows = round.courts.map((court) => courtRowPart(court, round));
     const sitOuts = sitOutPart(round, players);
 
     const whole =

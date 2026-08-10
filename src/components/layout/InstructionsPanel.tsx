@@ -100,8 +100,9 @@ export function InstructionsPanel({ onClose }: Props) {
               <li>Tap <strong>Generate Schedule</strong> and play.</li>
             </ol>
             <Tip>
-              You need at least 4 players, and 4 per court. Three courts means 12 players
-              before anyone sits out.
+              You need at least 4 players. Courts hold 4, but you can be two short:
+              three courts wants 12 and will run on 10, with the last court playing
+              a 2v1 or a game of singles.
             </Tip>
           </Section>
 

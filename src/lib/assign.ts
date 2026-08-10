@@ -1,5 +1,6 @@
 import type { CourtAssignment, LockedPair, PairingHistory, Partnership, Player } from '../types';
-import { fisherYatesShuffle, sumRatings } from '../utils/helpers';
+import { courtRatingDiff, fisherYatesShuffle } from '../utils/helpers';
+import { partnerKey } from './partnerships';
 import { scoreAssignment } from './scoring';
 
 /** What every court-filling routine hands back: the courts it built, and anyone left over. */
@@ -8,11 +9,149 @@ export interface Assignment {
   extraSitOuts: Player[];
 }
 
-// How many courts can actually be filled by this many players. Courts need 4
-// players each, so a roster that shrinks mid-session may support fewer courts
+/**
+ * How many players go on each court, in order.
+ *
+ * A court holds four, but a roster that does not divide by four is no reason to
+ * sit anybody down. The last court plays whoever is left: three of them is a
+ * 2v1, two is a game of singles. One person is not a game, so on that remainder
+ * they sit out and the court goes unused.
+ *
+ * Once every court is full the leftovers sit out as before, which is why short
+ * courts and sit-outs never appear in the same round.
+ */
+export function planCourtSizes(numPlayers: number, numCourts: number): number[] {
+  const full = Math.max(0, Math.min(numCourts, Math.floor(numPlayers / 4)));
+  const sizes: number[] = new Array(full).fill(4);
+  if (full < numCourts) {
+    const left = numPlayers - full * 4;
+    if (left >= 2) sizes.push(left);
+  }
+  return sizes;
+}
+
+// How many courts can actually be used by this many players, counting a short
+// court as a court. A roster that shrinks mid-session may support fewer courts
 // than were originally requested.
 export function effectiveCourtCount(numPlayers: number, numCourts: number): number {
-  return Math.min(numCourts, Math.floor(numPlayers / 4));
+  return planCourtSizes(numPlayers, numCourts).length;
+}
+
+/**
+ * The smallest roster that can put a game on every court asked for. Two short of
+ * a full set still works — the last court plays singles — but three short would
+ * leave somebody standing on a court alone, and that is where it stops.
+ *
+ * One court always wants a full four. A session of two or three people needs no
+ * schedule, and dropping the floor there would only let the app build something
+ * nobody wants.
+ */
+export function minPlayersForCourts(numCourts: number): number {
+  return Math.max(4, numCourts * 4 - 2);
+}
+
+/**
+ * Builds the court the roster could not fill.
+ *
+ * Three players are a 2v1 with the strongest of them on their own, which is the
+ * only arrangement that makes it a game rather than a hiding. Two are a game of
+ * singles. A couple stays a couple and takes the pair side: Set Partners
+ * outranks the rating.
+ */
+export function pickShortSplit(
+  group: Player[],
+  courtNumber: number,
+  coupleKeys?: Set<string>
+): CourtAssignment {
+  const court = (team1: Player[], team2: Player[]): CourtAssignment => ({
+    courtNumber,
+    team1,
+    team2,
+    ratingDiff: courtRatingDiff(team1, team2),
+  });
+
+  if (group.length <= 2) return court(group.slice(0, 1), group.slice(1, 2));
+
+  if (coupleKeys) {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        if (!coupleKeys.has(partnerKey(group[i].id, group[j].id))) continue;
+        const pair = [group[i], group[j]];
+        return court(pair, group.filter((_, k) => k !== i && k !== j));
+      }
+    }
+  }
+
+  const byRating = [...group].sort((a, b) => b.rating - a.rating);
+  return court(byRating.slice(1), byRating.slice(0, 1));
+}
+
+/**
+ * Who plays the short game this round.
+ *
+ * Whoever has had fewest of them goes first — the same rotation the sit-out line
+ * uses — so fifteen players over four courts take the 2v1 in turn instead of it
+ * landing on the same three every round. Couples move as one, except onto a
+ * court of two, where there is no team to keep them on.
+ */
+export function chooseShortCourtPlayers(
+  candidates: Player[],
+  size: number,
+  history: PairingHistory,
+  keepTogether: Partnership[] = [],
+  /** A pair the host padlocked onto this court. They keep their place. */
+  pinned: Player[] = []
+): Player[] {
+  const held = pinned.slice(0, size);
+  if (held.length >= size) return held;
+
+  const heldIds = new Set(held.map((p) => p.id));
+  candidates = candidates.filter((p) => !heldIds.has(p.id));
+  size -= held.length;
+
+  const shortGames = (p: Player) => history.shortGameCounts?.[p.id] ?? 0;
+  const byId = new Map(candidates.map((p) => [p.id, p]));
+  const claimed = new Set<string>();
+  const units: { players: Player[]; short: number; rand: number }[] = [];
+
+  for (const c of keepTogether) {
+    const p1 = byId.get(c.player1Id);
+    const p2 = byId.get(c.player2Id);
+    if (!p1 || !p2 || claimed.has(p1.id) || claimed.has(p2.id)) continue;
+    claimed.add(p1.id);
+    claimed.add(p2.id);
+    // A couple is only a candidate where the short court has a pair side to put
+    // them on. On a singles court they are held back for the full courts.
+    if (size >= 3) {
+      units.push({
+        players: [p1, p2],
+        short: Math.min(shortGames(p1), shortGames(p2)),
+        rand: Math.random(),
+      });
+    }
+  }
+
+  for (const p of candidates) {
+    if (claimed.has(p.id)) continue;
+    units.push({ players: [p], short: shortGames(p), rand: Math.random() });
+  }
+  units.sort((a, b) => a.short - b.short || a.rand - b.rand);
+
+  const chosen: Player[] = [];
+  for (const u of units) {
+    if (chosen.length + u.players.length > size) continue;
+    chosen.push(...u.players);
+    if (chosen.length === size) return [...held, ...chosen];
+  }
+
+  // Nothing but held-back couples left to draw on. Split one rather than leave
+  // a court standing empty.
+  const taken = new Set(chosen.map((p) => p.id));
+  for (const p of candidates) {
+    if (chosen.length === size) break;
+    if (!taken.has(p.id)) chosen.push(p);
+  }
+  return [...held, ...chosen];
 }
 
 export function getInteractionCount(
@@ -41,7 +180,7 @@ export function pickBestSplit(
   const MAX_DIFF = 0.5;
 
   for (const [team1, team2] of splits) {
-    const ratingDiff = Math.abs(sumRatings(team1) - sumRatings(team2));
+    const ratingDiff = courtRatingDiff(team1, team2);
 
     // Hard penalty if this split exceeds the max allowed rating difference
     const capPenalty = ratingDiff > MAX_DIFF ? 200 * (ratingDiff - MAX_DIFF) : 0;
@@ -74,7 +213,7 @@ export function pickBestSplit(
     courtNumber,
     team1,
     team2,
-    ratingDiff: Math.abs(sumRatings(team1) - sumRatings(team2)),
+    ratingDiff: courtRatingDiff(team1, team2),
   };
 }
 
@@ -189,12 +328,16 @@ export function findBestAssignment(
   history: PairingHistory,
   allPlayers?: Player[]
 ): Assignment {
-  const effectiveCourts = Math.min(numCourts, Math.floor(activePlayers.length / 4));
-  const numNeeded = effectiveCourts * 4;
-
-  if (effectiveCourts === 0) {
+  const sizes = planCourtSizes(activePlayers.length, numCourts);
+  if (sizes.length === 0) {
     return { courts: [], extraSitOuts: activePlayers };
   }
+
+  // A short court, if there is one, is always the last. Everything above it is
+  // built by the ordinary four-a-court search and is unaffected by it.
+  const shortSize = sizes[sizes.length - 1] < 4 ? sizes[sizes.length - 1] : 0;
+  const fullCourts = shortSize ? sizes.length - 1 : sizes.length;
+  const numNeeded = fullCourts * 4 + shortSize;
 
   let bestScore = Infinity;
   let bestCourts: CourtAssignment[] = [];
@@ -202,31 +345,37 @@ export function findBestAssignment(
 
   // --- Greedy iterations: build courts targeting unmet pairs ---
   for (let i = 0; i < 500; i++) {
-    const { groups, extras } = buildGreedyCourts(activePlayers, effectiveCourts, history);
-    if (groups.length !== effectiveCourts) continue;
+    const { groups, extras } = buildGreedyCourts(activePlayers, fullCourts, history);
+    if (groups.length !== fullCourts) continue;
 
     const courts: CourtAssignment[] = groups.map((group, c) =>
       pickBestSplit(group, history, c + 1)
     );
+    if (shortSize) courts.push(pickShortSplit(extras.slice(0, shortSize), fullCourts + 1));
 
     const score = scoreAssignment(courts, history, allPlayers);
     if (score < bestScore) {
       bestScore = score;
       bestCourts = courts;
-      bestExtras = extras;
+      bestExtras = extras.slice(shortSize);
     }
   }
 
   // --- Random iterations: explore broader space ---
   for (let i = 0; i < 500; i++) {
     const shuffled = fisherYatesShuffle(activePlayers);
-    const playersForCourts = shuffled.slice(0, numNeeded);
+    const playersForCourts = shuffled.slice(0, fullCourts * 4);
     const extras = shuffled.slice(numNeeded);
 
     const courts: CourtAssignment[] = [];
-    for (let c = 0; c < effectiveCourts; c++) {
+    for (let c = 0; c < fullCourts; c++) {
       const fourPlayers = playersForCourts.slice(c * 4, c * 4 + 4);
       courts.push(pickBestSplit(fourPlayers, history, c + 1));
+    }
+    if (shortSize) {
+      courts.push(
+        pickShortSplit(shuffled.slice(fullCourts * 4, numNeeded), fullCourts + 1)
+      );
     }
 
     const score = scoreAssignment(courts, history, allPlayers);
@@ -326,7 +475,7 @@ export function findBestAssignmentWithLocks(
           courtNumber: c + 1,
           team1,
           team2,
-          ratingDiff: Math.abs(sumRatings(team1) - sumRatings(team2)),
+          ratingDiff: courtRatingDiff(team1, team2),
         });
       }
     }
@@ -424,14 +573,14 @@ export function findBestAssignmentWithPartners(
           courtNumber: c + 1,
           team1: pairs[0],
           team2: pairs[1],
-          ratingDiff: Math.abs(sumRatings(pairs[0]) - sumRatings(pairs[1])),
+          ratingDiff: courtRatingDiff(pairs[0], pairs[1]),
         });
       } else if (pairs.length === 1) {
         courts.push({
           courtNumber: c + 1,
           team1: pairs[0],
           team2: courtSingles,
-          ratingDiff: Math.abs(sumRatings(pairs[0]) - sumRatings(courtSingles)),
+          ratingDiff: courtRatingDiff(pairs[0], courtSingles),
         });
       } else {
         // Fully-free court: optimise the 2v2 split like the default path.
