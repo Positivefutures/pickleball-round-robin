@@ -45,6 +45,13 @@ const server = {
 /** How many reads have been asked for, for the backoff test. */
 let reads = 0;
 
+/**
+ * How many upserts were attempted, refused ones included. server.pushed only
+ * records the ones that landed, so it cannot see a retry that failed, which is
+ * the whole subject of the push retry tests below.
+ */
+let upserts = 0;
+
 type Table = 'rosters' | 'players' | 'preferences';
 
 /**
@@ -77,6 +84,7 @@ const client = {
   from(table: Table) {
     return {
       upsert(rows: FakeRow[]) {
+        upserts += 1;
         if (server.failPush) {
           return Promise.resolve({
             error: {
@@ -218,6 +226,7 @@ beforeEach(() => {
   localStorage.clear();
   clock = 0;
   reads = 0;
+  upserts = 0;
   authState = { status: 'signed-out' };
   authListeners.clear();
   server.rosters = [];
@@ -789,5 +798,180 @@ describe('once it is running', () => {
     expect(rowsFor('players')).toEqual([
       expect.objectContaining({ id: 'p1', name: 'Ava Offline' })
     ]);
+  });
+});
+
+// ----------------------------------------------------- the push that failed --
+
+/**
+ * The court case, and the reason any of this exists.
+ *
+ * A phone on one bar does not go offline. It holds a connection that fails
+ * every request, and that is indistinguishable from a working one until
+ * something tries. So no `online` event fires, because the interface never
+ * dropped. The screen stays awake between rounds, so no `visibilitychange`
+ * either. Every trigger the engine had needed something to happen, and standing
+ * at a court between games, nothing does.
+ *
+ * The old behaviour was that the change sat in the outbox until the person
+ * happened to edit something else, while the panel said it was trying again.
+ */
+describe('a push that failed with nobody watching', () => {
+  async function signedInAndSeeded() {
+    startSync();
+    signIn(ME);
+    await settle();
+    server.pushed = [];
+  }
+
+  function editAva() {
+    stores.players.set((prev) => prev.map((p) => (p.id === 'p1' ? { ...p, rating: 5 } : p)));
+  }
+
+  it('comes back on its own, with no online event and no further edit', async () => {
+    await signedInAndSeeded();
+
+    server.failPush = true;
+    editAva();
+    await settle();
+    expect(pendingCount()).toBe(1);
+
+    // The dead spot ends, and nothing announces it. The host has pocketed the
+    // phone and is playing the next game.
+    server.failPush = false;
+    await vi.advanceTimersByTimeAsync(20_000);
+    await settle();
+
+    expect(rowsFor('players')).toEqual([expect.objectContaining({ id: 'p1', rating: 5 })]);
+    expect(pendingCount()).toBe(0);
+    expect(syncStatusStore.get()).toEqual({ state: 'saved' });
+  });
+
+  it('gets through a flapping signal that fails more often than it works', async () => {
+    await signedInAndSeeded();
+
+    server.failPush = true;
+    editAva();
+    await settle();
+
+    // Signal that comes and goes without ever dropping the interface, so the
+    // browser reports nothing throughout. Most retries land in a dead patch and
+    // the one that works has to be found by persistence rather than by an event.
+    for (let i = 0; i < 6; i += 1) {
+      server.failPush = i % 2 === 0;
+      await vi.advanceTimersByTimeAsync(45_000);
+    }
+
+    server.failPush = false;
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    await settle();
+
+    expect(pendingCount()).toBe(0);
+    expect(rowsFor('players')).toEqual([expect.objectContaining({ id: 'p1', rating: 5 })]);
+  });
+
+  it('backs off rather than hammering, when the signal never comes back', async () => {
+    await signedInAndSeeded();
+
+    server.failPush = true;
+    editAva();
+    await settle();
+
+    const before = upserts;
+    // Half an hour in a dead spot. Capped at five minutes a try that is a
+    // handful of requests. At the ordinary 1.5 second debounce it would be
+    // twelve hundred, which is a flat battery and the bug this cap prevents.
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+    expect(upserts - before).toBeGreaterThan(0);
+    expect(upserts - before).toBeLessThan(15);
+  });
+
+  it('does not retry a full account, which would spend the battery to be told no', async () => {
+    await signedInAndSeeded();
+
+    server.failPush =
+      'This account is full. It can hold 2000 players, including ones it has deleted.';
+    editAva();
+    await settle();
+
+    const before = upserts;
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+    // The same batch is refused identically every time. describe() deliberately
+    // does not promise a retry for this one, and this is that promise kept.
+    expect(upserts).toBe(before);
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'waiting',
+      problem: expect.stringContaining('This account is full')
+    });
+  });
+
+  it('never waits longer than five minutes, however long the dead spot ran', async () => {
+    await signedInAndSeeded();
+
+    server.failPush = true;
+    editAva();
+    await settle();
+    // Two hours with no signal. Doubling with no ceiling would by now be waiting
+    // hours, so a rating changed at the court would still not be up long after
+    // the drive home, with the panel insisting it was trying.
+    await vi.advanceTimersByTimeAsync(2 * 60 * 60_000);
+
+    server.failPush = false;
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    await settle();
+
+    expect(pendingCount()).toBe(0);
+    expect(rowsFor('players')).toEqual([expect.objectContaining({ id: 'p1', rating: 5 })]);
+  });
+
+  it('goes back to checking often when the browser says the network returned', async () => {
+    await signedInAndSeeded();
+
+    server.failPush = true;
+    editAva();
+    await settle();
+    // Long enough that the delay has reached its five minute ceiling.
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+    // The interface is back, but it is a false dawn and the signal still is not
+    // carrying. Leaving the delay at the ceiling would go quiet for five minutes
+    // at the exact moment there is most reason to try.
+    window.dispatchEvent(new Event('online'));
+    await settle();
+
+    const before = upserts;
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(upserts).toBeGreaterThan(before);
+  });
+
+  it('starts the next dead spot from a short wait, not from where the last one ended', async () => {
+    await signedInAndSeeded();
+
+    // A long dead spot, so the delay grows to its ceiling.
+    server.failPush = true;
+    editAva();
+    await settle();
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+
+    server.failPush = false;
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    await settle();
+    expect(pendingCount()).toBe(0);
+
+    // A second, unrelated dead spot, an hour of good signal later.
+    server.failPush = true;
+    stores.players.set((prev) => prev.map((p) => (p.id === 'p2' ? { ...p, rating: 2 } : p)));
+    await settle();
+    const before = upserts;
+
+    // Twenty seconds is enough for the first retry only if the counter went
+    // back to the base delay. Left at the ceiling this would still be waiting,
+    // and a change made after a good hour would sit there for five minutes.
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(upserts).toBeGreaterThan(before);
   });
 });

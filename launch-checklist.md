@@ -647,9 +647,13 @@ so there is one queue and not two.
 
 - [ ] **12. Phase 2b, the SignInBanner** **[me]**. Specced and ready. Its
       promise is true now that Phase 4 has shipped
-- [ ] **13. Phase 5, outbox retry and backoff** **[me]**. The one-bar-at-the-court
+- [x] **13. Phase 5, outbox retry and backoff** **[me]**. The one-bar-at-the-court
       case, and the most likely real-world failure of the core feature. More
-      launch-relevant than most of Tier E
+      launch-relevant than most of Tier E. Done 2026-08-09 in 1.9.9. The two
+      other parts of Phase 5, the `online` and focus triggers and the sync
+      status UI, had already shipped inside Phase 4. What was missing was a
+      retry on the push path: a failed push waited for the next edit, while the
+      panel said it was trying again
 - [ ] **14. Phase 6, service worker** **[me]**
 - [ ] **15. Coverage for the three account panels** **[me]**. Nothing in the 260
       tests mounts them. `MergeChoicePanel` has never run in a real conflict; it

@@ -317,6 +317,38 @@ function scheduleFlush(delay = FLUSH_DELAY_MS) {
   }, delay);
 }
 
+/**
+ * How long to wait before pushing again after a failure, doubling to a ceiling.
+ * Sync is never urgent, because the change is safe on the device either way, so
+ * the failure mode to avoid is a phone with no signal retrying in a tight loop
+ * until its battery is flat.
+ */
+const PUSH_RETRY_BASE_MS = 15_000;
+const PUSH_RETRY_CAP_MS = 5 * 60_000;
+
+let pushAttempt = 0;
+
+/**
+ * Brings a failed push back on its own.
+ *
+ * Nothing else will. The `online` event fires when the interface drops
+ * entirely, and a phone on one bar at a court never does that — it holds a
+ * connection that fails every request, which looks identical to a working one
+ * until you try. `visibilitychange` needs the tab to have been away. So without
+ * this, a push that failed sat queued until the person happened to edit
+ * something else, while the panel told them it was trying again.
+ *
+ * Only the delay backs off. An ordinary edit still schedules its flush 1.5
+ * seconds later however many failures came before it: somebody typing is
+ * present and watching, and is worth one request. The backoff is for the phone
+ * left in a pocket, which is where the battery goes.
+ */
+function schedulePushRetry() {
+  const wait = Math.min(PUSH_RETRY_BASE_MS * 2 ** pushAttempt, PUSH_RETRY_CAP_MS);
+  pushAttempt += 1;
+  scheduleFlush(wait);
+}
+
 async function flush(): Promise<void> {
   if (pushing || userId === null || account.get() !== userId) return;
 
@@ -357,6 +389,9 @@ async function flush(): Promise<void> {
     drop(done);
     settle();
     saveMirror();
+    // The connection works. Whatever the last dead spot cost, the next failure
+    // starts counting from the short delay again rather than from five minutes.
+    pushAttempt = 0;
 
     // Anything enqueued while that was in flight is still sitting there.
     if (pendingCount() > 0) scheduleFlush(0);
@@ -368,6 +403,10 @@ async function flush(): Promise<void> {
   } catch (error) {
     drop(done);
     settle(describe(error));
+    // A full account refuses the same batch identically every time, so a retry
+    // would spend the battery to be told no again. describe() already declines
+    // to promise one for that case; this is the half that makes it true.
+    if (!isAccountFull(error)) schedulePushRetry();
   } finally {
     pushing = false;
   }
@@ -894,10 +933,19 @@ function scheduleRetry(id: string) {
   }, wait);
 }
 
+/**
+ * Clears both backoffs: the one above, and the push retry's counter.
+ *
+ * Every caller is a moment when the waiting stopped meaning anything — sync got
+ * going, the network came back, or the session ended. Leaving the push counter
+ * climbing across those would make the first failure after a long-recovered dead
+ * spot wait five minutes for no reason.
+ */
 function cancelRetry() {
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = null;
   attempt = 0;
+  pushAttempt = 0;
 }
 
 function onSignedOut() {
@@ -965,6 +1013,17 @@ function follow() {
 let started = false;
 
 /**
+ * Separate from `started`, and deliberately not cleared by the test reset.
+ *
+ * These two listeners are module-global and anonymous, so there is no handle to
+ * remove them with. A second startSync would leave two of each, and then one
+ * `online` event would run the whole recovery twice over: two flushes racing,
+ * the second one pushing the backoff counter up again just as the first reset
+ * it. Registering once is the only way to be sure the count means anything.
+ */
+let listening = false;
+
+/**
  * Called once, from the app's first render. Cheap for everyone it does not
  * apply to: with no env vars, the flag off, or nobody signed in on this
  * browser, it returns having imported nothing and touched no network.
@@ -979,6 +1038,9 @@ export function startSync(): void {
 
   // Only wake the client for somebody who is actually signed in.
   if (hasStoredSession() || hasAuthCallback()) void initAuth();
+
+  if (listening) return;
+  listening = true;
 
   // Coming back from a dead spot. follow() covers the case where the first
   // attempt never got far enough to know what this device was; syncNow covers
