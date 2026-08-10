@@ -688,6 +688,38 @@ so there is one queue and not two.
       been worse than the bug: it writes its plan back over the stores, so it
       would have deleted whatever arrived in the meantime. There is a test
       holding that door shut too
+- [x] **15b. Printing from an installed iPhone** **[me]**. Reported from a
+      phone: the printer button had stopped working. Lettered rather than
+      numbered because it is a found bug and not a planned item, and renumbering
+      the rest would break every reference to them.
+      Nothing was wrong with the print code, which has not changed since long
+      before any of this. WebKit only ever hosted the print dialog inside
+      Safari's own UI, so `window.print()` from a home-screen app returns
+      cleanly and nothing happens. It used to work because it was being used in
+      a Safari tab. Nothing throws and no promise rejects, so the app cannot
+      find out afterwards and has to decide in advance instead.
+      An installed iOS app now builds the schedule as a PDF and hands it to the
+      OS share sheet, which lists Print next to Save to Files and Mail. The
+      sheet belongs to the system rather than the browser, which is why it still
+      works there. Everywhere else, including an installed Android app and a
+      Safari tab, the button calls `window.print()` exactly as before. That
+      restraint is deliberate and tested: routing Android through a share sheet
+      would be taking away a working print dialog to solve Apple's problem.
+      Written by hand in `src/lib/pdf.ts`. The smallest capable package on npm
+      is about a third of a megabyte to download at a court, against 9 KB here,
+      and Helvetica is one of the fourteen fonts every reader is required to
+      have, so no font data ships. Its widths are read out of the Adobe AFM
+      metrics rather than remembered, because every line break depends on them.
+      There are two renderers for one document now, so
+      `schedulePdf.parity.test.ts` renders both and fails if they ever disagree.
+      69 new tests, 517 in total, and 41 sabotages every one of which turned the
+      suite red. Two of those found tests passing for the wrong reason rather
+      than bugs: the width check was measuring a substituted character instead
+      of the real one, and the title check had only ever seen a one-page
+      schedule. Both were rewritten to claim only what they can prove.
+      **Not yet proved on a real iPhone.** The layout was verified against macOS
+      PDFKit, which is the framework iOS prints with, and the unchanged path was
+      driven in a real browser. The share sheet cannot be opened from here
 
 ---
 

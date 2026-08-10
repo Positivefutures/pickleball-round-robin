@@ -32,7 +32,10 @@ import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { UpdateBanner } from './components/layout/UpdateBanner';
 import { updateStore, applyUpdate } from './lib/appUpdate';
-import { isStandalone, installRoute } from './lib/install';
+import { PrintNotice, type PrintProblem } from './components/layout/PrintNotice';
+import { printRoute, canSharePdf, sharePdf } from './lib/printing';
+import { scheduleToPdf, PDF_FILE_NAME, PDF_TITLE } from './lib/schedulePdf';
+import { isStandalone, isIos, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
 import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL } from './lib/appInfo';
@@ -112,6 +115,10 @@ function App() {
   // Read once: it cannot change without a reload, and re-reading per render
   // would run a matchMedia query on every keystroke.
   const [installed] = useState(isStandalone);
+
+  // Only ever set by a tap on the printer, and cleared by the next one, so a
+  // stale complaint cannot outlive the attempt that caused it.
+  const [printProblem, setPrintProblem] = useState<PrintProblem | null>(null);
 
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
@@ -297,6 +304,43 @@ function App() {
   const attendingPlayers = rosterPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
   );
+
+  /**
+   * The printer button. Everywhere but an installed iOS app this is one call to
+   * the browser, unchanged from the day it was written.
+   *
+   * There the schedule is turned into a PDF and handed to the OS share sheet,
+   * which lists Print. Both of those steps run inside the tap on purpose: iOS
+   * only opens the sheet during a live gesture, so building the document has to
+   * finish before the call rather than be awaited around it.
+   */
+  const handlePrint = useCallback(() => {
+    setPrintProblem(null);
+    const route = printRoute({
+      standalone: installed,
+      ios: isIos(),
+      canShareFiles: canSharePdf(),
+    });
+
+    if (route === 'dialog') {
+      window.print();
+      return;
+    }
+    if (route === 'blocked') {
+      setPrintProblem('blocked');
+      return;
+    }
+    if (!schedule) return;
+
+    const file = new File([scheduleToPdf(schedule, attendingPlayers)], PDF_FILE_NAME, {
+      type: 'application/pdf',
+    });
+    void sharePdf(file, PDF_TITLE).then((outcome) => {
+      // Closing the sheet is an answer, so only a sheet that never opened is
+      // worth saying anything about.
+      if (outcome === 'failed' || outcome === 'unsupported') setPrintProblem('failed');
+    });
+  }, [installed, schedule, attendingPlayers]);
 
   // Removes a player from every round that isn't marked complete and rebuilds
   // those rounds around the smaller group. Completed rounds — any subset — are
@@ -532,7 +576,7 @@ function App() {
         settingsOpen={settingsOpen}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         // Only the Schedule step has something worth printing
-        onPrint={step === 'schedule' ? () => window.print() : undefined}
+        onPrint={step === 'schedule' ? handlePrint : undefined}
       />
       {/* Narrow side margins on purpose: every pixel across is a pixel the
           roster table and the court grid can use on a phone. */}
@@ -542,6 +586,12 @@ function App() {
             back until they navigate somewhere they may never go. */}
         {updateReady && !updateDismissed && (
           <UpdateBanner onReload={applyUpdate} onDismiss={() => setUpdateDismissed(true)} />
+        )}
+
+        {/* Above the schedule rather than beside the button, because the header
+            has no room on a phone and this needs a whole sentence. */}
+        {printProblem && (
+          <PrintNotice reason={printProblem} onDismiss={() => setPrintProblem(null)} />
         )}
 
         {/* Held back until there's a real roster worth keeping. The route check
