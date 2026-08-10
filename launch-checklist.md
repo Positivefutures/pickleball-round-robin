@@ -671,9 +671,14 @@ so there is one queue and not two.
       **If a bad build ever ships**, the recovery is an ordinary deploy. Every
       page checks `sw.js` when it comes back to the foreground, so the fix
       reaches people without anyone clearing anything
-- [ ] **15. Coverage for the three account panels** **[me]**. Nothing in the 260
-      tests mounts them. `MergeChoicePanel` has never run in a real conflict; it
-      was verified once with fabricated counts
+- [ ] **15. Coverage for the account panels** **[me]**. The note here said
+      nothing mounts them, which stopped being true: `AccountPanel.test.ts` and
+      `DeleteAccountPanel.test.ts` mount for real, and the harness they use
+      works. But those sixteen tests are all about deleting an account.
+      `SignInPanel` and `MergeChoicePanel` still have no test of any kind.
+      `MergeChoicePanel` has never run in a real conflict; it was verified once
+      with fabricated counts, and it is the only screen in the app where a wrong
+      tap loses data that cannot be got back
 
 ---
 
