@@ -671,14 +671,23 @@ so there is one queue and not two.
       **If a bad build ever ships**, the recovery is an ordinary deploy. Every
       page checks `sw.js` when it comes back to the foreground, so the fix
       reaches people without anyone clearing anything
-- [ ] **15. Coverage for the account panels** **[me]**. The note here said
-      nothing mounts them, which stopped being true: `AccountPanel.test.ts` and
-      `DeleteAccountPanel.test.ts` mount for real, and the harness they use
-      works. But those sixteen tests are all about deleting an account.
-      `SignInPanel` and `MergeChoicePanel` still have no test of any kind.
-      `MergeChoicePanel` has never run in a real conflict; it was verified once
-      with fabricated counts, and it is the only screen in the app where a wrong
-      tap loses data that cannot be got back
+- [x] **15. Coverage for the account panels** **[me]**. `SignInPanel` and
+      `MergeChoicePanel` now mount for real, and the account screen's sync
+      states are covered rather than only its delete rows. 42 new tests, 448 in
+      total, every one of them proved by breaking the thing it guards.
+      **It found a real bug, and the fix is in this commit.** The merge screen
+      froze both sides of its comparison, but the merge itself re-read the
+      device side, so the two could disagree. The question is raised when the
+      app first loads rather than when My Account is opened, and an unanswered
+      one survives a relaunch, so somebody could sign in, back out, spend a
+      session adding players, and then be shown counts and a list of duplicate
+      names from hours earlier. Naming the duplicates is the only thing standing
+      between two different people with the same name and becoming one person,
+      and consent given to an out of date list is not consent. The question now
+      re-reads the device while it waits. Freezing the merge instead would have
+      been worse than the bug: it writes its plan back over the stores, so it
+      would have deleted whatever arrived in the meantime. There is a test
+      holding that door shut too
 
 ---
 

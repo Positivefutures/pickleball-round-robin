@@ -425,6 +425,93 @@ describe('what it will not decide on its own', () => {
   });
 });
 
+/**
+ * The question can outlive the moment it was asked.
+ *
+ * It is raised by startSync at the app's first render rather than by opening My
+ * Account, and an unanswered one survives a relaunch, because `pb-sync-account`
+ * is only written once combining or adopting has actually run. So the app stays
+ * fully usable while it waits, and somebody can spend a whole session at a court
+ * adding people before they ever look at the screen holding the question.
+ *
+ * combineWithAccount re-reads the live stores when it runs, and has to: it
+ * writes the plan back over them, so planning from a frozen copy would delete
+ * whatever arrived in between. That leaves one rule for the question itself,
+ * which is that it has to be re-read too. A screen naming one duplicate while
+ * the merge folds two is consent for something that did not happen, and naming
+ * them is the only protection this design has against two different people with
+ * the same name quietly becoming one.
+ */
+describe('a question left unanswered while the app carries on', () => {
+  async function askedAndLeft() {
+    server.rosters = [serverRoster('sg', 'Thursday')];
+    server.players = [serverPlayer('sp', 'Ava', ['sg']), serverPlayer('sp2', 'Cal', ['sg'])];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'choice',
+      device: { rosters: 1, players: 2 },
+      matched: ['Ava']
+    });
+  }
+
+  it('counts what is on the device now, not what was on it when it asked', async () => {
+    await askedAndLeft();
+
+    stores.rosters.set((prev) => [...prev, { id: 'g2', name: 'Sunday' }]);
+    stores.players.set((prev) => [
+      ...prev,
+      { id: 'p3', name: 'Dana', rating: 4, gender: 'F', rosterIds: ['g2'] }
+    ]);
+
+    expect(syncStatusStore.get()).toMatchObject({
+      state: 'choice',
+      // The account side is frozen on purpose. It is the snapshot the merge
+      // will use, so freezing it is what keeps the screen and the merge agreed.
+      account: { rosters: 1, players: 2 },
+      device: { rosters: 2, players: 3 }
+    });
+  });
+
+  it('names a duplicate that arrived after it asked, because folding it is the answer', async () => {
+    await askedAndLeft();
+
+    // Cal is already on the account. Adding him here makes him a duplicate the
+    // first wording of the question had no way to know about.
+    stores.players.set((prev) => [
+      ...prev,
+      { id: 'p3', name: 'Cal', rating: 4, gender: 'M', rosterIds: ['g1'] }
+    ]);
+
+    expect(syncStatusStore.get()).toMatchObject({ matched: ['Ava', 'Cal'] });
+
+    // And what it last said is what it goes on to do.
+    const report = await combineWithAccount();
+    expect(report.details.join(' ')).toContain('Ava, Cal');
+  });
+
+  it('merges what arrived late rather than dropping it', async () => {
+    await askedAndLeft();
+
+    stores.rosters.set((prev) => [...prev, { id: 'g2', name: 'Sunday' }]);
+    await combineWithAccount();
+    await settle();
+
+    // Guards the fix from the other direction. Freezing the device side of the
+    // question would keep the screen honest by throwing this group away.
+    expect(
+      stores.rosters
+        .get()
+        .map((r) => r.name)
+        .sort()
+    ).toEqual(['Sunday', 'Thursday', 'Tuesday']);
+    expect(rowsFor('rosters').map((r) => r.name)).toContain('Sunday');
+  });
+});
+
 // -------------------------------------------------------------- the merge --
 
 describe('combining this device with the account', () => {

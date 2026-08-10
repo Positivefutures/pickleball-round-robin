@@ -667,13 +667,57 @@ function seed() {
 /** The account as it was when the question was asked, held until it is answered. */
 let choice: {
   id: string;
+  reason: 'server-has-data' | 'other-account';
   server: Snapshot;
   preferences: Row | null;
   cursor: string | null;
 } | null = null;
 
+/** Dropped as soon as the question is answered, or stops being asked. */
+let unwatchChoice: (() => void)[] = [];
+
 function counts(snapshot: Snapshot): Counts {
   return { rosters: snapshot.rosters.length, players: snapshot.players.length };
+}
+
+/**
+ * Puts the question, using the data as it stands at this moment.
+ *
+ * The account side is frozen in `choice.server`, which is right: that snapshot
+ * is the one the merge itself will use, so freezing it is what keeps the screen
+ * and the outcome agreed. The device side cannot be frozen the same way.
+ * combineWithAccount writes its plan back over the stores, so planning from a
+ * stale copy of them would delete anything added since, which is a far worse
+ * fault than the one being fixed here.
+ *
+ * So the device side is re-read instead, here and again when it changes. It does
+ * change: the question is raised at the app's first render rather than on
+ * opening My Account, an unanswered one survives a relaunch, and nothing stops
+ * anybody using the app in the meantime. The duplicate names are the part that
+ * has to keep up. They are the whole of the protection against two different
+ * people with the same name becoming one, and that protection is consent, which
+ * is worth nothing if it was given to an out of date list.
+ */
+function askChoice() {
+  if (!choice) return;
+  const local = snapshotNow();
+  setStatus({
+    state: 'choice',
+    reason: choice.reason,
+    account: counts(choice.server),
+    device: counts(local),
+    matched: planMerge(local, choice.server).matched.players
+  });
+}
+
+function stopWatchingChoice() {
+  for (const off of unwatchChoice) off();
+  unwatchChoice = [];
+}
+
+function clearChoice() {
+  choice = null;
+  stopWatchingChoice();
 }
 
 async function onSignedIn(id: string) {
@@ -718,21 +762,25 @@ async function onSignedIn(id: string) {
     // last saved to somebody else's. Both need an answer no code should give on
     // the user's behalf: one would fold two people's data together, the other
     // would throw one of them away.
-    const plan = planMerge(snapshotNow(), server);
     choice = {
       id,
+      reason: owner === null ? 'server-has-data' : 'other-account',
       server,
       preferences: pulled.preferences,
       cursor: pulled.cursor
     };
     cancelRetry();
-    setStatus({
-      state: 'choice',
-      reason: owner === null ? 'server-has-data' : 'other-account',
-      account: counts(server),
-      device: counts(snapshotNow()),
-      matched: plan.matched.players
-    });
+    // Asked before watched, not after. A store re-reads storage only while
+    // nothing is subscribed to it, so subscribing first would make whatever the
+    // cache happened to be holding authoritative and ask the question about it.
+    askChoice();
+    // Only the two stores the question is about. A rating typed while it waits
+    // changes no count and folds no duplicate, and rewording the question under
+    // somebody mid-read is its own small harm.
+    unwatchChoice = [
+      stores.rosters.subscribe(askChoice),
+      stores.players.subscribe(askChoice)
+    ];
   } catch (error) {
     // The decision could not be made, so this device does not yet know what it
     // is. Releasing the id is the point: onSignedIn returns early when it is
@@ -779,6 +827,9 @@ export async function combineWithAccount(): Promise<SyncReport> {
   const local = snapshotNow();
   const plan = planMerge(local, answered.server);
 
+  // Before a single store is written. The question is being answered, so it
+  // must stop rewording itself against the answer landing underneath it.
+  stopWatchingChoice();
   outbox.set({});
   stopTracking();
 
@@ -837,7 +888,7 @@ export async function combineWithAccount(): Promise<SyncReport> {
     }))
   ]);
 
-  choice = null;
+  clearChoice();
   settle();
   await flush();
 
@@ -859,6 +910,7 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
   const answered = choice;
   if (!answered) return { title: 'Nothing to replace.', details: [] };
 
+  stopWatchingChoice();
   outbox.set({});
   stopTracking();
 
@@ -894,7 +946,7 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
   mirror.set(snapshotNow());
   startTracking();
 
-  choice = null;
+  clearChoice();
   settle();
   await flush();
 
@@ -950,7 +1002,7 @@ function cancelRetry() {
 
 function onSignedOut() {
   userId = null;
-  choice = null;
+  clearChoice();
   stopTracking();
   cancelRetry();
   if (timer) {
@@ -1066,7 +1118,7 @@ export const __testing = {
     pushing = false;
     pulling = false;
     applying = false;
-    choice = null;
+    clearChoice();
     cursors.clear();
     stopTracking();
     cancelRetry();
