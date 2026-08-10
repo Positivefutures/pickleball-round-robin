@@ -115,6 +115,7 @@ function App() {
   const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
+  const [swapHintDismissed, setSwapHintDismissed] = useStoredValue(stores.swapHintDismissed);
 
   // Not stored, unlike the install dismissal above. There is a new build behind
   // each of these rather than one standing offer, so forgetting the refusal is
@@ -729,6 +730,8 @@ function App() {
             onRemovePlayer={handleRemovePlayer}
             onStartNewSession={handleStartNewSession}
             onUnsavedWorkChange={setScheduleHasWork}
+            showSwapHint={!swapHintDismissed}
+            onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
             onAddPlayer={handleAddPlayer}
           />

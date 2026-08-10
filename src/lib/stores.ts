@@ -82,3 +82,13 @@ export const scheduleEdited = createStoredValue<boolean>('pb-schedule-edited', f
 export const scheduleRosterId = createStoredValue<string | null>(KEYS.scheduleRoster, null);
 
 export const installDismissed = createStoredValue('pb-install-dismissed', false);
+
+/**
+ * Whether the host has waved away the line telling them how to swap two
+ * players. Once is enough: they know now, and it sat at the top of the schedule
+ * on every session for the rest of time.
+ *
+ * Device rather than person, like the install offer above it. Nothing is lost
+ * by a new phone showing the hint once.
+ */
+export const swapHintDismissed = createStoredValue('pb-swap-hint-dismissed', false);

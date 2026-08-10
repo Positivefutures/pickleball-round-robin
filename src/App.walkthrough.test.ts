@@ -193,6 +193,36 @@ describe('9 players / 2 courts', () => {
   });
 });
 
+describe('the swap hint', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  const HINT = 'Tap a player, then tap another to swap them';
+
+  it('is closed once and never comes back, not even on a new session', () => {
+    // The complaint was that it was a permanent fixture. Dismissing it has to
+    // outlive the page, so this relaunches the app rather than re-rendering it.
+    mount();
+    generate();
+    expect(container.textContent).toContain(HINT);
+
+    click(container.querySelector('button[aria-label="Dismiss"]')!);
+    expect(container.textContent).not.toContain(HINT);
+
+    // Away and back, the way a home-screen app is closed and opened.
+    act(() => root.unmount());
+    container.remove();
+    mount();
+    expect(container.textContent).not.toContain(HINT);
+
+    // And a brand new session, which is where it used to reappear.
+    // Both labels are in the markup; CSS picks one by how wide the phone is.
+    clickButton(/^New Session/);
+    clickButton(/^Yes, Start New$/);
+    generate();
+    expect(container.textContent).not.toContain(HINT);
+  });
+});
+
 describe('court numbers', () => {
   beforeEach(() => seed(9, 9, 2));
 

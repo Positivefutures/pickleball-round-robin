@@ -10,6 +10,7 @@ import { AddPlayerDialog } from './AddPlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
 import { BackToSetupDialog } from './BackToSetupDialog';
 import { NewSessionDialog } from './NewSessionDialog';
+import { SwapHint } from './SwapHint';
 import { ShuffleIcon } from './icons';
 
 export interface CourtSlot {
@@ -63,6 +64,9 @@ interface Props {
    * this page knows about the locks and broken couples that count towards it.
    */
   onUnsavedWorkChange: (atStake: boolean) => void;
+  /** False once the host has closed the swap hint, which is remembered for good. */
+  showSwapHint: boolean;
+  onDismissSwapHint: () => void;
   /** Group members not in this session yet, offered by Add Player. */
   addablePlayers: Player[];
   onAddPlayer: (playerId: string) => void;
@@ -107,6 +111,8 @@ export function SchedulePage({
   onRemovePlayer,
   onStartNewSession,
   onUnsavedWorkChange,
+  showSwapHint,
+  onDismissSwapHint,
   addablePlayers,
   onAddPlayer,
 }: Props) {
@@ -397,12 +403,9 @@ export function SchedulePage({
         </button>
       </div>
 
-      {/* Completed rounds are frozen, so once they all are there is nothing to swap */}
-      {!allComplete && (
-        <p className="text-center text-sm text-gray-400">
-          Tap a player, then tap another to swap them
-        </p>
-      )}
+      {/* Completed rounds are frozen, so once they all are there is nothing to
+          swap and nothing to say. */}
+      {showSwapHint && !allComplete && <SwapHint onDismiss={onDismissSwapHint} />}
 
       {orderedRounds.map(({ round, roundIdx, complete }) => {
         // Show ad-hoc locks plus every intact couple in this round (deduped by

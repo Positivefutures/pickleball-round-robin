@@ -836,6 +836,33 @@ so there is one queue and not two.
       focused with its contents selected and a numeric keypad, and rounds 2 to 4
       followed while the completed round 1 did not.
 
+- [x] **15f. The step tabs are a way back** **[me, parallel session]**. Players
+      and Setup are doors once they have been reached, and Schedule never is:
+      the only route onto it is Generate, which builds a new schedule rather
+      than returning to the old one. Leaving a schedule by a tab asks the same
+      question as leaving it by the button at the foot of the page, so the two
+      confirmations moved into components of their own and are raised from App
+      as well. Written in a session running alongside this one and committed on
+      its own so it was not swept into the next change. It goes out in the same
+      deploy as 15g.
+
+- [x] **15g. The swap hint is a notice, not furniture** **[me]**. "Tap a player,
+      then tap another to swap them" was a grey line pinned above the rounds
+      that nothing could remove, on every session for the rest of time. It is
+      worth reading once.
+      It is now the same green banner the install offer uses, with the same X on
+      the end, and closing it is written down. It does not come back: not on the
+      next session, not after the app is closed and reopened. That is proved by
+      relaunching the app in the test rather than re-rendering it, since a
+      component that merely forgets its own state would pass a weaker check.
+      It still says nothing once every round is complete, which was true of the
+      grey line too. There is nothing left to swap by then.
+      The dismissal belongs to the device, like the install offer. A new phone
+      shows it once, which is the right side to err on for a line that exists to
+      teach the gesture.
+      7 new tests, 605 in total, and 12 sabotages every one of which turned the
+      suite red. Looked at in Chrome at 390px.
+
 ---
 
 ## Tier E. Growth. Worth doing once the above holds.
