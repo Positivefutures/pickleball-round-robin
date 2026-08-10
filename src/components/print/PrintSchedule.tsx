@@ -82,8 +82,10 @@ export function PrintSchedule({ schedule, players }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {round.courts.map((court) => (
-                          <tr key={court.courtNumber}>
+                        {/* Keyed by position: the host names these, so two of
+                            them may hold the same number. */}
+                        {round.courts.map((court, courtIdx) => (
+                          <tr key={courtIdx}>
                             <td style={{ padding: '4pt 8pt', borderBottom: '1px solid #eee', fontWeight: 'bold', fontSize: '10pt' }}>
                               COURT {court.courtNumber}
                               {/* The roster would not stretch to this court in the round's

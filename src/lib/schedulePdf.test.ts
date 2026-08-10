@@ -75,6 +75,18 @@ describe('what the page says', () => {
     expect(allTexts(pages)).toContain('ROUND 2');
   });
 
+  it('calls each court what the host called it, not where it sits', () => {
+    // Courts at a centre are 7, 8 and 9 as often as they are 1, 2 and 3, and
+    // the sheet in somebody's hand is the copy that has to be right.
+    const named = schedule(1, 2);
+    named.rounds[0].courts[0].courtNumber = 7;
+    named.rounds[0].courts[1].courtNumber = 8;
+    const texts = allTexts(layoutSchedule(named, []));
+    expect(texts).toContain('COURT 7');
+    expect(texts).toContain('COURT 8');
+    expect(texts).not.toContain('COURT 1');
+  });
+
   it('puts both teams of every court on the page', () => {
     const joined = allTexts(pages).join(' ');
     for (const round of [1, 2]) {

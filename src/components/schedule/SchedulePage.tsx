@@ -2,10 +2,12 @@ import { useState } from 'react';
 import type { Schedule, Player, LockedPair, Partnership, Round } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
+import { renumberFrom } from '../../lib/courtNumbers';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
 import { AddPlayerDialog } from './AddPlayerDialog';
+import { CourtNumberDialog } from './CourtNumberDialog';
 import { ShuffleIcon } from './icons';
 
 export interface CourtSlot {
@@ -108,6 +110,10 @@ export function SchedulePage({
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
   const [confirmingSetup, setConfirmingSetup] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
+  // Which court is being renamed, by the round it was opened from.
+  const [editingCourt, setEditingCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
+    null
+  );
 
   const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
@@ -132,6 +138,19 @@ export function SchedulePage({
       else next.add(roundNumber);
       return next;
     });
+  }
+
+  // Renaming a court runs forwards from the round it was done at, and stops at
+  // nothing behind it. See lib/courtNumbers.ts for why.
+  function handleCourtNumberDone(courtNumber: number) {
+    if (!editingCourt) return;
+    onUpdateSchedule({
+      rounds: renumberFrom(
+        schedule.rounds, editingCourt.roundIdx, editingCourt.courtIdx, courtNumber,
+        completedRounds
+      ),
+    });
+    setEditingCourt(null);
   }
 
   function handleConfirmRemove() {
@@ -400,6 +419,7 @@ export function SchedulePage({
             canUncomplete={canUncomplete}
             onToggleComplete={() => handleToggleComplete(round.roundNumber)}
             onToggleExpand={() => handleToggleExpand(round.roundNumber)}
+            onEditCourtNumber={(courtIdx) => setEditingCourt({ roundIdx, courtIdx })}
             sitOutAction={
               canAddPlayer && roundIdx === firstOpenIdx ? addPlayerButton : undefined
             }
@@ -437,6 +457,17 @@ export function SchedulePage({
             onAddPlayer(playerId);
           }}
           onCancel={() => setAddingPlayer(false)}
+        />
+      )}
+
+      {editingCourt && schedule.rounds[editingCourt.roundIdx]?.courts[editingCourt.courtIdx] && (
+        <CourtNumberDialog
+          courtNumber={
+            schedule.rounds[editingCourt.roundIdx].courts[editingCourt.courtIdx].courtNumber
+          }
+          roundNumber={schedule.rounds[editingCourt.roundIdx].roundNumber}
+          onDone={handleCourtNumberDone}
+          onCancel={() => setEditingCourt(null)}
         />
       )}
 

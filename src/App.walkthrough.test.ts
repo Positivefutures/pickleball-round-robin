@@ -193,6 +193,39 @@ describe('9 players / 2 courts', () => {
   });
 });
 
+describe('court numbers', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  /** What every round in the saved session calls its first court. */
+  function courtNumbers(): number[] {
+    return storedSchedule().rounds.map((r) => r.courts[0].courtNumber);
+  }
+
+  function renameCourt(roundNumber: number, label: string, value: string) {
+    clickButton(new RegExp(`^${label}$`), roundCard(roundNumber));
+    const box = container.querySelector('input[aria-label="Court number"]') as HTMLInputElement;
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(box, value);
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    clickButton(/^Done$/, box.closest('form')!);
+  }
+
+  it('are kept through a reshuffle, and the played round keeps the one it was played on', () => {
+    // A reshuffle throws the unplayed rounds away and builds them again,
+    // numbered from 1. The court itself has not moved across the hall.
+    mount();
+    generate();
+    markComplete(1);
+    renameCourt(2, 'COURT 1', '7');
+    expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
+
+    clickButton(/^Reshuffle$/);
+    expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
+  });
+});
+
 describe('10 in the group, 9 playing / 2 courts', () => {
   beforeEach(() => seed(10, 9, 2));
 

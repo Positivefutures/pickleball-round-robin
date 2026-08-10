@@ -176,6 +176,10 @@ export function InstructionsPanel({ onClose }: Props) {
               Each round shows every court, its two teams, and a <strong>Diff</strong> badge
               — the rating gap between the teams. Green is an even match, red is lopsided.
             </p>
+            <Item term="COURT 1">
+              tap the heading to set the number your centre gave you. It changes that
+              round and every round after it.
+            </Item>
             <Item term="Complete">
               tick it as each round finishes; the round collapses out of the way.
             </Item>

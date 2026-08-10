@@ -123,6 +123,17 @@ describe('the printed sheet', () => {
     expect(text).toContain('COURT 1');
   });
 
+  it('calls each court what the host called it, not where it sits', () => {
+    // The host renames a court because the centre gave them court 7. The sheet
+    // they hand out has to agree with what is called across the hall.
+    const named: Schedule = {
+      rounds: [{ ...schedule.rounds[0], courts: [{ ...schedule.rounds[0].courts[0], courtNumber: 7 }] }],
+    };
+    const text = render(named).textContent ?? '';
+    expect(text).toContain('COURT 7');
+    expect(text).not.toContain('COURT 1');
+  });
+
   it('draws nothing at all without a schedule', () => {
     expect(render(null).innerHTML).toBe('');
   });

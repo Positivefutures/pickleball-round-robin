@@ -7,6 +7,7 @@ import { useScrollLock } from './hooks/useScrollLock';
 import * as stores from './lib/stores';
 import { generateSchedule, regenerateRemaining } from './lib/pairing';
 import { addToRemainingSitOuts } from './lib/sitout';
+import { carryCourtNumbers } from './lib/courtNumbers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import {
@@ -353,12 +354,17 @@ function App() {
     const activePartnerships = prunePartnerships(
       partnerships, new Set(remaining.map((p) => p.id))
     );
-    setSchedule(
-      regenerateRemaining(
-        remaining, numCourts, schedule.rounds, completedRounds,
-        specialTypes, activePartnerships
-      )
-    );
+    // The rebuilt rounds come back numbered from 1 again, and the court a group
+    // is standing on has not moved because somebody went home.
+    setSchedule({
+      rounds: carryCourtNumbers(
+        schedule.rounds,
+        regenerateRemaining(
+          remaining, numCourts, schedule.rounds, completedRounds,
+          specialTypes, activePartnerships
+        ).rounds
+      ),
+    });
     setRemovedIds((prev) => [...prev, playerId]);
     setScheduleEdited(true);
   }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
@@ -378,12 +384,16 @@ function App() {
     const activePartnerships = prunePartnerships(
       partnerships, new Set(attendingPlayers.map((p) => p.id))
     );
-    setSchedule(
-      regenerateRemaining(
-        attendingPlayers, numCourts, schedule.rounds, completedRounds,
-        specialTypes, activePartnerships, locks, brokenPairs
-      )
-    );
+    // Reshuffling changes who plays where, not what the courts are called.
+    setSchedule({
+      rounds: carryCourtNumbers(
+        schedule.rounds,
+        regenerateRemaining(
+          attendingPlayers, numCourts, schedule.rounds, completedRounds,
+          specialTypes, activePartnerships, locks, brokenPairs
+        ).rounds
+      ),
+    });
     // The remaining rounds are machine-built again, so swaps are gone — but a
     // removal is still work that going back to Setup would throw away.
     setScheduleEdited(removedIds.length > 0);

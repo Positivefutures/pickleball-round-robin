@@ -19,6 +19,8 @@ interface Props {
   canUncomplete: boolean;
   onToggleComplete: () => void;
   onToggleExpand: () => void;
+  /** Opens the box for renaming a court in this round. */
+  onEditCourtNumber: (courtIdx: number) => void;
   /** Shown on this round's "Sitting out" line — only the first unplayed round gets one. */
   sitOutAction?: ReactNode;
 }
@@ -50,6 +52,7 @@ export function RoundCard({
   canUncomplete,
   onToggleComplete,
   onToggleExpand,
+  onEditCourtNumber,
   sitOutAction,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
@@ -133,7 +136,10 @@ export function RoundCard({
               };
               return (
                 <CourtMatchup
-                  key={court.courtNumber}
+                  // Keyed by position, not by number: two courts in a round may
+                  // now carry the same one while the host is part way through
+                  // renaming them.
+                  key={courtIdx}
                   court={court}
                   roundIdx={roundIdx}
                   courtIdx={courtIdx}
@@ -145,6 +151,7 @@ export function RoundCard({
                   onRequestRemove={onRequestRemove}
                   readOnly={isComplete}
                   offFormat={!!roundType && !courtMatchesType(court, roundType)}
+                  onEditNumber={() => onEditCourtNumber(courtIdx)}
                 />
               );
             })}

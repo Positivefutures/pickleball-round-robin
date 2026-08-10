@@ -805,6 +805,37 @@ so there is one queue and not two.
       The Import/Export panel still has a native select for which group to
       export. It was not part of this and has not been touched.
 
+- [x] **15e. Court numbers the host sets** **[me]**. A centre assigns courts 7,
+      8 and 9. The app called them 1, 2 and 3 because it has no way of knowing
+      better, so "Jeff and Peter versus Joe and James on Court 1" sent four
+      people to a court somebody else was playing on.
+      The heading is now COURT in capitals and in bold, written out rather than
+      set in capitals with CSS so the screen says the same thing as the printed
+      sheet and the PDF, which have always said COURT. On a round still to be
+      played it is a button, marked with a dotted underline, and it opens a box
+      already holding the number with the number selected: a tap, a digit, Done.
+      A change runs from the round it was made at to the end of the schedule. It
+      never reaches backwards, and it steps over any round already marked
+      complete, wherever that round happens to sit, because completed rounds can
+      be ticked in any order and each is a record of what was played under the
+      name it was played on. Making a second change at an earlier round paints
+      through the first, which is what Jeff asked for and what the truth on the
+      ground would be.
+      Two things beyond the ask, both because leaving them would have looked
+      broken. The names survive a reshuffle and a player leaving, which both
+      throw the unplayed rounds away and build them again numbered from 1; the
+      court has not moved across the hall because somebody went home. And the
+      printed sheet and the shared PDF both follow, since the sheet in
+      somebody's hand is the copy that matters at the court.
+      Courts are renamed one at a time. Setting court 1 to 7 does not offer to
+      make the next two 8 and 9, and two courts in the same round may carry the
+      same number if that is what was typed. Both are easy to add and neither
+      was asked for.
+      27 new tests, 593 in total, and 30 sabotages every one of which turned the
+      suite red. Driven in a real browser at 390px as well: the box opens
+      focused with its contents selected and a numeric keypad, and rounds 2 to 4
+      followed while the completed round 1 did not.
+
 ---
 
 ## Tier E. Growth. Worth doing once the above holds.

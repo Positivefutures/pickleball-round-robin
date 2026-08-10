@@ -17,6 +17,8 @@ interface Props {
   readOnly?: boolean;
   /** A court on a special round that the roster could not fill in that format. */
   offFormat?: boolean;
+  /** Opens the box for renaming this court. Absent on a round that cannot be edited. */
+  onEditNumber?: () => void;
 }
 
 function LockIcon({ locked }: { locked: boolean }) {
@@ -231,12 +233,35 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false, onEditNumber }: Props) {
+  // Written out in capitals rather than set in them, so the printed sheet, the
+  // PDF and the screen all say the same thing and a test can read it back.
+  const label = `COURT ${court.courtNumber}`;
+  const canEdit = !readOnly && !!onEditNumber;
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-gray-700">Court {court.courtNumber}</h4>
+          {/* Still a heading either way. On a round that can be edited it holds
+              a button, because the number is the host's to set: a centre gives
+              out courts 7, 8 and 9, and the app cannot know that. The dotted
+              underline is the only hint that it opens something. */}
+          <h4 className="font-bold text-gray-700">
+            {canEdit ? (
+              <button
+                type="button"
+                onClick={onEditNumber}
+                aria-haspopup="dialog"
+                title="Change this court number"
+                className="underline decoration-dotted decoration-gray-400 underline-offset-4 hover:text-gray-900 transition-colors"
+              >
+                {label}
+              </button>
+            ) : (
+              label
+            )}
+          </h4>
           {offFormat && (
             <span
               className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600"
