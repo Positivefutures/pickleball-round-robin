@@ -115,7 +115,7 @@ Verified 2026-08-09: apex and `www` both return 307 to
 `https://app.pbroundrobin.com/`, the apex resolves through in one hop to the
 real app, and `app.` still returns 200 and is unchanged.
 
-### 3. Raise the sign-in email ceiling **[both]** PART DONE
+### 3. Raise the sign-in email ceiling **[both]** DONE FOR NOW
 
 - [x] Confirm the real Resend send limit. **100 a day, 3,000 a month**
 - [x] Confirm the Supabase auth rate limit. **30 emails an hour**
@@ -123,7 +123,11 @@ real app, and `app.` still returns 200 and is unchanged.
 - [x] Write `ACCOUNTS_ENABLED` into the runbook as the rollback if this goes bad
 - [x] **Raise the Supabase hourly cap.** Raised from 30 to **100 an hour** on
       2026-08-09
-- [ ] Decide whether Resend's 100 a day is worth paying to lift
+- [x] Decide whether Resend's 100 a day is worth paying to lift. **Not yet.**
+      Jeff checked the plan and confirmed the pricing on 2026-08-09. The trigger
+      to revisit is **40 sends in a day**, which is where the headroom stops
+      being comfortable. Nothing measures that automatically today, so it is a
+      dashboard glance rather than an alert
 
 Sign-in is a six-digit code by email. It fails quietly, which is what makes it
 the most likely thing to break first.
@@ -654,7 +658,19 @@ so there is one queue and not two.
       status UI, had already shipped inside Phase 4. What was missing was a
       retry on the push path: a failed push waited for the next edit, while the
       panel said it was trying again
-- [ ] **14. Phase 6, service worker** **[me]**
+- [x] **14. Phase 6, service worker** **[me]**. Done 2026-08-09 in 1.10.0, and
+      the last phase of the accounts plan. The app now loads with nothing at
+      all: shell precached, panel images cached on sight, and the 957 KB share
+      banner deliberately left out. Nothing from Supabase, Sentry or
+      `/_vercel/` is ever cached, which is most of what `sw.ts` is about.
+      A new build shows a line offering a reload rather than taking one, so a
+      deploy cannot swap the code under a host mid-session, and `APP_VERSION`
+      in a bug report still names what they are running. Built without
+      `vite-plugin-pwa`: it wanted 267 packages and nine high-severity
+      advisories to save the twenty lines now in `vite.config.ts`.
+      **If a bad build ever ships**, the recovery is an ordinary deploy. Every
+      page checks `sw.js` when it comes back to the foreground, so the fix
+      reaches people without anyone clearing anything
 - [ ] **15. Coverage for the three account panels** **[me]**. Nothing in the 260
       tests mounts them. `MergeChoicePanel` has never run in a real conflict; it
       was verified once with fabricated counts

@@ -7,6 +7,7 @@ import './index.css'
 import App from './App.tsx'
 import { runMigrations } from './lib/migrations'
 import { startMonitoring, reportCrash, crashTestRequested } from './lib/monitoring'
+import { startAppUpdates } from './lib/appUpdate'
 import { ErrorBoundary, CrashTest } from './components/layout/ErrorBoundary'
 
 // First, so that a fault in anything below is heard rather than lost. It only
@@ -35,3 +36,9 @@ createRoot(document.getElementById('root')!).render(
     <Analytics />
   </StrictMode>,
 )
+
+// After the render, and only in a real build. `dist/sw.js` is written by the
+// build, so there is nothing to register in dev, and a worker caching the app
+// while its source is being edited is a way to spend an hour debugging the
+// wrong copy of it.
+if (import.meta.env.PROD) startAppUpdates()

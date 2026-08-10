@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
@@ -30,6 +30,8 @@ import { isSupabaseConfigured, hasAuthCallback } from './lib/supabase';
 import { startSync } from './lib/sync';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
+import { UpdateBanner } from './components/layout/UpdateBanner';
+import { updateStore, applyUpdate } from './lib/appUpdate';
 import { isStandalone, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
@@ -99,6 +101,12 @@ function App() {
   const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
+
+  // Not stored, unlike the install dismissal above. There is a new build behind
+  // each of these rather than one standing offer, so forgetting the refusal is
+  // the right behaviour: the next deploy is entitled to ask again.
+  const updateReady = useSyncExternalStore(updateStore.subscribe, updateStore.get) === 'ready';
+  const [updateDismissed, setUpdateDismissed] = useState(false);
   const { canPrompt, promptInstall } = useInstallPrompt();
 
   // Read once: it cannot change without a reload, and re-reading per render
@@ -529,6 +537,13 @@ function App() {
       {/* Narrow side margins on purpose: every pixel across is a pixel the
           roster table and the court grid can use on a phone. */}
       <main className="max-w-5xl mx-auto px-2 py-6 space-y-4">
+        {/* On every step, not just this one. A new build is worth a moment
+            wherever somebody happens to be, and the alternative is holding it
+            back until they navigate somewhere they may never go. */}
+        {updateReady && !updateDismissed && (
+          <UpdateBanner onReload={applyUpdate} onDismiss={() => setUpdateDismissed(true)} />
+        )}
+
         {/* Held back until there's a real roster worth keeping. The route check
             matters: browsers with no install path at all (desktop Firefox) must
             never be offered one. */}
