@@ -4,7 +4,8 @@ import { PlayerForm } from './PlayerForm';
 import { PlayerList } from './PlayerList';
 import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
-import { AddPlayerSolidIcon, GroupSolidIcon, SelectPlayersIcon } from '../icons';
+import { GroupPicker } from './GroupPicker';
+import { AddPlayerSolidIcon, ChevronDownIcon, GroupSolidIcon, SelectPlayersIcon } from '../icons';
 
 // The panel headings all carry their icon in #60697c. It is written out at each
 // use rather than held in a constant, because Tailwind only generates a class it
@@ -55,6 +56,7 @@ export function RosterPage({
   const [orphan, setOrphan] = useState<{ player: Player; rosterId: string } | null>(null);
   const [draftRosterIds, setDraftRosterIds] = useState<string[]>([]);
   const [showManage, setShowManage] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
 
   // Selection is stamped with its group too, so switching groups clears it
   const [selection, setSelection] = useState<{ ids: string[]; rosterId: string } | null>(null);
@@ -79,6 +81,7 @@ export function RosterPage({
     setShowAddToGroup(false);
     setEditing(null);
     setOrphan(null);
+    setShowPicker(false);
     onSelectRoster(id);
   }
 
@@ -182,28 +185,32 @@ export function RosterPage({
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
-        {/* Still a label, not a heading, so it stays tied to the select below.
+        {/* A heading now rather than a label. It labelled the select that used
+            to sit below, and there is no form control left for it to point at.
             Sized to match "Add Player" further down the page. */}
-        <label
-          className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-2"
-          htmlFor="roster-select"
-        >
+        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-2">
           My Groups
           <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-        </label>
+        </h2>
         <div className="flex items-center gap-3 flex-wrap">
-          <select
-            id="roster-select"
-            value={activeRosterId}
-            onChange={(e) => handleSelectRoster(e.target.value)}
-            className="flex-1 min-w-[160px] min-h-10 px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+          {/* Which group you are in is the thing this panel exists to tell you,
+              so it is set at the size of a name in the list below rather than
+              the small type a select had it in. Cut with an ellipsis if it runs
+              out of room; the picker shows it whole. */}
+          <button
+            type="button"
+            onClick={() => setShowPicker(true)}
+            aria-haspopup="dialog"
+            className="flex-1 min-w-[160px] min-h-12 flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-left hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
-            {rosters.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+            <span
+              className="min-w-0 truncate text-xl font-bold text-[#222]"
+              title={activeRoster?.name}
+            >
+              {activeRoster?.name}
+            </span>
+            <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+          </button>
           <button
             onClick={() => setShowManage(true)}
             className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -298,6 +305,16 @@ export function RosterPage({
           groups={rosters.filter((r) => r.id !== activeRosterId)}
           onConfirm={handleAddToGroups}
           onCancel={() => setShowAddToGroup(false)}
+        />
+      )}
+
+      {showPicker && (
+        <GroupPicker
+          groups={rosters}
+          players={allPlayers}
+          activeId={activeRosterId}
+          onSelect={handleSelectRoster}
+          onClose={() => setShowPicker(false)}
         />
       )}
 

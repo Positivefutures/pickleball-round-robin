@@ -289,8 +289,9 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     runMigrations();
   }
 
-  /** The Import/Export overlay — scoped, since the roster page behind it also
-      has a <select> and the panel's would not be the first in the document. */
+  /** The Import/Export overlay. Scoped rather than reached for by tag: the
+      panel's is the only <select> on this screen today, and a page behind it
+      growing one would quietly hand this test the wrong control. */
   function panel(): HTMLElement {
     const found = [...container.querySelectorAll('.fixed.inset-0')].find((d) =>
       text(d).includes('Export as CSV')

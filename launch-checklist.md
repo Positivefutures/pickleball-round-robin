@@ -717,9 +717,11 @@ so there is one queue and not two.
       than bugs: the width check was measuring a substituted character instead
       of the real one, and the title check had only ever seen a one-page
       schedule. Both were rewritten to claim only what they can prove.
-      **Not yet proved on a real iPhone.** The layout was verified against macOS
-      PDFKit, which is the framework iOS prints with, and the unchanged path was
-      driven in a real browser. The share sheet cannot be opened from here
+      **Proved on a real iPhone on 2026-08-10.** Jeff tapped the printer button
+      on the installed app and the share sheet opened with Print in it. Before
+      that it had only been verified against macOS PDFKit, which is the
+      framework iOS prints with, since the share sheet cannot be opened from
+      here
 
 - [x] **15c. Six small things off a phone** **[me]**. One batch, one deploy.
       *The blank first page on a desktop printout.* Tailwind's `min-h-screen`
@@ -774,11 +776,34 @@ so there is one queue and not two.
       false pass. The harness now restores everything on the way out and deletes
       the report before each run, and the whole pass was taken again from a
       clean tree.
-      **Two things are not proved from here.** The rubber banding is iOS
-      behaviour and needs your phone. So does whether Safari, rather than
-      Chrome, drops its own header and footer at a zero page margin: the layout
+      **The overscroll was confirmed on a real iPhone on 2026-08-10**: the
+      screen no longer moves when dragged past either end.
+      **One thing is still not proved from here.** Whether Safari, rather than
+      Chrome, drops its own header and footer at a zero page margin. The layout
       was checked through Chrome's print pipeline and through macOS PDFKit, and
-      neither of those is Safari printing.
+      neither of those is Safari printing. It only matters to somebody printing
+      from a Safari tab, since the installed app goes out through the share
+      sheet instead.
+
+- [x] **15d. The My Groups control** **[me]**. Two complaints, one cause.
+      The group you are in was set in the smallest type on a panel whose only
+      job is to tell you, and tapping it opened a list drawn by the browser
+      rather than by us: grey, no wider than the control it came from, animated
+      to its own taste, and narrow enough to wrap a group name over two lines.
+      All of that comes with a `<select>` and none of it can be styled away.
+      So there is no select any more. The control is a button showing the group
+      at the size of a name, cut with an ellipsis if it runs out of room, and it
+      opens the same bordered card every other dialog in the app uses, titled
+      My Groups with the same icon as the panel behind it. Each row carries the
+      group and how many players are in it, the one you are in is ticked as well
+      as tinted, and a tap switches and shuts. The tick has a slot on every row
+      so one row carrying it does not shunt its own count out of line.
+      One test guards the thing that started this by refusing to let a `<select>`
+      back onto the page at all. 9 new tests, 566 in total, and 16 sabotages
+      every one of which turned the suite red. Looked at in Chrome at 390px,
+      both states, and with a name long enough to need cutting.
+      The Import/Export panel still has a native select for which group to
+      export. It was not part of this and has not been touched.
 
 ---
 

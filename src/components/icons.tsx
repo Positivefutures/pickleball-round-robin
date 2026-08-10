@@ -319,6 +319,24 @@ export function ShieldCheckIcon({ className }: { className?: string }) {
   );
 }
 
+/** A chevron pointing down. Marks a control that opens something. */
+export function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <path d="M12 15.5l-6-6L7.4 8l4.6 4.6L16.6 8 18 9.5z" />
+    </Solid>
+  );
+}
+
+/** A tick on its own. Marks the one already chosen in a list. */
+export function CheckIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+    </Solid>
+  );
+}
+
 /**
  * A padlock, shackle up. `INBOX/lock.svg` verbatim on its 512 grid. Sits beside
  * "No password needed", where the point is reassurance rather than decoration.
