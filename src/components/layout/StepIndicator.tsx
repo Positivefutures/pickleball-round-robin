@@ -3,6 +3,9 @@ import { StepPlayersIcon, StepScheduleIcon, StepSetupIcon } from '../icons';
 
 interface Props {
   current: Step;
+  /** Steps the host can jump to from here. Never includes `current`. */
+  available: Step[];
+  onNavigate: (step: Step) => void;
 }
 
 // Kept here rather than in `steps.ts`, which is plain data and holds no JSX.
@@ -21,8 +24,16 @@ const ACTIVE_MARK = '#3aa641';
 const IDLE_TEXT = '#61697c';
 const IDLE_ICON = '#6f768d';
 const DIVIDER = '#dee1e7';
+// A step already been through: the live step's card with the colour drained out
+// of it, and a background that lifts off the track without reaching its white.
+const READY_BORDER = '#d3d7de';
+const READY_BG = '#fbfbfc';
 
-export function StepIndicator({ current }: Props) {
+export function StepIndicator({ current, available, onNavigate }: Props) {
+  // Both the live step and a step you can go back to are raised cards. A
+  // hairline belongs between two flat neighbours and nowhere else.
+  const carded = (key: Step) => key === current || available.includes(key);
+
   return (
     <nav
       className="flex items-stretch p-0.5 rounded-2xl border border-[#ddd] no-print"
@@ -30,10 +41,10 @@ export function StepIndicator({ current }: Props) {
     >
       {steps.map((step, i) => {
         const isActive = step.key === current;
+        const isReady = available.includes(step.key);
         const Icon = STEP_ICONS[step.key];
-        // A hairline between neighbours, hidden either side of the raised card
-        // so it never runs into it.
-        const divider = i > 0 && !isActive && steps[i - 1].key !== current;
+        // Hidden either side of a raised card so it never runs into one.
+        const divider = i > 0 && !carded(step.key) && !carded(steps[i - 1].key);
 
         return (
           <div key={step.key} className="flex-1 flex items-stretch min-w-0">
@@ -42,7 +53,15 @@ export function StepIndicator({ current }: Props) {
               className="self-center w-px h-5 shrink-0"
               style={{ backgroundColor: divider ? DIVIDER : 'transparent' }}
             />
-            <div
+            <button
+              type="button"
+              // Only a step already been through is a door. The live step is
+              // where you are, and a step not reached yet has to be earned with
+              // the button at the foot of the page — which is what keeps
+              // Schedule off limits until Generate has built one.
+              disabled={!isReady}
+              onClick={() => onNavigate(step.key)}
+              aria-current={isActive ? 'step' : undefined}
               // `relative` anchors the mark below. No `whitespace-nowrap`: a tab
               // that cannot fit its label must wrap rather than push the page
               // wider than the phone and clip everything else with it.
@@ -55,7 +74,13 @@ export function StepIndicator({ current }: Props) {
               style={
                 isActive
                   ? { border: `1px solid ${ACTIVE_BORDER}`, color: ACTIVE_TEXT }
-                  : { color: IDLE_TEXT }
+                  : isReady
+                    ? {
+                        border: `1px solid ${READY_BORDER}`,
+                        backgroundColor: READY_BG,
+                        color: IDLE_TEXT,
+                      }
+                    : { color: IDLE_TEXT }
               }
             >
               {/* The icon runs a shade lighter than its label, both states. */}
@@ -72,7 +97,7 @@ export function StepIndicator({ current }: Props) {
                   style={{ backgroundColor: ACTIVE_MARK }}
                 />
               )}
-            </div>
+            </button>
           </div>
         );
       })}

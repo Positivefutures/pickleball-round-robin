@@ -73,6 +73,7 @@ function render(completedRounds: number[] = []): HTMLElement {
         onCompletedRoundsChange: () => {},
         onRemovePlayer: () => {},
         onStartNewSession: () => {},
+        onUnsavedWorkChange: () => {},
         addablePlayers: [],
         onAddPlayer: () => {},
       })
@@ -247,6 +248,7 @@ describe('saving a new number', () => {
           onCompletedRoundsChange: () => {},
           onRemovePlayer: () => {},
           onStartNewSession: () => {},
+        onUnsavedWorkChange: () => {},
           addablePlayers: [],
           onAddPlayer: () => {},
         })

@@ -43,6 +43,8 @@ import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL }
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
+import { BackToSetupDialog } from './components/schedule/BackToSetupDialog';
+import { NewSessionDialog } from './components/schedule/NewSessionDialog';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
 // Shown in the banner on the Players step, and as the settings drawer's heading.
@@ -88,6 +90,14 @@ function App() {
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
 
   const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
+  // Setup opens the first time the host reaches it and stays open, so a trip
+  // back to Players is never a dead end. It starts open on a boot that lands on
+  // a saved schedule, since they plainly went through Setup to build it.
+  const [setupSeen, setSetupSeen] = useState(schedule !== null);
+  // What the schedule step says it would lose by being left. Reported up from
+  // SchedulePage, which owns the locks and broken couples that count towards it.
+  const [scheduleHasWork, setScheduleHasWork] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<'setup' | 'roster' | null>(null);
   const [pendingRosterSwitch, setPendingRosterSwitch] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -134,6 +144,11 @@ function App() {
   // into the middle of the next step instead of its heading.
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [step]);
+
+  // Reaching Setup once is what opens its tab, by whichever route.
+  useEffect(() => {
+    if (step !== 'roster') setSetupSeen(true);
   }, [step]);
 
   // Sync starts itself, or doesn't. It returns immediately when accounts are
@@ -551,6 +566,36 @@ function App() {
     setStep('roster');
   }, [clearSession]);
 
+  // Which tabs are doors. Schedule is never one: the only way onto it is
+  // Generate, which builds a new schedule rather than returning to the old one.
+  const availableSteps: Step[] = [];
+  if (step !== 'roster') availableSteps.push('roster');
+  if (step !== 'setup' && setupSeen) availableSteps.push('setup');
+
+  /**
+   * A tab is the same door as the button at the foot of the page, so it asks
+   * the same question. Off the schedule there is nothing to lose and nothing to
+   * ask: those are the moves Continue to Setup and the Back buttons already make.
+   */
+  const handleStepNav = useCallback(
+    (target: Step) => {
+      if (step !== 'schedule') {
+        setStep(target);
+        return;
+      }
+      if (target === 'schedule') return;
+      if (scheduleHasWork) {
+        setPendingLeave(target);
+        return;
+      }
+      // Nothing to lose, so no question. Players still means starting over, as
+      // it does from the New Session button beside it.
+      if (target === 'setup') setStep('setup');
+      else handleStartNewSession();
+    },
+    [step, scheduleHasWork, handleStartNewSession]
+  );
+
   return (
     <div
       className={`app-shell relative min-h-screen overflow-x-hidden bg-gray-800 ${
@@ -617,7 +662,11 @@ function App() {
             />
           )}
 
-        <StepIndicator current={step} />
+        <StepIndicator
+          current={step}
+          available={availableSteps}
+          onNavigate={handleStepNav}
+        />
 
         {step === 'roster' && (
           <RosterPage
@@ -679,11 +728,35 @@ function App() {
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onStartNewSession={handleStartNewSession}
+            onUnsavedWorkChange={setScheduleHasWork}
             addablePlayers={addablePlayers}
             onAddPlayer={handleAddPlayer}
           />
         )}
       </main>
+
+      {/* Leaving the schedule by its tab rather than by the button below it.
+          Same words, same outcome — SchedulePage takes its local locks and
+          broken couples with it when it unmounts. */}
+      {pendingLeave === 'setup' && (
+        <BackToSetupDialog
+          onConfirm={() => {
+            setPendingLeave(null);
+            setStep('setup');
+          }}
+          onCancel={() => setPendingLeave(null)}
+        />
+      )}
+
+      {pendingLeave === 'roster' && (
+        <NewSessionDialog
+          onConfirm={() => {
+            setPendingLeave(null);
+            handleStartNewSession();
+          }}
+          onCancel={() => setPendingLeave(null)}
+        />
+      )}
 
       {pendingRosterSwitch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

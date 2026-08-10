@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Schedule, Player, LockedPair, Partnership, Round } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
@@ -8,6 +8,8 @@ import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
 import { AddPlayerDialog } from './AddPlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
+import { BackToSetupDialog } from './BackToSetupDialog';
+import { NewSessionDialog } from './NewSessionDialog';
 import { ShuffleIcon } from './icons';
 
 export interface CourtSlot {
@@ -55,6 +57,12 @@ interface Props {
   onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
   onStartNewSession: () => void;
+  /**
+   * Whether leaving this schedule would throw work away. The step tabs sit
+   * above this page and open the same two doors as the buttons below, and only
+   * this page knows about the locks and broken couples that count towards it.
+   */
+  onUnsavedWorkChange: (atStake: boolean) => void;
   /** Group members not in this session yet, offered by Add Player. */
   addablePlayers: Player[];
   onAddPlayer: (playerId: string) => void;
@@ -98,6 +106,7 @@ export function SchedulePage({
   onCompletedRoundsChange,
   onRemovePlayer,
   onStartNewSession,
+  onUnsavedWorkChange,
   addablePlayers,
   onAddPlayer,
 }: Props) {
@@ -321,6 +330,12 @@ export function SchedulePage({
     else handleBack();
   }
 
+  // The tabs above this page ask the same question as the buttons below it, so
+  // App has to be told the answer. Only read while this page is mounted.
+  useEffect(() => {
+    onUnsavedWorkChange(hasUnsavedWork);
+  }, [hasUnsavedWork, onUnsavedWorkChange]);
+
   const allComplete = completedSet.size >= schedule.rounds.length;
 
   // Completed rounds group at the top (numeric order), then the rest — while
@@ -482,60 +497,18 @@ export function SchedulePage({
         />
       )}
 
-      {/* Setup is a one-way door: the only route forward from there is Generate,
-          which builds a fresh schedule and drops swaps, completions and removals. */}
       {confirmingSetup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-2">Go back to Setup?</p>
-            <p className="text-sm text-gray-600 text-center mb-4">
-              Generating again from Setup discards this schedule, including any swaps
-              you've made and rounds you've marked complete.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmingSetup(false)}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-              >
-                Keep Schedule
-              </button>
-              <button
-                onClick={handleBack}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
-              >
-                Go to Setup
-              </button>
-            </div>
-          </div>
-        </div>
+        <BackToSetupDialog onConfirm={handleBack} onCancel={() => setConfirmingSetup(false)} />
       )}
 
       {confirmingNewSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-2">Start a new session?</p>
-            <p className="text-sm text-gray-600 text-center mb-4">
-              This clears the current schedule.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmingNewSession(false)}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setConfirmingNewSession(false);
-                  onStartNewSession();
-                }}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
-              >
-                Yes, Start New
-              </button>
-            </div>
-          </div>
-        </div>
+        <NewSessionDialog
+          onConfirm={() => {
+            setConfirmingNewSession(false);
+            onStartNewSession();
+          }}
+          onCancel={() => setConfirmingNewSession(false)}
+        />
       )}
     </div>
   );

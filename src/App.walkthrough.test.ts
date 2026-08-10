@@ -556,21 +556,123 @@ describe('the Setup confirmation', () => {
     mount();
     generate();
 
-    clickButton(/^← Setup|^&larr; Setup|Setup$/);
+    // Anchored to the arrow: the "2. Setup" step tab is a button too, and it
+    // sits above the page, so a looser match would test the tab instead.
+    clickButton(/^← Setup$/);
     expect(container.textContent).toContain('Generate Schedule'); // no dialog, straight to Setup
 
     clickButton(/^Generate Schedule/);
     markComplete(1);
-    clickButton(/Setup$/);
+    clickButton(/^← Setup$/);
     expect(container.textContent).toContain('Go back to Setup?');
 
     clickButton(/^Keep Schedule$/);
     expect(container.textContent).not.toContain('Go back to Setup?');
     expect(completedRounds()).toEqual([1]);
 
-    clickButton(/Setup$/);
+    clickButton(/^← Setup$/);
     clickButton(/^Go to Setup$/);
     expect(container.textContent).toContain('Generate Schedule');
+  });
+});
+
+describe('the step tabs', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  /** A step tab, found in the nav rather than among the page's own buttons. */
+  function tab(label: RegExp): HTMLButtonElement {
+    const found = [...container.querySelectorAll('nav button')].find((b) => label.test(text(b)));
+    if (!found) throw new Error(`no step tab matching ${label}`);
+    return found as HTMLButtonElement;
+  }
+
+  const playersTab = () => tab(/^1\. Players$/);
+  const setupTab = () => tab(/^2\. Setup$/);
+  const scheduleTab = () => tab(/^3\. Schedule$/);
+
+  it('opens a tab only once the host has been through that step', () => {
+    mount();
+    expect(playersTab().getAttribute('aria-current')).toBe('step');
+    expect(setupTab().disabled).toBe(true);
+    expect(scheduleTab().disabled).toBe(true);
+
+    clickButton(/^Continue to Setup/);
+    expect(setupTab().getAttribute('aria-current')).toBe('step');
+    expect(playersTab().disabled).toBe(false);
+    expect(scheduleTab().disabled).toBe(true);
+
+    // Back to Players by the tab, and Setup is still a way forward from there.
+    click(playersTab());
+    expect(container.textContent).toContain('Continue to Setup');
+    expect(setupTab().disabled).toBe(false);
+    click(setupTab());
+    expect(container.textContent).toContain('Generate Schedule');
+
+    clickButton(/^Generate Schedule/);
+    expect(playersTab().disabled).toBe(false);
+    expect(setupTab().disabled).toBe(false);
+    // Generate is the only way onto a schedule, so its tab is never a door.
+    expect(scheduleTab().disabled).toBe(true);
+  });
+
+  it('goes straight through when the schedule has nothing to lose', () => {
+    mount();
+    generate();
+
+    click(setupTab());
+    expect(container.textContent).not.toContain('Go back to Setup?');
+    expect(container.textContent).toContain('Generate Schedule');
+
+    clickButton(/^Generate Schedule/);
+    click(playersTab());
+    expect(container.textContent).not.toContain('Start a new session?');
+    expect(container.textContent).toContain('Continue to Setup');
+    // Players means starting over, exactly as the New Session button does.
+    expect(storedSchedule()).toBeNull();
+  });
+
+  it('asks the Setup question before the Setup tab throws work away', () => {
+    mount();
+    generate();
+    markComplete(1);
+
+    click(setupTab());
+    expect(container.textContent).toContain('Go back to Setup?');
+
+    clickButton(/^Keep Schedule$/);
+    expect(container.textContent).toContain('Reshuffle'); // still on the schedule
+    expect(completedRounds()).toEqual([1]);
+
+    click(setupTab());
+    clickButton(/^Go to Setup$/);
+    expect(container.textContent).toContain('Generate Schedule');
+  });
+
+  it('asks the New Session question before the Players tab throws work away', () => {
+    mount();
+    generate();
+    markComplete(1);
+
+    click(playersTab());
+    expect(container.textContent).toContain('Start a new session?');
+
+    clickButton(/^Cancel$/);
+    expect(container.textContent).toContain('Reshuffle'); // still on the schedule
+    expect(storedSchedule()).not.toBeNull();
+    expect(completedRounds()).toEqual([1]);
+
+    click(playersTab());
+    clickButton(/^Yes, Start New$/);
+    expect(container.textContent).toContain('Continue to Setup');
+    expect(storedSchedule()).toBeNull();
+  });
+
+  it('leaves the New Session button asking, even with nothing to lose', () => {
+    mount();
+    generate();
+
+    clickButton(/New Session/);
+    expect(container.textContent).toContain('Start a new session?');
   });
 });
 
