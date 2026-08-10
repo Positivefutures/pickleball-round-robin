@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* No rubber banding, and no pull to refresh.
+   Dragging past the top or the bottom on a phone used to haul the whole app
+   with it and show the settings drawer sitting behind, which is a fixed panel
+   and so stays put while everything in front of it moves. There is nothing
+   above the header or below the footer worth reaching for. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Large-text mode (toggled from the header). --text-2xl intentionally
    NOT scaled: only the header h1 title uses it and it stays fixed. */
 .text-large {
@@ -52,6 +62,14 @@
 }
 
 @media print {
+  /* Zero, because it is the only switch there is for the browser's own header
+     and footer: the date and the document title across the top, the address and
+     the page number across the bottom. Anything above zero and they come back.
+     The margins are given back below, as bands the sheet reserves itself. */
+  @page {
+    margin: 0;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -64,6 +82,51 @@
     color: black;
     background: white;
     font-size: 12pt;
+  }
+
+  /* The dark surround the app sits on. Harmless while a printer ignores
+     backgrounds, but anyone who ticks "Background graphics" would otherwise get
+     black text on navy across every page. */
+  .app-shell {
+    background: white !important;
+  }
+
+  /* The one table wrapping the whole sheet. Its empty thead and tfoot are what
+     reserve a top and bottom band on every page; padding could not, because
+     vertical padding falls on the first and last page only. */
+  .print-sheet {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .print-sheet > * > tr > td {
+    padding: 0 0.75in;
+  }
+  .print-band-top {
+    height: 0.75in;
+  }
+  .print-band-bottom {
+    height: 0.6in;
+  }
+
+  /* Painted into the bottom band, on every page, because it is fixed. */
+  .print-footer {
+    position: fixed;
+    bottom: 0.3in;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10pt;
+  }
+
+  /* Tailwind's min-h-screen holds the app panel a full viewport tall even with
+     every child of it hidden, so the schedule used to begin on page two behind
+     a blank one. Paper has no viewport. */
+  .app-panel {
+    min-height: 0 !important;
+  }
+  .app-panel main {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .round-card {

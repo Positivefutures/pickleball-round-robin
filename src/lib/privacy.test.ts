@@ -103,9 +103,19 @@ describe('the privacy policy page', () => {
     expect(policy).toMatch(/Last updated \d{1,2} [A-Z][a-z]+ \d{4}/);
   });
 
-  it('loads nothing from another company, and runs no script', () => {
-    expect(policy).not.toMatch(/<script/i);
+  it('loads nothing from another company, and fetches no script', () => {
+    // There is one inline script, for the Close button. What has to stay true
+    // is that nothing is fetched: an inline script cannot be swapped out from
+    // under the page, and nothing here can be watched by anyone else.
+    expect(policy).not.toMatch(/<script[^>]*\ssrc=/i);
     expect(policy).not.toMatch(/(src|href)="https?:\/\//i);
+  });
+
+  it('closes with a link, so the button is not dead without JavaScript', () => {
+    // The page's whole point is that it renders with nothing running. A
+    // <button> would leave an X on screen that did nothing at all.
+    const close = /<a href="\/" class="close-page" id="close-page" aria-label="Close"/;
+    expect(policy).toMatch(close);
   });
 
   it('links only to files that exist', () => {

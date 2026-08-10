@@ -73,6 +73,7 @@ function PlayerButton({
   const { bgClass, borderClass, hoverClass, selectedBgClass } = styles;
   // Locked players cannot be tapped for swap; completed rounds are frozen entirely
   const interactive = !locked && !readOnly;
+  const displayName = getDisplayName(player, allPlayers);
 
   return (
     <button
@@ -88,7 +89,13 @@ function PlayerButton({
             : `${bgClass} ${borderClass} ${hoverClass} border`
       }${interactive ? '' : ' cursor-default'}`}
     >
-      <span className="font-medium">{getDisplayName(player, allPlayers)}</span>
+      {/* One line, cut with an ellipsis. A name long enough to wrap used to
+          make its court taller than the one beside it, and a grid of courts
+          that no longer lines up is harder to read than a shortened name. The
+          title carries the whole of it. */}
+      <span className="min-w-0 flex-1 truncate text-left font-medium" title={displayName}>
+        {displayName}
+      </span>
       {selected && interactive ? (
         <span
           role="button"
@@ -107,12 +114,12 @@ function PlayerButton({
               onRequestRemove(player);
             }
           }}
-          className="p-0.5 -mr-0.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
+          className="shrink-0 p-0.5 -mr-0.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
         >
           <TrashIcon />
         </span>
       ) : (
-        <span className="text-gray-500">{player.rating.toFixed(1)}</span>
+        <span className="shrink-0 pl-2 text-gray-500">{player.rating.toFixed(1)}</span>
       )}
     </button>
   );
@@ -156,7 +163,10 @@ function TeamColumn({
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center gap-1">
+    // min-w-0 or the column refuses to go narrower than the longest name in
+    // it, and the court grows sideways off the screen instead of the name
+    // being cut. A flex item is min-width: auto until told otherwise.
+    <div className="min-w-0 flex-1 flex flex-col items-center gap-1">
       {team[0] && (
         <PlayerButton
           key={team[0].id}

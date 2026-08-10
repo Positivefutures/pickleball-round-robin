@@ -9,9 +9,9 @@ interface Props {
  * Slate rather than green, which the install banner already owns. This one is
  * housekeeping and should read quieter than an invitation.
  *
- * Dismissing it does not refuse the update, only the interruption. The waiting
- * worker takes over on its own the next time the app is opened cold, so the
- * choice here is when, not whether.
+ * Dismissing it does not refuse the update, only the interruption. A build that
+ * is waiting is let in on its own the next time somebody comes back to the app
+ * after a minute away, so the choice here is when, not whether.
  */
 export function UpdateBanner({ onReload, onDismiss }: Props) {
   return (

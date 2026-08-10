@@ -186,7 +186,13 @@ export function SettingsPanel({
     <div
       inert={!open}
       aria-label="Settings"
-      className="no-print fixed inset-y-0 right-0 z-0 w-4/5 overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white"
+      // Not painted while it is shut. It sits behind the app panel rather than
+      // over it, so anything that moves the panel even slightly shows a stripe
+      // of the drawer. Hiding it waits out the 300ms slide, or it would vanish
+      // in front of the panel that is still on its way back.
+      className={`no-print fixed inset-y-0 right-0 z-0 w-4/5 overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white transition-[visibility] duration-0 ${
+        open ? 'visible delay-0' : 'invisible delay-300'
+      }`}
     >
       <div className="border-b border-white/20 pb-3">
         {/* The 192px icon scaled down, so it stays crisp on a retina screen */}

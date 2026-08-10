@@ -68,7 +68,14 @@ afterEach(() => {
   container.remove();
 });
 
-/** What the browser would print, as one run of characters. */
+/**
+ * What the browser would print, as one run of characters.
+ *
+ * The sheet only, not the page furniture around it. The address in the footer
+ * is one element that the browser repeats on every page, while the PDF has to
+ * draw its own copy on each, so counting it here would compare a one against
+ * an N. `PDF_FOOTER` is checked separately, in schedulePdf.test.ts.
+ */
 function printed(): string {
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -76,7 +83,9 @@ function printed(): string {
   act(() => {
     root.render(createElement(PrintSchedule, { schedule, players }));
   });
-  return (container.textContent ?? '').replace(/\s+/g, '');
+  const sheet = container.querySelector('.print-sheet');
+  if (!sheet) throw new Error('no .print-sheet rendered');
+  return (sheet.textContent ?? '').replace(/\s+/g, '');
 }
 
 /** What the PDF would say, in the order it draws it. */
@@ -102,5 +111,7 @@ describe('the printed sheet and the shared PDF', () => {
     expect(text).toContain('Sittingout:');
     expect(text).toContain('(normalgame)');
     expect(text).toContain('(MixedRound)');
+    expect(text).toContain('ROUND1');
+    expect(text).toContain('COURT1');
   });
 });

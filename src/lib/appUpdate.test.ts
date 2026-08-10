@@ -224,6 +224,114 @@ describe('letting it in', () => {
   });
 });
 
+/**
+ * The failure this exists for: a dismissed banner used to be the end of it.
+ *
+ * A waiting worker takes over when every page it would replace has gone away,
+ * and a home-screen app never lets one go. So somebody could dismiss the banner
+ * once and read the same version number off the footer a fortnight and two
+ * deploys later, with nothing at all going wrong.
+ */
+describe('coming back to the app after a while', () => {
+  function away(seconds: number) {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    now += seconds * 1000;
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  let now = 0;
+
+  beforeEach(() => {
+    now = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+  });
+
+  async function withOneWaiting(): Promise<FakeWorker> {
+    container.controller = {};
+    const waiting = new FakeWorker();
+    container.registration.waiting = waiting;
+    startAppUpdates();
+    await settle();
+    return waiting;
+  }
+
+  it('lets a build that has been waiting in, without being asked', async () => {
+    const waiting = await withOneWaiting();
+
+    away(__testing.AWAY_BEFORE_SWAP_MS / 1000 + 1);
+
+    expect(waiting.posted).toEqual([{ type: 'skip-waiting' }]);
+  });
+
+  it('reloads onto it once the new build has taken over', async () => {
+    await withOneWaiting();
+
+    away(120);
+    container.handOver();
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the app alone when somebody only glanced away', async () => {
+    // Reading a message and coming straight back is not a cold start, and
+    // reloading under someone's thumb mid-round would be worse than a stale
+    // version number.
+    const waiting = await withOneWaiting();
+
+    away(5);
+
+    expect(waiting.posted).toEqual([]);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('still looks for a new build on the short trips', async () => {
+    await withOneWaiting();
+    const before = container.registration.checks;
+
+    away(5);
+
+    expect(container.registration.checks).toBe(before + 1);
+  });
+
+  it('swaps nothing when there is nothing waiting', async () => {
+    container.controller = {};
+    startAppUpdates();
+    await settle();
+    const before = container.registration.checks;
+
+    away(600);
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(container.registration.checks).toBe(before + 1);
+  });
+
+  it('listens once, however many times it is started', async () => {
+    // Two listeners would check twice on every return and try to swap the build
+    // twice. sync.ts had exactly this, and one event ran the whole recovery
+    // twice over.
+    const waiting = await withOneWaiting();
+    startAppUpdates();
+    startAppUpdates();
+    await settle();
+
+    away(600);
+
+    expect(waiting.posted).toEqual([{ type: 'skip-waiting' }]);
+  });
+
+  it('does not count never having left as having been away', async () => {
+    // hiddenAt starts at zero, and zero is a long time ago.
+    const waiting = await withOneWaiting();
+
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(waiting.posted).toEqual([]);
+  });
+});
+
 describe('when there is no worker to be had', () => {
   it('carries on when the browser refuses to register one', async () => {
     // Private browsing, or a page not served over https. The app worked without

@@ -475,8 +475,8 @@ describe('Special Game Types', () => {
 
     function printedRound(n: number): string {
       const cards = [...container.querySelectorAll('.print-only .round-card')];
-      const card = cards.find((c) => text(c.querySelector('h2') ?? c).startsWith(`Round ${n}`));
-      if (!card) throw new Error(`no printed card for Round ${n}`);
+      const card = cards.find((c) => text(c.querySelector('h2') ?? c).startsWith(`ROUND ${n}`));
+      if (!card) throw new Error(`no printed card for ROUND ${n}`);
       return text(card);
     }
 

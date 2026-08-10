@@ -13,6 +13,8 @@
  */
 import type { Schedule, Player, Round } from '../types';
 import { getDisplayName } from '../utils/helpers';
+import { APP_URL } from './appInfo';
+import { LOGO_IMAGE } from './logoImage';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from './roundTypes';
 import { PAGE_HEIGHT, PAGE_WIDTH, buildPdf, widthOf, wrapText, type PdfOp } from './pdf';
 
@@ -26,7 +28,10 @@ const HEADING_SIZE = 15.4;
 const BADGE_SIZE = 9;
 const LABEL_SIZE = 10;
 const NAME_SIZE = 12.5;
-const NOTE_SIZE = 9;
+
+/** The logo beside the title, and the space between the two. */
+const LOGO_HEIGHT = 28;
+const LOGO_GAP = 10;
 
 const CELL_PAD_X = 8;
 const CELL_PAD_Y = 4;
@@ -81,16 +86,23 @@ function rule(top: number, color: string): PdfOp {
   return { kind: 'line', x: MARGIN, y: top, length: CONTENT_WIDTH, width: 0.5, color };
 }
 
+/** The logo and the title, centred together as one thing. */
 function titlePart(): Part {
   const text = 'Pickleball Round Robin';
-  const height = lineHeight(TITLE_SIZE) + 12;
+  const logoWidth = (LOGO_HEIGHT * LOGO_IMAGE.width) / LOGO_IMAGE.height;
+  const textWidth = widthOf(text, TITLE_SIZE, 'bold');
+  const groupWidth = logoWidth + LOGO_GAP + textWidth;
+  const left = MARGIN + (CONTENT_WIDTH - groupWidth) / 2;
+  const height = Math.max(lineHeight(TITLE_SIZE), LOGO_HEIGHT) + 12;
   return {
     height,
     draw: (top) => [
+      { kind: 'image', x: left, y: top, width: logoWidth, height: LOGO_HEIGHT },
       {
         kind: 'text',
-        x: MARGIN + (CONTENT_WIDTH - widthOf(text, TITLE_SIZE, 'bold')) / 2,
-        y: top,
+        x: left + logoWidth + LOGO_GAP,
+        // Optically centred against the logo rather than sat on its top edge.
+        y: top + (LOGO_HEIGHT - lineHeight(TITLE_SIZE)) / 2,
         text,
         size: TITLE_SIZE,
         font: 'bold',
@@ -99,10 +111,35 @@ function titlePart(): Part {
   };
 }
 
-/** "Round 3", with the format badge beside it, over a hairline. */
+/**
+ * The address, on every page, in place of the one the browser used to print.
+ *
+ * Added per page by `scheduleToPdf` rather than by `layoutSchedule`, which
+ * keeps the layout about the schedule: it is what the parity test compares
+ * against the DOM, and the DOM has one footer element for all of the pages.
+ */
+export const PDF_FOOTER = new URL(APP_URL).host;
+
+export function withFooters(pages: PdfOp[][]): PdfOp[][] {
+  return pages.map((ops) => [
+    ...ops,
+    {
+      kind: 'text',
+      x: MARGIN + (CONTENT_WIDTH - widthOf(PDF_FOOTER, LABEL_SIZE, 'regular')) / 2,
+      // Below the content margin, in the strip the browser used to print the
+      // address into.
+      y: PAGE_HEIGHT - MARGIN + 12,
+      text: PDF_FOOTER,
+      size: LABEL_SIZE,
+      font: 'regular',
+    },
+  ]);
+}
+
+/** "ROUND 3", with the format badge beside it, over a hairline. */
 function headingPart(round: Round, continued: boolean): Part {
   const type = roundTypeOf(round);
-  const label = `Round ${round.roundNumber}${continued ? ' continued' : ''}`;
+  const label = `ROUND ${round.roundNumber}${continued ? ' CONTINUED' : ''}`;
   const height = lineHeight(HEADING_SIZE) + 4 + 8;
   return {
     height,
@@ -162,7 +199,7 @@ function courtRowPart(
 ): Part {
   const type = roundTypeOf(round);
   const offFormat = Boolean(type) && !courtMatchesType(court, type!);
-  const courtLabel = `Court ${court.courtNumber}`;
+  const courtLabel = `COURT ${court.courtNumber}`;
   const serving = court.team1.map((p) => getDisplayName(p, players)).join(' & ');
   const receiving = court.team2.map((p) => getDisplayName(p, players)).join(' & ');
 
@@ -170,8 +207,8 @@ function courtRowPart(
   const noteLines = offFormat
     ? wrapText('(normal game)', COLUMNS[0].width - CELL_PAD_X * 2, LABEL_SIZE, 'regular')
     : [];
-  const servingLines = wrapText(serving, COLUMNS[1].width - CELL_PAD_X * 2, NAME_SIZE, 'regular');
-  const receivingLines = wrapText(receiving, COLUMNS[2].width - CELL_PAD_X * 2, NAME_SIZE, 'regular');
+  const servingLines = wrapText(serving, COLUMNS[1].width - CELL_PAD_X * 2, NAME_SIZE, 'bold');
+  const receivingLines = wrapText(receiving, COLUMNS[2].width - CELL_PAD_X * 2, NAME_SIZE, 'bold');
 
   const courtHeight = (courtLines.length + noteLines.length) * lineHeight(LABEL_SIZE);
   const namesHeight =
@@ -190,14 +227,8 @@ function courtRowPart(
         'regular',
         INK_MUTED
       ),
-      ...textLines(servingLines, COLUMNS[1].x + CELL_PAD_X, top + CELL_PAD_Y, NAME_SIZE, 'regular'),
-      ...textLines(
-        receivingLines,
-        COLUMNS[2].x + CELL_PAD_X,
-        top + CELL_PAD_Y,
-        NAME_SIZE,
-        'regular'
-      ),
+      ...textLines(servingLines, COLUMNS[1].x + CELL_PAD_X, top + CELL_PAD_Y, NAME_SIZE, 'bold'),
+      ...textLines(receivingLines, COLUMNS[2].x + CELL_PAD_X, top + CELL_PAD_Y, NAME_SIZE, 'bold'),
       rule(top + height, RULE_ROW),
     ],
   };
@@ -206,10 +237,12 @@ function courtRowPart(
 function sitOutPart(round: Round, players: Player[]): Part | null {
   if (round.sitOuts.length === 0) return null;
   const text = `Sitting out: ${round.sitOuts.map((p) => getDisplayName(p, players)).join(', ')}`;
-  const lines = wrapText(text, CONTENT_WIDTH, NOTE_SIZE, 'regular');
+  // At the size the names are, because it is a list of names: a court sheet is
+  // read at arm's length off a bench.
+  const lines = wrapText(text, CONTENT_WIDTH, NAME_SIZE, 'regular');
   return {
-    height: 6 + 2 + lines.length * lineHeight(NOTE_SIZE),
-    draw: (top) => textLines(lines, MARGIN, top + 6 + 2, NOTE_SIZE, 'regular', INK_MUTED),
+    height: 6 + 2 + lines.length * lineHeight(NAME_SIZE),
+    draw: (top) => textLines(lines, MARGIN, top + 6 + 2, NAME_SIZE, 'regular', INK_MUTED),
   };
 }
 
@@ -296,5 +329,5 @@ export const PDF_TITLE = 'Pickleball Round Robin';
 export const PDF_FILE_NAME = 'round-robin-schedule.pdf';
 
 export function scheduleToPdf(schedule: Schedule, players: Player[]): Uint8Array<ArrayBuffer> {
-  return buildPdf(layoutSchedule(schedule, players), PDF_TITLE);
+  return buildPdf(withFooters(layoutSchedule(schedule, players)), PDF_TITLE);
 }

@@ -543,7 +543,7 @@ function App() {
 
   return (
     <div
-      className={`relative min-h-screen overflow-x-hidden bg-gray-800 ${
+      className={`app-shell relative min-h-screen overflow-x-hidden bg-gray-800 ${
         largeText ? 'text-large' : ''
       }`}
     >

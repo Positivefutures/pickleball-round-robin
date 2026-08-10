@@ -210,6 +210,44 @@ describe('the file it writes', () => {
     expect(file).toContain(`/MediaBox [0 0 ${PAGE_WIDTH} 792]`);
   });
 
+  it('places an image by the matrix that also sizes it', () => {
+    // An image is always drawn into the unit square, so the matrix is the only
+    // thing saying where it goes and how big it is. q and Q keep that scaling
+    // off the text that follows.
+    const file = asText(buildPdf([[{ kind: 'image', x: 54, y: 54, width: 30, height: 28 }]], 'T'));
+    expect(file).toContain('30 0 0 28 54 710 cm');
+    expect(file).toMatch(/q\n30 0 0 28 54 710 cm\n\/Im0 Do\nQ/);
+  });
+
+  it('carries the logo and its transparency, and names them on the page', () => {
+    const file = asText(buildPdf([[{ kind: 'image', x: 0, y: 0, width: 10, height: 10 }]], 'T'));
+    expect(file).toContain('/Subtype /Image');
+    expect(file).toContain('/ColorSpace /DeviceRGB');
+    // Without the SMask the logo prints as a rectangle of whatever colour sits
+    // outside the ring, rather than as a bird.
+    expect(file).toMatch(/\/SMask \d+ 0 R/);
+    expect(file).toContain('/ColorSpace /DeviceGray');
+    expect(file).toMatch(/\/XObject << \/Im0 \d+ 0 R >>/);
+  });
+
+  it('leaves the logo out of a document that never draws it', () => {
+    // Six kilobytes, on every schedule, for an image nobody asked for.
+    const file = asText(buildPdf([[text(50, 50, 'No logo here')]], 'Test'));
+    expect(file).not.toContain('/Subtype /Image');
+    expect(file).not.toContain('/XObject');
+  });
+
+  it('says how long the image streams are, in bytes', () => {
+    // Same failure as the content streams, and worse: a reader given the wrong
+    // length for a compressed stream cannot recover, and shows nothing.
+    const file = asText(buildPdf([[{ kind: 'image', x: 0, y: 0, width: 10, height: 10 }]], 'T'));
+    for (const m of file.matchAll(/\/Length (\d+) >>\nstream\n/g)) {
+      const start = (m.index ?? 0) + m[0].length;
+      const end = file.indexOf('\nendstream', start);
+      expect(end - start).toBe(Number(m[1]));
+    }
+  });
+
   it('is all single bytes, which is what makes the offsets above trustworthy', () => {
     const bytes = buildPdf([[text(50, 50, 'José ’ 漢')]], 'Tëst');
     for (const b of bytes) expect(b).toBeLessThanOrEqual(255);

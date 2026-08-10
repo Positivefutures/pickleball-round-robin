@@ -8,8 +8,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { Player, Round, Schedule } from '../types';
-import { layoutSchedule, scheduleToPdf, PDF_TITLE } from './schedulePdf';
-import type { PdfOp } from './pdf';
+import { layoutSchedule, scheduleToPdf, PDF_TITLE, PDF_FOOTER } from './schedulePdf';
+import { widthOf, type PdfOp } from './pdf';
+import { APP_URL } from './appInfo';
 
 function player(name: string, i: number): Player {
   return {
@@ -70,8 +71,8 @@ describe('what the page says', () => {
   });
 
   it('names every round', () => {
-    expect(allTexts(pages)).toContain('Round 1');
-    expect(allTexts(pages)).toContain('Round 2');
+    expect(allTexts(pages)).toContain('ROUND 1');
+    expect(allTexts(pages)).toContain('ROUND 2');
   });
 
   it('puts both teams of every court on the page', () => {
@@ -82,6 +83,24 @@ describe('what the page says', () => {
         expect(joined).toContain(`R${round}C${court}c & R${round}C${court}d`);
       }
     }
+  });
+
+  it('sets the player names in bold, which is what they are read at', () => {
+    // Not something the parity test can see. It compares the words on the two
+    // sheets, and a weight is not a word.
+    const names = pages
+      .flat()
+      .filter((op) => op.kind === 'text' && op.text.includes(' & '));
+    expect(names.length).toBeGreaterThan(0);
+    for (const op of names) expect(op.font).toBe('bold');
+  });
+
+  it('sets the sit-out line at the size of the names', () => {
+    // It is a list of names, read off a bench at arm's length, so it is not
+    // footnote-sized.
+    const sitOut = pages.flat().find((op) => op.kind === 'text' && op.text.startsWith('Sitting out'))!;
+    const name = pages.flat().find((op) => op.kind === 'text' && op.text.includes(' & '))!;
+    expect(sitOut.size).toBe(name.size);
   });
 
   it('heads the two team columns, per round rather than per page', () => {
@@ -141,7 +160,7 @@ describe('deciding where a page ends', () => {
     expect(pages.length).toBeGreaterThan(1);
 
     for (let round = 1; round <= 9; round += 1) {
-      const heading = pageOf(pages, `Round ${round}`);
+      const heading = pageOf(pages, `ROUND ${round}`);
       expect(heading).toBeGreaterThanOrEqual(0);
       // Everything belonging to this round is on the page its heading is on.
       for (let court = 1; court <= 3; court += 1) {
@@ -164,12 +183,12 @@ describe('deciding where a page ends', () => {
 
   it('repeats the heading when it had to split one, so page two says what it is', () => {
     const drawn = allTexts(layoutSchedule(schedule(1, 30), []));
-    expect(drawn).toContain('Round 1 continued');
-    expect(drawn.filter((t) => t.startsWith('Round 1'))).toHaveLength(2);
+    expect(drawn).toContain('ROUND 1 CONTINUED');
+    expect(drawn.filter((t) => t.startsWith('ROUND 1'))).toHaveLength(2);
   });
 
   it('does not say continued when it did not split anything', () => {
-    expect(allTexts(layoutSchedule(schedule(9, 3, 4), [])).join(' ')).not.toContain('continued');
+    expect(allTexts(layoutSchedule(schedule(9, 3, 4), [])).join(' ')).not.toContain('CONTINUED');
   });
 
   it('emits no blank pages', () => {
@@ -189,6 +208,49 @@ describe('deciding where a page ends', () => {
         expect(op.y).toBeLessThanOrEqual(792 - 54);
       }
     }
+  });
+});
+
+describe('the title and the address', () => {
+  it('draws the logo beside the title, once, on the first page', () => {
+    const pages = layoutSchedule(schedule(9, 3, 4), []);
+    const images = pages.map((page) => page.filter((op) => op.kind === 'image').length);
+    expect(images[0]).toBe(1);
+    expect(images.slice(1)).toEqual(images.slice(1).map(() => 0));
+  });
+
+  it('keeps the logo and the title on the same line, in that order', () => {
+    const page = layoutSchedule(schedule(1, 1), [])[0];
+    const logo = page.find((op) => op.kind === 'image')!;
+    const title = page.find((op) => op.kind === 'text' && op.text === PDF_TITLE)!;
+    expect(logo.x).toBeLessThan(title.x);
+    // Overlapping vertically is what "beside" means; stacked would not.
+    expect(title.y).toBeGreaterThanOrEqual(logo.y);
+    expect(title.y).toBeLessThan(logo.y + logo.height);
+  });
+
+  it('centres the pair on the page', () => {
+    const page = layoutSchedule(schedule(1, 1), [])[0];
+    const logo = page.find((op) => op.kind === 'image')!;
+    const title = page.find((op) => op.kind === 'text' && op.text === PDF_TITLE)!;
+    const left = logo.x;
+    const right = title.x + widthOf(PDF_TITLE, title.size, title.font);
+    expect((left + right) / 2).toBeCloseTo(612 / 2, 1);
+  });
+
+  it('is the address the app is served at, not one typed in twice', () => {
+    expect(PDF_FOOTER).toBe(new URL(APP_URL).host);
+  });
+
+  it('puts the address on every page of the finished file', () => {
+    // Not part of layoutSchedule: the parity test compares that against a DOM
+    // which has one footer element for all the pages, so it is added after.
+    const s = schedule(9, 3, 4);
+    const pageCount = layoutSchedule(s, []).length;
+    expect(pageCount).toBeGreaterThan(1);
+    const file = Array.from(scheduleToPdf(s, []), (b) => String.fromCharCode(b)).join('');
+    expect(file.split(`(${PDF_FOOTER}) Tj`)).toHaveLength(pageCount + 1);
+    expect(allTexts(layoutSchedule(s, []))).not.toContain(PDF_FOOTER);
   });
 });
 

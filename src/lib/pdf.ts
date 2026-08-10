@@ -11,14 +11,16 @@
  * Hand written rather than pulled from a library on purpose. The smallest
  * capable package on npm is around a third of a megabyte, which is a lot to
  * download at a court to print eight rounds, and this file needs about two
- * hundred lines. A schedule is text and ruled lines. Nothing here supports
- * images, transparency or embedded fonts, and nothing here should grow to.
+ * hundred lines. A schedule is text, ruled lines and one logo. Nothing here
+ * supports embedded fonts or vector artwork, and nothing here should grow to.
  *
  * The one real constraint is the font. Every PDF reader is required to have the
  * fourteen standard fonts built in, so using Helvetica means shipping no font
  * data. The price is that the widths have to be known here instead, because
  * wrapping a line of names means measuring it before it is drawn.
  */
+
+import { LOGO_IMAGE } from './logoImage';
 
 export type PdfFont = 'regular' | 'bold';
 
@@ -43,7 +45,19 @@ export interface PdfLine {
   color?: string;
 }
 
-export type PdfOp = PdfText | PdfLine;
+/**
+ * The logo, and only the logo. There is one image in the whole document, so it
+ * needs no identity: saying `kind: 'image'` is saying which one.
+ */
+export interface PdfImage {
+  kind: 'image';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type PdfOp = PdfText | PdfLine | PdfImage;
 
 /** US Letter, in points. Chosen over A4 because the audience is American. */
 export const PAGE_WIDTH = 612;
@@ -179,6 +193,17 @@ export function wrapText(text: string, maxWidth: number, size: number, font: Pdf
 
 // ------------------------------------------------------------- the writer --
 
+/** The resource name the logo is drawn by. Only ever one, so only ever this. */
+const IMAGE_NAME = 'Im0';
+
+/**
+ * Decodes one of the base64 streams in `logoImage.ts` to the latin-1 string the
+ * file is assembled as. `atob` gives back exactly that: one character per byte.
+ */
+function imageBytes(base64: string): string {
+  return atob(base64);
+}
+
 /** Trims the float noise that would otherwise triple the size of the file. */
 function num(value: number): string {
   return String(Math.round(value * 100) / 100);
@@ -211,6 +236,19 @@ function literal(text: string): string {
 function contentStream(ops: PdfOp[]): string {
   const parts: string[] = [];
   for (const op of ops) {
+    if (op.kind === 'image') {
+      // An image is drawn into the unit square, so the matrix that places it is
+      // also the one that sizes it. q and Q keep that scaling off everything
+      // drawn afterwards.
+      const y = PAGE_HEIGHT - op.y - op.height;
+      parts.push(
+        'q',
+        `${num(op.width)} 0 0 ${num(op.height)} ${num(op.x)} ${num(y)} cm`,
+        `/${IMAGE_NAME} Do`,
+        'Q'
+      );
+      continue;
+    }
     const [r, g, b] = color(op.color);
     if (op.kind === 'text') {
       // PDF measures up from the bottom left, the page is described from the
@@ -266,6 +304,29 @@ export function buildPdf(pages: PdfOp[][], title: string): Uint8Array<ArrayBuffe
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'
   );
 
+  // Written only when something draws it, so a document with no logo carries no
+  // six kilobytes of it. The alpha channel goes in as a separate greyscale
+  // image named by /SMask, which is how PDF spells transparency.
+  let imageNo = 0;
+  if (pages.some((ops) => ops.some((op) => op.kind === 'image'))) {
+    const { width, height } = LOGO_IMAGE;
+    const alpha = imageBytes(LOGO_IMAGE.alpha);
+    const alphaNo = add(
+      `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} ` +
+        `/ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode ` +
+        `/Length ${alpha.length} >>\nstream\n${alpha}\nendstream`
+    );
+    const rgb = imageBytes(LOGO_IMAGE.rgb);
+    imageNo = add(
+      `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} ` +
+        `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode ` +
+        `/SMask ${alphaNo} 0 R /Length ${rgb.length} >>\nstream\n${rgb}\nendstream`
+    );
+  }
+  const xobjects = imageNo
+    ? ` /XObject << /${IMAGE_NAME} ${imageNo} 0 R >>`
+    : '';
+
   const pageNos: number[] = [];
   for (const ops of pages) {
     const stream = contentStream(ops);
@@ -274,7 +335,7 @@ export function buildPdf(pages: PdfOp[][], title: string): Uint8Array<ArrayBuffe
       add(
         `<< /Type /Page /Parent ${pagesNo} 0 R ` +
           `/MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ` +
-          `/Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> ` +
+          `/Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >>${xobjects} >> ` +
           `/Contents ${streamNo} 0 R >>`
       )
     );
