@@ -68,7 +68,6 @@ function render(
         canUncomplete: true,
         scheduleEdited: false,
         onRegenerate: () => {},
-        onBack: () => {},
         onUpdateSchedule: () => {},
         onCompletedRoundsChange: () => {},
         onRemovePlayer: () => {},

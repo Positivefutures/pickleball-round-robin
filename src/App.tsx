@@ -43,8 +43,7 @@ import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL }
 import { RosterPage } from './components/roster/RosterPage';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
-import { BackToSetupDialog } from './components/schedule/BackToSetupDialog';
-import { NewSessionDialog } from './components/schedule/NewSessionDialog';
+import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
 // Shown in the banner on the Players step, and as the settings drawer's heading.
@@ -574,9 +573,9 @@ function App() {
   if (step !== 'setup' && setupSeen) availableSteps.push('setup');
 
   /**
-   * A tab is the same door as the button at the foot of the page, so it asks
-   * the same question. Off the schedule there is nothing to lose and nothing to
-   * ask: those are the moves Continue to Setup and the Back buttons already make.
+   * The tabs are the only way back out of a schedule, so this is where the
+   * question gets asked. Off the schedule there is nothing to lose and nothing
+   * to ask: that is the move Continue to Setup already makes.
    */
   const handleStepNav = useCallback(
     (target: Step) => {
@@ -707,7 +706,6 @@ function App() {
             onSpecialTypeChange={updateSpecialType}
             onSpecialTypeMove={moveSpecialType}
             onGenerate={() => handleGenerate()}
-            onBack={() => setStep('roster')}
           />
         )}
 
@@ -723,7 +721,6 @@ function App() {
             // around the removal. Narrow enough to live with.
             canUncomplete={removedIds.length === 0}
             onRegenerate={handleReshuffle}
-            onBack={() => setStep('setup')}
             scheduleEdited={scheduleEdited}
             onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
@@ -738,11 +735,14 @@ function App() {
         )}
       </main>
 
-      {/* Leaving the schedule by its tab rather than by the button below it.
-          Same words, same outcome — SchedulePage takes its local locks and
+      {/* Raised here rather than in SchedulePage because leaving is App's
+          decision, not the page's. SchedulePage takes its local locks and
           broken couples with it when it unmounts. */}
       {pendingLeave === 'setup' && (
-        <BackToSetupDialog
+        <DiscardScheduleDialog
+          heading="Back to Setup?"
+          cancelLabel="Keep Schedule"
+          confirmLabel="Go to Setup"
           onConfirm={() => {
             setPendingLeave(null);
             setStep('setup');
@@ -752,7 +752,10 @@ function App() {
       )}
 
       {pendingLeave === 'roster' && (
-        <NewSessionDialog
+        <DiscardScheduleDialog
+          heading="Back to Players?"
+          cancelLabel="Keep Schedule"
+          confirmLabel="Go to Players"
           onConfirm={() => {
             setPendingLeave(null);
             handleStartNewSession();

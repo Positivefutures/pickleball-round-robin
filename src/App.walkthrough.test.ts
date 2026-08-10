@@ -579,33 +579,6 @@ describe('Special Game Types', () => {
   });
 });
 
-describe('the Setup confirmation', () => {
-  beforeEach(() => seed(9, 9, 2));
-
-  it('goes straight through on an untouched schedule, and warns once there is work to lose', () => {
-    mount();
-    generate();
-
-    // Anchored to the arrow: the "2. Setup" step tab is a button too, and it
-    // sits above the page, so a looser match would test the tab instead.
-    clickButton(/^← Setup$/);
-    expect(container.textContent).toContain('Generate Schedule'); // no dialog, straight to Setup
-
-    clickButton(/^Generate Schedule/);
-    markComplete(1);
-    clickButton(/^← Setup$/);
-    expect(container.textContent).toContain('Go back to Setup?');
-
-    clickButton(/^Keep Schedule$/);
-    expect(container.textContent).not.toContain('Go back to Setup?');
-    expect(completedRounds()).toEqual([1]);
-
-    clickButton(/^← Setup$/);
-    clickButton(/^Go to Setup$/);
-    expect(container.textContent).toContain('Generate Schedule');
-  });
-});
-
 describe('the step tabs', () => {
   beforeEach(() => seed(9, 9, 2));
 
@@ -650,12 +623,12 @@ describe('the step tabs', () => {
     generate();
 
     click(setupTab());
-    expect(container.textContent).not.toContain('Go back to Setup?');
+    expect(container.textContent).not.toContain('Back to Setup?');
     expect(container.textContent).toContain('Generate Schedule');
 
     clickButton(/^Generate Schedule/);
     click(playersTab());
-    expect(container.textContent).not.toContain('Start a new session?');
+    expect(container.textContent).not.toContain('Back to Players?');
     expect(container.textContent).toContain('Continue to Setup');
     // Players means starting over, exactly as the New Session button does.
     expect(storedSchedule()).toBeNull();
@@ -667,7 +640,7 @@ describe('the step tabs', () => {
     markComplete(1);
 
     click(setupTab());
-    expect(container.textContent).toContain('Go back to Setup?');
+    expect(container.textContent).toContain('Back to Setup?');
 
     clickButton(/^Keep Schedule$/);
     expect(container.textContent).toContain('Reshuffle'); // still on the schedule
@@ -678,21 +651,21 @@ describe('the step tabs', () => {
     expect(container.textContent).toContain('Generate Schedule');
   });
 
-  it('asks the New Session question before the Players tab throws work away', () => {
+  it('asks the Players question before the Players tab throws work away', () => {
     mount();
     generate();
     markComplete(1);
 
     click(playersTab());
-    expect(container.textContent).toContain('Start a new session?');
+    expect(container.textContent).toContain('Back to Players?');
 
-    clickButton(/^Cancel$/);
+    clickButton(/^Keep Schedule$/);
     expect(container.textContent).toContain('Reshuffle'); // still on the schedule
     expect(storedSchedule()).not.toBeNull();
     expect(completedRounds()).toEqual([1]);
 
     click(playersTab());
-    clickButton(/^Yes, Start New$/);
+    clickButton(/^Go to Players$/);
     expect(container.textContent).toContain('Continue to Setup');
     expect(storedSchedule()).toBeNull();
   });
@@ -703,6 +676,43 @@ describe('the step tabs', () => {
 
     clickButton(/New Session/);
     expect(container.textContent).toContain('Start a new session?');
+  });
+
+  // Three doors out of a schedule, three headings, one warning. Pinned here so a
+  // future edit to one heading cannot quietly leave the others saying less about
+  // the same loss.
+  it('warns in the same words whichever door is taken', () => {
+    const said = () =>
+      text(container).includes(
+        "This will discard the current schedule including any swaps you've made " +
+          "and rounds you've marked complete."
+      );
+
+    mount();
+    generate();
+    markComplete(1);
+
+    click(setupTab());
+    expect(said()).toBe(true);
+    clickButton(/^Keep Schedule$/);
+
+    click(playersTab());
+    expect(said()).toBe(true);
+    clickButton(/^Keep Schedule$/);
+
+    clickButton(/New Session/);
+    expect(said()).toBe(true);
+  });
+
+  // The tabs are now the only way back, so nothing else would notice a stray
+  // back button reappearing on either page.
+  it('leaves no back button on Setup or on the schedule', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    expect(container.textContent).not.toContain('← Players');
+
+    clickButton(/^Generate Schedule/);
+    expect(container.textContent).not.toContain('← Setup');
   });
 });
 

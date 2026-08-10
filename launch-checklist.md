@@ -844,7 +844,7 @@ so there is one queue and not two.
       confirmations moved into components of their own and are raised from App
       as well. Written in a session running alongside this one and committed on
       its own so it was not swept into the next change. It goes out in the same
-      deploy as 15g.
+      deploy as 15g. Superseded in part by 15h, which removed those buttons.
 
 - [x] **15g. The swap hint is a notice, not furniture** **[me]**. "Tap a player,
       then tap another to swap them" was a grey line pinned above the rounds
@@ -862,6 +862,31 @@ so there is one queue and not two.
       teach the gesture.
       7 new tests, 605 in total, and 12 sabotages every one of which turned the
       suite red. Looked at in Chrome at 390px.
+
+- [x] **15h. The tabs are the only way back** **[me]**. Follows 15f, which left
+      two routes off a schedule: the tab at the top and a back button at the foot
+      of the page. The buttons are gone. `← Players` on Setup and `← Setup` on
+      the schedule were saying what the tab above them already said, and neither
+      page can be stranded without them: Players is always a door from Setup, and
+      a boot straight onto a saved schedule opens the Setup tab because it plainly
+      went through Setup to get there.
+      The words got fixed on the way. "Generating again from Setup discards this
+      schedule" was written for a button below the schedule, and "This clears the
+      current schedule" said too little about what clearing costs. All three
+      doors now warn in one sentence, "This will discard the current schedule
+      including any swaps you've made and rounds you've marked complete", while
+      each keeps a heading naming where it goes: Back to Setup?, Back to Players?,
+      Start a new session?. The sentence is held in the dialog rather than passed
+      in, so no route out can quietly say less than the others. That collapsed
+      `BackToSetupDialog` and `NewSessionDialog` into one `DiscardScheduleDialog`.
+      Reshuffle and New Session now sit together at the right of the schedule,
+      matching the Reshuffle at the foot of the page. That is not cosmetic: the
+      row was spread edge to edge, so with the third button gone New Session
+      would have jumped to the left the moment the last round was ticked.
+      2 new tests, 1 removed with the button it drove, 651 in total, and 8
+      sabotages every one of which turned the suite red. Driven in Chrome at
+      390px: both dialogs, the New Session dialog, and New Session measured in the
+      same place before and after every round was marked complete.
 
 ---
 

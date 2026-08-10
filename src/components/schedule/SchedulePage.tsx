@@ -8,8 +8,7 @@ import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
 import { AddPlayerDialog } from './AddPlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
-import { BackToSetupDialog } from './BackToSetupDialog';
-import { NewSessionDialog } from './NewSessionDialog';
+import { DiscardScheduleDialog } from './DiscardScheduleDialog';
 import { SwapHint } from './SwapHint';
 import { ShuffleIcon } from './icons';
 
@@ -53,15 +52,14 @@ interface Props {
     locks: Record<number, LockedPair[]>,
     brokenPairs: Record<number, string[]>
   ) => void;
-  onBack: () => void;
   onUpdateSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
   onStartNewSession: () => void;
   /**
    * Whether leaving this schedule would throw work away. The step tabs sit
-   * above this page and open the same two doors as the buttons below, and only
-   * this page knows about the locks and broken couples that count towards it.
+   * above this page and are the only way off it, and only this page knows about
+   * the locks and broken couples that count towards it.
    */
   onUnsavedWorkChange: (atStake: boolean) => void;
   /** False once the host has closed the swap hint, which is remembered for good. */
@@ -105,7 +103,6 @@ export function SchedulePage({
   canUncomplete,
   scheduleEdited,
   onRegenerate,
-  onBack,
   onUpdateSchedule,
   onCompletedRoundsChange,
   onRemovePlayer,
@@ -123,7 +120,6 @@ export function SchedulePage({
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
   const [confirmingNewSession, setConfirmingNewSession] = useState(false);
-  const [confirmingSetup, setConfirmingSetup] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
   // Which court is being renamed, by the round it was opened from.
   const [editingCourt, setEditingCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
@@ -315,29 +311,17 @@ export function SchedulePage({
     onRegenerate(locks, brokenPairs);
   }
 
-  function handleBack() {
-    setConfirmingSetup(false);
-    setLocks({}); // clear all locks when going back to setup
-    setBrokenPairs({});
-    onBack();
-  }
-
-  // Everything that going back to Setup would throw away. On an untouched
-  // schedule there is nothing to lose, so Setup goes straight through rather
-  // than nagging about a schedule the host can recreate with one tap.
+  // Everything that leaving this schedule would throw away. On an untouched one
+  // there is nothing to lose, so a tab goes straight through rather than
+  // nagging about a schedule the host can recreate with one tap.
   const hasUnsavedWork =
     scheduleEdited ||
     completedRounds.length > 0 ||
     Object.keys(locks).length > 0 ||
     Object.keys(brokenPairs).length > 0;
 
-  function handleSetupClick() {
-    if (hasUnsavedWork) setConfirmingSetup(true);
-    else handleBack();
-  }
-
-  // The tabs above this page ask the same question as the buttons below it, so
-  // App has to be told the answer. Only read while this page is mounted.
+  // The tabs above this page do the asking, so App has to be told the answer.
+  // Only read while this page is mounted.
   useEffect(() => {
     onUnsavedWorkChange(hasUnsavedWork);
   }, [hasUnsavedWork, onUnsavedWorkChange]);
@@ -372,18 +356,13 @@ export function SchedulePage({
 
   return (
     <div className="space-y-6 no-print">
-      {/* Setup, Reshuffle, New Session. Printing lives on the header's printer
-          button. Reshuffle drops out once every round is complete, leaving the
-          other two at the edges. */}
+      {/* Reshuffle and New Session. Going back is the Setup tab's job, and
+          printing lives on the header's printer button. Both sit to the right,
+          matching the Reshuffle at the foot of the page, so New Session stays
+          put when Reshuffle drops out on the last completed round. */}
       {/* Never wraps: the New Session label shortens instead. 0.9em rather than a
           fixed size so the 10% reduction still tracks large-text mode. */}
-      <div className="flex flex-nowrap justify-between items-center gap-3">
-        <button
-          onClick={handleSetupClick}
-          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-        >
-          &larr; Setup
-        </button>
+      <div className="flex flex-nowrap justify-end items-center gap-3">
         {!allComplete && (
           <button
             onClick={handleRegenerate}
@@ -500,12 +479,11 @@ export function SchedulePage({
         />
       )}
 
-      {confirmingSetup && (
-        <BackToSetupDialog onConfirm={handleBack} onCancel={() => setConfirmingSetup(false)} />
-      )}
-
       {confirmingNewSession && (
-        <NewSessionDialog
+        <DiscardScheduleDialog
+          heading="Start a new session?"
+          cancelLabel="Cancel"
+          confirmLabel="Yes, Start New"
           onConfirm={() => {
             setConfirmingNewSession(false);
             onStartNewSession();

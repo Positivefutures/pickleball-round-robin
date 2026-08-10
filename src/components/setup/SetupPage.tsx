@@ -26,7 +26,6 @@ interface Props {
   onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
   onSpecialTypeMove: (type: RoundType, direction: -1 | 1) => void;
   onGenerate: () => void;
-  onBack: () => void;
 }
 
 export function SetupPage({
@@ -46,7 +45,6 @@ export function SetupPage({
   onSpecialTypeChange,
   onSpecialTypeMove,
   onGenerate,
-  onBack,
 }: Props) {
   const [showError, setShowError] = useState(false);
   const [mode, setMode] = useState<'select' | 'pair'>('select');
@@ -141,16 +139,7 @@ export function SetupPage({
 
   return (
     <div className="space-y-6">
-      {/* Players link moved above the session configuration */}
-      <div>
-        <button
-          onClick={onBack}
-          className="px-6 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-        >
-          &larr; Players
-        </button>
-      </div>
-
+      {/* No back button: the Players tab above the page is the way back. */}
       <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
         <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Setup Round Robin</h2>
         <SessionConfig
