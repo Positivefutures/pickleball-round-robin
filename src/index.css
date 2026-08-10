@@ -10,8 +10,11 @@ body {
   overscroll-behavior: none;
 }
 
-/* Large-text mode (toggled from the header). --text-2xl intentionally
-   NOT scaled: only the header h1 title uses it and it stays fixed. */
+/* Large-text mode (toggled from the header). --text-2xl is intentionally NOT
+   scaled. It used to be the banner title, which now sets its own size against
+   the viewport; what is left on it are a court-number field, a rating readout
+   and the Instructions heading, all of which are already large and none of
+   which is body copy somebody turned this mode on to be able to read. */
 .text-large {
   font-size: 1.35rem; /* scales un-classed/inherited text */
   --text-xs: calc(0.75rem * 1.35);

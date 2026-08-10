@@ -43,6 +43,13 @@ export const RUNTIME_CACHED_PUBLIC = [
   '/donate-cup.png',
   '/donate-separator.png',
   '/donate-top.png',
+  // The two halves of the banner, 62 KB together. Unlike the rest of this list
+  // they are on screen from the first paint of every visit — but the first of
+  // those visits necessarily has a network, so they land in this cache long
+  // before anybody is offline, and precaching them would only make the install
+  // more expensive for no gain.
+  '/header-left.png',
+  '/header-right.jpg',
   '/share-top.png',
   '/share.png',
   // Named in the manifest and fetched by the operating system when the app is
