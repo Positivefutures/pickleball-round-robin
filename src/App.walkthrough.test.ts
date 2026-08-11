@@ -636,6 +636,34 @@ describe('Special Game Types', () => {
       expect(text(roundCard(1))).not.toContain('Normal game');
       expect(printedRound(1)).not.toContain('normal game');
     });
+
+    it('marks who is on a court, and leaves the bench alone', () => {
+      // The mark answers one question: are the four on this court the four the
+      // format asked for. Nobody sitting out is on a court, so a mark there
+      // answers nothing and only crowds a row that has no room to spare.
+      seed(9, 9, 2); // eight playing, one waiting
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Select Special Game Types$/);
+      sayYes('gendered');
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      expect(storedSchedule().rounds[0].roundType).toBe('gendered');
+      const benched = storedSchedule().rounds[0].sitOuts;
+      expect(benched).toHaveLength(1);
+
+      const marked = (name: string) =>
+        [...roundCard(1).querySelectorAll('span[title]')].some((s) =>
+          (s.getAttribute('title') ?? '').startsWith(`${name} is a `)
+        );
+
+      // Everybody on a court carries one; the one on the bench does not.
+      for (const p of storedSchedule().rounds[0].courts.flatMap((c) => [...c.team1, ...c.team2])) {
+        expect(marked(p.name), `${p.name} is playing`).toBe(true);
+      }
+      expect(marked(benched[0].name), `${benched[0].name} is sitting out`).toBe(false);
+    });
   });
 });
 

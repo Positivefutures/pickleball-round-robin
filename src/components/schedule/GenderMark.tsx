@@ -10,6 +10,10 @@ import { FemaleIcon, MaleIcon } from '../icons';
  * name meaning nothing, and the roster table is where somebody's gender is
  * looked up rather than glanced at.
  *
+ * **Courts only, not the players sitting out.** The question is whether the four
+ * on this court are the four the format asked for. Nobody on the bench is on a
+ * court, so a mark there answers nothing and only crowds the row.
+ *
  * Grey rather than blue and pink. It sits inside a coloured place on a court
  * that already carries a guest chip and a rating, and a third colour on that row
  * would be read as a third thing to act on.

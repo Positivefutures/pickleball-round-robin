@@ -62,6 +62,9 @@ export function RoundCard({
   const roundType = roundTypeOf(round);
   // Both formats are made of who is a man and who is a woman, so both are worth
   // marking. Equal Skill is not, and an ordinary round has no format at all.
+  //
+  // Courts only. The question a mark answers is whether the four people on this
+  // court are the four the format asked for, and nobody sitting out is on one.
   const showGender = roundType === 'gendered' || roundType === 'mixed';
   const typeBadge = roundType && (
     <span
@@ -176,7 +179,6 @@ export function RoundCard({
             onOpenPlayerMenu={onOpenPlayerMenu}
             allPlayers={allPlayers}
             readOnly={isComplete}
-            showGender={showGender}
           />
         </>
       )}

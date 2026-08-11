@@ -3,7 +3,6 @@ import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
-import { GenderMark } from './GenderMark';
 
 interface Props {
   players: Player[];
@@ -13,8 +12,6 @@ interface Props {
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly?: boolean;
-  /** Whether this round's format is built out of who is a man and who a woman. */
-  showGender?: boolean;
 }
 
 function SitOutBox({
@@ -26,7 +23,6 @@ function SitOutBox({
   onOpenPlayerMenu,
   allPlayers,
   readOnly,
-  showGender,
 }: {
   player: Player;
   roundIdx: number;
@@ -36,7 +32,6 @@ function SitOutBox({
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
-  showGender: boolean;
 }) {
   const interactive = !readOnly;
 
@@ -44,13 +39,12 @@ function SitOutBox({
     <button
       type="button"
       onClick={() => interactive && onPlayerTap({ kind: 'sitout', roundIdx, sitOutIdx })}
-      className={`relative inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
+      className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
         selected
           ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500'
           : 'bg-gray-100 border-gray-400 hover:bg-gray-200'
       }${interactive ? '' : ' cursor-default'}`}
     >
-      {showGender && <GenderMark player={player} />}
       <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
       <GuestChip player={player} />
       {selected && interactive ? (
@@ -70,7 +64,6 @@ export function SitOutList({
   onOpenPlayerMenu,
   allPlayers,
   readOnly = false,
-  showGender = false,
 }: Props) {
   // Nobody sitting out is nothing to say. The row used to render empty to carry
   // an Add Player button; that button has gone back to the Actions sheet.
@@ -95,7 +88,6 @@ export function SitOutList({
             onOpenPlayerMenu={onOpenPlayerMenu}
             allPlayers={allPlayers}
             readOnly={readOnly}
-            showGender={showGender}
           />
         ))}
       </div>
