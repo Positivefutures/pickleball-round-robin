@@ -22,6 +22,8 @@ interface Props {
   onAddRoster: (name: string) => void;
   onRenameRoster: (id: string, name: string) => void;
   onDeleteRoster: (id: string, moveTo: string | null) => void;
+  /** A second group over the same players, who end up in both. */
+  onDuplicateRoster: (id: string, name: string) => void;
   onAdd: (name: string, rating: number, gender: Gender, rosterIds: string[]) => void;
   onUpdate: (id: string, updates: Partial<Omit<Player, 'id'>>) => void;
   onAddPlayersToRosters: (playerIds: string[], rosterIds: string[]) => void;
@@ -41,6 +43,7 @@ export function RosterPage({
   onAddRoster,
   onRenameRoster,
   onDeleteRoster,
+  onDuplicateRoster,
   onAdd,
   onUpdate,
   onAddPlayersToRosters,
@@ -329,6 +332,7 @@ export function RosterPage({
           onAdd={onAddRoster}
           onRename={onRenameRoster}
           onDelete={onDeleteRoster}
+          onDuplicate={onDuplicateRoster}
           onClose={() => setShowManage(false)}
         />
       )}

@@ -364,6 +364,23 @@ function App() {
     [reassignRoster, deleteRoster, scheduleRosterId, clearSession]
   );
 
+  /**
+   * A second group holding the same people.
+   *
+   * Nobody is copied. Membership lives on the player as a list of group ids, so
+   * duplicating adds one id to everyone who is already in the group, and both
+   * lists then show the same players. Editing one of them edits the other,
+   * which is the point: the same club night under two names.
+   */
+  const handleDuplicateRoster = useCallback(
+    (id: string, name: string) => {
+      const roster = addRoster(name);
+      const memberIds = allPlayers.filter((p) => p.rosterIds.includes(id)).map((p) => p.id);
+      if (memberIds.length > 0) addPlayersToRosters(memberIds, [roster.id]);
+    },
+    [addRoster, allPlayers, addPlayersToRosters]
+  );
+
   const updateSpecialType = useCallback(
     (type: RoundType, patch: Partial<SpecialTypeSetting>) => {
       setSpecialTypes((prev) =>
@@ -943,6 +960,7 @@ function App() {
             onAddRoster={addRoster}
             onRenameRoster={renameRoster}
             onDeleteRoster={handleDeleteRoster}
+            onDuplicateRoster={handleDuplicateRoster}
             onAdd={addPlayer}
             onUpdate={updatePlayer}
             onAddPlayersToRosters={addPlayersToRosters}

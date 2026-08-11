@@ -61,6 +61,7 @@ function render(): HTMLElement {
         onAddRoster: () => {},
         onRenameRoster: () => {},
         onDeleteRoster: () => {},
+        onDuplicateRoster: () => {},
         onAdd: () => {},
         onUpdate: () => {},
         onAddPlayersToRosters: () => {},

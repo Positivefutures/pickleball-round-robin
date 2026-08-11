@@ -2266,3 +2266,62 @@ describe('the player menu on a place', () => {
     expect(buttons(/^Edit Player$/)).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------- Manage Groups
+
+/**
+ * Duplicating a group, through the real app.
+ *
+ * The panel's own tests check what the buttons do. This one checks the thing
+ * only the app can answer: where the players end up. Nobody is copied, so a
+ * duplicate that made a second Ava would be a bug the panel could not see.
+ */
+describe('duplicating a group', () => {
+  function storedRosters(): { id: string; name: string }[] {
+    return JSON.parse(window.localStorage.getItem('pb-rosters') ?? '[]');
+  }
+
+  function openDuplicate() {
+    mount();
+    clickButton(/^Manage$/);
+    click(container.querySelector('[aria-label="Edit Test Group"]')!);
+    clickButton(/^Duplicate$/);
+  }
+
+  beforeEach(() => seed(8, 8, 2));
+
+  it('leaves the players where they are, and puts them in the new group too', () => {
+    const before = storedPlayers();
+    openDuplicate();
+    clickButton(/^Save$/);
+
+    const rosters = storedRosters();
+    expect(rosters.map((r) => r.name)).toEqual(['Test Group', 'Test Group (copy)']);
+
+    const copyId = rosters[1].id;
+    const after = storedPlayers() as unknown as { id: string; rosterIds: string[] }[];
+    // The same eight people, not sixteen.
+    expect(after).toHaveLength(before.length);
+    for (const p of after) {
+      expect(p.rosterIds).toContain('g1');
+      expect(p.rosterIds).toContain(copyId);
+    }
+  });
+
+  it('makes the group under a typed name, and leaves the old one active', () => {
+    openDuplicate();
+    const box = container.querySelector('#duplicate-name') as HTMLInputElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!.call(
+        box,
+        'Thursday Crew'
+      );
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    clickButton(/^Save$/);
+
+    expect(storedRosters().map((r) => r.name)).toContain('Thursday Crew');
+    // Duplicating is not a reason to move somebody off the group they were on.
+    expect(JSON.parse(window.localStorage.getItem('pb-active-roster')!)).toBe('g1');
+  });
+});
