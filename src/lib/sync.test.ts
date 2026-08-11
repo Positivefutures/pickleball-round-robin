@@ -512,6 +512,139 @@ describe('a question left unanswered while the app carries on', () => {
   });
 });
 
+// ------------------------------------------------- the question not asked --
+
+/**
+ * The one case where the merge question is skipped, and why skipping it is not
+ * the same as the silent branches above.
+ *
+ * A fresh install opens on one empty group called "My First Group". Somebody
+ * signing in on it, who already has groups on their account, was being asked
+ * whether to combine the two or replace one — a warning about their own data,
+ * about a group they never made, with one sensible answer. The placeholder is
+ * taken away with the same move that brings their groups down.
+ *
+ * Every test below that still expects 'choice' is the important half. The guard
+ * has to be narrow, or it becomes a silent replace, which is the exact thing the
+ * rest of this file exists to prevent.
+ */
+describe('signing in on a device holding only the starter group', () => {
+  /** Puts the device in the state a fresh install leaves it in. */
+  function fresh(rosters = [{ id: 'g1', name: 'My First Group' }], players: Player[] = []) {
+    // Set rather than seeded through storage: these stores are module-level and
+    // a live subscription from an earlier test keeps their cache.
+    stores.rosters.set(rosters);
+    stores.players.set(players);
+    stores.activeRosterId.set(rosters[0].id);
+    outbox.set({});
+  }
+
+  function accountHasGroups() {
+    server.rosters = [serverRoster('sg', 'Thursday')];
+    server.players = [serverPlayer('sp', 'Ava', ['sg'])];
+  }
+
+  it('takes the account copy without asking, and the placeholder goes with it', async () => {
+    fresh();
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
+    expect(names(stores.players.get())).toEqual(['Ava']);
+    // The whole point: no empty group left behind next to their real ones.
+    expect(stores.rosters.get().map((r) => r.name)).not.toContain('My First Group');
+    expect(stores.activeRosterId.get()).toBe('sg');
+  });
+
+  it('claims the device, so the next edit is saved rather than asked about', async () => {
+    fresh();
+    accountHasGroups();
+    startSync();
+    signIn(ME);
+    await settle();
+    server.pushed = [];
+
+    stores.rosters.set((prev) => [...prev, { id: 'g9', name: 'Sunday' }]);
+    await settle();
+
+    expect(rowsFor('rosters').map((r) => r.name)).toContain('Sunday');
+  });
+
+  it('still asks when somebody is in that group, which is a host who has started', async () => {
+    fresh(
+      [{ id: 'g1', name: 'My First Group' }],
+      [{ id: 'p1', name: 'Ava', rating: 4, gender: 'F', rosterIds: ['g1'] }]
+    );
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still asks when the group has been renamed, empty or not', async () => {
+    // Renaming it is the smallest sign somebody means to use it, and the name
+    // is the only thing separating a placeholder from a group made on purpose.
+    fresh([{ id: 'g1', name: 'Tuesday' }]);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still asks when there is a second group, empty or not', async () => {
+    fresh([
+      { id: 'g1', name: 'My First Group' },
+      { id: 'g2', name: 'Sunday' }
+    ]);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still seeds a first sign-in up when the account is empty, rather than adopting nothing', async () => {
+    // The placeholder is this person's only group and there is nothing to
+    // replace it with. Taking the account copy here would hand them an empty
+    // account and quietly drop the group the app opens on.
+    fresh();
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['My First Group']);
+    expect(rowsFor('rosters').map((r) => r.name)).toContain('My First Group');
+  });
+
+  it('does not ask a device that was signed into somebody else, having nothing of theirs', async () => {
+    // The other-account warning protects data this device is holding for the
+    // previous person. An empty placeholder is not that.
+    fresh();
+    __testing.account.set(SOMEONE_ELSE);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
+  });
+});
+
 // -------------------------------------------------------------- the merge --
 
 describe('combining this device with the account', () => {

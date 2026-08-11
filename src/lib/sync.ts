@@ -713,6 +713,25 @@ function counts(snapshot: Snapshot): Counts {
 }
 
 /**
+ * Whether this device holds nothing but the empty group a fresh install opens
+ * with.
+ *
+ * All three parts matter. One group, because a second one is something somebody
+ * made. Still carrying the name the app gave it, because renaming it is the
+ * smallest sign a host has started using it. And nobody in it, which is the
+ * whole of what a merge could have saved.
+ *
+ * Anything else and the question still gets asked. This is not "the device
+ * looks quiet", it is "there is provably nothing here to lose".
+ */
+function onlyTheStarterGroup(): boolean {
+  const { rosters, players } = snapshotNow();
+  return (
+    players.length === 0 && rosters.length === 1 && rosters[0].name === DEFAULT_ROSTER_NAME
+  );
+}
+
+/**
  * Puts the question, using the data as it stands at this moment.
  *
  * The account side is frozen in `choice.server`, which is right: that snapshot
@@ -790,13 +809,35 @@ async function onSignedIn(id: string) {
       return;
     }
 
+    const reason = owner === null ? ('server-has-data' as const) : ('other-account' as const);
+
+    // Nothing on this device but the empty group a fresh install opens with.
+    //
+    // The question below is worth asking when both sides hold something. Here
+    // one side holds nothing: an empty placeholder cannot be folded into
+    // anybody's groups and cannot be lost by taking theirs. So the account's
+    // copy is taken whole, silently, and the placeholder goes with it — it is
+    // replaced rather than deleted, because adoptAccountCopy sets the roster
+    // list rather than editing it.
+    //
+    // Asking here offered a choice between the groups somebody already has and
+    // one they never made, phrased as a warning about their own data. It has
+    // one sensible answer, and a first sign-in is the worst moment to hand
+    // someone a decision they cannot lose by getting wrong.
+    if (onlyTheStarterGroup()) {
+      choice = { id, reason, server, preferences: pulled.preferences, cursor: pulled.cursor };
+      cancelRetry();
+      await adoptAccountCopy();
+      return;
+    }
+
     // Either the account already holds groups, or this device's groups were
     // last saved to somebody else's. Both need an answer no code should give on
     // the user's behalf: one would fold two people's data together, the other
     // would throw one of them away.
     choice = {
       id,
-      reason: owner === null ? 'server-has-data' : 'other-account',
+      reason,
       server,
       preferences: pulled.preferences,
       cursor: pulled.cursor

@@ -202,6 +202,14 @@ const RESHUFFLE_KEEPS: { Icon: (props: { className?: string }) => React.ReactEle
     { Icon: LinkIcon, text: 'Linked partners stay together' },
   ];
 
+/**
+ * One size for every line of the Reshuffle panel's body, the promises and the
+ * warning alike. Set here rather than at each of them because the two blocks
+ * are read as one list and a warning a size adrift from the rows above it is
+ * the only thing on the panel you would notice.
+ */
+const RESHUFFLE_LINE = 'text-[1.0625rem] leading-snug';
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -661,7 +669,7 @@ export function ActionsSheet({
                           <span className="flex shrink-0 items-center" style={{ color: TEAL }}>
                             <Icon className="h-8 w-8" />
                           </span>
-                          <span className="text-[1.0625rem] leading-snug" style={{ color: NAVY_TEXT }}>
+                          <span className={RESHUFFLE_LINE} style={{ color: NAVY_TEXT }}>
                             {text}
                           </span>
                         </li>
@@ -680,10 +688,10 @@ export function ActionsSheet({
                         <WarningIcon className="h-9 w-9" />
                       </span>
                       <div>
-                        <p className="font-bold leading-snug" style={{ color: ORANGE }}>
+                        <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
                           Scores in incomplete rounds will be deleted
                         </p>
-                        <p className="mt-1 leading-snug" style={{ color: QUIET_TEXT }}>
+                        <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
                           Scores in completed rounds are safe.
                         </p>
                       </div>
