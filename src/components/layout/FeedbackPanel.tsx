@@ -1,16 +1,14 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import {
-  buildBody,
-  buildSubject,
   diagnosticLines,
-  mailtoUrl,
-  toClipboardText,
+  sendFeedback,
+  MAX_EMAIL,
   MAX_SUMMARY,
   MAX_DETAILS,
   type FeedbackContext,
   type FeedbackKind,
 } from '../../lib/feedback';
-import { FEEDBACK_EMAIL } from '../../lib/appInfo';
+import { authStore } from '../../lib/auth';
 
 interface Props {
   kind: FeedbackKind;
@@ -39,47 +37,39 @@ const COPY: Record<
 };
 
 export function FeedbackPanel({ kind, context, onClose }: Props) {
+  const auth = useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
+
   const [summary, setSummary] = useState('');
   const [details, setDetails] = useState('');
+  // Whoever they are signed in as, which is nearly always the address they
+  // would have replied from anyway. Only the first render: they are free to put
+  // a different one in, and signing in mid-report is not a thing that happens.
+  const [replyTo, setReplyTo] = useState(() =>
+    auth.status === 'signed-in' ? (auth.email ?? '') : ''
+  );
   const [summaryMissing, setSummaryMissing] = useState(false);
+  const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const summaryRef = useRef<HTMLInputElement>(null);
 
   const copy = COPY[kind];
   const attached = diagnosticLines(context, kind);
 
-  // Returns null (and points at the field) when there is nothing worth sending.
-  function compose() {
+  async function handleSend() {
     if (!summary.trim()) {
       setSummaryMissing(true);
       summaryRef.current?.focus();
-      return null;
+      return;
     }
-    const subject = buildSubject(kind, summary);
-    return { subject, body: buildBody(kind, summary, details, context) };
-  }
 
-  function handleSend() {
-    const message = compose();
-    if (!message) return;
-    window.location.href = mailtoUrl(FEEDBACK_EMAIL, message.subject, message.body);
-    setSent(true);
-  }
+    setSending(true);
+    setProblem(null);
+    const result = await sendFeedback({ kind, summary, details, replyTo, context });
+    setSending(false);
 
-  async function handleCopy() {
-    const message = compose();
-    if (!message) return;
-    try {
-      await navigator.clipboard.writeText(
-        toClipboardText(FEEDBACK_EMAIL, message.subject, message.body)
-      );
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard blocked — the text is still on screen to select by hand
-      setCopied(false);
-    }
+    if (result.ok) setSent(true);
+    else setProblem(result.message ?? 'That did not send. Please try again.');
   }
 
   return (
@@ -96,29 +86,20 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
         {sent ? (
           <>
             <p className="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-              Your email app should have opened with everything filled in — send it and it
-              comes straight to me. Thank you!
+              Sent. It has come straight to me. Thank you!
             </p>
-            <p className="mt-3 text-sm text-gray-600">
-              Nothing happened? This device may not have an email app set up. Use Copy
-              instead and paste it wherever suits you.
-            </p>
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
-              >
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
-              >
-                Done
-              </button>
-            </div>
+            {replyTo.trim() && (
+              <p className="mt-3 text-sm text-gray-600">
+                I have your email address, so I can write back if I need to.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+            >
+              Done
+            </button>
           </>
         ) : (
           <>
@@ -161,6 +142,21 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
             />
 
+            <label className="mb-1 mt-4 block text-sm font-medium text-gray-700" htmlFor="fb-email">
+              Your email (if you&rsquo;d like a reply)
+            </label>
+            <input
+              id="fb-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={replyTo}
+              maxLength={MAX_EMAIL}
+              placeholder="you@example.com"
+              onChange={(e) => setReplyTo(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+
             <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-3">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Sent with your message
@@ -177,30 +173,31 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               </p>
             </div>
 
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={handleSend}
-                className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark"
+            {/* Amber rather than red. Nothing they wrote caused it, and what
+                they wrote is still in the boxes above to send again. */}
+            {problem && (
+              <p
+                role="status"
+                className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
               >
-                Send
-              </button>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
-              >
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            <p className="mt-2 text-center text-xs text-gray-500">
-              Send opens your email app. Copy puts the message on your clipboard instead.
-            </p>
+                {problem}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={sending}
+              className="mt-5 w-full rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sending ? 'Sending...' : 'Send'}
+            </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+              disabled={sending}
+              className="mt-3 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-50"
             >
               Cancel
             </button>

@@ -34,10 +34,11 @@ const policy = read(POLICY_FILE);
 /**
  * Every company on the page, and how to spot the ones the code knows about.
  *
- * Resend has no marker in this repo at all: it is configured in Supabase's
- * dashboard as the mail sender, so nothing here can detect it and it is only
- * ever a literal. That is precisely why it is written down here, where a person
- * removing it would have to mean it.
+ * Resend has no npm marker: it is configured in Supabase's dashboard as the
+ * mail sender for sign-in codes, and called over plain fetch from
+ * api/feedback.ts for the rest, so no dependency will ever name it. That is
+ * precisely why it is written down here, where a person removing it would have
+ * to mean it.
  */
 const PROCESSORS = [
   { name: 'Vercel', dependency: '@vercel/analytics' },
