@@ -181,6 +181,9 @@ function preferencesRow(at: string): Row {
     // to a database without the column gets PGRST204, and PostgREST rejects the
     // whole row, so every preference stops syncing for everyone signed in.
     scoring_enabled: stores.scoringEnabled.get(),
+    // Added by supabase/migrations/0006_swap_hint.sql, and subject to exactly
+    // the PGRST204 hazard described above it.
+    swap_hint_dismissed: stores.swapHintDismissed.get(),
     updated_at: at
   };
 }
@@ -256,7 +259,14 @@ function startTracking() {
     stores.numCourts,
     stores.numRounds,
     stores.largeText,
-    stores.specialTypes
+    stores.specialTypes,
+    // Both of these were being sent in the row but not watched, so changing one
+    // on its own pushed nothing: it sat on the device until some other
+    // preference happened to change and carried it along. For scoring that is
+    // a slow surprise; for the swap hint it would have defeated the point of
+    // the column, since closing the banner is the only thing that ever sets it.
+    stores.scoringEnabled,
+    stores.swapHintDismissed
   ];
   for (const store of preferenceStores) {
     untrack.push(
@@ -605,7 +615,8 @@ function applyPreferences(row: Row) {
     num_rounds,
     large_text,
     special_types,
-    scoring_enabled
+    scoring_enabled,
+    swap_hint_dismissed
   } = row;
 
   // Only if this device knows the group. Pointing at one it has not pulled yet
@@ -621,6 +632,13 @@ function applyPreferences(row: Row) {
   if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
   if (typeof large_text === 'boolean') stores.largeText.set(large_text);
   if (typeof scoring_enabled === 'boolean') stores.scoringEnabled.set(scoring_enabled);
+  // One way only, unlike every line above it. The rest of this row is
+  // last-write-wins, which is right for a setting somebody can change their
+  // mind about; it is wrong for a hint that has been read. A device that
+  // changed the court count while its own copy still said false would
+  // otherwise carry that false to a phone where the banner had been closed,
+  // and reopen it — which is the complaint this column exists to end.
+  if (swap_hint_dismissed === true) stores.swapHintDismissed.set(true);
   if (special_types && typeof special_types === 'object') {
     stores.specialTypes.set(special_types as SpecialGameTypes);
   }

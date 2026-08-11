@@ -57,6 +57,13 @@ export const rowTitle = 'block font-bold text-[#1F293D]';
 export const rowNote = 'block text-sm text-[#6B7684]';
 
 /**
+ * The glyph at the head of a row. Big enough to stand beside both lines rather
+ * than label the first one, which is why it is set here once: the four rows live
+ * in two files and a row half a size out would be the only thing you could see.
+ */
+export const rowIcon = 'h-8 w-8 text-[#3A4353]';
+
+/**
  * The one row on this panel that cannot be undone.
  *
  * Red, but quietly: a bordered white row rather than a filled button, because
@@ -69,6 +76,9 @@ export const rowDanger =
   'text-left transition-colors hover:bg-[#FDF3F2] disabled:cursor-not-allowed disabled:opacity-60';
 
 export const rowDangerTitle = 'block font-bold text-[#9B2C2C]';
+
+/** The bin, in the same red as the words next to it. */
+export const rowIconDanger = 'h-8 w-8 text-[#9B2C2C]';
 
 export const danger =
   'w-full rounded-lg bg-[#B42318] px-4 py-3.5 text-lg font-bold text-white transition-colors ' +

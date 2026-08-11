@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { authStore, initAuth, signOut, changeEmail } from '../../lib/auth';
 import { syncStatusStore, type SyncReport } from '../../lib/sync';
+import { MailIcon, SignOutIcon, TrashIcon } from '../icons';
 import { AccountShell, Problem } from './AccountShell';
 import { AccountDeletedPanel, DeleteAccountPanel } from './DeleteAccountPanel';
 import { DownloadMyData } from './DownloadMyData';
@@ -15,6 +16,8 @@ import {
   row,
   rowDanger,
   rowDangerTitle,
+  rowIcon,
+  rowIconDanger,
   rowNote,
   rowTitle,
   secondary
@@ -203,6 +206,7 @@ function SignedIn({
               disabled={busy}
               className={row}
             >
+              <MailIcon className={rowIcon} />
               <span>
                 <span className={rowTitle}>Change My Email Address</span>
                 <span className={rowNote}>Requires confirming from both email addresses</span>
@@ -217,6 +221,7 @@ function SignedIn({
               disabled={busy}
               className={row}
             >
+              <SignOutIcon className={rowIcon} />
               <span>
                 <span className={rowTitle}>{busy ? 'Signing out...' : 'Sign Out'}</span>
                 <span className={rowNote}>Your data stays safe on this device</span>
@@ -228,6 +233,7 @@ function SignedIn({
               accidentally, and the confirmation is a screen of its own. */}
           <div className="mt-5 border-t border-[#E6E9EE] pt-4">
             <button type="button" onClick={onDelete} disabled={busy} className={rowDanger}>
+              <TrashIcon className={rowIconDanger} />
               <span>
                 <span className={rowDangerTitle}>Delete Account</span>
                 <span className={rowNote}>Ends your account for good. Nothing here is lost</span>

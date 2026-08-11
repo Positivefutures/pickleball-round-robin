@@ -653,6 +653,57 @@ describe('reading the account back', () => {
     expect(names(stores.players.get())).toEqual(['Ava', 'Ben', 'Cal']);
   });
 
+  /**
+   * The swap hint is a latch, alone in a row that is otherwise last-write-wins.
+   * A device that changed the court count while its own copy of the flag still
+   * said false would otherwise carry that false to a phone where the banner had
+   * been closed, and reopen it — which is the complaint the column exists to
+   * end. Everything else in the row still has to land.
+   */
+  it('never lets another device reopen a swap hint this one has closed', async () => {
+    alreadySynced();
+    stores.swapHintDismissed.set(true);
+    // That set may have queued a push, and an unsent preferences row is a
+    // deliberate reason not to apply a pulled one. This is a pull test.
+    outbox.set({});
+    const at = tick();
+    server.preferences = [
+      {
+        user_id: ME,
+        num_courts: 7,
+        swap_hint_dismissed: false,
+        updated_at: at,
+        server_updated_at: at
+      }
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.numCourts.get()).toBe(7);
+    expect(stores.swapHintDismissed.get()).toBe(true);
+  });
+
+  it('takes a swap hint closed on another device', async () => {
+    alreadySynced();
+    // Said rather than assumed. These stores are module-level and outlive a
+    // test, so a neighbour that closed the hint would otherwise leave this one
+    // asserting a value it never changed.
+    stores.swapHintDismissed.set(false);
+    outbox.set({});
+    const at = tick();
+    server.preferences = [
+      { user_id: ME, swap_hint_dismissed: true, updated_at: at, server_updated_at: at }
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.swapHintDismissed.get()).toBe(true);
+  });
+
   it('applies a delete made elsewhere instead of pushing the row back up', async () => {
     alreadySynced();
     server.rosters = [serverRoster('g1', 'Tuesday')];
@@ -814,6 +865,29 @@ describe('once it is running', () => {
       num_courts: 5,
       large_text: true
     });
+  });
+
+  /**
+   * The swap hint is a thing a person learns once, not a thing a device learns
+   * once, so closing it rides on the account. Both halves are worth pinning:
+   * that closing it pushes at all, and that nothing can ever push it back open.
+   */
+  it('pushes closing the swap hint on its own, with no other change to carry it', async () => {
+    await signedInAndSeeded();
+
+    stores.swapHintDismissed.set(true);
+    await settle();
+
+    expect(rowsFor('preferences')[0]).toMatchObject({ swap_hint_dismissed: true });
+  });
+
+  it('pushes turning scoring on on its own, for the same reason', async () => {
+    await signedInAndSeeded();
+
+    stores.scoringEnabled.set(true);
+    await settle();
+
+    expect(rowsFor('preferences')[0]).toMatchObject({ scoring_enabled: true });
   });
 
   it('leaves the schedule alone, because a live session belongs to the device', async () => {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { buildMyDataFile } from '../../lib/account';
 import { downloadTextFile } from '../../utils/download';
+import { DownloadIcon } from '../icons';
 import { Problem } from './AccountShell';
-import { note, row, rowNote, rowTitle, secondary } from './accountStyles';
+import { note, row, rowIcon, rowNote, rowTitle, secondary } from './accountStyles';
 
 /**
  * Take a copy of everything the account holds.
@@ -43,10 +44,13 @@ export function DownloadMyData({ variant }: { variant: 'row' | 'button' }) {
         className={variant === 'row' ? row : `${secondary} mt-3`}
       >
         {variant === 'row' ? (
-          <span>
-            <span className={rowTitle}>{busy ? 'Preparing...' : 'Download My Data'}</span>
-            <span className={rowNote}>Everything your account holds, in one file</span>
-          </span>
+          <>
+            <DownloadIcon className={rowIcon} />
+            <span>
+              <span className={rowTitle}>{busy ? 'Preparing...' : 'Download My Data'}</span>
+              <span className={rowNote}>Everything your account holds, in one file</span>
+            </span>
+          </>
         ) : busy ? (
           'Preparing...'
         ) : (

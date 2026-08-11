@@ -93,6 +93,24 @@ const CARDS: Card[] = [
 ];
 
 /**
+ * The glyph at the top of an action's own panel.
+ *
+ * Read off the cards rather than listed again, so the shape you tapped is the
+ * shape you land on and the two cannot drift apart. Reshuffle's card is a solid
+ * teal button with a white glyph; on the panel there is nothing to fill, so it
+ * takes its colour like the rest.
+ */
+const PANEL_GLYPHS = new Map(CARDS.map((c) => [c.view as View, c]));
+// Reached from Add a Player rather than from the grid, so it has no card of its
+// own, but it is the same job and wants the same glyph.
+PANEL_GLYPHS.set('new-player', {
+  view: 'add-player',
+  label: 'New Player',
+  Icon: AddPlayerSolidIcon,
+  color: TEAL,
+});
+
+/**
  * Whether an account could be made at all, which is not the same as having one.
  * False only in a build with no Supabase env vars.
  */
@@ -324,6 +342,7 @@ export function ActionsSheet({
   };
 
   const heading = HEADINGS[view];
+  const glyph = PANEL_GLYPHS.get(view);
   const offset = closing || !shown ? '100%' : `${dragY}px`;
 
   return (
@@ -364,39 +383,85 @@ export function ActionsSheet({
                 className="shrink-0 touch-none select-none px-6 pb-2 pt-3"
               >
                 <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-[#C4C8CF]" />
-                <div className="flex items-start gap-2">
-                  {view !== 'menu' && (
+                {view === 'menu' ? (
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        className="text-[1.75rem] font-extrabold leading-tight"
+                        style={{ color: NAVY_TEXT }}
+                      >
+                        {heading.title}
+                      </h2>
+                      {heading.sub && (
+                        <p className="mt-0.5 text-sm" style={{ color: QUIET_TEXT }}>
+                          {heading.sub}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={requestClose}
+                      aria-label="Close Actions"
+                      className="-mr-2 mt-1 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
+                    >
+                      <CloseIcon className="h-[29px] w-[29px]" strokeWidth={3} />
+                    </button>
+                  </div>
+                ) : (
+                  /* One action, introduced by the shape you tapped to get here:
+                     the glyph, then the title, then the line under it, all on
+                     the sheet's centre line. Back and Close are taken out of
+                     the flow so the stack is centred on the sheet rather than
+                     on whatever room is left between them, which would put a
+                     title half a button to the right of everything below it. */
+                  <div className="relative">
                     <button
                       type="button"
                       onClick={back}
                       aria-label="Back to Actions"
-                      className="-ml-2 mt-1 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
+                      className="absolute -ml-2 left-0 top-0 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
                     >
                       <ChevronLeftIcon className="h-[29px] w-[29px]" strokeWidth={3} />
                     </button>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h2
-                      className="text-[1.75rem] font-extrabold leading-tight"
-                      style={{ color: NAVY_TEXT }}
+                    <button
+                      type="button"
+                      onClick={requestClose}
+                      aria-label="Close Actions"
+                      className="absolute -mr-2 right-0 top-0 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
                     >
-                      {heading.title}
-                    </h2>
-                    {heading.sub && (
-                      <p className="mt-0.5 text-sm" style={{ color: QUIET_TEXT }}>
-                        {heading.sub}
-                      </p>
-                    )}
+                      <CloseIcon className="h-[29px] w-[29px]" strokeWidth={3} />
+                    </button>
+                    <div className="flex flex-col items-center px-10 text-center">
+                      {glyph && (
+                        <span
+                          className="flex items-center justify-center"
+                          style={
+                            {
+                              color: glyph.color,
+                              // The court glyphs ring and mark their badge in
+                              // this, and the sheet is white. Left unset the
+                              // minus disappears into its own disc.
+                              '--chip-tint': WHITE,
+                            } as React.CSSProperties
+                          }
+                        >
+                          <glyph.Icon className="h-14 w-14" />
+                        </span>
+                      )}
+                      <h2
+                        className="mt-2 text-[1.75rem] font-extrabold leading-tight"
+                        style={{ color: NAVY_TEXT }}
+                      >
+                        {heading.title}
+                      </h2>
+                      {heading.sub && (
+                        <p className="mt-1 text-sm" style={{ color: QUIET_TEXT }}>
+                          {heading.sub}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={requestClose}
-                    aria-label="Close Actions"
-                    className="-mr-2 mt-1 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
-                  >
-                    <CloseIcon className="h-[29px] w-[29px]" strokeWidth={3} />
-                  </button>
-                </div>
+                )}
               </header>
 
               {/* Flex column, so a view with little to say can push its button

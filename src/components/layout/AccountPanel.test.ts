@@ -159,6 +159,25 @@ describe('AccountPanel', () => {
     expect(button(/Delete Account/)).toBeTruthy();
   });
 
+  it('gives every row a glyph big enough to stand beside both its lines', () => {
+    mount();
+    for (const re of [/Change My Email/, /Download My Data/, /Sign Out/, /Delete Account/]) {
+      const icon = button(re).querySelector('svg');
+      expect(icon, `${re} has no glyph`).toBeTruthy();
+      expect(icon!.getAttribute('class'), `${re}'s glyph`).toContain('h-8 w-8');
+    }
+  });
+
+  it('draws the bin in the same red as the words beside it', () => {
+    mount();
+    const row = button(/Delete Account/);
+    const title = [...row.querySelectorAll('span')].find(
+      (s) => s.textContent === 'Delete Account'
+    )!;
+    const red = /text-\[(#[0-9A-Fa-f]{6})\]/.exec(title.getAttribute('class') ?? '')![1];
+    expect(row.querySelector('svg')!.getAttribute('class')).toContain(`text-[${red}]`);
+  });
+
   it('asks before it deletes anything', () => {
     mount();
     act(() => button(/Delete Account/).click());

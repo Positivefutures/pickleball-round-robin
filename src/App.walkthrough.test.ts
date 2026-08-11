@@ -1303,6 +1303,37 @@ describe('the Actions sheet', () => {
     ]);
   });
 
+  /**
+   * Every action's own panel opens the same way: the glyph off its card, large
+   * and on the centre line, then the title under it, then the line under that.
+   * The grid behind them keeps its own left-aligned heading and has no glyph of
+   * its own — it is nine of them.
+   */
+  it('heads each action panel with its own glyph, centred, above the title', () => {
+    // Spare players in the group, so Sub a Player and Add a Guest are live
+    // cards rather than disabled ones that swallow the tap.
+    seed(12, 8, 2);
+    mount();
+    generate();
+
+    clickButton(/^Actions$/);
+    const header = () => sheet().querySelector('header')!;
+    expect(header().querySelector('svg.h-14')).toBeNull();
+
+    for (const label of ['Add a Player', 'Sub a Player', 'Add a Guest', 'Reshuffle']) {
+      clickButton(new RegExp(`^${label}$`), sheet());
+      const stack = header().querySelector('h2')!.parentElement!;
+      expect(text(stack), label).toContain(label);
+      expect(stack.className, label).toContain('items-center');
+      expect(stack.className, label).toContain('text-center');
+      // The glyph is the first thing in the stack, and the title follows it.
+      expect(stack.firstElementChild!.querySelector('svg'), `${label} has no glyph`)
+        .toBeTruthy();
+      expect(stack.children[1].tagName).toBe('H2');
+      clickLabel('Back to Actions', sheet());
+    }
+  });
+
   it('asks before it reshuffles, and the card on its own changes nothing', () => {
     // Reshuffle throws away every round not yet played, and the card used to do
     // that the moment it was touched. A misplaced thumb halfway through an
