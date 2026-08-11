@@ -45,6 +45,7 @@ type View =
   | 'add-sub'
   | 'add-guest'
   | 'edit-rating'
+  | 'reshuffle'
   | 'new-session'
   | 'add-round'
   | 'add-court'
@@ -52,7 +53,7 @@ type View =
   | 'share-live'
   | 'done';
 
-/** The view an action card opens. Reshuffle has nothing to ask, so it just runs. */
+/** Where the sheet opens. The sit-out row's own button opens Add a Player. */
 export type ActionsEntry = Extract<View, 'menu' | 'add-player'>;
 
 interface Tone {
@@ -73,7 +74,7 @@ const NAVY_TEXT = '#051829';
 const QUIET_TEXT = '#636A77';
 
 interface Card {
-  view: Exclude<View, 'menu' | 'done' | 'new-player'> | 'reshuffle';
+  view: Exclude<View, 'menu' | 'done' | 'new-player'>;
   label: string;
   Icon: (props: { className?: string }) => React.ReactElement;
   tone: Tone;
@@ -111,6 +112,7 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'add-sub': { title: 'Add a Sub' },
   'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
   'edit-rating': { title: 'Edit Player Rating' },
+  reshuffle: { title: 'Reshuffle', sub: 'Deal the remaining rounds again' },
   'new-session': { title: 'Start a new session?' },
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
@@ -262,11 +264,6 @@ export function ActionsSheet({
   }
 
   function openAction(card: Card) {
-    if (card.view === 'reshuffle') {
-      actions.onReshuffle();
-      finish(`${roundWord(openRounds.length)} reshuffled.`);
-      return;
-    }
     if (card.view === 'add-sub') setSubOut(null);
     if (card.view === 'edit-rating') setRatingFor(null);
     if (card.view === 'add-round') setExtraRounds(1);
@@ -381,7 +378,7 @@ export function ActionsSheet({
                       aria-label="Back to Actions"
                       className="-ml-2 mt-1 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
                     >
-                      <ChevronLeftIcon className="h-6 w-6" />
+                      <ChevronLeftIcon className="h-[29px] w-[29px]" strokeWidth={3} />
                     </button>
                   )}
                   <div className="min-w-0 flex-1">
@@ -403,7 +400,7 @@ export function ActionsSheet({
                     aria-label="Close Actions"
                     className="-mr-2 mt-1 rounded p-1 text-[#626D7E] transition-colors hover:bg-gray-100"
                   >
-                    <CloseIcon className="h-6 w-6" />
+                    <CloseIcon className="h-[29px] w-[29px]" strokeWidth={3} />
                   </button>
                 </div>
               </header>
@@ -428,7 +425,7 @@ export function ActionsSheet({
                                      hover:bg-[#F8F9FB] disabled:opacity-40 disabled:hover:bg-white"
                         >
                           <span
-                            className="flex h-11 w-11 items-center justify-center rounded-xl"
+                            className="flex h-[55px] w-[55px] items-center justify-center rounded-xl"
                             style={
                               {
                                 backgroundColor: card.tone.tint,
@@ -437,10 +434,10 @@ export function ActionsSheet({
                               } as React.CSSProperties
                             }
                           >
-                            <card.Icon className="h-6 w-6" />
+                            <card.Icon className="h-[30px] w-[30px]" />
                           </span>
                           <span
-                            className="text-center text-[0.8rem] font-bold leading-tight"
+                            className="text-center text-[1rem] font-bold leading-tight"
                             style={{ color: NAVY_TEXT }}
                           >
                             {card.label}
@@ -590,6 +587,31 @@ export function ActionsSheet({
                   </div>
                 )}
 
+                {view === 'reshuffle' && (
+                  <div className={CONFIRM}>
+                    <p className="text-gray-700">
+                      The {roundWord(openRounds.length)} still to be played are built again from
+                      scratch. Anything marked complete is kept, along with the pairs you have
+                      locked.
+                    </p>
+                    <p className="text-sm" style={{ color: QUIET_TEXT }}>
+                      Scores on the rounds being rebuilt go with them.
+                    </p>
+                    <div className={CONFIRM_FOOT}>
+                      <button
+                        type="button"
+                        className={PRIMARY}
+                        onClick={() => {
+                          actions.onReshuffle();
+                          finish(`${roundWord(openRounds.length)} reshuffled.`);
+                        }}
+                      >
+                        Reshuffle
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {view === 'new-session' && (
                   <div className={CONFIRM}>
                     {/* The same sentence the step tabs say. See lib/steps. */}
@@ -668,9 +690,10 @@ export function ActionsSheet({
                 {view === 'add-court' && (
                   <div className={CONFIRM}>
                     <p className="text-gray-700">
-                      A court is added to {roundWord(openRounds.length)} still to be played.{' '}
+                      A court will be added to the {roundWord(openRounds.length)} still to be
+                      played.{' '}
                       {seating > 0
-                        ? `${seating} of the players waiting come off the bench onto it.`
+                        ? `The ${seating === 1 ? '1 player' : `${seating} players`} sitting out will be placed on it.`
                         : 'Nobody is waiting, so it starts empty and you can tap players into it.'}
                     </p>
                     {!courtSticks && (
@@ -721,8 +744,8 @@ export function ActionsSheet({
                       );
                     })}
                     <p className="pt-2 text-sm" style={{ color: QUIET_TEXT }}>
-                      The court goes from {roundWord(openRounds.length)} still to be played. Rounds
-                      already played keep it.
+                      The court will be removed from the {roundWord(openRounds.length)} still to be
+                      played. Rounds already played are kept.
                     </p>
                   </div>
                 )}

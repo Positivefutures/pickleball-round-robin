@@ -65,10 +65,11 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
               // `relative` anchors the mark below. No `whitespace-nowrap`: a tab
               // that cannot fit its label must wrap rather than push the page
               // wider than the phone and clip everything else with it.
-              // `text-xs` rather than a hand-set pixel size: the design's label
-              // is smaller than the app's usual, and text-xs is one of the
-              // sizes large-text mode scales, so that setting still works here.
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-3 px-1 rounded-xl text-xs font-semibold transition-colors ${
+              // One absolute size in both text modes, and it is the size large
+              // text mode used to give text-xs here. These three labels are how
+              // the app is navigated, so they are worth reading at the setting
+              // that made them readable whether or not it is switched on.
+              className={`relative flex-1 flex items-center justify-center gap-1 py-3 px-0.5 rounded-xl text-[1.0125rem] font-semibold transition-colors ${
                 isActive ? 'bg-white shadow-sm' : ''
               }`}
               style={
@@ -83,9 +84,12 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
                     : { color: IDLE_TEXT }
               }
             >
-              {/* The icon runs a shade lighter than its label, both states. */}
+              {/* The icon runs a shade lighter than its label, both states. It
+                  came off the design at 23px against much smaller type; at 20
+                  it is the same weight beside the bigger label and it buys back
+                  the width "3. Schedule" needs to stay on one line. */}
               <span style={{ color: isActive ? ACTIVE_MARK : IDLE_ICON }} className="flex">
-                <Icon className="w-[23px] h-[23px]" />
+                <Icon className="w-5 h-5" />
               </span>
               {step.label}
               {isActive && (

@@ -151,6 +151,40 @@ function action(label: RegExp) {
   clickButton(label, sheet());
 }
 
+/**
+ * Opens the menu behind one player's place on a round.
+ *
+ * Three steps, because a place on a court does three things: tapping it selects
+ * it for a swap, which is what reveals the edit button, which is what opens the
+ * menu. Nothing has happened to the player yet when this returns.
+ */
+function openPlayerMenu(name: string, round = 1) {
+  const card = roundCard(round);
+  clickButton(new RegExp(`^${name}`), card);
+  const edit = card.querySelector(`[aria-label="Edit ${name}"]`);
+  if (!edit) throw new Error(`no edit button for ${name} on round ${round}`);
+  click(edit);
+}
+
+/** Takes somebody off the rounds still to be played, confirmation and all. */
+function takeOff(name: string, round = 1) {
+  openPlayerMenu(name, round);
+  clickButton(/^Remove from Remaining Rounds$/);
+  clickButton(/^Yes$/);
+}
+
+/**
+ * The whole of a reshuffle: the card, then the button on the panel it opens.
+ *
+ * The card no longer does anything on its own. Reshuffle throws away every round
+ * not yet played, so it asks first, and the second Reshuffle is the one that
+ * means it.
+ */
+function reshuffle() {
+  action(/^Reshuffle$/);
+  clickButton(/^Reshuffle$/, sheet());
+}
+
 /** The stored guest list, which is where a guest lives instead of the pool. */
 function storedGuests(): { id: string; name: string; guest?: true }[] {
   return JSON.parse(window.localStorage.getItem('pb-guests') ?? '[]');
@@ -187,7 +221,7 @@ describe('9 players / 2 courts', () => {
     const kept = before.rounds.slice(0, 3).map(fingerprint);
     const rest = before.rounds.slice(3).map(fingerprint);
 
-    action(/^Reshuffle$/);
+    reshuffle();
 
     const after = storedSchedule();
     expect(after.rounds.map((r) => r.roundNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -208,10 +242,7 @@ describe('9 players / 2 courts', () => {
     generate();
 
     const victim = storedSchedule().rounds[0].courts[0].team1[0];
-    const card = roundCard(1);
-    clickButton(new RegExp(`^${victim.name}`), card); // select, revealing the trash icon
-    click(card.querySelector(`[aria-label="Remove ${victim.name}"]`)!);
-    clickButton(/^Yes$/);
+    takeOff(victim.name);
 
     action(/^Add a Player$/);
     expect(text(sheet())).toContain('Who is joining?');
@@ -285,7 +316,7 @@ describe('court numbers', () => {
     renameCourt(2, 'COURT 1', '7');
     expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
 
-    action(/^Reshuffle$/);
+    reshuffle();
     expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
   });
 });
@@ -330,7 +361,7 @@ describe('10 in the group, 9 playing / 2 courts', () => {
 
     // Reshuffle: rounds 1-3 still verbatim, and round 4 sits the people who have
     // sat least — never Jo, who has played nothing.
-    action(/^Reshuffle$/);
+    reshuffle();
     const after = storedSchedule();
     expect(after.rounds.slice(0, 3).map(fingerprint)).toEqual(kept);
     expect(completedRounds()).toEqual([1, 2, 3]);
@@ -1128,6 +1159,24 @@ describe('the Actions sheet', () => {
     ]);
   });
 
+  it('asks before it reshuffles, and the card on its own changes nothing', () => {
+    // Reshuffle throws away every round not yet played, and the card used to do
+    // that the moment it was touched. A misplaced thumb halfway through an
+    // afternoon rebuilt the rest of it with nothing to press and no way back.
+    // That it then does the work is covered by every test using reshuffle().
+    seed(9, 9, 2);
+    mount();
+    generate();
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    action(/^Reshuffle$/);
+    expect(text(sheet())).toContain('still to be played are built again from scratch');
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+
+    clickButton(/^Reshuffle$/, sheet());
+    expect(text(sheet())).toContain('reshuffled.');
+  });
+
   it('leaves sharing out entirely when there is no database to share into', () => {
     // Nine and not ten. The suite runs with the Supabase variables blanked, so
     // this is the state of a build made without them, and a Share card there
@@ -1172,7 +1221,7 @@ describe('the Actions sheet', () => {
       const played = fingerprint(storedSchedule().rounds[0]);
 
       action(/^Add a Court$/);
-      expect(text(sheet())).toContain('4 of the players waiting come off the bench');
+      expect(text(sheet())).toContain('The 4 players sitting out will be placed on it');
       clickButton(/^Add the Court$/, sheet());
 
       const after = storedSchedule();
@@ -1194,7 +1243,7 @@ describe('the Actions sheet', () => {
       clickButton(/^Add the Court$/, sheet());
       expect(window.localStorage.getItem('pb-num-courts')).toBe('3');
 
-      action(/^Reshuffle$/);
+      reshuffle();
       for (const r of storedSchedule().rounds) {
         expect(courtsOf(r), `Round ${r.roundNumber}`).toHaveLength(3);
       }
@@ -1583,7 +1632,7 @@ describe('keeping score', () => {
       generate();
       score(0, '11', '7');
 
-      action(/^Reshuffle$/);
+      reshuffle();
       expect(firstCourt().score).toBeUndefined();
     });
 
@@ -1593,7 +1642,7 @@ describe('keeping score', () => {
       score(0, '11', '7');
       markComplete(1);
 
-      action(/^Reshuffle$/);
+      reshuffle();
       expect(firstCourt().score).toEqual({ team1: 11, team2: 7 });
     });
 
@@ -1664,5 +1713,174 @@ describe('keeping score', () => {
       clickButton(/^Generate Schedule/);
       expect(boards().length).toBeGreaterThan(0);
     });
+  });
+});
+
+/**
+ * The edit button on a place, and the two things behind it.
+ *
+ * A place on the schedule used to carry a bin and nothing else, so the only
+ * thing that could be done to somebody standing on a court was send them home.
+ * Getting a name wrong meant leaving the session, fixing it on the Players tab
+ * and coming back. These are the two halves of what replaced it, and the one
+ * rule that holds them together: the same person cannot end up with two names.
+ */
+describe('the player menu on a place', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  /** Fills a text input the way a person does, so React sees the change. */
+  function typeInto(input: HTMLInputElement, value: string) {
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  /** Every name the schedule holds for one player, across every round. */
+  function namesInSchedule(playerId: string): string[] {
+    const found: string[] = [];
+    for (const round of storedSchedule().rounds) {
+      for (const court of round.courts) {
+        for (const p of [...court.team1, ...court.team2]) if (p.id === playerId) found.push(p.name);
+      }
+      for (const p of round.sitOuts) if (p.id === playerId) found.push(p.name);
+    }
+    return found;
+  }
+
+  const onCourtOne = () => storedSchedule().rounds[0].courts[0].team1[0];
+
+  it('offers an edit button rather than a bin once a place is tapped', () => {
+    mount();
+    generate();
+
+    const victim = onCourtOne();
+    const card = roundCard(1);
+    expect(card.querySelector(`[aria-label="Edit ${victim.name}"]`)).toBeNull();
+
+    clickButton(new RegExp(`^${victim.name}`), card);
+    expect(card.querySelector(`[aria-label="Edit ${victim.name}"]`)).not.toBeNull();
+    // The old bin said Remove and did it on the spot. Nothing on a place should.
+    expect(card.querySelector(`[aria-label="Remove ${victim.name}"]`)).toBeNull();
+  });
+
+  it('opens a menu with both things a host can do', () => {
+    mount();
+    generate();
+
+    openPlayerMenu(onCourtOne().name);
+    expect(buttons(/^Edit Player$/)).toHaveLength(1);
+    expect(buttons(/^Remove from Remaining Rounds$/)).toHaveLength(1);
+  });
+
+  it('changes nothing on its own, and Cancel leaves it that way', () => {
+    mount();
+    generate();
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    openPlayerMenu(onCourtOne().name);
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+
+    clickButton(/^Cancel$/);
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+    expect(storedPlayers()).toHaveLength(9);
+  });
+
+  it('still takes a player off the remaining rounds, confirmation and all', () => {
+    // The bin's whole job, now one step further in. Round 1 is played and keeps
+    // the player; everything after it is rebuilt without them.
+    mount();
+    generate();
+    markComplete(1);
+    const played = fingerprint(storedSchedule().rounds[0]);
+    const victim = storedSchedule().rounds[1].courts[0].team1[0];
+
+    takeOff(victim.name, 2);
+
+    const after = storedSchedule();
+    expect(fingerprint(after.rounds[0])).toBe(played);
+    for (const r of after.rounds.slice(1)) {
+      expect(onCourt(r), `Round ${r.roundNumber}`).not.toContain(victim.name);
+      expect(r.sitOuts.map((p) => p.name)).not.toContain(victim.name);
+    }
+  });
+
+  it('saves a new name, rating and gender against the player', () => {
+    mount();
+    generate();
+
+    const victim = onCourtOne();
+    const wasMale = victim.gender === 'M';
+    openPlayerMenu(victim.name);
+    clickButton(/^Edit Player$/);
+
+    const box = container.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(box.value).toBe(victim.name);
+
+    typeInto(box, 'Renamed Person');
+    clickButton(new RegExp(`^${wasMale ? 'F' : 'M'}$`));
+    clickButton(/^Save Changes$/);
+
+    const saved = storedPlayers().find((p) => p.id === victim.id)!;
+    expect(saved.name).toBe('Renamed Person');
+    expect(saved.gender).toBe(wasMale ? 'F' : 'M');
+  });
+
+  it('writes the new name through every round, including one already played', () => {
+    // The schedule holds copies of the players in it. Left alone, the rounds
+    // already on screen would keep the old name and the same person would be
+    // two people on one page.
+    mount();
+    generate();
+    markComplete(1);
+
+    // Edited from round 2, because a completed round collapses and its places
+    // cannot be tapped. Everybody is somewhere in round 1, on a court or on the
+    // bench, so the copy it froze is exactly what this is checking.
+    const victim = storedSchedule().rounds[1].courts[0].team1[0];
+    expect(namesInSchedule(victim.id).length).toBeGreaterThan(1);
+
+    openPlayerMenu(victim.name, 2);
+    clickButton(/^Edit Player$/);
+    typeInto(container.querySelector('input[type="text"]') as HTMLInputElement, 'Renamed Person');
+    clickButton(/^Save Changes$/);
+
+    const names = namesInSchedule(victim.id);
+    expect(names.length).toBeGreaterThan(1);
+    expect(new Set(names)).toEqual(new Set(['Renamed Person']));
+  });
+
+  it('leaves everyone standing where they were', () => {
+    // An edit is a correction, not a reason to move four people. Only the name
+    // changes, so the courts are compared with the new one written in.
+    mount();
+    generate();
+
+    const victim = onCourtOne();
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    openPlayerMenu(victim.name);
+    clickButton(/^Edit Player$/);
+    typeInto(container.querySelector('input[type="text"]') as HTMLInputElement, 'Renamed Person');
+    clickButton(/^Save Changes$/);
+
+    const after = storedSchedule().rounds.map((r) => fingerprint(r).split(victim.name).join('Renamed Person'));
+    expect(after).toEqual(before.map((f) => f.split(victim.name).join('Renamed Person')));
+  });
+
+  it('reaches the players sitting out too', () => {
+    // Nine over two courts leaves one on the bench, and the chip they sit on is
+    // a place like any other.
+    mount();
+    generate();
+
+    const benched = storedSchedule().rounds[0].sitOuts[0];
+    const card = roundCard(1);
+    clickButton(new RegExp(`^${benched.name}`), card);
+    expect(card.querySelector(`[aria-label="Edit ${benched.name}"]`)).not.toBeNull();
+
+    click(card.querySelector(`[aria-label="Edit ${benched.name}"]`)!);
+    expect(buttons(/^Edit Player$/)).toHaveLength(1);
   });
 });

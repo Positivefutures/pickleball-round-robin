@@ -1,17 +1,20 @@
 import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
-import { TrashIcon } from './icons';
+import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
+import { GenderMark } from './GenderMark';
 
 interface Props {
   players: Player[];
   roundIdx: number;
   selectedSlot: PlayerSlot | null;
   onPlayerTap: (slot: PlayerSlot) => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly?: boolean;
+  /** Whether this round's format is built out of who is a man and who a woman. */
+  showGender?: boolean;
 }
 
 function SitOutBox({
@@ -20,18 +23,20 @@ function SitOutBox({
   sitOutIdx,
   selected,
   onPlayerTap,
-  onRequestRemove,
+  onOpenPlayerMenu,
   allPlayers,
   readOnly,
+  showGender,
 }: {
   player: Player;
   roundIdx: number;
   sitOutIdx: number;
   selected: boolean;
   onPlayerTap: (slot: PlayerSlot) => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
+  showGender: boolean;
 }) {
   const interactive = !readOnly;
 
@@ -45,30 +50,13 @@ function SitOutBox({
           : 'bg-gray-100 border-gray-400 hover:bg-gray-200'
       }${interactive ? '' : ' cursor-default'}`}
     >
-      <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
+      {showGender && <GenderMark player={player} />}
+      <span className={`font-medium text-gray-900${showGender ? ' -ml-1' : ''}`}>
+        {getDisplayName(player, allPlayers)}
+      </span>
       <GuestChip player={player} />
       {selected && interactive ? (
-        <span
-          role="button"
-          tabIndex={0}
-          aria-label={`Remove ${player.name}`}
-          title={`Remove ${player.name}`}
-          // Stop propagation so this doesn't register as the second tap of a swap
-          onClick={(e) => {
-            e.stopPropagation();
-            onRequestRemove(player);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              e.stopPropagation();
-              onRequestRemove(player);
-            }
-          }}
-          className="p-0.5 -mr-0.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
-        >
-          <TrashIcon />
-        </span>
+        <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
         <span className="text-gray-500">{player.rating.toFixed(1)}</span>
       )}
@@ -81,9 +69,10 @@ export function SitOutList({
   roundIdx,
   selectedSlot,
   onPlayerTap,
-  onRequestRemove,
+  onOpenPlayerMenu,
   allPlayers,
   readOnly = false,
+  showGender = false,
 }: Props) {
   // Nobody sitting out is nothing to say. The row used to render empty to carry
   // an Add Player button; that button has gone back to the Actions sheet.
@@ -105,9 +94,10 @@ export function SitOutList({
               selectedSlot.sitOutIdx === sitOutIdx
             }
             onPlayerTap={onPlayerTap}
-            onRequestRemove={onRequestRemove}
+            onOpenPlayerMenu={onOpenPlayerMenu}
             allPlayers={allPlayers}
             readOnly={readOnly}
+            showGender={showGender}
           />
         ))}
       </div>

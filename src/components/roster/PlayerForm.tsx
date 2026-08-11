@@ -15,6 +15,12 @@ interface Props {
   onRosterToggle?: (rosterId: string) => void;
   /** Overrides the submit label where "Add Player" would be the wrong words. */
   submitLabel?: string;
+  /**
+   * Puts the buttons on a row of their own under the fields, rather than in
+   * line with them. The wide panel on the Players tab has room for them beside
+   * Gender; a narrow one does not, and they end up wrapping one at a time.
+   */
+  stackActions?: boolean;
 }
 
 export function PlayerForm({
@@ -26,6 +32,7 @@ export function PlayerForm({
   selectedRosterIds,
   onRosterToggle,
   submitLabel,
+  stackActions = false,
 }: Props) {
   const [name, setName] = useState('');
   const [rating, setRating] = useState(String(defaultRating));
@@ -76,6 +83,9 @@ export function PlayerForm({
   }
 
   const showRosters = Boolean(editingPlayer && rosters && selectedRosterIds && onRosterToggle);
+  // The group checkboxes always push the buttons down; a narrow panel asks for
+  // the same thing without them.
+  const actionsBelow = showRosters || stackActions;
 
   const actions = (
     <>
@@ -164,11 +174,10 @@ export function PlayerForm({
           </button>
         </div>
       </div>
-        {!showRosters && actions}
+        {!actionsBelow && actions}
       </div>
 
       {showRosters && (
-        <>
           <div>
             <p className="block text-sm font-medium text-gray-700 mb-2">Groups</p>
             <div className="space-y-1 max-h-44 overflow-y-auto">
@@ -193,9 +202,9 @@ export function PlayerForm({
               </p>
             )}
           </div>
-          <div className="flex gap-3">{actions}</div>
-        </>
       )}
+
+      {actionsBelow && <div className="flex gap-3">{actions}</div>}
     </form>
   );
 }

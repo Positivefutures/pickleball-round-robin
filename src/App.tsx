@@ -530,30 +530,52 @@ function App() {
   );
 
   /**
-   * A rating corrected mid-session. It is saved against the player, so it holds
-   * for next week too.
+   * Something about a player corrected mid-session. It is saved against them, so
+   * it holds for next week too.
    *
-   * The schedule holds copies of the players in it, so the new rating is written
-   * through every round including the ones already played. A person has one
-   * rating, and two numbers for them on one page would only be read as a bug.
+   * The schedule holds copies of the players in it, so the change is written
+   * through every round including the ones already played. A person has one name
+   * and one rating, and two of either on one page would only be read as a bug.
    * Nobody moves court: the balance badges are recalculated and that is all.
+   *
+   * A guest lives in its own list rather than the pool, which is the only reason
+   * there are two branches here.
    */
-  const handleEditRating = useCallback(
-    (playerId: string, rating: number) => {
+  const handleEditPlayerDetails = useCallback(
+    (playerId: string, patch: Partial<Pick<Player, 'name' | 'rating' | 'gender'>>) => {
       const guest = guests.find((p) => p.id === playerId);
-      if (guest) setGuests((prev) => prev.map((p) => (p.id === playerId ? { ...p, rating } : p)));
-      else updatePlayer(playerId, { rating });
+      if (guest) setGuests((prev) => prev.map((p) => (p.id === playerId ? { ...p, ...patch } : p)));
+      else updatePlayer(playerId, patch);
 
       if (!schedule) return;
       const player = sessionPlayers.find((p) => p.id === playerId);
       if (!player) return;
-      // Straight to the store, not through handleUpdateSchedule: the rating is
+      // Straight to the store, not through handleUpdateSchedule: the change is
       // saved on the player either way, so this is not work at stake.
       setSchedule({
-        rounds: replacePlayerInRounds(schedule.rounds, playerId, { ...player, rating }),
+        rounds: replacePlayerInRounds(schedule.rounds, playerId, { ...player, ...patch }),
       });
     },
     [guests, setGuests, updatePlayer, schedule, sessionPlayers, setSchedule]
+  );
+
+  const handleEditRating = useCallback(
+    (playerId: string, rating: number) => handleEditPlayerDetails(playerId, { rating }),
+    [handleEditPlayerDetails]
+  );
+
+  /**
+   * Name, rating and gender together, from the edit button on a place.
+   *
+   * Changing somebody's gender on a Gendered or Mixed round does not rebuild it.
+   * The round says what it was built as, and the court quietly picks up the
+   * "Normal game" mark if it no longer fits the format — which is the truth, and
+   * better than moving four people because one of them was typed in wrong.
+   */
+  const handleEditPlayer = useCallback(
+    (playerId: string, name: string, rating: number, gender: Gender) =>
+      handleEditPlayerDetails(playerId, { name, rating, gender }),
+    [handleEditPlayerDetails]
   );
 
   // A court arriving or leaving mid-session. Both edit the rounds still to be
@@ -799,11 +821,12 @@ function App() {
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? handlePrint : undefined}
       />
-      {/* Lifted out of `main` and tucked up under the banner, so the two read as
-          one block with no seam between them. It has to sit outside `main`
-          because the banners below can come and go, and the tabs must stay
-          against the header rather than being pushed off it by a notice. */}
-      <div className="relative z-20 mx-auto -mt-3 max-w-5xl px-2">
+      {/* Lifted out of `main` and held just under the banner, close enough that
+          the two read as one block with a hairline of page between them. It has
+          to sit outside `main` because the banners below can come and go, and
+          the tabs must stay against the header rather than being pushed off it
+          by a notice. */}
+      <div className="relative z-20 mx-auto mt-1 max-w-5xl px-2">
         <StepIndicator
           current={step}
           available={availableSteps}
@@ -898,6 +921,7 @@ function App() {
             onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
+            onEditPlayer={handleEditPlayer}
             onUnsavedWorkChange={setScheduleHasWork}
             showSwapHint={!swapHintDismissed}
             onDismissSwapHint={() => setSwapHintDismissed(true)}

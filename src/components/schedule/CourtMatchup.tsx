@@ -2,8 +2,9 @@ import type { CourtAssignment, Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
-import { TrashIcon } from './icons';
+import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
+import { GenderMark } from './GenderMark';
 import { Scoreboard } from './Scoreboard';
 
 interface Props {
@@ -15,10 +16,12 @@ interface Props {
   allPlayers: Player[];
   lockedTeams: { team1: boolean; team2: boolean };
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   readOnly?: boolean;
   /** A court on a special round that the roster could not fill in that format. */
   offFormat?: boolean;
+  /** Whether this round's format is built out of who is a man and who a woman. */
+  showGender?: boolean;
   /** Opens the box for renaming this court. Absent on a round that cannot be edited. */
   onEditNumber?: () => void;
   /** Whether this session keeps score. Off, and the board is not drawn at all. */
@@ -60,10 +63,11 @@ function PlayerButton({
   courtIdx,
   selected,
   onPlayerTap,
-  onRequestRemove,
+  onOpenPlayerMenu,
   allPlayers,
   readOnly,
   styles,
+  showGender,
 }: {
   player: Player;
   playerIdx: number;
@@ -73,10 +77,11 @@ function PlayerButton({
   courtIdx: number;
   selected: boolean;
   onPlayerTap: (slot: PlayerSlot) => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
   styles: TeamStyles;
+  showGender: boolean;
 }) {
   const { bgClass, borderClass, hoverClass, selectedBgClass } = styles;
   // Locked players cannot be tapped for swap; completed rounds are frozen entirely
@@ -97,36 +102,20 @@ function PlayerButton({
             : `${bgClass} ${borderClass} ${hoverClass} border`
       }${interactive ? '' : ' cursor-default'}`}
     >
+      {showGender && <GenderMark player={player} />}
       {/* One line, cut with an ellipsis. A name long enough to wrap used to
           make its court taller than the one beside it, and a grid of courts
           that no longer lines up is harder to read than a shortened name. The
           title carries the whole of it. */}
-      <span className="min-w-0 flex-1 truncate text-left font-medium" title={displayName}>
+      <span
+        className={`min-w-0 flex-1 truncate text-left font-medium${showGender ? ' pl-1' : ''}`}
+        title={displayName}
+      >
         {displayName}
       </span>
       <GuestChip player={player} />
       {selected && interactive ? (
-        <span
-          role="button"
-          tabIndex={0}
-          aria-label={`Remove ${player.name}`}
-          title={`Remove ${player.name}`}
-          // Stop propagation so this doesn't register as the second tap of a swap
-          onClick={(e) => {
-            e.stopPropagation();
-            onRequestRemove(player);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              e.stopPropagation();
-              onRequestRemove(player);
-            }
-          }}
-          className="shrink-0 p-0.5 -mr-0.5 rounded hover:bg-red-100 transition-colors cursor-pointer"
-        >
-          <TrashIcon />
-        </span>
+        <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
         <span className="shrink-0 pl-2 text-gray-500">{player.rating.toFixed(1)}</span>
       )}
@@ -185,12 +174,13 @@ function TeamColumn({
   selectedSlot,
   onPlayerTap,
   onToggleLock,
-  onRequestRemove,
+  onOpenPlayerMenu,
   allPlayers,
   readOnly,
   styles,
   lockRow,
   courtNumber,
+  showGender,
 }: {
   team: Player[];
   teamKey: 'team1' | 'team2';
@@ -200,7 +190,7 @@ function TeamColumn({
   selectedSlot: PlayerSlot | null;
   onPlayerTap: (slot: PlayerSlot) => void;
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
   styles: TeamStyles;
@@ -211,6 +201,7 @@ function TeamColumn({
    */
   lockRow: boolean;
   courtNumber: number;
+  showGender: boolean;
 }) {
   function isSelected(playerIdx: number) {
     return (
@@ -244,10 +235,11 @@ function TeamColumn({
           courtIdx={courtIdx}
           selected={isSelected(0)}
           onPlayerTap={onPlayerTap}
-          onRequestRemove={onRequestRemove}
+          onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={styles}
+          showGender={showGender}
         />
       )}
 
@@ -276,10 +268,11 @@ function TeamColumn({
           courtIdx={courtIdx}
           selected={isSelected(1)}
           onPlayerTap={onPlayerTap}
-          onRequestRemove={onRequestRemove}
+          onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={styles}
+          showGender={showGender}
         />
       )}
 
@@ -311,7 +304,7 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false, onEditNumber, showScore = false, onEditScore }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, onEditNumber, showScore = false, onEditScore }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -398,12 +391,13 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           selectedSlot={selectedSlot}
           onPlayerTap={onPlayerTap}
           onToggleLock={onToggleLock}
-          onRequestRemove={onRequestRemove}
+          onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={TEAM1_STYLES}
           lockRow={lockRow}
           courtNumber={court.courtNumber}
+          showGender={showGender}
         />
 
         {/* Sits in the gap between the two columns, centred against the taller one */}
@@ -418,12 +412,13 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           selectedSlot={selectedSlot}
           onPlayerTap={onPlayerTap}
           onToggleLock={onToggleLock}
-          onRequestRemove={onRequestRemove}
+          onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
           styles={TEAM2_STYLES}
           lockRow={lockRow}
           courtNumber={court.courtNumber}
+          showGender={showGender}
         />
       </div>
     </div>

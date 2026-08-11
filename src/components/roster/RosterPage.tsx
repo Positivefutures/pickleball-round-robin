@@ -196,7 +196,11 @@ export function RosterPage({
           {/* Which group you are in is the thing this panel exists to tell you,
               so it is set at the size of a name in the list below rather than
               the small type a select had it in. Cut with an ellipsis if it runs
-              out of room; the picker shows it whole. */}
+              out of room; the picker shows it whole.
+
+              An absolute size rather than text-xl, so large text mode leaves it
+              alone: scaled up it was the biggest thing on the page and read as
+              a heading rather than the setting it is. */}
           <button
             type="button"
             onClick={() => setShowPicker(true)}
@@ -204,7 +208,7 @@ export function RosterPage({
             className="flex-1 min-w-[160px] min-h-12 flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-left hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
             <span
-              className="min-w-0 truncate text-xl font-bold text-[#222]"
+              className="min-w-0 truncate text-[1.25rem] font-bold text-[#222]"
               title={activeRoster?.name}
             >
               {activeRoster?.name}
@@ -347,7 +351,10 @@ export function RosterPage({
             </h2>
             {selecting ? (
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-bold text-gray-600">{selectedIds.length} selected</span>
+                {/* Set at the size of the names being counted, in both text
+                    modes. A row in the table carries no size class of its own,
+                    so it inherits the base, which is what text-base matches. */}
+                <span className="text-base font-bold text-gray-600">{selectedIds.length} selected</span>
                 <button
                   onClick={() => setShowAddToGroup(true)}
                   disabled={selectedIds.length === 0}

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { Schedule, Player, LockedPair, Partnership, Round, CourtScore } from '../../types';
+import type {
+  Schedule, Player, LockedPair, Partnership, Round, CourtScore, Gender,
+} from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
 import { renumberFrom } from '../../lib/courtNumbers';
@@ -7,6 +9,8 @@ import { courtRatingDiff } from '../../utils/helpers';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
+import { PlayerMenu } from './PlayerMenu';
+import { EditPlayerDialog } from './EditPlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
 import { ScoreDialog } from './ScoreDialog';
 import { StandingsPanel } from './StandingsPanel';
@@ -72,6 +76,8 @@ interface Props {
   onUpdateSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
+  /** Name, rating and gender, saved against the player and written through the rounds. */
+  onEditPlayer: (playerId: string, name: string, rating: number, gender: Gender) => void;
   /**
    * Whether leaving this schedule would throw work away. The step tabs sit
    * above this page and are the only way off it, and only this page knows about
@@ -130,6 +136,7 @@ export function SchedulePage({
   onUpdateSchedule,
   onCompletedRoundsChange,
   onRemovePlayer,
+  onEditPlayer,
   onUnsavedWorkChange,
   showSwapHint,
   onDismissSwapHint,
@@ -144,6 +151,11 @@ export function SchedulePage({
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
+  // Tapping a place on the schedule and then its edit button opens this. The two
+  // things it offers each open a panel of their own, so only one of the three is
+  // ever on screen.
+  const [menuPlayer, setMenuPlayer] = useState<Player | null>(null);
+  const [editCandidate, setEditCandidate] = useState<Player | null>(null);
   // Which view the Actions sheet opens on, or null while it is closed. The
   // counter keys the sheet, so opening it always gets a fresh one: it flashes a
   // confirmation and closes itself, and a second tap during that flash should
@@ -241,6 +253,13 @@ export function SchedulePage({
     if (!removeCandidate) return;
     onRemovePlayer(removeCandidate.id);
     setRemoveCandidate(null);
+    setSelectedSlot(null);
+  }
+
+  function handleSaveEdit(name: string, rating: number, gender: Gender) {
+    if (!editCandidate) return;
+    onEditPlayer(editCandidate.id, name, rating, gender);
+    setEditCandidate(null);
     setSelectedSlot(null);
   }
 
@@ -541,7 +560,7 @@ export function SchedulePage({
             allPlayers={players}
             locks={roundLocks}
             onToggleLock={handleToggleLock}
-            onRequestRemove={setRemoveCandidate}
+            onOpenPlayerMenu={setMenuPlayer}
             isComplete={complete}
             isExpanded={expandedRounds.has(round.roundNumber)}
             canUncomplete={canUncomplete}
@@ -553,7 +572,7 @@ export function SchedulePage({
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
-              Tap another player to swap, or tap the trash icon to remove them
+              Tap another player to swap, or tap the pencil for more
             </p>
           )}
         </div>
@@ -598,6 +617,30 @@ export function SchedulePage({
           court={schedule.rounds[scoringCourt.roundIdx].courts[scoringCourt.courtIdx]}
           onDone={handleScoreDone}
           onCancel={() => setScoringCourt(null)}
+        />
+      )}
+
+      {menuPlayer && (
+        <PlayerMenu
+          player={menuPlayer}
+          onEdit={() => {
+            setEditCandidate(menuPlayer);
+            setMenuPlayer(null);
+          }}
+          onRemove={() => {
+            setRemoveCandidate(menuPlayer);
+            setMenuPlayer(null);
+          }}
+          onCancel={() => setMenuPlayer(null)}
+        />
+      )}
+
+      {editCandidate && (
+        <EditPlayerDialog
+          player={editCandidate}
+          defaultRating={defaultRating}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditCandidate(null)}
         />
       )}
 

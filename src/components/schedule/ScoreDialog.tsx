@@ -125,12 +125,18 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
           Court {court.courtNumber} Score
         </h2>
 
+        {/* Set at the size a name is on a court, and given most of the box to
+            say it in. These wrap where a court's own places cut with an
+            ellipsis: a court is one of a grid that has to line up, and this is
+            on its own, so a second line costs nothing and a shortened name in
+            the one place the host is being asked who they are writing a score
+            for costs plenty. */}
         <div className="mb-2 flex items-start justify-center gap-[8px] text-center">
-          <p className="w-[6.5rem] truncate text-xs font-medium text-gray-600" title={formatTeam(court.team1, court)}>
+          <p className="min-w-0 max-w-[10rem] flex-1 break-words text-sm font-medium text-gray-600" title={formatTeam(court.team1, court)}>
             {formatTeam(court.team1, court)}
           </p>
           <span className="w-[5px]" />
-          <p className="w-[6.5rem] truncate text-xs font-medium text-gray-600" title={formatTeam(court.team2, court)}>
+          <p className="min-w-0 max-w-[10rem] flex-1 break-words text-sm font-medium text-gray-600" title={formatTeam(court.team2, court)}>
             {formatTeam(court.team2, court)}
           </p>
         </div>

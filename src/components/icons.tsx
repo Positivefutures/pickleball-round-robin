@@ -180,14 +180,46 @@ export function MixedGamesIcon({ className }: { className?: string }) {
 }
 
 /**
+ * One symbol on its own, marking a player as a man or a woman on a round whose
+ * format turns on which they are. The pair above say what a format is; these two
+ * say who somebody is, which is why they are separate icons rather than halves
+ * of those.
+ *
+ * `INBOX/male.svg` and `INBOX/female.svg` verbatim, each keeping the grid it
+ * arrived on.
+ */
+export function MaleIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className} viewBox="0 0 50 50">
+      <path d="m45.8 1.7h-13.8c-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5h7.7l-9.2 9.2c-7.1-5.3-17.2-4.8-23.6 1.6-7 7-7 18.5 0 25.5s18.5 7 25.5 0c6.4-6.4 7-16.6 1.6-23.6l9.2-9.2v7.8c0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5v-13.8c.1-1.4-1-2.5-2.4-2.5zm-16.8 37.8c-5.1 5.1-13.4 5.1-18.5 0s-5.1-13.4 0-18.5 13.4-5.1 18.5 0 5.1 13.4 0 18.5z" />
+    </Solid>
+  );
+}
+
+export function FemaleIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className} viewBox="0 0 512 512">
+      <path
+        clipRule="evenodd"
+        fillRule="evenodd"
+        d="m284.904 362.926v35.509h23.594c15.962 0 28.906 12.944 28.906 28.906s-12.944 28.907-28.906 28.907h-23.594v26.845c0 15.962-12.944 28.907-28.906 28.907s-28.906-12.944-28.906-28.907v-26.845h-23.603c-15.957 0-28.906-12.948-28.906-28.907 0-15.958 12.949-28.906 28.906-28.906h23.603v-35.509c-87.699-13.981-153.705-90.192-153.705-180.315 0-100.699 81.911-182.611 182.611-182.611 100.699 0 182.615 81.911 182.615 182.611 0 90.125-66.007 166.334-153.709 180.315zm-153.709-180.315c0 68.805 55.999 124.798 124.802 124.798 68.806 0 124.802-55.991 124.802-124.798s-55.997-124.798-124.802-124.798c-68.802 0-124.802 55.993-124.802 124.798z"
+      />
+    </Solid>
+  );
+}
+
+/**
  * A stroked wrapper for the handful of icons drawn as outlines rather than
  * filled shapes. Same sizing contract as `Solid`.
  */
 function Stroked({
   className = 'w-4 h-4',
+  strokeWidth = 2,
   children,
 }: {
   className?: string;
+  /** Raised where an icon has to carry weight rather than sit beside text. */
+  strokeWidth?: number;
   children: ReactNode;
 }) {
   return (
@@ -196,7 +228,7 @@ function Stroked({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -440,18 +472,30 @@ export function LockIcon({ className }: { className?: string }) {
  */
 
 /** A cross. Closes the Actions sheet. */
-export function CloseIcon({ className }: { className?: string }) {
+export function CloseIcon({
+  className,
+  strokeWidth,
+}: {
+  className?: string;
+  strokeWidth?: number;
+}) {
   return (
-    <Stroked className={className}>
+    <Stroked className={className} strokeWidth={strokeWidth}>
       <path d="M6 6l12 12M18 6L6 18" />
     </Stroked>
   );
 }
 
 /** A chevron pointing back, for the step out of an action and into the grid. */
-export function ChevronLeftIcon({ className }: { className?: string }) {
+export function ChevronLeftIcon({
+  className,
+  strokeWidth,
+}: {
+  className?: string;
+  strokeWidth?: number;
+}) {
   return (
-    <Stroked className={className}>
+    <Stroked className={className} strokeWidth={strokeWidth}>
       <path d="M15 5l-7 7 7 7" />
     </Stroked>
   );

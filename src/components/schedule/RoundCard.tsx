@@ -12,7 +12,7 @@ interface Props {
   allPlayers: Player[];
   locks: LockedPair[];
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
-  onRequestRemove: (player: Player) => void;
+  onOpenPlayerMenu: (player: Player) => void;
   isComplete: boolean;
   isExpanded: boolean;
   canUncomplete: boolean;
@@ -47,7 +47,7 @@ export function RoundCard({
   allPlayers,
   locks,
   onToggleLock,
-  onRequestRemove,
+  onOpenPlayerMenu,
   isComplete,
   isExpanded,
   canUncomplete,
@@ -60,6 +60,9 @@ export function RoundCard({
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
   const roundType = roundTypeOf(round);
+  // Both formats are made of who is a man and who is a woman, so both are worth
+  // marking. Equal Skill is not, and an ordinary round has no format at all.
+  const showGender = roundType === 'gendered' || roundType === 'mixed';
   const typeBadge = roundType && (
     <span
       className={`text-xs font-medium px-2 py-0.5 rounded ${ROUND_TYPE_META[roundType].badgeClass}`}
@@ -154,9 +157,10 @@ export function RoundCard({
                   allPlayers={allPlayers}
                   lockedTeams={lockedTeams}
                   onToggleLock={onToggleLock}
-                  onRequestRemove={onRequestRemove}
+                  onOpenPlayerMenu={onOpenPlayerMenu}
                   readOnly={isComplete}
                   offFormat={!!roundType && !courtMatchesType(court, roundType)}
+                  showGender={showGender}
                   onEditNumber={() => onEditCourtNumber(courtIdx)}
                 showScore={scoringEnabled}
                 onEditScore={() => onEditScore(courtIdx)}
@@ -169,9 +173,10 @@ export function RoundCard({
             roundIdx={roundIdx}
             selectedSlot={selectedSlot}
             onPlayerTap={onPlayerTap}
-            onRequestRemove={onRequestRemove}
+            onOpenPlayerMenu={onOpenPlayerMenu}
             allPlayers={allPlayers}
             readOnly={isComplete}
+            showGender={showGender}
           />
         </>
       )}

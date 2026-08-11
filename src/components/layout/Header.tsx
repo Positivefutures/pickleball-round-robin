@@ -14,7 +14,7 @@
  */
 
 /** The banner's height. Every other measurement here is a multiple of it. */
-const HEIGHT = 'clamp(88px, 21vw, 132px)';
+const HEIGHT = 'clamp(110px, 26.25vw, 165px)';
 
 /**
  * Width of the court piece as a multiple of the height. The left piece needs no

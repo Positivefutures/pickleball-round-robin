@@ -48,7 +48,7 @@ let container: HTMLElement;
 
 function render(
   which: CourtAssignment = court,
-  extra: { showScore?: boolean; readOnly?: boolean } = {}
+  extra: { showScore?: boolean; readOnly?: boolean; showGender?: boolean } = {}
 ): HTMLElement {
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -268,5 +268,52 @@ describe('the scoreboard on a court', () => {
     // write down yet.
     const wrapper = scoreboard(render(court, { showScore: true }))!.parentElement!;
     expect(wrapper.className.split(/\s+/)).toContain('no-print');
+  });
+});
+
+/**
+ * Who is a man and who is a woman, on the rounds where that is the format.
+ *
+ * A Gendered round and a Mixed round are both built out of it, and until now the
+ * card gave no sign of it: the host had to know the roster to see whether what
+ * was drawn was what was asked for. On every other round it would be a mark on
+ * every name meaning nothing, which is why it is a prop and not a default.
+ */
+describe('the gender marks', () => {
+  /** The mark beside one name, found by what it says about them. */
+  const mark = (el: HTMLElement, said: string) =>
+    [...el.querySelectorAll('span[title]')].find((s) => s.getAttribute('title') === said);
+
+  it('are absent on an ordinary round', () => {
+    expect(render(court).querySelectorAll('svg[viewBox="0 0 50 50"]')).toHaveLength(0);
+  });
+
+  it('mark each player on a round whose format is made of it', () => {
+    // Ben and Dan are the women of this four, Cara and the long name the men.
+    const el = render(court, { showGender: true });
+    expect(mark(el, `${LONG} is a man`)).toBeDefined();
+    expect(mark(el, 'Ben is a woman')).toBeDefined();
+    expect(mark(el, 'Cara is a man')).toBeDefined();
+    expect(mark(el, 'Dan is a woman')).toBeDefined();
+  });
+
+  it('draw the right symbol for each', () => {
+    // The two arrived on different grids, which is the cheapest way to tell
+    // them apart without reading the path back.
+    const el = render(court, { showGender: true });
+    expect(el.querySelectorAll('svg[viewBox="0 0 50 50"]')).toHaveLength(2);
+    expect(el.querySelectorAll('svg[viewBox="0 0 512 512"]')).toHaveLength(2);
+  });
+
+  it('never take the width from the name they sit beside', () => {
+    const el = render(court, { showGender: true });
+    expect(mark(el, 'Ben is a woman')!.className.split(/\s+/)).toContain('shrink-0');
+  });
+
+  it('are kept off the printed sheet', () => {
+    // Paper is read out at the net, where the round's own heading has already
+    // said which format is being played.
+    const el = render(court, { showGender: true });
+    expect(mark(el, 'Ben is a woman')!.className.split(/\s+/)).toContain('no-print');
   });
 });

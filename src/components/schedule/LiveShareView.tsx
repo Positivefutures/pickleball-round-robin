@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
 import { CopyIcon, ShareIcon } from '../icons';
 import {
@@ -17,6 +17,16 @@ import { canShare, sessionPayload, shareLink } from '../../lib/share';
  * arrives through useSyncExternalStore the same way AccountPanel reads authStore
  * and syncStatusStore. That is the whole reason this view can live in a sheet
  * whose other views are one question and one answer.
+ *
+ * Opening the card makes the link. Somebody who has chosen Share Live Session
+ * has said what they want, and the panel that used to stand between them and the
+ * code was asking the same question twice with a court full of people waiting.
+ * What that panel said about what is shared is now on the code itself, where it
+ * is still read before anybody scans it.
+ *
+ * Stopping is the one way back. The host has taken the session down, so the link
+ * is gone and there is nothing to show; the panel goes back to offering to make
+ * a new one, and the guard below is what stops it making one unasked.
  */
 
 const PRIMARY =
@@ -29,10 +39,29 @@ export function LiveShareView() {
   const status = useSyncExternalStore(liveStatusStore.subscribe, liveStatusStore.get);
   const [copied, setCopied] = useState(false);
   const [hasSheet] = useState(canShare);
+  // Set by Stop Sharing, and never cleared except by asking again. Without it
+  // the effect below would publish the session again the moment it came down.
+  const [stopped, setStopped] = useState(false);
+  const asked = useRef(false);
 
   const url = status.state === 'live' || status.state === 'publishing' || status.state === 'problem'
     ? status.url
     : null;
+
+  // Once per opening. StrictMode runs a mount effect twice in development, and
+  // two of these is two rows minted where one was wanted.
+  useEffect(() => {
+    if (asked.current) return;
+    if (!sharingAvailable()) return;
+    if (liveStatusStore.get().state !== 'off') return;
+    asked.current = true;
+    void startSharing();
+  }, []);
+
+  function begin() {
+    setStopped(false);
+    void startSharing();
+  }
 
   async function handleCopy() {
     if (!url) return;
@@ -67,15 +96,14 @@ export function LiveShareView() {
     );
   }
 
-  if (url === null) {
+  // Taken down by hand. The only view with a button to start, because it is the
+  // only time the host has said they do not want this running.
+  if (stopped) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <p className="text-[15px] leading-snug text-[#3D495A]">
-          Everyone points a camera at one code and watches this session on their
-          own phone. They can see it but not change it.
-        </p>
-        <p className="mt-2 text-sm" style={{ color: QUIET_TEXT }}>
-          Names, courts and scores are shared. Player ratings are not.
+          Sharing has stopped and the old link no longer works. Making another
+          one puts this session back on the phones that scan it.
         </p>
 
         {status.state === 'problem' && (
@@ -87,11 +115,37 @@ export function LiveShareView() {
             type="button"
             className={PRIMARY}
             disabled={status.state === 'starting'}
-            onClick={() => void startSharing()}
+            onClick={begin}
           >
             {status.state === 'starting' ? 'Making a link…' : 'Share This Session'}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (url === null) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p className="text-[15px] leading-snug text-[#3D495A]">
+          Everyone points a camera at one code and watches this session on their
+          own phone. They can see it but not change it.
+        </p>
+
+        {status.state === 'problem' ? (
+          <>
+            <p className="mt-3 text-sm font-medium text-red-700">{status.message}</p>
+            <div className="mt-auto pt-4">
+              <button type="button" className={PRIMARY} onClick={begin}>
+                Try Again
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="mt-3 text-sm" style={{ color: QUIET_TEXT }}>
+            Making a link…
+          </p>
+        )}
       </div>
     );
   }
@@ -111,6 +165,13 @@ export function LiveShareView() {
         {url}
       </p>
 
+      {/* Said here rather than on a panel before this one, and said whatever
+          the publisher is doing. It is what somebody would want to know before
+          they hold the code up, so it cannot be the line an error replaces. */}
+      <p className="text-sm" style={{ color: QUIET_TEXT }}>
+        Names, courts and scores are shared. Player ratings are not.
+      </p>
+
       {status.state === 'problem' ? (
         // The link on the table is still the right one, so it stays on screen.
         // Only the last upload failed, and the next one is already scheduled.
@@ -125,7 +186,7 @@ export function LiveShareView() {
       {hasSheet && (
         <button type="button" onClick={handleShare} className={SECONDARY}>
           <ShareIcon className="h-6 w-6" />
-          <span className="font-bold">Share&hellip;</span>
+          <span className="font-bold">Share link&hellip;</span>
         </button>
       )}
 
@@ -136,7 +197,10 @@ export function LiveShareView() {
 
       <button
         type="button"
-        onClick={() => void stopSharing()}
+        onClick={() => {
+          setStopped(true);
+          void stopSharing();
+        }}
         className="w-full rounded-lg bg-red-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-700"
       >
         Stop Sharing

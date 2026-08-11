@@ -133,10 +133,16 @@ describe('the group you are in', () => {
   it('is shown at the size of a name, not in small print', () => {
     // The complaint that started this: it was text-sm, the smallest type on a
     // panel whose whole job is to say which group you are working with.
+    //
+    // An absolute 1.25rem rather than text-xl, which is the same size until
+    // large text mode is switched on and 1.35 times it after. Scaled up it was
+    // the biggest thing on the page and read as a heading rather than a
+    // setting, so it is held at the one size in both modes.
     render();
     const classes = triggerName().className.split(/\s+/);
-    expect(classes).toContain('text-xl');
+    expect(classes).toContain('text-[1.25rem]');
     expect(classes).not.toContain('text-sm');
+    expect(classes).not.toContain('text-xl');
   });
 
   it('is cut with an ellipsis rather than wrapped, and kept whole in the title', () => {
