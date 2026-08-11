@@ -150,6 +150,45 @@ describe('what the panel says now', () => {
   });
 });
 
+/**
+ * These two panels are the same panel with different words in it, which is
+ * exactly the shape of thing that ends up with one glyph copied onto both. The
+ * test is that they differ, not that either is any particular drawing.
+ */
+describe('the glyph at the top', () => {
+  /** The path data of the first icon in the panel. */
+  const glyph = () => container.querySelector('svg path')?.getAttribute('d') ?? '';
+
+  it('is there on both, above the title', () => {
+    for (const kind of ['feature', 'bug'] as FeedbackKind[]) {
+      render(kind);
+      expect(glyph().length).toBeGreaterThan(0);
+      act(() => root.unmount());
+      container.remove();
+    }
+    render();
+  });
+
+  it('is a different drawing on each, so you can tell them apart at a glance', () => {
+    render('feature');
+    const feature = glyph();
+    act(() => root.unmount());
+    container.remove();
+
+    render('bug');
+    expect(glyph()).not.toBe(feature);
+  });
+
+  it('stays once the message has gone, because the panel is still that panel', async () => {
+    render();
+    const before = glyph();
+    typeInto('#fb-summary', 'A shot clock');
+    await send();
+    expect(text()).toContain('Sent.');
+    expect(glyph()).toBe(before);
+  });
+});
+
 describe('the reply address', () => {
   it('asks for one, and says why', () => {
     render();

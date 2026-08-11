@@ -1,4 +1,6 @@
 import { MAX_RATING as MAX, MIN_RATING as MIN, step } from '../../lib/rating';
+import { PanelGlyph } from '../PanelGlyph';
+import { StarIcon } from '../icons';
 
 interface Props {
   rating: number;
@@ -16,6 +18,9 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
         className="mx-4 w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* The same star that marks Equal Skill Games, because both are about
+            how good somebody is said to be. */}
+        <PanelGlyph icon={StarIcon} />
         <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">
           Default Player Rating
         </h2>

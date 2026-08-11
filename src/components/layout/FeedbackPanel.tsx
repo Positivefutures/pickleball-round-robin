@@ -9,6 +9,8 @@ import {
   type FeedbackKind,
 } from '../../lib/feedback';
 import { authStore } from '../../lib/auth';
+import { PanelGlyph } from '../PanelGlyph';
+import { BugIcon, SendMailIcon } from '../icons';
 
 interface Props {
   kind: FeedbackKind;
@@ -16,9 +18,21 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * A glyph apiece, and they are not the same one. Both panels look alike and sit
+ * next to each other in the settings drawer, so the shape at the top is the
+ * fastest way to tell which one is open.
+ */
 const COPY: Record<
   FeedbackKind,
-  { title: string; intro: string; summary: string; details: string; hint: string }
+  {
+    title: string;
+    intro: string;
+    summary: string;
+    details: string;
+    hint: string;
+    Icon: (props: { className?: string }) => React.ReactElement;
+  }
 > = {
   feature: {
     title: 'Suggest a Feature',
@@ -26,6 +40,7 @@ const COPY: Record<
     summary: 'Your idea, in one line',
     details: 'Tell me more (optional)',
     hint: 'What would it do, and when would you use it?',
+    Icon: SendMailIcon,
   },
   bug: {
     title: 'Report a Bug',
@@ -33,6 +48,7 @@ const COPY: Record<
     summary: 'What went wrong, in one line',
     details: 'What happened?',
     hint: 'What you did, what you expected, and what happened instead.',
+    Icon: BugIcon,
   },
 };
 
@@ -81,6 +97,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
         className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
+        <PanelGlyph icon={copy.Icon} />
         <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">{copy.title}</h2>
 
         {sent ? (

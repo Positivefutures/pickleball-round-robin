@@ -1,5 +1,6 @@
 import type { Player, Partnership } from '../../types';
 import { resolvePairs } from '../../lib/partnerships';
+import { LinkIcon } from '../icons';
 import { PairList } from './PairList';
 
 interface Props {
@@ -30,8 +31,13 @@ export function PartnerPairing({
   return (
     <div>
       <div className="mb-3">
-        <h3 className="text-[1.35rem] font-extrabold text-[#222]">
+        {/* The same chain link as the button that opened this, so the heading
+            confirms where you have landed. Its own colour rather than one of
+            the two brand ones: a link between two players is neither an action
+            nor a warning, and the indigo is Jeff's pick for it. */}
+        <h3 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
           Set Partners
+          <LinkIcon className="h-[26px] w-[26px] text-[#615fff]" />
         </h3>
         <p className="text-sm text-gray-500 mt-1">
           Tap one player, then tap their partner to link them together for the whole

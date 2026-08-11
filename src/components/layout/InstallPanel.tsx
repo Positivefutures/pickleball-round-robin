@@ -51,6 +51,29 @@ function MoreGlyph() {
   );
 }
 
+/**
+ * The app as it will look on a home screen: the logo on a white tile with iOS
+ * corners, which is exactly what the manifest icon produces.
+ *
+ * Composed here rather than shipped as another PNG, so it stays sharp on any
+ * screen and there is only ever one logo file to change. The tile is white and
+ * so is the panel, so it carries both a hairline and a shadow — either alone
+ * leaves an edge that some screens lose. The radius is 22% of the width, the
+ * proportion iOS rounds an icon by, so it reads as an app icon and not a photo.
+ *
+ * Decorative: alt is empty because the heading above already says what this is,
+ * and the steps below are the part worth reading out.
+ */
+function AppIconTile() {
+  return (
+    <div className="mb-3 flex justify-center">
+      <div className="rounded-[14px] border border-gray-200 bg-white p-1.5 shadow-md">
+        <img src="/logo.png" alt="" width={52} height={52} className="h-13 w-13" />
+      </div>
+    </div>
+  );
+}
+
 function Step({ n, children }: { n: number; children: ReactNode }) {
   return (
     <li className="flex gap-3">
@@ -109,6 +132,7 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
         className="mx-4 max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
+        <AppIconTile />
         <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">
           Add to Home Screen
         </h2>

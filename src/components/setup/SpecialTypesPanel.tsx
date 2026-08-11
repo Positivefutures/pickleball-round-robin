@@ -1,7 +1,14 @@
 import type { ReactElement } from 'react';
 import type { RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { MAX_FREQUENCY, ROUND_TYPE_META, orderedTypes } from '../../lib/roundTypes';
-import { EqualSkillIcon, MenGamesIcon, MixedGamesIcon, WomenGamesIcon } from '../icons';
+import {
+  CourtIcon,
+  EqualSkillIcon,
+  MenGamesIcon,
+  MixedGamesIcon,
+  WomenGamesIcon,
+} from '../icons';
+import { PanelGlyph } from '../PanelGlyph';
 import { Toggle } from '../Toggle';
 
 interface Props {
@@ -57,6 +64,11 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
         className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* On its side. Everywhere else in the app a court is drawn end on,
+            the way a player stands in it; here it is the whole court seen from
+            the side of the net, which is how a host looking at a session sees
+            one. Same artwork, turned, rather than a second drawing to keep. */}
+        <PanelGlyph icon={CourtIcon} className="rotate-90" />
         <h2 className="text-center text-[1.35rem] font-extrabold text-[#222]">
           Special Game Types
         </h2>
