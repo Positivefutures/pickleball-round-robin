@@ -217,7 +217,7 @@ export function RosterPage({
           </button>
           <button
             onClick={() => setShowManage(true)}
-            className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
           >
             Manage
           </button>
@@ -237,7 +237,7 @@ export function RosterPage({
           <button
             onClick={onContinue}
             disabled={players.length < 4}
-            className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue to Setup &rarr;
           </button>
@@ -358,7 +358,7 @@ export function RosterPage({
                 <button
                   onClick={() => setShowAddToGroup(true)}
                   disabled={selectedIds.length === 0}
-                  className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add to Group
                 </button>
@@ -374,7 +374,7 @@ export function RosterPage({
                 onClick={startSelecting}
                 disabled={rosters.length < 2 || players.length === 0}
                 title={rosters.length < 2 ? 'Create another group first' : undefined}
-                className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <SelectPlayersIcon className="w-[21px] h-[21px]" />
                 Select Players

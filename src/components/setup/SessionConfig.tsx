@@ -1,5 +1,102 @@
 import type { SpecialGameTypes } from '../../types';
-import { specialSummary } from '../../lib/roundTypes';
+import { ROUND_TYPE_META, specialSummary } from '../../lib/roundTypes';
+import { BallIcon, ChevronLeftIcon, StepPlayersIcon } from '../icons';
+import { Toggle } from '../Toggle';
+
+/**
+ * The Setup Round Robin panel, drawn from `INBOX/Setup-Round-Robin.png`.
+ *
+ * Every colour below was sampled out of that file rather than picked by eye. The
+ * mockup is a compressed render, so each one is the mean of the darkest few per
+ * cent of its region, which lands on the ink and skips the fuzz around it.
+ */
+
+/** The primary teal, read from the one place it is written down. */
+const TEAL = 'var(--color-brand-teal)';
+
+/** Headings, labels and the numbers themselves. */
+const NAVY = '#0D1F44';
+
+/** The line around each box of the steppers. Mockup: #CCCFD9. */
+const EDGE = '#CCCFD9';
+
+/** The rule under the steppers. Mockup: #E0E2E8. */
+const RULE = '#E0E2E8';
+
+/**
+ * A stepper: a key, a box holding the number, and another key.
+ *
+ * Three separate rounded boxes rather than one control divided up, which is what
+ * the mockup does and is worth copying — the number reads as a value being shown
+ * rather than as a third button. The keys take about a quarter of the width each,
+ * so they are wide enough to hit with a thumb without the number losing its box.
+ *
+ * `h-11` rather than the mockup's height, which works out at about 32px. That is
+ * under every thumb-target guideline going, and this is a control used at a court
+ * with a phone in one hand.
+ */
+function Stepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  downLabel,
+  upLabel,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+  downLabel: string;
+  upLabel: string;
+}) {
+  // A bare minus sign says nothing to a screen reader, which is why each key
+  // carries a label of its own. The keys stay live at the ends of their range
+  // and clamp, as they always have: a key that greys out at 1 court reads as
+  // something being wrong rather than as the floor being reached.
+  const key =
+    'relative z-10 flex w-[26%] shrink-0 items-center justify-center rounded-lg ' +
+    'border border-[#CCCFD9] bg-[#FAFAFA] text-brand-teal text-xl font-bold ' +
+    'transition-colors hover:bg-[#EFF0F2]';
+
+  return (
+    <div className="min-w-0 flex-1">
+      <label className="mb-1.5 block text-sm font-bold" style={{ color: NAVY }}>
+        {label}
+      </label>
+      <div className="flex h-11 items-stretch">
+        <button
+          type="button"
+          aria-label={downLabel}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          className={key}
+        >
+          &minus;
+        </button>
+        {/* Square, with only a top and a bottom rule, and tucked a little way
+            under the key on each side. The keys are opaque and sit above it, so
+            what you see is one bar running behind them rather than three boxes
+            in a row. */}
+        <span
+          className="-mx-2 flex flex-1 items-center justify-center border-y bg-white text-[1.4rem] font-bold"
+          style={{ borderColor: EDGE, color: NAVY }}
+        >
+          {value}
+        </span>
+        <button
+          type="button"
+          aria-label={upLabel}
+          onClick={() => onChange(Math.min(max, value + 1))}
+          className={key}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   numCourts: number;
@@ -30,115 +127,92 @@ export function SessionConfig({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-6 flex-wrap items-start">
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">
-            Number of Courts
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onCourtsChange(Math.max(1, numCourts - 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-            >
-              &minus;
-            </button>
-            <span className="min-w-10 text-center text-[1.4rem] font-semibold text-gray-800">{numCourts}</span>
-            <button
-              type="button"
-              onClick={() => onCourtsChange(Math.min(16, numCourts + 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-            >
-              +
-            </button>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-1">
-            Number of Rounds
-          </label>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onRoundsChange(Math.max(1, numRounds - 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-            >
-              &minus;
-            </button>
-            <span className="min-w-10 text-center text-[1.4rem] font-semibold text-gray-800">{numRounds}</span>
-            <button
-              type="button"
-              onClick={() => onRoundsChange(Math.min(16, numRounds + 1))}
-              className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-            >
-              +
-            </button>
-          </div>
-        </div>
+      {/* Bottom-aligned, so the two rows of keys stay level with each other when
+          one label wraps and the other does not. In large text on a phone,
+          "Number of Rounds" takes two lines and "Number of Courts" takes one. */}
+      <div className="flex items-end gap-4">
+        <Stepper
+          label="Number of Courts"
+          value={numCourts}
+          min={1}
+          max={16}
+          onChange={onCourtsChange}
+          downLabel="Fewer courts"
+          upLabel="More courts"
+        />
+        <Stepper
+          label="Number of Rounds"
+          value={numRounds}
+          min={1}
+          max={16}
+          onChange={onRoundsChange}
+          downLabel="Fewer rounds"
+          upLabel="More rounds"
+        />
       </div>
 
-      <div className="space-y-1">
-        <p className="text-[1.2rem] font-bold text-gray-700">
-          {numPlayers} of {spotsNeeded} Spots Filled
-        </p>
-        {sitOutsPerRound > 0 && (
-          <p className="text-sm text-amber-600">
-            {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
+      {/* Closes off the two numbers being set from everything they decide. */}
+      <hr className="border-0 border-t" style={{ borderColor: RULE }} />
+
+      <div className="flex items-center gap-3">
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: TEAL }}
+        >
+          <StepPlayersIcon className="h-6 w-6 text-white" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[1.2rem] font-bold" style={{ color: NAVY }}>
+            {numPlayers} of {spotsNeeded} Spots Filled
           </p>
-        )}
+          {/* Red, not amber. Straight off the mockup, where it is the one warm
+              thing on the panel and the only line that is a consequence rather
+              than a setting. */}
+          {sitOutsPerRound > 0 && (
+            <p className="text-sm text-[#FD1F04]">
+              {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
+            </p>
+          )}
+        </div>
       </div>
 
       <div>
-        {specials.length > 0 && (
-          <div className="mb-2">
-            <h3 className="text-lg font-semibold text-gray-800">Special Game Types</h3>
-            {specials.map((s) => (
-              <div key={s.type} className="mt-1">
-                <p className="text-sm text-gray-700">{s.headline}</p>
-                {/* The rounds it lands on, so a setting that never fits the
-                    session is obvious here rather than after generating. */}
-                <p className="text-xs text-gray-500">
-                  {s.rounds.length > 0
-                    ? `round${s.rounds.length > 1 ? 's' : ''} ${s.rounds.join(', ')}`
-                    : 'not in this session'}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Full width with the chevron at its right end, so it reads as a way
+            through to another panel rather than as something that happens here.
+            The old blue pill said neither. */}
         <button
           type="button"
           onClick={onOpenSpecialTypes}
-          className="min-h-10 px-4 flex items-center justify-center bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          className="flex w-full items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
+          style={{ borderColor: TEAL, color: TEAL }}
         >
-          Select Special Game Types
+          <BallIcon className="h-6 w-6" />
+          <span className="min-w-0 flex-1 font-bold">Select Special Game Types</span>
+          <ChevronLeftIcon className="h-5 w-5 rotate-180" />
         </button>
+
+        {/* The chosen formats, in the same chips the round cards use for them,
+            so the same thing is the same colour in both places. No heading over
+            them: the button they sit under has already said what they are. The
+            rounds each one lands on are not listed here — that belongs to the
+            schedule, which is one tap away and says it per round. */}
+        {specials.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {specials.map((s) => (
+              <span
+                key={s.type}
+                className={`rounded px-2 py-0.5 text-xs font-medium ${ROUND_TYPE_META[s.type].badgeClass}`}
+              >
+                {s.headline}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-4">
         <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
-        {/* A real switch, `role="switch"` rather than a checkbox, so a screen
-            reader says "on" and "off" and not "ticked". The knob is a box like
-            the track, sliding its own width across it. */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={scoringEnabled}
-          aria-label="Keep Score?"
-          onClick={() => onScoringChange(!scoringEnabled)}
-          className={`flex h-7 w-[3.125rem] shrink-0 items-center rounded-[6px] border-2 transition-colors ${
-            scoringEnabled
-              ? 'border-green-700 bg-green-600'
-              : 'border-gray-400 bg-gray-200'
-          }`}
-        >
-          {/* Travel is the track's inside width less the knob's: 46 − 22. */}
-          <span
-            className={`block h-[22px] w-[22px] rounded-[4px] bg-white shadow transition-transform duration-150 ${
-              scoringEnabled ? 'translate-x-[1.5rem]' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        <Toggle checked={scoringEnabled} onChange={onScoringChange} label="Keep Score?" />
       </div>
     </div>
   );

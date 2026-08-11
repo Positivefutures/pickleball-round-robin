@@ -18,9 +18,15 @@ const STEP_ICONS: Record<Step, ({ className }: { className?: string }) => React.
 // Sampled from the design rather than rounded to the nearest Tailwind shade,
 // which would shift every one of them a little.
 const TRACK = '#f4f5f7';
-const ACTIVE_BORDER = '#cde6d5';
-const ACTIVE_TEXT = '#178c15';
-const ACTIVE_MARK = '#3aa641';
+/**
+ * The step you are on, in one colour.
+ *
+ * It used to be three greens: a pale border, a mid label and a brighter bar and
+ * icon. That was a small palette of its own for a control with three buttons in
+ * it. The primary orange now does all four jobs, which is what makes the live
+ * tab the same colour as everything else in the app that moves you somewhere.
+ */
+const ACTIVE = 'var(--color-brand-orange)';
 const IDLE_TEXT = '#61697c';
 const IDLE_ICON = '#6f768d';
 const DIVIDER = '#dee1e7';
@@ -74,7 +80,7 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
               }`}
               style={
                 isActive
-                  ? { border: `1px solid ${ACTIVE_BORDER}`, color: ACTIVE_TEXT }
+                  ? { border: `1px solid ${ACTIVE}`, color: ACTIVE }
                   : isReady
                     ? {
                         border: `1px solid ${READY_BORDER}`,
@@ -84,11 +90,12 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
                     : { color: IDLE_TEXT }
               }
             >
-              {/* The icon runs a shade lighter than its label, both states. It
-                  came off the design at 23px against much smaller type; at 20
-                  it is the same weight beside the bigger label and it buys back
-                  the width "3. Schedule" needs to stay on one line. */}
-              <span style={{ color: isActive ? ACTIVE_MARK : IDLE_ICON }} className="flex">
+              {/* On the live step the icon is the label's colour exactly; on the
+                  others it still runs a shade lighter. It came off the design at
+                  23px against much smaller type; at 20 it is the same weight
+                  beside the bigger label and it buys back the width
+                  "3. Schedule" needs to stay on one line. */}
+              <span style={{ color: isActive ? ACTIVE : IDLE_ICON }} className="flex">
                 <Icon className="w-5 h-5" />
               </span>
               {step.label}
@@ -98,7 +105,7 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
                 <span
                   aria-hidden="true"
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full"
-                  style={{ backgroundColor: ACTIVE_MARK }}
+                  style={{ backgroundColor: ACTIVE }}
                 />
               )}
             </button>

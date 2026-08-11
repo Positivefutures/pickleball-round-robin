@@ -71,7 +71,7 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
           <button
             type="button"
             onClick={onInstall}
-            className="mt-5 w-full rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700"
+            className="mt-5 w-full rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark"
           >
             Install
           </button>

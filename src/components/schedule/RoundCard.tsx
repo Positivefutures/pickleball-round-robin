@@ -3,6 +3,7 @@ import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
+import { ROUND_EDGE, ROUND_FILL } from './roundLook';
 
 interface Props {
   round: Round;
@@ -31,14 +32,27 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
-      fill="#6b7280"
-      className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+      fill="currentColor"
+      className={`w-[21px] h-[21px] transition-transform ${expanded ? 'rotate-180' : ''}`}
     >
       <path d="M12 15.5l-6-6L7.4 8l4.6 4.6L16.6 8 18 9.5z" />
     </svg>
   );
 }
 
+/**
+ * One round: its courts, whoever is sitting out, and the tick that closes it.
+ *
+ * The card takes its fill and its edge from `roundLook`. It used to be white,
+ * and a completed one grey; both are the one fill now, so a round reads as a
+ * single block on the page and the courts on it as the white things to look at.
+ * Everything printed straight onto the fill is white, which is why the completed
+ * state signals itself with the tick and the collapsed body rather than by going
+ * pale.
+ *
+ * Nothing here reaches paper: the whole on-screen schedule is `no-print` and the
+ * printed sheet is its own component.
+ */
 export function RoundCard({
   round,
   roundIdx,
@@ -76,16 +90,13 @@ export function RoundCard({
 
   return (
     <div
-      className={`round-card rounded-lg shadow border border-[#ddd] px-[0.6rem] pt-[0.83rem] pb-[1.2rem] ${
-        isComplete ? 'bg-gray-50' : 'bg-white'
-      }`}
+      className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
+      style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h3
-              className={`text-[1.35rem] font-extrabold uppercase ${isComplete ? 'text-gray-500' : 'text-[#222]'}`}
-            >
+            <h3 className="text-[1.35rem] font-extrabold uppercase text-white">
               Round {round.roundNumber}
             </h3>
             {/* A completed round also carries View/Hide, which leaves no room
@@ -95,7 +106,7 @@ export function RoundCard({
               <button
                 type="button"
                 onClick={onToggleExpand}
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors no-print"
+                className="flex items-center gap-1 text-base text-white hover:text-white/75 transition-colors no-print"
                 aria-expanded={isExpanded}
               >
                 {isExpanded ? 'Hide' : 'View'}
@@ -106,11 +117,14 @@ export function RoundCard({
           {isComplete && typeBadge && <div className="mt-1">{typeBadge}</div>}
         </div>
 
+        {/* Locked reads as a paler white rather than a grey, which would be the
+            one dark thing on the card and look like a mistake. The tooltip is
+            what actually says why it will not move. */}
         <label
-          className={`flex items-center gap-2 text-sm font-medium select-none no-print ${
+          className={`flex items-center gap-2 text-sm font-bold select-none no-print ${
             isComplete && !canUncomplete
-              ? 'text-gray-400 cursor-default'
-              : 'text-gray-600 cursor-pointer'
+              ? 'text-white/70 cursor-default'
+              : 'text-white cursor-pointer'
           }`}
           title={
             isComplete && !canUncomplete
@@ -118,13 +132,16 @@ export function RoundCard({
               : undefined
           }
         >
-          Completed
+          COMPLETED
+          {/* Filled in the round's own edge colour rather than the app's green,
+              which would be a second accent fighting the card behind it. */}
           <input
             type="checkbox"
             checked={isComplete}
             disabled={isComplete && !canUncomplete}
             onChange={onToggleComplete}
-            className="w-4 h-4 accent-green-600 disabled:cursor-default"
+            style={{ accentColor: ROUND_EDGE }}
+            className="w-5 h-5 disabled:cursor-default"
           />
         </label>
       </div>
@@ -134,7 +151,7 @@ export function RoundCard({
           {/* The line changes with scoring on, because the plain one would be a
               lie: the players are fixed but the board is still live. */}
           {isComplete && (
-            <p className="text-xs text-gray-500 italic mt-3 no-print">
+            <p className="text-base text-white italic mt-3 no-print">
               {scoringEnabled
                 ? 'This round is complete. Scores can still be changed.'
                 : 'This round is complete and can no longer be edited.'}

@@ -118,7 +118,7 @@ export function SetupPage({
         <button
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
-          className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {/* The link belongs to pairing players up. The same button ends that
               mode, where it would be saying the wrong thing. */}
@@ -133,7 +133,7 @@ export function SetupPage({
         </button>
         <button
           onClick={handleGenerate}
-          className="px-6 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+          className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
         >
           Generate Schedule &rarr;
         </button>
@@ -147,19 +147,33 @@ export function SetupPage({
   return (
     <div className="space-y-6">
       {/* No back button: the Players tab above the page is the way back. */}
-      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
-        <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Setup Round Robin</h2>
-        <SessionConfig
-          numCourts={numCourts}
-          numRounds={numRounds}
-          onCourtsChange={onCourtsChange}
-          onRoundsChange={onRoundsChange}
-          numPlayers={selectedIds.length}
-          specialTypes={specialTypes}
-          onOpenSpecialTypes={() => setSpecialTypesOpen(true)}
-          scoringEnabled={scoringEnabled}
-          onScoringChange={onScoringChange}
+      <div className="relative overflow-hidden bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        {/* Decoration, held in the corner the mockup puts it in. A third of the
+            panel is the share it has there, so it keeps that share on a phone
+            rather than swallowing the corner; 144px is its own size and it never
+            grows past it. Behind everything and untappable, so a long word
+            passes over it rather than being pushed down a line. */}
+        <img
+          src="/corner-dots.png"
+          alt=""
+          width={144}
+          height={126}
+          className="pointer-events-none absolute right-1.5 top-1.5 w-[23.3%] max-w-[101px] select-none"
         />
+        <div className="relative">
+          <h2 className="text-[1.35rem] font-extrabold text-[#051829] mb-4">Setup Round Robin</h2>
+          <SessionConfig
+            numCourts={numCourts}
+            numRounds={numRounds}
+            onCourtsChange={onCourtsChange}
+            onRoundsChange={onRoundsChange}
+            numPlayers={selectedIds.length}
+            specialTypes={specialTypes}
+            onOpenSpecialTypes={() => setSpecialTypesOpen(true)}
+            scoringEnabled={scoringEnabled}
+            onScoringChange={onScoringChange}
+          />
+        </div>
       </div>
 
       {buttonRow}

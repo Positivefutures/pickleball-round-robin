@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/**
+ * The brand palette, and the only place these values are written down.
+ *
+ * Tailwind v4 takes its config from CSS, so naming a colour here does two things
+ * at once: it generates the utilities (`bg-brand-orange`, `border-brand-teal`,
+ * `text-brand-teal-light` and so on), and it puts a real custom property on the
+ * document. Anything that has to set a colour inline reaches for the same value
+ * with `var(--color-brand-teal)` rather than repeating the hex.
+ *
+ * Two primaries. Orange leads: it is the tab you are on, and the buttons that
+ * move you somewhere else. Teal confirms: the button that does the thing, and
+ * the switch that is on. The two lights are backgrounds for black text, usually
+ * bordered in their own primary.
+ *
+ * The darks exist only as hovers, each its own primary taken down about a sixth.
+ * They are not a third and fourth brand colour and nothing should introduce them
+ * as one.
+ *
+ * `static` because a plain `@theme` only writes out the variables some utility
+ * happens to use, and a palette that vanishes when the last `bg-` for it is
+ * deleted is not a palette. All six are always on the document, so `var()` in an
+ * inline style is safe whether or not a class uses the same colour.
+ */
+@theme static {
+  --color-brand-orange: #f54702;
+  --color-brand-orange-dark: #d03c02;
+  --color-brand-orange-light: #fff3eb;
+
+  --color-brand-teal: #007d88;
+  --color-brand-teal-dark: #006770;
+  --color-brand-teal-light: #e8f7f8;
+}
+
 /* No rubber banding, and no pull to refresh.
    Dragging past the top or the bottom on a phone used to haul the whole app
    with it and show the settings drawer sitting behind, which is a fixed panel

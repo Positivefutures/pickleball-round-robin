@@ -50,7 +50,7 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700"
+          className="mt-6 w-full rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark"
         >
           Done
         </button>

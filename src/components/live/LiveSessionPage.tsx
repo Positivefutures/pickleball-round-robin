@@ -236,7 +236,7 @@ function Notice({
           type="button"
           onClick={onRetry}
           disabled={retrying}
-          className="mt-4 rounded-md bg-green-600 px-4 py-2 font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-40"
+          className="mt-4 rounded-md bg-brand-teal px-4 py-2 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:opacity-40"
         >
           {retrying ? 'Trying…' : 'Try again'}
         </button>

@@ -125,7 +125,7 @@ const DONE_MS = 1600;
 const DRAG_TO_CLOSE = 80;
 
 const PRIMARY =
-  'w-full px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-40 disabled:hover:bg-green-600';
+  'w-full px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-40 disabled:hover:bg-brand-teal';
 const SECONDARY =
   'w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium';
 const DESTRUCTIVE =

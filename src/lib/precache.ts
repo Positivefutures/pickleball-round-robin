@@ -52,6 +52,10 @@ export const RUNTIME_CACHED_PUBLIC = [
   '/header-right.jpg',
   '/share-top.png',
   '/share.png',
+  // The halftone in the corner of the Setup panel, 20 KB. On screen every
+  // session like the banner, and in the same way: it is decoration, so a first
+  // visit that has not fetched it yet loses nothing.
+  '/corner-dots.png',
   // Named in the manifest and fetched by the operating system when the app is
   // added to a home screen, which only happens online. 252 KB, and the app
   // itself never renders it.

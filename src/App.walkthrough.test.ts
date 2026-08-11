@@ -10,6 +10,7 @@ import App from './App';
 import { runMigrations } from './lib/migrations';
 import { APP_URL } from './lib/appInfo';
 import { sharePayload } from './lib/share';
+import { ROUND_TYPE_META } from './lib/roundTypes';
 import type { Schedule, Round, CourtAssignment } from './types';
 
 declare global {
@@ -515,12 +516,18 @@ describe('Special Game Types', () => {
   beforeEach(() => seed(10, 10, 2));
 
   /** The Yes radio for one of the three types, inside the open panel. */
+  /**
+   * Switches a type on. A switch, not a pair of radios, so this has to check
+   * the state first: clicking one that is already on turns it off.
+   */
   function sayYes(type: string) {
-    const radios = [
-      ...container.querySelectorAll(`input[name="special-${type}"]`),
-    ] as HTMLInputElement[];
-    if (radios.length !== 2) throw new Error(`no ${type} radios; panel not open?`);
-    click(radios[1]); // No is first, Yes second
+    const meta = ROUND_TYPE_META[type as keyof typeof ROUND_TYPE_META];
+    if (!meta) throw new Error(`no such round type: ${type}`);
+    const sw = container.querySelector(
+      `button[role="switch"][aria-label="Play ${meta.title}"]`
+    ) as HTMLButtonElement | null;
+    if (!sw) throw new Error(`no ${type} switch; panel not open?`);
+    if (sw.getAttribute('aria-checked') !== 'true') click(sw);
   }
 
   /** The reorder arrows carry an aria-label; their text is just an arrow. */
@@ -543,9 +550,11 @@ describe('Special Game Types', () => {
     sayYes('mixed');
     clickButton(/^Done$/);
 
-    // Back on Setup, read-only, previewing the rounds it will land on.
+    // Back on Setup, the choice shown as a chip under the button it was made
+    // from. Which rounds it lands on is no longer previewed here; the schedule
+    // says it per round, which is where it is read.
     expect(container.textContent).toContain('Mixed every 2 rounds');
-    expect(container.textContent).toContain('rounds 1, 3, 5, 7');
+    expect(container.textContent).not.toContain('rounds 1, 3, 5, 7');
     expect(container.textContent).toContain('Select Special Game Types');
 
     clickButton(/^Generate Schedule/);

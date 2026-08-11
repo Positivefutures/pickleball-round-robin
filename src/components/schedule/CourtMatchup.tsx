@@ -6,6 +6,7 @@ import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
 import { GenderMark } from './GenderMark';
 import { Scoreboard } from './Scoreboard';
+import { ROUND_EDGE } from './roundLook';
 
 interface Props {
   court: CourtAssignment;
@@ -323,7 +324,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
   const showBalance = courtSize !== 3;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+    // The same line as the card it sits on, so a court reads as a panel laid on
+    // the round rather than as a box that happens to be near it.
+    <div className="border-2 rounded-lg p-4 bg-white" style={{ borderColor: ROUND_EDGE }}>
       <div className="flex justify-between items-center gap-2 mb-3">
         <div className="flex items-center gap-2">
           {/* Still a heading either way. On a round that can be edited it holds

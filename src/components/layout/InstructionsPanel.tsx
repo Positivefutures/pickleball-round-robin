@@ -54,7 +54,7 @@ function Tip({ children }: { children: ReactNode }) {
 export function InstructionsPanel({ onClose }: Props) {
   return (
     <div className="no-print fixed inset-0 z-50 flex flex-col bg-white">
-      <div className="flex items-center justify-between gap-4 bg-green-700 px-6 py-2.5 text-white">
+      <div className="flex items-center justify-between gap-4 bg-brand-teal px-6 py-2.5 text-white">
         <h2 className="text-2xl font-bold tracking-tight">Instructions</h2>
         <button
           type="button"

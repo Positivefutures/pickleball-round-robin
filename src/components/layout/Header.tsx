@@ -38,6 +38,15 @@ const TITLE_MIN = '11rem';
 const CREAM = '#FBFAF6';
 const NAVY = '#051829';
 
+/**
+ * A hairline closing the banner off from the page below it.
+ *
+ * The cream runs almost the same value as the page behind the tabs, so without
+ * a rule the artwork has no bottom and the two just bleed into one another.
+ * Drawn inside the height rather than added to it, so nothing below moves.
+ */
+const RULE = '#D2D2D2';
+
 interface HeaderProps {
   /** Shown in the banner — the app name on the roster step, the group name after. */
   title: string;
@@ -57,7 +66,7 @@ export function Header({ title, settingsOpen, onToggleSettings, onPrint }: Heade
   return (
     <header
       className="relative isolate overflow-hidden no-print"
-      style={{ height: HEIGHT, backgroundColor: CREAM }}
+      style={{ height: HEIGHT, backgroundColor: CREAM, borderBottom: `1px solid ${RULE}` }}
     >
       {/* Wedge, halftone fade, badge and dots. Pinned left, height drives it. */}
       <img
@@ -97,9 +106,11 @@ export function Header({ title, settingsOpen, onToggleSettings, onPrint }: Heade
         }}
       >
         {/* Clamped rather than truncated: three lines is enough for the longest
-            name worth reading, and a fourth would push the banner open. */}
+            name worth reading, and a fourth would push the banner open. Three
+            lines of the largest size still sit inside the banner at every width,
+            which is what holds the clamp's top end where it is. */}
         <h1
-          className="min-w-0 line-clamp-3 text-[clamp(1.05rem,3.4vw,1.75rem)] font-bold leading-tight tracking-tight"
+          className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
           style={{ color: NAVY }}
         >
           {title}

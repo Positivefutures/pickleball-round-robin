@@ -23,7 +23,7 @@ export function SwapHint({ onDismiss }: Props) {
       role="status"
       className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3"
     >
-      <TipIcon className="w-7 h-7 text-green-700" />
+      <TipIcon className="w-[42px] h-[42px] text-green-700" />
       <p className="flex-1 text-base text-green-900">
         Tap a player, then tap another to swap them.
       </p>
@@ -34,7 +34,7 @@ export function SwapHint({ onDismiss }: Props) {
         className="shrink-0 rounded p-1 text-green-700 transition-colors hover:bg-green-100"
       >
         <svg
-          width="18" height="18" viewBox="0 0 24 24" fill="none"
+          width="27" height="27" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2" strokeLinecap="round"
           aria-hidden="true"
         >

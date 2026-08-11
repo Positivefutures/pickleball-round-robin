@@ -82,7 +82,7 @@ export function ManageRostersModal({
                   onDelete(confirmingDelete.id, moveTarget.id);
                   setConfirmingDelete(null);
                 }}
-                className="w-full px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+                className="w-full px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
               >
                 Move to {moveTarget.name}
               </button>
@@ -141,7 +141,7 @@ export function ManageRostersModal({
                   <button
                     type="button"
                     onClick={commitRename}
-                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                    className="px-3 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium"
                   >
                     Save
                   </button>
@@ -155,7 +155,7 @@ export function ManageRostersModal({
                   <button
                     type="button"
                     onClick={() => { setEditingId(r.id); setEditingName(r.name); }}
-                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                    className="px-3 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
                   >
                     Rename
                   </button>
@@ -185,7 +185,7 @@ export function ManageRostersModal({
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+            className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
           >
             Add
           </button>

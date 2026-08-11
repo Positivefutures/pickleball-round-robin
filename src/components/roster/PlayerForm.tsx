@@ -91,7 +91,7 @@ export function PlayerForm({
     <>
       <button
         type="submit"
-        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
       >
         {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
       </button>
@@ -155,7 +155,7 @@ export function PlayerForm({
             onClick={() => setGender('M')}
             className={`px-4 py-2 text-sm font-medium rounded-l-md border transition-colors ${
               gender === 'M'
-                ? 'bg-green-600 text-white border-green-600'
+                ? 'bg-brand-teal text-white border-brand-teal'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -166,7 +166,7 @@ export function PlayerForm({
             onClick={() => setGender('F')}
             className={`px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 transition-colors ${
               gender === 'F'
-                ? 'bg-green-600 text-white border-green-600'
+                ? 'bg-brand-teal text-white border-brand-teal'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
             }`}
           >

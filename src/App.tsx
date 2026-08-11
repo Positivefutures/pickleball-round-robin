@@ -816,12 +816,13 @@ function App() {
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? handlePrint : undefined}
       />
-      {/* Lifted out of `main` and held just under the banner, close enough that
-          the two read as one block with a hairline of page between them. It has
-          to sit outside `main` because the banners below can come and go, and
-          the tabs must stay against the header rather than being pushed off it
-          by a notice. */}
-      <div className="relative z-20 mx-auto mt-1 max-w-5xl px-2">
+      {/* Lifted out of `main` and held just under the banner. The `mt-4` is the
+          same 16px as `main`'s own `pt-4` below, so the tab row sits in equal
+          air on both sides rather than being crowded up against the artwork. It
+          has to sit outside `main` because the banners below can come and go,
+          and the tabs must stay against the header rather than being pushed off
+          it by a notice. */}
+      <div className="relative z-20 mx-auto mt-4 max-w-5xl px-2">
         <StepIndicator
           current={step}
           available={availableSteps}

@@ -48,7 +48,7 @@ export function GroupPicker({ groups, players, activeId, onSelect, onClose }: Pr
                 aria-current={current ? 'true' : undefined}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors ${
                   current
-                    ? 'border-green-600 bg-green-50'
+                    ? 'border-brand-teal bg-brand-teal-light'
                     : 'border-gray-300 bg-white hover:bg-gray-100'
                 }`}
               >

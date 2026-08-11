@@ -91,7 +91,7 @@ export function PlayerList({
                     checked={allSelected}
                     onChange={() => onToggleSelectAll?.()}
                     aria-label="Select all players"
-                    className="w-4 h-4 accent-green-600 align-middle"
+                    className="w-4 h-4 accent-brand-teal align-middle"
                   />
                 </th>
               )}
@@ -125,7 +125,7 @@ export function PlayerList({
                     }
                     className={`border-b border-gray-100 cursor-pointer ${
                       isActive ? 'bg-blue-50' : 'hover:bg-gray-50'
-                    } ${selecting && selectedIds.includes(player.id) ? 'bg-green-50' : ''}`}
+                    } ${selecting && selectedIds.includes(player.id) ? 'bg-brand-teal-light' : ''}`}
                   >
                     {selecting && (
                       <td className="py-3 pl-2 pr-1">
@@ -135,7 +135,7 @@ export function PlayerList({
                           onChange={() => onToggleSelect?.(player.id)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`Select ${player.name}`}
-                          className="w-4 h-4 accent-green-600 align-middle"
+                          className="w-4 h-4 accent-brand-teal align-middle"
                         />
                       </td>
                     )}
@@ -149,7 +149,7 @@ export function PlayerList({
                               setActiveId(null);
                               onEdit(player);
                             }}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                            className="px-3 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
                           >
                             Edit
                           </button>
@@ -171,7 +171,7 @@ export function PlayerList({
                           {player.gender}
                         </td>
                         <td className="col-rating py-3 px-1 text-center">
-                          <span className="rating-badge inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-sm font-medium">
+                          <span className="rating-badge inline-block bg-brand-teal-light text-black border border-brand-teal px-2 py-0.5 rounded text-sm font-medium">
                             {player.rating.toFixed(1)}
                           </span>
                         </td>

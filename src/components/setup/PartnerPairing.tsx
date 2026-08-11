@@ -63,7 +63,7 @@ export function PartnerPairing({
               onClick={() => onTapPlayer(player.id)}
               className={`flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-colors text-left ${
                 isPending
-                  ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300'
+                  ? 'bg-brand-orange-light border-brand-orange ring-1 ring-brand-orange'
                   : 'bg-white border-gray-200 hover:bg-gray-50'
               }`}
             >
@@ -78,7 +78,7 @@ export function PartnerPairing({
       </div>
 
       {pendingId && byId.has(pendingId) && (
-        <p className="text-sm text-amber-700 text-center mt-3">
+        <p className="text-sm text-brand-orange-dark text-center mt-3">
           Tap another player to pair with{' '}
           <span className="font-medium">{byId.get(pendingId)!.name}</span>, or tap them
           again to cancel.

@@ -26,7 +26,7 @@ export function PlayerSelector({
         <div className="flex gap-2">
           <button
             onClick={onSelectAll}
-            className="text-sm text-green-600 hover:text-green-800 font-medium"
+            className="text-sm text-brand-teal hover:text-brand-teal-dark font-medium"
           >
             Select All
           </button>
@@ -47,7 +47,7 @@ export function PlayerSelector({
               key={player.id}
               className={`flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-colors ${
                 isSelected
-                  ? 'bg-green-50 border-green-300'
+                  ? 'bg-brand-teal-light border-brand-teal'
                   : 'bg-white border-gray-200 hover:bg-gray-50'
               }`}
             >
@@ -55,7 +55,7 @@ export function PlayerSelector({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggle(player.id)}
-                className="rounded text-green-600 focus:ring-green-500"
+                className="accent-brand-teal"
               />
               <span className="font-medium text-sm">{player.name}</span>
               <span className="text-xs text-gray-400">{player.gender}</span>

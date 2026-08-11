@@ -206,7 +206,7 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
           <button
             type="submit"
             disabled={!canSave}
-            className="flex-1 rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save
           </button>

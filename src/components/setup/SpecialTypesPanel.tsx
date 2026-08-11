@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import type { RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { MAX_FREQUENCY, ROUND_TYPE_META, orderedTypes } from '../../lib/roundTypes';
 import { EqualSkillIcon, MenGamesIcon, MixedGamesIcon, WomenGamesIcon } from '../icons';
+import { Toggle } from '../Toggle';
 
 interface Props {
   specialTypes: SpecialGameTypes;
@@ -93,27 +94,15 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
               </div>
               <p className="mt-1 text-sm font-medium text-gray-700">{meta.description}</p>
 
+              {/* One switch rather than a Yes and a No. Two radios asked the
+                  same question twice and took three times the width, and this is
+                  the control Keep Score already taught. */}
               <div className="mt-2 flex items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-1">
-                  <input
-                    type="radio"
-                    name={`special-${type}`}
-                    checked={!setting.enabled}
-                    onChange={() => onChange(type, { enabled: false })}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <span className="text-sm text-gray-700">No</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-1">
-                  <input
-                    type="radio"
-                    name={`special-${type}`}
-                    checked={setting.enabled}
-                    onChange={() => onChange(type, { enabled: true })}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <span className="text-sm text-gray-700">Yes</span>
-                </label>
+                <Toggle
+                  checked={setting.enabled}
+                  onChange={(on) => onChange(type, { enabled: on })}
+                  label={`Play ${meta.title}`}
+                />
                 {setting.enabled && (
                   <div className="ml-2 flex items-center gap-1.5">
                     <span className="text-sm text-gray-700">Every</span>
@@ -121,7 +110,7 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
                       value={setting.frequency}
                       aria-label={`How often to play ${meta.title}`}
                       onChange={(e) => onChange(type, { frequency: parseInt(e.target.value) })}
-                      className="min-w-14 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="min-w-14 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-teal"
                     >
                       {FREQUENCIES.map((n) => (
                         <option key={n} value={n}>{n}</option>

@@ -67,7 +67,7 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
           <button
             type="submit"
             disabled={parsed === null}
-            className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Done
           </button>

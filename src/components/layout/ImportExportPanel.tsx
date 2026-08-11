@@ -98,7 +98,7 @@ export function ImportExportPanel({
             type="button"
             onClick={() => onExport(selectedId)}
             disabled={selectedCount === 0}
-            className="w-full rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             Export as CSV
           </button>
@@ -126,7 +126,7 @@ export function ImportExportPanel({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="w-full rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy ? 'Reading…' : 'Choose a File…'}
           </button>

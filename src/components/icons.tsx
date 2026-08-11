@@ -185,12 +185,21 @@ export function MixedGamesIcon({ className }: { className?: string }) {
  * say who somebody is, which is why they are separate icons rather than halves
  * of those.
  *
- * `INBOX/male.svg` and `INBOX/female.svg` verbatim, each keeping the grid it
- * arrived on.
+ * `INBOX/male.svg` and `INBOX/female.svg`, each keeping the grid it arrived on,
+ * with one addition: a white disc behind the ring.
+ *
+ * **These two are not tintable the way the rest of the file is.** Every other
+ * icon here is a shape that takes the colour of the text beside it and lets
+ * whatever is behind show through the gaps. These sit half on and half off the
+ * edge of a coloured place on a court, so an open ring would have had the box
+ * colour on one side of it and the card on the other, and read as a smudge
+ * rather than a symbol. The disc fills the ring so it reads as one mark on any
+ * background, and it is drawn first so the artwork itself is untouched.
  */
 export function MaleIcon({ className }: { className?: string }) {
   return (
     <Solid className={className} viewBox="0 0 50 50">
+      <circle cx="19.75" cy="30.25" r="13.4" fill="#ffffff" />
       <path d="m45.8 1.7h-13.8c-1.4 0-2.5 1.1-2.5 2.5s1.1 2.5 2.5 2.5h7.7l-9.2 9.2c-7.1-5.3-17.2-4.8-23.6 1.6-7 7-7 18.5 0 25.5s18.5 7 25.5 0c6.4-6.4 7-16.6 1.6-23.6l9.2-9.2v7.8c0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5v-13.8c.1-1.4-1-2.5-2.4-2.5zm-16.8 37.8c-5.1 5.1-13.4 5.1-18.5 0s-5.1-13.4 0-18.5 13.4-5.1 18.5 0 5.1 13.4 0 18.5z" />
     </Solid>
   );
@@ -199,6 +208,7 @@ export function MaleIcon({ className }: { className?: string }) {
 export function FemaleIcon({ className }: { className?: string }) {
   return (
     <Solid className={className} viewBox="0 0 512 512">
+      <circle cx="256" cy="182.611" r="128" fill="#ffffff" />
       <path
         clipRule="evenodd"
         fillRule="evenodd"
@@ -337,6 +347,44 @@ export function PaddleIcon({ className }: { className?: string }) {
       <path
         fillRule="nonzero"
         d="M57.6,31.316 C60.6865118,28.2206056 60.6865118,23.2113944 57.6,20.116 L43.85,6.364 C40.7552878,3.27583844 35.7447122,3.27583844 32.65,6.364 L17.765,21.249 C15.6345154,23.3651661 14.8929297,26.5087604 15.853,29.354 L18.718,37.954 L7,49.668 C6.18615627,49.5476105 5.36377834,49.8233468 4.787,50.41 C3.80305574,51.3969982 3.80305574,52.9940018 4.787,53.981 L9.987,59.181 C10.4599582,59.6563878 11.1034184,59.9228459 11.774,59.9210095 C12.4671368,59.9180839 13.1292457,59.6332399 13.608,59.132 C14.0843028,58.6603943 14.3512776,58.0172769 14.349,57.347 C14.3459552,57.216573 14.3332537,57.0865506 14.311,56.958 L26.016,45.249 L34.616,48.114 C35.4296879,48.3862329 36.28198,48.5253551 37.14,48.526 C39.234249,48.5226672 41.2410058,47.6857089 42.717,46.2 L57.6,31.316 Z M12.142,57.766 C11.9340975,57.9644769 11.6069025,57.9644769 11.399,57.766 L6.199,52.566 C6.09660622,52.4561947 6.04394665,52.3090708 6.05340628,52.1592302 C6.06286591,52.0093896 6.13360991,51.8700563 6.249,51.774 C6.34687191,51.6750041 6.48029114,51.6192933 6.6195,51.6192933 C6.75870886,51.6192933 6.89212809,51.6750041 6.99,51.774 L12.19,56.974 C12.2890885,57.0715466 12.3446152,57.2049551 12.3440051,57.344 C12.3390269,57.506819 12.2656979,57.6600114 12.142,57.766 L12.142,57.766 Z M13.242,55.195 L8.772,50.725 L19.862,39.634 L24.333,44.105 L13.242,55.195 Z M35.242,46.217 L26.283,43.231 L20.735,37.68 L17.749,28.721 C17.0328419,26.5941296 17.5873328,24.2451047 19.179,22.663 L34.064,7.778 C36.3770287,5.46894967 40.1229713,5.46894967 42.436,7.778 L56.188,21.53 C58.4959496,23.843484 58.4959496,27.588516 56.188,29.902 L41.3,44.787 C39.7174019,46.3755714 37.3710852,46.9296974 35.245,46.217 L35.242,46.217 Z"
+      />
+    </Solid>
+  );
+}
+
+/**
+ * A pickleball, seen face on: a disc with seven holes through it.
+ *
+ * Drawn here rather than taken from a file, to match the ball in
+ * `INBOX/Setup-Round-Robin.png` at the size it is actually used. The holes are
+ * subpaths of the same path, so `fillRule="evenodd"` is what makes them holes
+ * instead of filling the disc solid — which means, like the heart below, it only
+ * reads correctly against a plain background.
+ *
+ * The paddle above is the app's other pickleball mark. This one is for a place
+ * that is about the game itself rather than about playing a shot.
+ */
+export function BallIcon({ className }: { className?: string }) {
+  const hole = (x: number, y: number) =>
+    `M${x - 1.45} ${y}a1.45 1.45 0 1 0 2.9 0a1.45 1.45 0 1 0-2.9 0Z`;
+  return (
+    <Solid className={className}>
+      <path
+        fillRule="evenodd"
+        d={
+          'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0Z' +
+          [
+            [12, 5.8],
+            [7.5, 8.5],
+            [16.5, 8.5],
+            [12, 11.7],
+            [7.5, 15.4],
+            [16.5, 15.4],
+            [12, 18.2],
+          ]
+            .map(([x, y]) => hole(x, y))
+            .join('')
+        }
       />
     </Solid>
   );

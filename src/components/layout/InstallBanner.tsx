@@ -16,7 +16,7 @@ export function InstallBanner({ onOpen, onDismiss }: Props) {
       <button
         type="button"
         onClick={onOpen}
-        className="shrink-0 whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
+        className="shrink-0 whitespace-nowrap rounded-md bg-brand-teal px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-teal-dark"
       >
         Show me
       </button>

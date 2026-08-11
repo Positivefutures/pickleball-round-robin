@@ -3,6 +3,7 @@ import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
+import { ROUND_EDGE } from './roundLook';
 
 interface Props {
   players: Player[];
@@ -39,10 +40,14 @@ function SitOutBox({
     <button
       type="button"
       onClick={() => interactive && onPlayerTap({ kind: 'sitout', roundIdx, sitOutIdx })}
+      // The resting edge is the round's own line, so a chip reads as belonging
+      // to the card it sits on. Selected keeps its blue and its ring: that is a
+      // state you have put it in, and it has to stay tellable from the rest.
+      style={selected ? undefined : { borderColor: ROUND_EDGE }}
       className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
         selected
           ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500'
-          : 'bg-gray-100 border-gray-400 hover:bg-gray-200'
+          : 'bg-gray-100 hover:bg-gray-200'
       }${interactive ? '' : ' cursor-default'}`}
     >
       <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
@@ -71,7 +76,10 @@ export function SitOutList({
 
   return (
     <div className="mt-4">
-      <p className="mb-2 text-sm font-medium text-gray-500">Sitting out</p>
+      {/* Set to match COURT # on the panels beside it: no size class on either,
+          so both inherit 1rem and both grow together in large text. White, like
+          everything else printed straight onto the round's card. */}
+      <p className="mb-2 font-bold text-white">SITTING OUT</p>
       <div className="flex flex-wrap gap-2">
         {players.map((player, sitOutIdx) => (
           <SitOutBox

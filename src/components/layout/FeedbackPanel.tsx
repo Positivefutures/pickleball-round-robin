@@ -107,7 +107,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex-1 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700"
+                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>
@@ -181,14 +181,14 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               <button
                 type="button"
                 onClick={handleSend}
-                className="flex-1 rounded-md bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700"
+                className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark"
               >
                 Send
               </button>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex-1 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700"
+                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
               >
                 {copied ? 'Copied' : 'Copy'}
               </button>

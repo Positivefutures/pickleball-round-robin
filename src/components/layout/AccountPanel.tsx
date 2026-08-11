@@ -204,7 +204,7 @@ function SignedIn({
               className={row}
             >
               <span>
-                <span className={rowTitle}>Change Email</span>
+                <span className={rowTitle}>Change My Email Address</span>
                 <span className={rowNote}>Requires confirming from both email addresses</span>
               </span>
             </button>

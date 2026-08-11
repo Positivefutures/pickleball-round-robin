@@ -140,3 +140,99 @@ describe('once there are scores', () => {
     expect(rows(el).find((r) => r[0] === 'Zoe')).toEqual(['Zoe', '0', '0', '0', '0']);
   });
 });
+
+describe('sorting by a column', () => {
+  /** Clicks a heading by its label. */
+  function tapHeader(el: HTMLElement, label: string) {
+    const th = [...el.querySelectorAll('thead th')].find(
+      (h) => (h.textContent ?? '').trim() === label
+    );
+    if (!th) throw new Error(`no ${label} heading`);
+    act(() => {
+      th.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  }
+
+  const names = (el: HTMLElement) => rows(el).map((r) => r[0]);
+
+  /** The heading cell, so its state can be read back. */
+  const header = (el: HTMLElement, label: string) =>
+    [...el.querySelectorAll('thead th')].find(
+      (h) => (h.textContent ?? '').trim() === label
+    ) as HTMLElement;
+
+  it('starts on the ranking, with nothing marked as sorted', () => {
+    const el = render(scored, four);
+    expect(names(el)).toEqual(['Cara', 'Dan', 'Ava', 'Ben']);
+    const sorted = [...el.querySelectorAll('thead th')].map((h) => h.getAttribute('aria-sort'));
+    expect(sorted).toEqual(['none', 'none', 'none', 'none', 'none']);
+  });
+
+  it('goes highest first on the first tap', () => {
+    // Losses run the other way to the ranking, so this cannot pass by accident.
+    const el = render(scored, four);
+    tapHeader(el, 'L');
+    expect(rows(el).map((r) => r[2])).toEqual(['2', '1', '1', '0']);
+    expect(header(el, 'L').getAttribute('aria-sort')).toBe('descending');
+  });
+
+  it('turns round on the second tap', () => {
+    const el = render(scored, four);
+    tapHeader(el, 'L');
+    tapHeader(el, 'L');
+    expect(rows(el).map((r) => r[2])).toEqual(['0', '1', '1', '2']);
+    expect(header(el, 'L').getAttribute('aria-sort')).toBe('ascending');
+  });
+
+  it('puts the ranking back on the third', () => {
+    const el = render(scored, four);
+    tapHeader(el, 'L');
+    tapHeader(el, 'L');
+    tapHeader(el, 'L');
+    expect(names(el)).toEqual(['Cara', 'Dan', 'Ava', 'Ben']);
+    expect(header(el, 'L').getAttribute('aria-sort')).toBe('none');
+  });
+
+  it('starts a different column afresh at highest first', () => {
+    // Two taps on one heading then one on another must not land on ascending.
+    const el = render(scored, four);
+    tapHeader(el, 'L');
+    tapHeader(el, 'L');
+    tapHeader(el, 'Pts');
+    expect(rows(el).map((r) => r[4])).toEqual(['22', '20', '18', '16']);
+    expect(header(el, 'L').getAttribute('aria-sort')).toBe('none');
+    expect(header(el, 'Pts').getAttribute('aria-sort')).toBe('descending');
+  });
+
+  it('holds the ranking order between players a column cannot separate', () => {
+    // Dan and Ava both lost one. The ranking put Dan above Ava, and sorting by
+    // a column they tie on must not shuffle them.
+    const el = render(scored, four);
+    tapHeader(el, 'L');
+    expect(names(el).slice(1, 3)).toEqual(['Dan', 'Ava']);
+  });
+
+  it('sorts names as text, largest first like every other column', () => {
+    const el = render(scored, four);
+    tapHeader(el, 'Player');
+    expect(names(el)).toEqual(['Dan', 'Cara', 'Ben', 'Ava']);
+  });
+
+  it('marks only the column being sorted', () => {
+    const el = render(scored, four);
+    tapHeader(el, 'Diff');
+    const marked = [...el.querySelectorAll('thead th')].filter(
+      (h) => h.querySelector('button')!.className.includes('bg-brand-teal-light')
+    );
+    expect(marked).toHaveLength(1);
+    expect(marked[0].textContent).toBe('Diff');
+  });
+
+  it('stands the ranking note down while a column is sorted', () => {
+    const el = render(scored, four);
+    expect(el.textContent).toContain('Ranked by wins');
+    tapHeader(el, 'W');
+    expect(el.textContent).not.toContain('Ranked by wins');
+    expect(el.textContent).toContain('Tap W once more');
+  });
+});
