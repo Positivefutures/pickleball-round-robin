@@ -80,6 +80,16 @@ describe('sessionSnapshot', () => {
 describe('withholding what is private', () => {
   const published = withholdPrivate(sessionSnapshot(input));
   const asSent = JSON.stringify(published);
+  // The same document with its timestamp dropped, for the searches that look
+  // for things which must not appear.
+  //
+  // `at` is an ISO timestamp whose digits collide with the very numbers being
+  // looked for: a document written at 17:49:53.111 contains "3.11", and one
+  // written at 20.770 contains "0.77". That reddened the suite at random a few
+  // times per thousand runs, and never had anything to do with redaction, which
+  // does not touch `at`. Kept apart from asSent so that "is still plain data"
+  // goes on checking what is really sent.
+  const searched = JSON.stringify({ ...published, at: undefined });
 
   it('sends no rating anywhere in the document', () => {
     // The assertion that matters, and the reason it looks at the string rather
@@ -87,17 +97,17 @@ describe('withholding what is private', () => {
     // sit-outs, and a redaction that misses one of those looks correct
     // everywhere a test would think to check.
     for (const rating of RATINGS) {
-      expect(asSent).not.toContain(rating);
+      expect(searched).not.toContain(rating);
     }
   });
 
   it('sends no court rating gap, which is the same fact added up', () => {
-    expect(asSent).not.toContain('0.77');
+    expect(searched).not.toContain('0.77');
     expect(published.schedule.rounds[0].courts[0].ratingDiff).toBe(0);
   });
 
   it('sends no group ids, which would tie two afternoons to one host', () => {
-    expect(asSent).not.toContain('g1');
+    expect(searched).not.toContain('g1');
     expect(published.players.every((p) => p.rosterIds.length === 0)).toBe(true);
   });
 

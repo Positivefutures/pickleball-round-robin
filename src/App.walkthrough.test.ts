@@ -196,12 +196,15 @@ function takeOff(name: string, round = 1) {
  * The whole of a reshuffle: the card, then the button on the panel it opens.
  *
  * The card no longer does anything on its own. Reshuffle throws away every round
- * not yet played, so it asks first, and the second Reshuffle is the one that
- * means it.
+ * not yet played, so it asks first, and Rebuild is the one that means it. That
+ * button counts the rounds it is about to rebuild, so it is matched by shape
+ * rather than by a fixed string.
  */
+const REBUILD = /^Rebuild \d+ Rounds?$/;
+
 function reshuffle() {
   action(/^Reshuffle$/);
-  clickButton(/^Reshuffle$/, sheet());
+  clickButton(REBUILD, sheet());
 }
 
 /** The stored guest list, which is where a guest lives instead of the pool. */
@@ -1334,6 +1337,62 @@ describe('the Actions sheet', () => {
     }
   });
 
+  it('counts the same rounds in the question and on the button, and lists what survives', () => {
+    // The panel says a number twice: once asking and once on the button that
+    // does it. They come from one count, and a panel that asked about 5 and
+    // rebuilt 6 would be the one mistake nobody would forgive.
+    seed(9, 9, 2);
+    mount();
+    generate();
+    const open = storedSchedule().rounds.length;
+
+    action(/^Reshuffle$/);
+    const panel = () => text(sheet());
+    expect(panel()).toContain(`Rebuild ${open} Remaining Rounds?`);
+    expect(buttons(new RegExp(`^Rebuild ${open} Rounds$`), sheet())).toHaveLength(1);
+
+    // The three promises, each with a glyph of its own, and the warning.
+    for (const line of [
+      'Sit outs are still fairly calculated',
+      'Locked pairs stay together',
+      'Linked partners stay together',
+      'Scores in incomplete rounds will be deleted',
+      'Scores in completed rounds are safe.',
+    ]) {
+      expect(panel(), line).toContain(line);
+    }
+    expect(sheet().querySelectorAll('ul li svg').length).toBe(3);
+
+    // Cancel goes back to the grid without touching the schedule.
+    const before = storedSchedule().rounds.map(fingerprint);
+    clickButton(/^Cancel$/, sheet());
+    expect(text(sheet())).toContain('Quick changes for this session');
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+  });
+
+  it('counts down the rounds it offers to rebuild as they are played', () => {
+    // Marking a round complete takes it out of the rebuild, so both the
+    // question and the button have to drop by one. A fixed string would have
+    // gone on offering to rebuild the whole afternoon.
+    seed(9, 9, 2);
+    mount();
+    generate();
+    const all = storedSchedule().rounds.length;
+
+    markComplete(1);
+    action(/^Reshuffle$/);
+    expect(text(sheet())).toContain(`Rebuild ${all - 1} Remaining Rounds?`);
+    expect(buttons(new RegExp(`^Rebuild ${all - 1} Rounds$`), sheet())).toHaveLength(1);
+    clickButton(/^Cancel$/, sheet());
+    clickLabel('Close Actions', sheet());
+
+    // Down to the last one, where both lines have to lose the plural.
+    for (let n = 2; n < all; n++) markComplete(n);
+    action(/^Reshuffle$/);
+    expect(text(sheet())).toContain('Rebuild 1 Remaining Round?');
+    expect(buttons(/^Rebuild 1 Round$/, sheet())).toHaveLength(1);
+  });
+
   it('asks before it reshuffles, and the card on its own changes nothing', () => {
     // Reshuffle throws away every round not yet played, and the card used to do
     // that the moment it was touched. A misplaced thumb halfway through an
@@ -1345,10 +1404,10 @@ describe('the Actions sheet', () => {
     const before = storedSchedule().rounds.map(fingerprint);
 
     action(/^Reshuffle$/);
-    expect(text(sheet())).toContain('still to be played are built again from scratch');
+    expect(text(sheet())).toMatch(/Rebuild \d+ Remaining Rounds\?/);
     expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
 
-    clickButton(/^Reshuffle$/, sheet());
+    clickButton(REBUILD, sheet());
     expect(text(sheet())).toContain('reshuffled.');
   });
 

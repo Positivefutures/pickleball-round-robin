@@ -10,10 +10,14 @@ import {
   ChevronLeftIcon,
   CloseIcon,
   GuestIcon,
+  LinkIcon,
+  LockIcon,
   ReplayIcon,
   ShuffleIcon,
+  SitIcon,
   SuccessIcon,
   SwapPeopleIcon,
+  WarningIcon,
 } from '../icons';
 import { AddCourtIcon, RemoveCourtIcon, ShareSessionIcon } from './actionIcons';
 import { LiveShareView } from './LiveShareView';
@@ -122,7 +126,10 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
   'add-sub': { title: 'Sub a Player' },
   'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
-  reshuffle: { title: 'Reshuffle', sub: 'Deal the remaining rounds again' },
+  // No sub here. Reshuffle's counts what it is about to rebuild, so it is put
+  // together at render time and set larger than the rest: on this panel the line
+  // under the title is the question being asked, not a caption on it.
+  reshuffle: { title: 'Reshuffle' },
   'new-session': { title: 'Start a new session?' },
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
@@ -138,6 +145,10 @@ const DRAG_TO_CLOSE = 80;
 
 const PRIMARY =
   'w-full px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-40 disabled:hover:bg-brand-teal';
+/** The same button in the lead colour. Reshuffle's Rebuild, which is the one
+ *  action on this sheet that both destroys something and is meant to be taken. */
+const PRIMARY_ORANGE =
+  'w-full px-4 py-2.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors font-medium';
 const SECONDARY =
   'w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium';
 const DESTRUCTIVE =
@@ -163,6 +174,33 @@ function names(round: Round | undefined, courtNumber: number): Player[] {
 function roundWord(n: number) {
   return n === 1 ? '1 round' : `${n} rounds`;
 }
+
+/**
+ * The same count for a heading or a button, where the noun is capitalised and
+ * something may sit in front of it: "3 Remaining Rounds", "1 Round".
+ *
+ * roundWord's twin rather than a second way of counting, because Reshuffle asks
+ * the question and labels the button with the same number and the two saying
+ * different things is the one mistake nobody would forgive.
+ */
+function roundCount(n: number, adjective = '') {
+  return `${n} ${adjective}${n === 1 ? 'Round' : 'Rounds'}`;
+}
+
+/**
+ * What a rebuild leaves alone, said before the warning about what it does not.
+ *
+ * Locked pairs and linked partners are two different promises: a lock is made on
+ * the schedule for this afternoon, a partnership is set up beforehand and holds
+ * every session. Both survive a reshuffle, and a host who has done one of them
+ * should not have to guess whether it was the one that counts.
+ */
+const RESHUFFLE_KEEPS: { Icon: (props: { className?: string }) => React.ReactElement; text: string }[] =
+  [
+    { Icon: SitIcon, text: 'Sit outs are still fairly calculated' },
+    { Icon: LockIcon, text: 'Locked pairs stay together' },
+    { Icon: LinkIcon, text: 'Linked partners stay together' },
+  ];
 
 interface Props {
   open: boolean;
@@ -343,6 +381,13 @@ export function ActionsSheet({
 
   const heading = HEADINGS[view];
   const glyph = PANEL_GLYPHS.get(view);
+  // Reshuffle asks its question in the header rather than repeating the title
+  // in the body, so the count is worked out here and the line is set at reading
+  // size instead of caption size.
+  const asksInHeader = view === 'reshuffle';
+  const sub = asksInHeader
+    ? `Rebuild ${roundCount(openRounds.length, 'Remaining ')}?`
+    : heading.sub;
   const offset = closing || !shown ? '100%' : `${dragY}px`;
 
   return (
@@ -454,9 +499,12 @@ export function ActionsSheet({
                       >
                         {heading.title}
                       </h2>
-                      {heading.sub && (
-                        <p className="mt-1 text-sm" style={{ color: QUIET_TEXT }}>
-                          {heading.sub}
+                      {sub && (
+                        <p
+                          className={asksInHeader ? 'mt-2 text-lg font-semibold' : 'mt-1 text-sm'}
+                          style={{ color: asksInHeader ? NAVY_TEXT : QUIET_TEXT }}
+                        >
+                          {sub}
                         </p>
                       )}
                     </div>
@@ -604,25 +652,59 @@ export function ActionsSheet({
 
                 {view === 'reshuffle' && (
                   <div className={CONFIRM}>
-                    <p className="text-gray-700">
-                      The {roundWord(openRounds.length)} still to be played are built again from
-                      scratch. Anything marked complete is kept, along with the pairs you have
-                      locked.
-                    </p>
-                    <p className="text-sm" style={{ color: QUIET_TEXT }}>
-                      Scores on the rounds being rebuilt go with them.
-                    </p>
-                    <div className={CONFIRM_FOOT}>
-                      <button
-                        type="button"
-                        className={PRIMARY}
-                        onClick={() => {
-                          actions.onReshuffle();
-                          finish(`${roundWord(openRounds.length)} reshuffled.`);
-                        }}
+                    {/* What survives, each line led by its own shape. Teal
+                        because this is the half of the panel that reassures,
+                        and the palette keeps orange for the half that warns. */}
+                    <ul className="space-y-4">
+                      {RESHUFFLE_KEEPS.map(({ Icon, text }) => (
+                        <li key={text} className="flex items-center gap-4">
+                          <span className="flex shrink-0 items-center" style={{ color: TEAL }}>
+                            <Icon className="h-8 w-8" />
+                          </span>
+                          <span className="text-[1.0625rem] leading-snug" style={{ color: NAVY_TEXT }}>
+                            {text}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* The one thing a rebuild takes away. It is the only part
+                        of this panel that cannot be undone, so it is the only
+                        part wearing the warning colour. */}
+                    <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
+                      <span
+                        className="flex shrink-0 items-center"
+                        style={{ color: ORANGE }}
+                        aria-hidden="true"
                       >
-                        Reshuffle
-                      </button>
+                        <WarningIcon className="h-9 w-9" />
+                      </span>
+                      <div>
+                        <p className="font-bold leading-snug" style={{ color: ORANGE }}>
+                          Scores in incomplete rounds will be deleted
+                        </p>
+                        <p className="mt-1 leading-snug" style={{ color: QUIET_TEXT }}>
+                          Scores in completed rounds are safe.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={CONFIRM_FOOT}>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button type="button" className={SECONDARY} onClick={() => setView('menu')}>
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className={PRIMARY_ORANGE}
+                          onClick={() => {
+                            actions.onReshuffle();
+                            finish(`${roundWord(openRounds.length)} reshuffled.`);
+                          }}
+                        >
+                          Rebuild {roundCount(openRounds.length)}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
