@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Gender, Player, Round, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
+import { isScored } from '../../lib/standings';
 import { DISCARD_WARNING } from '../../lib/steps';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PlayerForm } from '../roster/PlayerForm';
@@ -265,6 +266,18 @@ export function ActionsSheet({
   const firstOpen = openRounds[0];
   const hasOpenRound = openRounds.length > 0;
   const lastRoundNumber = schedule.rounds.reduce((max, r) => Math.max(max, r.roundNumber), 0);
+  /**
+   * Whether a rebuild would actually cost a score.
+   *
+   * Only the open rounds are rebuilt, so only a score in one of those is at
+   * risk. With none there is nothing to warn about, and an orange box saying so
+   * anyway teaches people to read past the colour on the day it matters.
+   *
+   * `isScored` rather than a plain `score !== undefined`, so the same rule
+   * decides this as decides the standings: an empty court carrying a score
+   * describes no game, and losing it costs nobody anything.
+   */
+  const rebuildLosesScores = openRounds.some((round) => round.courts.some(isScored));
 
   // What the extra court would mean. effectiveCourtCount caps a request the
   // roster cannot fill, so this is also the warning that a reshuffle would drop
@@ -678,24 +691,27 @@ export function ActionsSheet({
 
                     {/* The one thing a rebuild takes away. It is the only part
                         of this panel that cannot be undone, so it is the only
-                        part wearing the warning colour. */}
-                    <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
-                      <span
-                        className="flex shrink-0 items-center"
-                        style={{ color: ORANGE }}
-                        aria-hidden="true"
-                      >
-                        <WarningIcon className="h-9 w-9" />
-                      </span>
-                      <div>
-                        <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
-                          Scores in incomplete rounds will be deleted
-                        </p>
-                        <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
-                          Scores in completed rounds are safe.
-                        </p>
+                        part wearing the warning colour, and it only appears when
+                        there is really a score in an open round to lose. */}
+                    {rebuildLosesScores && (
+                      <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
+                        <span
+                          className="flex shrink-0 items-center"
+                          style={{ color: ORANGE }}
+                          aria-hidden="true"
+                        >
+                          <WarningIcon className="h-9 w-9" />
+                        </span>
+                        <div>
+                          <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
+                            Scores in incomplete rounds will be deleted
+                          </p>
+                          <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
+                            Scores in completed rounds are safe.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className={CONFIRM_FOOT}>
                       <div className="grid grid-cols-2 gap-3">

@@ -1470,13 +1470,13 @@ describe('the Actions sheet', () => {
     expect(panel()).toContain(`Rebuild ${open} Remaining Rounds?`);
     expect(buttons(new RegExp(`^Rebuild ${open} Rounds$`), sheet())).toHaveLength(1);
 
-    // The three promises, each with a glyph of its own, and the warning.
+    // The three promises, each with a glyph of its own. The warning is not one
+    // of them: nothing has been scored here, so it has nothing to warn about
+    // and is covered on its own below.
     for (const line of [
       'Sit outs are still fairly calculated',
       'Locked pairs stay together',
       'Linked partners stay together',
-      'Scores in incomplete rounds will be deleted',
-      'Scores in completed rounds are safe.',
     ]) {
       expect(panel(), line).toContain(line);
     }
@@ -1528,6 +1528,74 @@ describe('the Actions sheet', () => {
 
     clickButton(REBUILD, sheet());
     expect(text(sheet())).toContain('reshuffled.');
+  });
+
+  /**
+   * The orange half of the Reshuffle panel, which is now conditional.
+   *
+   * It is the only irreversible thing the panel does, so it has to appear
+   * whenever it is true. The failure worth guarding is the other way round: an
+   * orange box on every rebuild, most of them with no score anywhere near them,
+   * teaches a host to read past the colour by the afternoon it matters.
+   */
+  describe('the warning about losing scores', () => {
+    const WARNING = 'Scores in incomplete rounds will be deleted';
+
+    /** Writes a score into the first board on screen, which is round 1. */
+    function scoreFirstCourt(left: string, right: string) {
+      const board = [...container.querySelectorAll('button[aria-haspopup="dialog"]')].find((b) =>
+        (b.getAttribute('aria-label') ?? '').includes('score')
+      );
+      if (!board) throw new Error('no scoreboard on screen; is scoring on?');
+      click(board as HTMLElement);
+
+      const box = container.querySelector('[role="dialog"][aria-label*="score"]') as HTMLElement;
+      const key = (face: string) => {
+        const pad = box.querySelector('[aria-label="Score keypad"]')!;
+        click([...pad.querySelectorAll('button')].find((b) => text(b) === face)!);
+      };
+      key('Clear');
+      for (const d of left) key(d);
+      click([...box.querySelectorAll('[aria-label^="Score for"]')][1] as HTMLElement);
+      for (const d of right) key(d);
+      clickButton(/^Save$/, box);
+    }
+
+    it('stays away when nothing has been scored, even with scoring switched on', () => {
+      seed(9, 9, 2, true);
+      mount();
+      generate();
+
+      action(/^Reshuffle$/);
+      // What survives is still said. Only the half with nothing to say is gone.
+      expect(text(sheet())).toContain('Locked pairs stay together');
+      expect(text(sheet())).not.toContain(WARNING);
+      expect(text(sheet())).not.toContain('Scores in completed rounds are safe.');
+    });
+
+    it('appears the moment a score sits in a round the rebuild would throw away', () => {
+      seed(9, 9, 2, true);
+      mount();
+      generate();
+      scoreFirstCourt('11', '7');
+
+      action(/^Reshuffle$/);
+      expect(text(sheet())).toContain(WARNING);
+    });
+
+    it('goes again once that round is marked complete, because it is then safe', () => {
+      // The real test of the rule. There is still a score in the session, but a
+      // completed round is not rebuilt, so there is nothing left to lose and
+      // saying otherwise would be a lie in orange.
+      seed(9, 9, 2, true);
+      mount();
+      generate();
+      scoreFirstCourt('11', '7');
+      markComplete(1);
+
+      action(/^Reshuffle$/);
+      expect(text(sheet())).not.toContain(WARNING);
+    });
   });
 
   it('offers sharing with no database, and says why it cannot be done', () => {
