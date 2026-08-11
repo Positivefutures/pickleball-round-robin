@@ -3,6 +3,7 @@ import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
 import { TrashIcon } from './icons';
+import { GuestChip } from './GuestChip';
 
 interface Props {
   court: CourtAssignment;
@@ -98,6 +99,7 @@ function PlayerButton({
       <span className="min-w-0 flex-1 truncate text-left font-medium" title={displayName}>
         {displayName}
       </span>
+      <GuestChip player={player} />
       {selected && interactive ? (
         <span
           role="button"

@@ -28,7 +28,9 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    // Up at the top rather than centred. The box opens with the keypad already
+    // up on a phone, and centred put Cancel and Done underneath it.
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-6">
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full"

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Player, Gender, Roster } from '../../types';
+import { MAX_RATING, MIN_RATING } from '../../lib/rating';
+import { RatingStepper } from '../RatingStepper';
 
 interface Props {
   onSubmit: (name: string, rating: number, gender: Gender) => void;
@@ -11,6 +13,8 @@ interface Props {
   rosters?: Roster[];
   selectedRosterIds?: string[];
   onRosterToggle?: (rosterId: string) => void;
+  /** Overrides the submit label where "Add Player" would be the wrong words. */
+  submitLabel?: string;
 }
 
 export function PlayerForm({
@@ -21,6 +25,7 @@ export function PlayerForm({
   rosters,
   selectedRosterIds,
   onRosterToggle,
+  submitLabel,
 }: Props) {
   const [name, setName] = useState('');
   const [rating, setRating] = useState(String(defaultRating));
@@ -61,7 +66,7 @@ export function PlayerForm({
     }
 
     const r = parseFloat(rating);
-    if (isNaN(r) || r < 3 || r > 5) return;
+    if (isNaN(r) || r < MIN_RATING || r > MAX_RATING) return;
 
     onSubmit(trimmed, r, gender);
     setNameMissing(false);
@@ -78,7 +83,7 @@ export function PlayerForm({
         type="submit"
         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
       >
-        {editingPlayer ? 'Update' : 'Add Player'}
+        {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
       </button>
       {editingPlayer && onCancelEdit && (
         <button
@@ -125,23 +130,10 @@ export function PlayerForm({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Rating
         </label>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setRating(String(Math.max(3, Math.round((parseFloat(rating) - 0.1) * 10) / 10)))}
-            className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-          >
-            &minus;
-          </button>
-          <span className="min-w-10 text-center font-medium text-gray-800">{parseFloat(rating).toFixed(1)}</span>
-          <button
-            type="button"
-            onClick={() => setRating(String(Math.min(5, Math.round((parseFloat(rating) + 0.1) * 10) / 10)))}
-            className="min-w-9 min-h-10 flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold text-lg"
-          >
-            +
-          </button>
-        </div>
+        <RatingStepper
+          value={parseFloat(rating)}
+          onChange={(next) => setRating(String(next))}
+        />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">

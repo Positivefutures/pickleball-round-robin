@@ -11,6 +11,13 @@ export interface Player {
   rating: number; // 3.0 - 5.0
   gender: Gender;
   rosterIds: string[]; // a player may belong to any number of rosters
+  /**
+   * Set on somebody playing this session who is not in the group. They live in
+   * the guests store rather than the player pool, and they go when the session
+   * does. Optional, so every other player is untouched by it, and absent from
+   * both the sync row and the group file because those list their fields out.
+   */
+  guest?: true;
 }
 
 export interface SessionConfig {

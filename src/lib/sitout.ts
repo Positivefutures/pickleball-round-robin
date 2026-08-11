@@ -58,6 +58,54 @@ export function addToRemainingRounds(
   });
 }
 
+/**
+ * One player stands in for another, wherever the one going off appears.
+ *
+ * Courts and bench alike, and the place is kept: the substitute plays the games
+ * the player they replaced was down for, against the same people. That is the
+ * difference between this and removing somebody and adding somebody else, which
+ * rebuilds the remaining rounds and scatters everyone.
+ *
+ * The same swap with the same id on both sides is how an edited player is
+ * carried into a schedule that holds copies of them. Pass no skipped rounds for
+ * that, so the person reads the same on every round of the page.
+ *
+ * Rounds nothing happened to come back by reference, so a caller can tell at a
+ * glance which ones were touched.
+ */
+export function replacePlayerInRounds(
+  rounds: Round[],
+  outgoingId: string,
+  incoming: Player,
+  skipRoundNumbers: number[] = []
+): Round[] {
+  const skip = new Set(skipRoundNumbers);
+
+  return rounds.map((round) => {
+    if (skip.has(round.roundNumber)) return round;
+
+    let changed = false;
+
+    const courts = round.courts.map((court) => {
+      const swap = (team: Player[]) =>
+        team.map((p) => (p.id === outgoingId ? incoming : p));
+      const team1 = swap(court.team1);
+      const team2 = swap(court.team2);
+      const touched =
+        team1.some((p, i) => p !== court.team1[i]) ||
+        team2.some((p, i) => p !== court.team2[i]);
+      if (!touched) return court;
+      changed = true;
+      return { ...court, team1, team2, ratingDiff: courtRatingDiff(team1, team2) };
+    });
+
+    const sitOuts = round.sitOuts.map((p) => (p.id === outgoingId ? incoming : p));
+    if (sitOuts.some((p, i) => p !== round.sitOuts[i])) changed = true;
+
+    return changed ? { ...round, courts, sitOuts } : round;
+  });
+}
+
 // A sit-out candidate unit: a single player, or a fixed pair that must sit
 // together. Partnered players are never split across the sit-out line.
 interface SitOutUnit {

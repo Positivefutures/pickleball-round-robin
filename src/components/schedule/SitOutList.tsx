@@ -3,6 +3,7 @@ import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { TrashIcon } from './icons';
+import { GuestChip } from './GuestChip';
 
 interface Props {
   players: Player[];
@@ -48,6 +49,7 @@ function SitOutBox({
       }${interactive ? '' : ' cursor-default'}`}
     >
       <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
+      <GuestChip player={player} />
       {selected && interactive ? (
         <span
           role="button"

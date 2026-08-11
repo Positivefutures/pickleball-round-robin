@@ -15,11 +15,15 @@ import type { ImportGroup } from '../lib/groupImport';
 export function usePlayers() {
   const [players, setPlayers] = useStoredValue(stores.players);
 
+  // Returns the player it made, so a caller that has to do something else with
+  // them — the Actions sheet puts a new player straight into the session — does
+  // not have to go looking for an id it never saw.
   const addPlayer = useCallback(
-    (name: string, rating: number, gender: Gender, rosterIds: string[]) => {
+    (name: string, rating: number, gender: Gender, rosterIds: string[]): Player => {
       const newPlayer: Player = { id: generateId(), name, rating, gender, rosterIds };
       // Functional update, so rapid successive adds don't clobber each other
       setPlayers((prev) => [...prev, newPlayer]);
+      return newPlayer;
     },
     [setPlayers]
   );

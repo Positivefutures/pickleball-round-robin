@@ -51,16 +51,12 @@ body {
   padding-right: 0.25rem;
 }
 
-/* The Schedule button row must never wrap. Large-text mode makes those buttons
-   wide enough that "New Session" still overflows well past the 430px breakpoint
-   set in the markup, so hold the short label further up the range. Beats the
-   Tailwind utilities on specificity (two classes vs one). */
-@media (max-width: 560px) {
-  .text-large .session-long {
-    display: none;
-  }
-  .text-large .session-short {
-    display: inline;
+/* The Actions sheet is the one thing in the app that moves. Somebody who has
+   asked their system not to animate gets it where it is going without the
+   travel, rather than not at all. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel {
+    transition: none !important;
   }
 }
 

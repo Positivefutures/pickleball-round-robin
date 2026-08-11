@@ -1,16 +1,9 @@
+import { MAX_RATING as MAX, MIN_RATING as MIN, step } from '../../lib/rating';
+
 interface Props {
   rating: number;
   onChange: (rating: number) => void;
   onClose: () => void;
-}
-
-const MIN = 3;
-const MAX = 5;
-
-// Same bounds and 0.1 step as the rating control on the Add Player form.
-function step(rating: number, delta: number): number {
-  const next = Math.round((rating + delta) * 10) / 10;
-  return Math.min(MAX, Math.max(MIN, next));
 }
 
 export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {

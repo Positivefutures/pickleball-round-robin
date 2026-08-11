@@ -7,11 +7,10 @@ import { courtRatingDiff } from '../../utils/helpers';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
-import { AddPlayerDialog } from './AddPlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
-import { DiscardScheduleDialog } from './DiscardScheduleDialog';
 import { SwapHint } from './SwapHint';
-import { ShuffleIcon } from './icons';
+import { ActionsButton } from './ActionsButton';
+import { ActionsSheet, type ActionsEntry, type ScheduleActions } from './ActionsSheet';
 
 export interface CourtSlot {
   kind: 'court';
@@ -71,7 +70,6 @@ interface Props {
   onUpdateSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
   onRemovePlayer: (playerId: string) => void;
-  onStartNewSession: () => void;
   /**
    * Whether leaving this schedule would throw work away. The step tabs sit
    * above this page and are the only way off it, and only this page knows about
@@ -83,7 +81,13 @@ interface Props {
   onDismissSwapHint: () => void;
   /** Group members not in this session yet, offered by Add Player. */
   addablePlayers: Player[];
-  onAddPlayer: (playerId: string) => void;
+  /**
+   * Everything behind the Actions button, less the reshuffle. That one is put
+   * together here, because the padlocks and broken couples it has to honour are
+   * this page's own state and go no further.
+   */
+  actions: Omit<ScheduleActions, 'onReshuffle'>;
+  defaultRating: number;
 }
 
 // The padlocks shown for a round: every intact (non-broken) couple found in the
@@ -122,12 +126,12 @@ export function SchedulePage({
   onUpdateSchedule,
   onCompletedRoundsChange,
   onRemovePlayer,
-  onStartNewSession,
   onUnsavedWorkChange,
   showSwapHint,
   onDismissSwapHint,
   addablePlayers,
-  onAddPlayer,
+  actions,
+  defaultRating,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
@@ -135,12 +139,22 @@ export function SchedulePage({
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);
-  const [confirmingNewSession, setConfirmingNewSession] = useState(false);
-  const [addingPlayer, setAddingPlayer] = useState(false);
+  // Which view the Actions sheet opens on, or null while it is closed. The
+  // counter keys the sheet, so opening it always gets a fresh one: it flashes a
+  // confirmation and closes itself, and a second tap during that flash should
+  // show the grid rather than the tail end of the last thing done.
+  const [actionsEntry, setActionsEntry] = useState<ActionsEntry | null>(null);
+  const [actionsOpened, setActionsOpened] = useState(0);
+
   // Which court is being renamed, by the round it was opened from.
   const [editingCourt, setEditingCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
     null
   );
+
+  function openActions(entry: ActionsEntry) {
+    setActionsEntry(entry);
+    setActionsOpened((n) => n + 1);
+  }
 
   const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
@@ -407,9 +421,16 @@ export function SchedulePage({
     setSelectedSlot(null);
   }
 
-  function handleRegenerate() {
-    onRegenerate(locks, brokenPairs);
-  }
+  // The sheet's reshuffle is this page's reshuffle: the padlocks and the couples
+  // broken for one round are held here, and a rebuild that ignored them would
+  // undo work the host can see on the screen in front of them.
+  const sheetActions: ScheduleActions = {
+    ...actions,
+    onReshuffle: () => {
+      onRegenerate(locks, brokenPairs);
+      setSelectedSlot(null);
+    },
+  };
 
   // Everything that leaving this schedule would throw away. On an untouched one
   // there is nothing to lose, so a tab goes straight through rather than
@@ -447,7 +468,7 @@ export function SchedulePage({
   const addPlayerButton = (
     <button
       type="button"
-      onClick={() => setAddingPlayer(true)}
+      onClick={() => openActions('add-player')}
       className="no-print shrink-0 whitespace-nowrap rounded-md border border-[#999] bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
     >
       + Add Player
@@ -456,31 +477,10 @@ export function SchedulePage({
 
   return (
     <div className="space-y-6 no-print">
-      {/* Reshuffle and New Session. Going back is the Setup tab's job, and
-          printing lives on the header's printer button. Both sit to the right,
-          matching the Reshuffle at the foot of the page, so New Session stays
-          put when Reshuffle drops out on the last completed round. */}
-      {/* Never wraps: the New Session label shortens instead. 0.9em rather than a
-          fixed size so the 10% reduction still tracks large-text mode. */}
-      <div className="flex flex-nowrap justify-end items-center gap-3">
-        {!allComplete && (
-          <button
-            onClick={handleRegenerate}
-            className="inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2 text-[0.9em] bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-          >
-            <ShuffleIcon />
-            Reshuffle
-          </button>
-        )}
-        <button
-          onClick={() => setConfirmingNewSession(true)}
-          aria-label="Start a new session"
-          className="shrink-0 whitespace-nowrap px-4 py-2 text-[0.9em] border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-        >
-          <span className="session-long hidden min-[430px]:inline">New Session</span>
-          <span className="session-short min-[430px]:hidden">New</span>
-        </button>
-      </div>
+      {/* One button for everything the host might change mid-session. Going back
+          is the Setup tab's job, and printing lives on the header's printer
+          button. */}
+      <ActionsButton onClick={() => openActions('menu')} />
 
       {/* Completed rounds are frozen, so once they all are there is nothing to
           swap and nothing to say. */}
@@ -532,28 +532,19 @@ export function SchedulePage({
 
       <PartnerSummary schedule={schedule} players={players} />
 
-      {!allComplete && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleRegenerate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-          >
-            <ShuffleIcon />
-            Reshuffle
-          </button>
-        </div>
-      )}
-
-      {addingPlayer && (
-        <AddPlayerDialog
-          candidates={addablePlayers}
-          allPlayers={players}
-          onConfirm={(playerId) => {
-            setAddingPlayer(false);
-            setSelectedSlot(null);
-            onAddPlayer(playerId);
-          }}
-          onCancel={() => setAddingPlayer(false)}
+      {actionsEntry && (
+        <ActionsSheet
+          key={actionsOpened}
+          open
+          entry={actionsEntry}
+          onClose={() => setActionsEntry(null)}
+          schedule={schedule}
+          completedRounds={completedRounds}
+          players={players}
+          addablePlayers={addablePlayers}
+          numCourts={numCourts}
+          defaultRating={defaultRating}
+          actions={sheetActions}
         />
       )}
 
@@ -576,19 +567,6 @@ export function SchedulePage({
           remainingCount={players.length - 1}
           onConfirm={handleConfirmRemove}
           onCancel={() => setRemoveCandidate(null)}
-        />
-      )}
-
-      {confirmingNewSession && (
-        <DiscardScheduleDialog
-          heading="Start a new session?"
-          cancelLabel="Cancel"
-          confirmLabel="Yes, Start New"
-          onConfirm={() => {
-            setConfirmingNewSession(false);
-            onStartNewSession();
-          }}
-          onCancel={() => setConfirmingNewSession(false)}
         />
       )}
     </div>

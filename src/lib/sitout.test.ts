@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addToRemainingRounds } from './sitout';
+import { addToRemainingRounds, replacePlayerInRounds } from './sitout';
 import type { Player, Round } from '../types';
 
 function player(name: string): Player {
@@ -157,5 +157,69 @@ describe('addToRemainingRounds', () => {
       addToRemainingRounds(rounds, [], latecomer);
       expect(sizes(rounds[0])).toEqual([4, 3]);
     });
+  });
+});
+
+describe('replacePlayerInRounds', () => {
+  const sub: Player = { id: 'sub', name: 'Zoe', rating: 2, gender: 'F', rosterIds: ['r1'] };
+  const on = (r: Round) => r.courts.flatMap((c) => [...c.team1, ...c.team2]).map((p) => p.name);
+
+  it('takes the place of the player going off, rather than joining the bench', () => {
+    const next = replacePlayerInRounds([round(1, ['E'])], 'id-A', sub);
+
+    expect(next[0].courts[0].team1.map((p) => p.name)).toEqual(['Zoe', 'B']);
+    expect(next[0].sitOuts.map((p) => p.name)).toEqual(['E']);
+    expect(on(next[0])).not.toContain('A');
+  });
+
+  it('stands in on the bench too', () => {
+    const next = replacePlayerInRounds([round(1, ['E'])], 'id-E', sub);
+    expect(next[0].sitOuts.map((p) => p.name)).toEqual(['Zoe']);
+  });
+
+  it('leaves everybody else exactly where they were', () => {
+    const before = round(1, ['E']);
+    const next = replacePlayerInRounds([before], 'id-A', sub);
+    expect(next[0].courts[0].team2).toEqual(before.courts[0].team2);
+  });
+
+  it('skips the rounds it is told to, and hands them back by reference', () => {
+    const rounds = [round(1, ['E']), round(2, ['E']), round(3, ['E'])];
+    const next = replacePlayerInRounds(rounds, 'id-A', sub, [1]);
+
+    expect(next[0]).toBe(rounds[0]);
+    expect(on(next[0])).toContain('A');
+    expect(on(next[1])).toContain('Zoe');
+    expect(on(next[2])).toContain('Zoe');
+  });
+
+  it('hands back a round the player was not in, untouched', () => {
+    const rounds = [round(1, ['E'])];
+    expect(replacePlayerInRounds(rounds, 'id-nobody', sub)[0]).toBe(rounds[0]);
+  });
+
+  it('rescores the court it touched, and no other', () => {
+    const rounds = [shortRound(1, ['G'])];
+    const next = replacePlayerInRounds(rounds, 'id-A', sub);
+
+    // 2 + 4 against 4 + 4 on the court she joined.
+    expect(next[0].courts[0].ratingDiff).toBeCloseTo(2);
+    expect(next[0].courts[1]).toBe(rounds[0].courts[1]);
+  });
+
+  it('carries an edited player through, same id on both sides', () => {
+    const rounds = [round(1, ['E'])];
+    const raised = { ...player('A'), rating: 5 };
+    const next = replacePlayerInRounds(rounds, 'id-A', raised);
+
+    expect(next[0].courts[0].team1[0].rating).toBe(5);
+    // 5 + 4 against 4 + 4, so the badge moves with the rating.
+    expect(next[0].courts[0].ratingDiff).toBeCloseTo(1);
+  });
+
+  it('does not mutate what it was given', () => {
+    const rounds = [round(1, ['E'])];
+    replacePlayerInRounds(rounds, 'id-A', sub);
+    expect(rounds[0].courts[0].team1.map((p) => p.name)).toEqual(['A', 'B']);
   });
 });

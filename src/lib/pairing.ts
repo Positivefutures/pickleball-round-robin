@@ -357,3 +357,42 @@ export function regenerateRemaining(
 
   return { rounds };
 }
+
+/**
+ * Adds rounds to the end of a schedule already under way.
+ *
+ * The rounds that were there do not move. The new ones are built as though they
+ * had been asked for at the start: every partnership, opponent, sit-out and
+ * short game already on the sheet is replayed into the history first, so round
+ * nine carries on from round eight rather than starting the morning again.
+ *
+ * It is regenerateRemaining() with every existing round declared complete, which
+ * is exactly what "leave those alone and plan around them" means here. Special
+ * round types line up because planRoundTypes() only ever looks forwards, so
+ * planning for ten rounds agrees with planning for eight on the first eight.
+ */
+export function extendSchedule(
+  players: Player[],
+  numCourts: number,
+  rounds: Round[],
+  extraRounds: number,
+  specialTypes: SpecialGameTypes = DEFAULT_SPECIAL_TYPES,
+  partnerships: Partnership[] = []
+): Schedule {
+  if (extraRounds < 1) return { rounds };
+
+  const last = rounds.reduce((max, r) => Math.max(max, r.roundNumber), 0);
+  const stubs: Round[] = [];
+  for (let i = 1; i <= extraRounds; i++) {
+    stubs.push({ roundNumber: last + i, courts: [], sitOuts: [] });
+  }
+
+  return regenerateRemaining(
+    players,
+    numCourts,
+    [...rounds, ...stubs],
+    rounds.map((r) => r.roundNumber),
+    specialTypes,
+    partnerships
+  );
+}

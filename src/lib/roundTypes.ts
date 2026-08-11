@@ -42,7 +42,7 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     printColor: '#0f766e',
   },
   skill: {
-    title: 'Equal Skill Level Games',
+    title: 'Equal Skill Games',
     description: 'You play with and against people near your own level.',
     shortName: 'Equal Skill',
     badge: 'Equal Skill Round',

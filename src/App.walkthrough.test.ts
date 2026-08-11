@@ -137,6 +137,37 @@ function generate() {
   clickButton(/^Generate Schedule/);
 }
 
+/** The Actions sheet, found by its role rather than by position. */
+function sheet(): HTMLElement {
+  const found = container.querySelector('[role="dialog"]');
+  if (!found) throw new Error('the Actions sheet is not open');
+  return found as HTMLElement;
+}
+
+/** Opens the Actions sheet and taps one of the nine cards on it. */
+function action(label: RegExp) {
+  clickButton(/^Actions$/);
+  clickButton(label, sheet());
+}
+
+/** The stored guest list, which is where a guest lives instead of the pool. */
+function storedGuests(): { id: string; name: string; guest?: true }[] {
+  return JSON.parse(window.localStorage.getItem('pb-guests') ?? '[]');
+}
+
+function storedPlayers(): { id: string; name: string; rating: number }[] {
+  return JSON.parse(window.localStorage.getItem('pb-roster') ?? '[]');
+}
+
+const courtsOf = (round: Round) => round.courts.map((c) => c.courtNumber);
+
+/** Clicks a control by its label, for the ones whose face is a plus or a minus. */
+function clickLabel(label: string, scope: ParentNode = container) {
+  const el = scope.querySelector(`[aria-label="${label}"]`);
+  if (!el) throw new Error(`no control labelled ${label}`);
+  click(el);
+}
+
 describe('9 players / 2 courts', () => {
   beforeEach(() => seed(9, 9, 2));
 
@@ -155,7 +186,7 @@ describe('9 players / 2 courts', () => {
     const kept = before.rounds.slice(0, 3).map(fingerprint);
     const rest = before.rounds.slice(3).map(fingerprint);
 
-    clickButton(/^Reshuffle$/);
+    action(/^Reshuffle$/);
 
     const after = storedSchedule();
     expect(after.rounds.map((r) => r.roundNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -184,12 +215,13 @@ describe('9 players / 2 courts', () => {
     click(card.querySelector(`[aria-label="Remove ${victim.name}"]`)!);
     clickButton(/^Yes$/);
 
+    // The sit-out row's own button opens the Actions sheet straight onto the
+    // Add a Player view, rather than a second dialog that says the same thing.
     expect(buttons(/\+ Add Player/).length).toBeGreaterThan(0);
     clickButton(/\+ Add Player/);
-    expect(container.textContent).toContain('Add Player to Session');
-    const radios = [...container.querySelectorAll('input[type="radio"]')];
-    expect(radios).toHaveLength(1);
-    expect(text(radios[0].closest('label')!)).toContain(victim.name);
+    expect(text(sheet())).toContain('Who is joining?');
+    const offered = buttons(/./, sheet()).map(text);
+    expect(offered.filter((t) => t.includes(victim.name))).toHaveLength(1);
   });
 });
 
@@ -215,9 +247,8 @@ describe('the swap hint', () => {
     expect(container.textContent).not.toContain(HINT);
 
     // And a brand new session, which is where it used to reappear.
-    // Both labels are in the markup; CSS picks one by how wide the phone is.
-    clickButton(/^New Session/);
-    clickButton(/^Yes, Start New$/);
+    action(/^Start New Session$/);
+    clickButton(/^Yes, Start New$/, sheet());
     generate();
     expect(container.textContent).not.toContain(HINT);
   });
@@ -251,7 +282,7 @@ describe('court numbers', () => {
     renameCourt(2, 'COURT 1', '7');
     expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
 
-    clickButton(/^Reshuffle$/);
+    action(/^Reshuffle$/);
     expect(courtNumbers()).toEqual([1, 7, 7, 7, 7, 7, 7, 7]);
   });
 });
@@ -275,10 +306,8 @@ describe('10 in the group, 9 playing / 2 courts', () => {
     expect(roundCard(4).contains(adds[0])).toBe(true);
 
     click(adds[0]);
-    const radio = container.querySelector('input[type="radio"]') as HTMLInputElement;
-    expect(text(radio.closest('label')!)).toContain('Jo');
-    click(radio);
-    clickButton(/^Add Player$/, container.querySelector('.fixed.inset-0')!);
+    expect(text(sheet())).toContain('Who is joining?');
+    clickButton(/^Jo/, sheet());
 
     const added = storedSchedule();
     // Completed rounds untouched; Jo sits out every unplayed round.
@@ -303,7 +332,7 @@ describe('10 in the group, 9 playing / 2 courts', () => {
 
     // Reshuffle: rounds 1-3 still verbatim, and round 4 sits the people who have
     // sat least — never Jo, who has played nothing.
-    clickButton(/^Reshuffle$/);
+    action(/^Reshuffle$/);
     const after = storedSchedule();
     expect(after.rounds.slice(0, 3).map(fingerprint)).toEqual(kept);
     expect(completedRounds()).toEqual([1, 2, 3]);
@@ -479,7 +508,7 @@ describe('Special Game Types', () => {
     expect(container.textContent).not.toContain('Mixed every');
 
     clickButton(/^Select Special Game Types$/);
-    expect(container.textContent).toContain('Equal Skill Level Games');
+    expect(container.textContent).toContain('Equal Skill Games');
     sayYes('mixed');
     clickButton(/^Done$/);
 
@@ -643,7 +672,7 @@ describe('the step tabs', () => {
     expect(container.textContent).toContain('Back to Setup?');
 
     clickButton(/^Keep Schedule$/);
-    expect(container.textContent).toContain('Reshuffle'); // still on the schedule
+    expect(container.textContent).toContain('Actions'); // still on the schedule
     expect(completedRounds()).toEqual([1]);
 
     click(setupTab());
@@ -660,7 +689,7 @@ describe('the step tabs', () => {
     expect(container.textContent).toContain('Back to Players?');
 
     clickButton(/^Keep Schedule$/);
-    expect(container.textContent).toContain('Reshuffle'); // still on the schedule
+    expect(container.textContent).toContain('Actions'); // still on the schedule
     expect(storedSchedule()).not.toBeNull();
     expect(completedRounds()).toEqual([1]);
 
@@ -670,12 +699,12 @@ describe('the step tabs', () => {
     expect(storedSchedule()).toBeNull();
   });
 
-  it('leaves the New Session button asking, even with nothing to lose', () => {
+  it('leaves Start New Session asking, even with nothing to lose', () => {
     mount();
     generate();
 
-    clickButton(/New Session/);
-    expect(container.textContent).toContain('Start a new session?');
+    action(/^Start New Session$/);
+    expect(text(sheet())).toContain('Start a new session?');
   });
 
   // Three doors out of a schedule, three headings, one warning. Pinned here so a
@@ -700,7 +729,7 @@ describe('the step tabs', () => {
     expect(said()).toBe(true);
     clickButton(/^Keep Schedule$/);
 
-    clickButton(/New Session/);
+    action(/^Start New Session$/);
     expect(said()).toBe(true);
   });
 
@@ -869,15 +898,15 @@ describe('filling an empty place', () => {
       .map((p) => p.name)];
 
   /**
-   * Adds the first candidate the Add Player dialog offers, and names them.
-   * Read off the schedule rather than the dialog, whose label runs the name and
-   * the rating together.
+   * Adds the first candidate the sheet offers, and names them. Read off the
+   * schedule rather than the row, whose label runs the name and rating together.
    */
   function addPlayer(): string {
     const before = new Set(everyone(1));
     clickButton(/\+ Add Player/);
-    click(container.querySelector('input[type="radio"]') as HTMLInputElement);
-    clickButton(/^Add Player$/);
+    const rows = buttons(/\d\.\d$/, sheet());
+    expect(rows.length).toBeGreaterThan(0);
+    click(rows[0]);
 
     const added = everyone(1).filter((name) => !before.has(name));
     expect(added).toHaveLength(1);
@@ -1064,5 +1093,336 @@ describe('filling an empty place', () => {
     const empty = emptyIn(1);
     if (empty) click(empty);
     expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+  });
+});
+
+/**
+ * The Actions sheet, which replaced the Reshuffle and New Session buttons.
+ *
+ * Reshuffle and Start New Session are covered above, through the same sheet.
+ * These are the seven things the schedule could not do before it existed.
+ */
+describe('the Actions sheet', () => {
+  /** Fills a text input the way a person does, so React sees the change. */
+  function typeInto(input: HTMLInputElement, value: string) {
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  const nameBox = () => sheet().querySelector('input[type="text"]') as HTMLInputElement;
+
+  it('offers the nine actions, in the order they were asked for', () => {
+    seed(9, 9, 2);
+    mount();
+    generate();
+
+    clickButton(/^Actions$/);
+    expect(text(sheet())).toContain('Quick changes for this session');
+    expect(buttons(/./, sheet()).map(text)).toEqual([
+      'Add a Player', 'Add a Sub', 'Add a Guest',
+      'Edit Player Rating', 'Reshuffle', 'Start New Session',
+      'Add a Round', 'Add a Court', 'Remove a Court',
+    ]);
+  });
+
+  describe('Add a Court', () => {
+    // Twelve over two courts is eight playing and four waiting. A third court
+    // is exactly enough for the four of them.
+    beforeEach(() => seed(12, 12, 2));
+
+    it('adds it to the unplayed rounds and takes the bench off the bench', () => {
+      mount();
+      generate();
+      markComplete(1);
+      const played = fingerprint(storedSchedule().rounds[0]);
+
+      action(/^Add a Court$/);
+      expect(text(sheet())).toContain('4 of the players waiting come off the bench');
+      clickButton(/^Add the Court$/, sheet());
+
+      const after = storedSchedule();
+      expect(fingerprint(after.rounds[0])).toBe(played);
+      expect(courtsOf(after.rounds[0])).toEqual([1, 2]);
+
+      for (const r of after.rounds.slice(1)) {
+        expect(courtsOf(r), `Round ${r.roundNumber}`).toEqual([1, 2, 3]);
+        expect(onCourt(r)).toHaveLength(12);
+        expect(r.sitOuts).toEqual([]);
+      }
+    });
+
+    it('moves numCourts with it, so a reshuffle keeps the court', () => {
+      mount();
+      generate();
+
+      action(/^Add a Court$/);
+      clickButton(/^Add the Court$/, sheet());
+      expect(window.localStorage.getItem('pb-num-courts')).toBe('3');
+
+      action(/^Reshuffle$/);
+      for (const r of storedSchedule().rounds) {
+        expect(courtsOf(r), `Round ${r.roundNumber}`).toHaveLength(3);
+      }
+    });
+
+    it('says so when the roster cannot fill the court it is being given', () => {
+      seed(9, 9, 2);
+      mount();
+      generate();
+
+      // Nine players fill two courts and a 2v1. A third has nobody for it.
+      action(/^Add a Court$/);
+      expect(text(sheet())).toContain('a reshuffle would drop it again');
+    });
+  });
+
+  describe('Remove a Court', () => {
+    beforeEach(() => seed(12, 12, 3));
+
+    it('takes it out of the unplayed rounds and sits its players down', () => {
+      mount();
+      generate();
+      markComplete(1);
+      const played = fingerprint(storedSchedule().rounds[0]);
+      const losing = storedSchedule().rounds[1].courts[1];
+      const displaced = [...losing.team1, ...losing.team2].map((p) => p.name);
+
+      action(/^Remove a Court$/);
+      clickButton(/^COURT 2/, sheet());
+
+      const after = storedSchedule();
+      expect(fingerprint(after.rounds[0])).toBe(played);
+      expect(courtsOf(after.rounds[0])).toEqual([1, 2, 3]);
+
+      for (const r of after.rounds.slice(1)) {
+        expect(courtsOf(r), `Round ${r.roundNumber}`).toEqual([1, 3]);
+      }
+      expect(after.rounds[1].sitOuts.map((p) => p.name).sort()).toEqual([...displaced].sort());
+      expect(window.localStorage.getItem('pb-num-courts')).toBe('2');
+    });
+
+    it('names who would be sitting out before it is tapped', () => {
+      mount();
+      generate();
+      const on = storedSchedule().rounds[0].courts[0];
+      const first = [...on.team1, ...on.team2][0].name;
+
+      action(/^Remove a Court$/);
+      expect(text(sheet())).toContain(first);
+      expect(text(sheet())).toContain('sit out instead');
+    });
+  });
+
+  describe('Add a Round', () => {
+    beforeEach(() => seed(9, 9, 2));
+
+    it('puts them on the end without touching the ones above', () => {
+      mount();
+      generate();
+      const before = storedSchedule().rounds.map(fingerprint);
+
+      action(/^Add a Round$/);
+      clickLabel('More rounds', sheet()); // 1 -> 2
+      expect(text(sheet())).toContain('Rounds 9 to 10 are added');
+      clickButton(/^Add 2 Rounds$/, sheet());
+
+      const after = storedSchedule();
+      expect(after.rounds.map((r) => r.roundNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      expect(after.rounds.slice(0, 8).map(fingerprint)).toEqual(before);
+      expect(window.localStorage.getItem('pb-num-rounds')).toBe('10');
+
+      for (const r of after.rounds.slice(8)) {
+        expect(onCourt(r), `Round ${r.roundNumber}`).toHaveLength(8);
+      }
+    });
+
+    it('is still offered once every round has been played', () => {
+      mount();
+      generate();
+      for (let n = 1; n <= 8; n++) markComplete(n);
+
+      action(/^Add a Round$/);
+      clickButton(/^Add 1 Round$/, sheet());
+      expect(storedSchedule().rounds).toHaveLength(9);
+      expect(completedRounds()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+  });
+
+  describe('Add a Sub', () => {
+    // Twelve in the group, eleven playing: Lex is the one left to come on.
+    beforeEach(() => seed(12, 11, 2));
+
+    it('takes the place of the player going off, in every unplayed round', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const going = storedSchedule().rounds[1].courts[0].team1[0].name;
+      const expected = storedSchedule().rounds.map((r) =>
+        fingerprint(r).replace(going, 'Lex')
+      );
+      const playedAs = fingerprint(storedSchedule().rounds[0]);
+
+      action(/^Add a Sub$/);
+      expect(text(sheet())).toContain('Who is coming off?');
+      clickButton(new RegExp(`^${going}`), sheet());
+      expect(text(sheet())).toContain(`Who is going on for ${going}?`);
+      clickButton(/^Lex/, sheet());
+
+      const after = storedSchedule();
+      // The round already played keeps the player who played it.
+      expect(fingerprint(after.rounds[0])).toBe(playedAs);
+      // Every other round is the same games with one name changed.
+      expect(after.rounds.slice(1).map(fingerprint)).toEqual(expected.slice(1));
+    });
+
+    it('leaves the Completed checkboxes usable, unlike a removal', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const going = storedSchedule().rounds[1].courts[0].team1[0].name;
+      action(/^Add a Sub$/);
+      clickButton(new RegExp(`^${going}`), sheet());
+      clickButton(/^Lex/, sheet());
+
+      expect(window.localStorage.getItem('pb-removed-ids')).toBe('[]');
+      expect(checkbox(1).disabled).toBe(false);
+    });
+
+    it('offers the player who came off back again', () => {
+      mount();
+      generate();
+
+      const going = storedSchedule().rounds[0].courts[0].team1[0].name;
+      action(/^Add a Sub$/);
+      clickButton(new RegExp(`^${going}`), sheet());
+      clickButton(/^Lex/, sheet());
+
+      clickButton(/^Actions$/);
+      clickButton(/^Add a Player$/, sheet());
+      expect(text(sheet())).toContain(going);
+    });
+  });
+
+  describe('Add a Guest', () => {
+    beforeEach(() => seed(9, 9, 2));
+
+    it('plays this session without ever joining the group', () => {
+      mount();
+      generate();
+
+      action(/^Add a Guest$/);
+      typeInto(nameBox(), 'Sam');
+      clickButton(/^Add Guest$/, sheet());
+
+      // Never in the pool, which is the half of storage that syncs.
+      expect(storedPlayers().map((p) => p.name)).not.toContain('Sam');
+      expect(storedGuests().map((g) => g.name)).toEqual(['Sam']);
+      expect(storedGuests()[0].guest).toBe(true);
+
+      for (const r of storedSchedule().rounds) {
+        const everyone = [...onCourt(r), ...r.sitOuts.map((p) => p.name)];
+        expect(everyone, `Round ${r.roundNumber}`).toContain('Sam');
+      }
+      expect(container.textContent).toContain('Guest');
+    });
+
+    it('goes when the session goes', () => {
+      mount();
+      generate();
+
+      action(/^Add a Guest$/);
+      typeInto(nameBox(), 'Sam');
+      clickButton(/^Add Guest$/, sheet());
+      expect(storedGuests()).toHaveLength(1);
+
+      action(/^Start New Session$/);
+      clickButton(/^Yes, Start New$/, sheet());
+      expect(storedGuests()).toEqual([]);
+    });
+  });
+
+  describe('Edit Player Rating', () => {
+    beforeEach(() => seed(9, 9, 2));
+
+    it('saves it against the player and shows it on every round', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const before = storedPlayers().find((p) => p.name === 'Ava')!.rating;
+      const games = storedSchedule().rounds.map(fingerprint);
+
+      action(/^Edit Player Rating$/);
+      clickButton(/^Ava/, sheet());
+      clickLabel('Raise the rating', sheet());
+      clickLabel('Raise the rating', sheet());
+      clickButton(/^Save Rating$/, sheet());
+
+      expect(storedPlayers().find((p) => p.name === 'Ava')!.rating).toBeCloseTo(before + 0.2);
+
+      // Every round, played or not, and nobody has changed court.
+      const after = storedSchedule();
+      expect(after.rounds.map(fingerprint)).toEqual(games);
+      for (const r of after.rounds) {
+        const ava = [...r.courts.flatMap((c) => [...c.team1, ...c.team2]), ...r.sitOuts]
+          .find((p) => p.name === 'Ava');
+        expect(ava?.rating, `Round ${r.roundNumber}`).toBeCloseTo(before + 0.2);
+      }
+    });
+
+    it('recalculates the balance of the court they are on', () => {
+      mount();
+      generate();
+
+      // Read the player off the schedule: who sits out round 1 is not fixed.
+      // Raising somebody on the stronger side always widens the gap, whereas
+      // raising the weaker side could close it and reopen it to the same number.
+      const sum = (t: { rating: number }[]) => t.reduce((n, p) => n + p.rating, 0);
+      const court = storedSchedule().rounds[0].courts[0];
+      const heavier = sum(court.team1) >= sum(court.team2) ? court.team1 : court.team2;
+      const raised = heavier[0];
+      const before = court.ratingDiff;
+
+      action(/^Edit Player Rating$/);
+      clickButton(new RegExp(`^${raised.name}`), sheet());
+      for (let i = 0; i < 4; i++) clickLabel('Raise the rating', sheet());
+      clickButton(/^Save Rating$/, sheet());
+
+      // Read the new rating back rather than assuming four tenths: the stepper
+      // rounds to one decimal, so a player seeded at 4.25 lands on 4.4 first.
+      const after = storedSchedule().rounds[0].courts[0];
+      const now = [...after.team1, ...after.team2].find((p) => p.id === raised.id)!;
+      expect(now.rating).toBeGreaterThan(raised.rating);
+      expect(after.ratingDiff).toBeCloseTo(Math.abs(sum(after.team1) - sum(after.team2)));
+      expect(after.ratingDiff).toBeCloseTo(before + (now.rating - raised.rating));
+    });
+  });
+
+  describe('Add a Player', () => {
+    beforeEach(() => seed(9, 9, 2));
+
+    it('takes somebody nobody has met into the group and the session', () => {
+      mount();
+      generate();
+
+      clickButton(/^Actions$/);
+      clickButton(/^Add a Player$/, sheet());
+      clickButton(/^Someone new$/, sheet());
+      typeInto(nameBox(), 'Nia');
+      clickButton(/^Add to Group and Session$/, sheet());
+
+      // The group keeps her, unlike a guest.
+      expect(storedPlayers().map((p) => p.name)).toContain('Nia');
+      expect(storedGuests()).toEqual([]);
+      for (const r of storedSchedule().rounds) {
+        const everyone = [...onCourt(r), ...r.sitOuts.map((p) => p.name)];
+        expect(everyone, `Round ${r.roundNumber}`).toContain('Nia');
+      }
+    });
   });
 });

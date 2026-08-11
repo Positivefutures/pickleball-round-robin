@@ -1,6 +1,7 @@
+import type { ReactElement } from 'react';
 import type { RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { MAX_FREQUENCY, ROUND_TYPE_META, orderedTypes } from '../../lib/roundTypes';
-import { MixedGamesIcon } from '../icons';
+import { EqualSkillIcon, MenGamesIcon, MixedGamesIcon, WomenGamesIcon } from '../icons';
 
 interface Props {
   specialTypes: SpecialGameTypes;
@@ -35,7 +36,13 @@ function MoveButton({
 }
 
 // Artwork Jeff has supplied so far. A type with no entry simply shows no icon.
-const TYPE_ICONS: Partial<Record<RoundType, true>> = { mixed: true };
+// Gendered takes two, because the format is men playing men and women playing
+// women, and one symbol can only say half of that.
+const TYPE_ICONS: Record<RoundType, ((p: { className?: string }) => ReactElement)[]> = {
+  gendered: [MenGamesIcon, WomenGamesIcon],
+  mixed: [MixedGamesIcon],
+  skill: [EqualSkillIcon],
+};
 
 export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: Props) {
   const ordered = orderedTypes(specialTypes);
@@ -61,9 +68,11 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
               <div className="flex items-start justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
                   {meta.title}
-                  {TYPE_ICONS[type] && (
-                    <MixedGamesIcon className="w-[26px] h-[26px] text-[#60697c]" />
-                  )}
+                  <span className="flex shrink-0 items-center gap-1">
+                    {TYPE_ICONS[type].map((Icon, n) => (
+                      <Icon key={n} className="w-[26px] h-[26px] text-[#60697c]" />
+                    ))}
+                  </span>
                 </h3>
                 <div className="flex shrink-0 gap-1">
                   <MoveButton

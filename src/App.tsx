@@ -1,13 +1,15 @@
-import { useState, useCallback, useEffect, useSyncExternalStore } from 'react';
-import type { Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
+import { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import type { Gender, Player, Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useStoredValue } from './hooks/useStoredValue';
 import { useScrollLock } from './hooks/useScrollLock';
 import * as stores from './lib/stores';
-import { generateSchedule, regenerateRemaining } from './lib/pairing';
-import { addToRemainingRounds } from './lib/sitout';
+import { extendSchedule, generateSchedule, regenerateRemaining } from './lib/pairing';
+import { addToRemainingRounds, replacePlayerInRounds } from './lib/sitout';
+import { addCourtToRemaining, removeCourtFromRemaining } from './lib/courts';
 import { carryCourtNumbers } from './lib/courtNumbers';
+import { generateId } from './utils/helpers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import {
@@ -85,6 +87,7 @@ function App() {
   const [schedule, setSchedule] = useStoredValue(stores.schedule);
   const [completedRounds, setCompletedRounds] = useStoredValue(stores.completedRounds);
   const [removedIds, setRemovedIds] = useStoredValue(stores.removedIds);
+  const [guests, setGuests] = useStoredValue(stores.guests);
   const [scheduleEdited, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
 
@@ -178,16 +181,30 @@ function App() {
   // Players in the roster currently being worked on
   const rosterPlayers = allPlayers.filter((p) => p.rosterIds.includes(activeRosterId));
 
+  /**
+   * Everybody the session may draw on: the group, plus anyone brought along as a
+   * guest. Only the schedule sees this. Players and Setup stay on rosterPlayers,
+   * so a guest never turns up in the group's own lists.
+   */
+  // Memoised because several of the session callbacks below depend on it, and a
+  // fresh array every render would rebuild all of them every render.
+  const sessionPlayers = useMemo(
+    () => [...rosterPlayers, ...guests],
+    // rosterPlayers is derived from these two on the line above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPlayers, activeRosterId, guests]
+  );
+
   // Clean up stale IDs when the roster's membership changes
   useEffect(() => {
-    const playerIds = new Set(rosterPlayers.map((p) => p.id));
+    const playerIds = new Set(sessionPlayers.map((p) => p.id));
     setSelectedIds((prev) => {
       const filtered = prev.filter((id) => playerIds.has(id));
       return filtered.length === prev.length ? prev : filtered;
     });
-    // rosterPlayers is derived; keying on the ids keeps this from looping
+    // sessionPlayers is derived; keying on the ids keeps this from looping
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allPlayers, activeRosterId, setSelectedIds]);
+  }, [allPlayers, guests, activeRosterId, setSelectedIds]);
 
   // A partnership only makes sense while both members are selected. Whenever the
   // selection shrinks (deselect, roster cleanup), drop any now-invalid couple.
@@ -234,6 +251,9 @@ function App() {
     setSchedule(null);
     setCompletedRounds([]);
     setRemovedIds([]);
+    // Guests belong to the session and go with it, whichever way it ends. They
+    // are in nobody's group, so there is nowhere for them to be kept.
+    setGuests([]);
     setScheduleEdited(false);
     // "Start New Session" keeps the crowd (and their couples); a group switch
     // clears both since it's a different set of people.
@@ -242,8 +262,8 @@ function App() {
       setPartnerships([]);
     }
     setScheduleRosterId(null);
-  }, [setSchedule, setCompletedRounds, setRemovedIds, setScheduleEdited, setSelectedIds,
-      setPartnerships, setScheduleRosterId]);
+  }, [setSchedule, setCompletedRounds, setRemovedIds, setGuests, setScheduleEdited,
+      setSelectedIds, setPartnerships, setScheduleRosterId]);
 
   // Switching rosters invalidates an in-progress session, so confirm first
   const handleSelectRoster = useCallback(
@@ -317,7 +337,7 @@ function App() {
       activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
       setScheduleEdited, setScheduleRosterId]);
 
-  const attendingPlayers = rosterPlayers.filter(
+  const attendingPlayers = sessionPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
   );
 
@@ -420,7 +440,7 @@ function App() {
   // host swaps them in, or reshuffles to have them mixed through properly.
   const handleAddPlayer = useCallback((playerId: string) => {
     if (!schedule) return;
-    const player = rosterPlayers.find((p) => p.id === playerId);
+    const player = sessionPlayers.find((p) => p.id === playerId);
     if (!player) return;
 
     setSchedule({
@@ -431,12 +451,146 @@ function App() {
     setSelectedIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
     setRemovedIds((prev) => prev.filter((id) => id !== playerId));
     setScheduleEdited(true);
-  }, [schedule, rosterPlayers, completedRounds, setSchedule, setSelectedIds, setRemovedIds,
+  }, [schedule, sessionPlayers, completedRounds, setSchedule, setSelectedIds, setRemovedIds,
       setScheduleEdited]);
 
-  // Players in the group who aren't in this session yet — including anyone
-  // removed from it earlier, since a player who left may well come back.
-  const addablePlayers = rosterPlayers.filter(
+  // Somebody nobody has met before. They join the group as well as the session,
+  // because a player who turns up once usually turns up again.
+  const handleCreatePlayer = useCallback(
+    (name: string, rating: number, gender: Gender) => {
+      const player = addPlayer(name, rating, gender, [activeRosterId]);
+      if (!schedule) return;
+      setSchedule({
+        rounds: addToRemainingRounds(schedule.rounds, completedRounds, player),
+      });
+      setSelectedIds((prev) => [...prev, player.id]);
+      setScheduleEdited(true);
+    },
+    [addPlayer, activeRosterId, schedule, completedRounds, setSchedule, setSelectedIds,
+     setScheduleEdited]
+  );
+
+  // A guest plays today and is never saved to the group. See stores.guests for
+  // why they are kept apart from the player pool rather than flagged inside it.
+  const handleAddGuest = useCallback(
+    (name: string, rating: number, gender: Gender) => {
+      if (!schedule) return;
+      const guest: Player = {
+        id: generateId(), name, rating, gender, rosterIds: [], guest: true,
+      };
+      setGuests((prev) => [...prev, guest]);
+      setSchedule({
+        rounds: addToRemainingRounds(schedule.rounds, completedRounds, guest),
+      });
+      setSelectedIds((prev) => [...prev, guest.id]);
+      setScheduleEdited(true);
+    },
+    [schedule, completedRounds, setGuests, setSchedule, setSelectedIds, setScheduleEdited]
+  );
+
+  /**
+   * One player stands in for another for the rest of the session.
+   *
+   * The substitute takes the games the player going off was down for, rather
+   * than the rounds being rebuilt around the change. Somebody arriving to cover
+   * for a twisted ankle plays where the ankle was playing.
+   *
+   * The player going off leaves the selection rather than joining removedIds.
+   * Both take them out of the session, but a removal locks the Completed
+   * checkboxes for good, and it locks them because a removal rebuilds the
+   * remaining rounds. This does not, so it has no business locking anything.
+   */
+  const handleSubstitute = useCallback(
+    (outgoingId: string, incomingId: string) => {
+      if (!schedule) return;
+      const incoming = sessionPlayers.find((p) => p.id === incomingId);
+      if (!incoming) return;
+
+      setSchedule({
+        rounds: replacePlayerInRounds(schedule.rounds, outgoingId, incoming, completedRounds),
+      });
+      setSelectedIds((prev) => [...prev.filter((id) => id !== outgoingId), incomingId]);
+      setRemovedIds((prev) => prev.filter((id) => id !== incomingId));
+      setScheduleEdited(true);
+    },
+    [schedule, sessionPlayers, completedRounds, setSchedule, setSelectedIds, setRemovedIds,
+     setScheduleEdited]
+  );
+
+  /**
+   * A rating corrected mid-session. It is saved against the player, so it holds
+   * for next week too.
+   *
+   * The schedule holds copies of the players in it, so the new rating is written
+   * through every round including the ones already played. A person has one
+   * rating, and two numbers for them on one page would only be read as a bug.
+   * Nobody moves court: the balance badges are recalculated and that is all.
+   */
+  const handleEditRating = useCallback(
+    (playerId: string, rating: number) => {
+      const guest = guests.find((p) => p.id === playerId);
+      if (guest) setGuests((prev) => prev.map((p) => (p.id === playerId ? { ...p, rating } : p)));
+      else updatePlayer(playerId, { rating });
+
+      if (!schedule) return;
+      const player = sessionPlayers.find((p) => p.id === playerId);
+      if (!player) return;
+      // Straight to the store, not through handleUpdateSchedule: the rating is
+      // saved on the player either way, so this is not work at stake.
+      setSchedule({
+        rounds: replacePlayerInRounds(schedule.rounds, playerId, { ...player, rating }),
+      });
+    },
+    [guests, setGuests, updatePlayer, schedule, sessionPlayers, setSchedule]
+  );
+
+  // A court arriving or leaving mid-session. Both edit the rounds still to be
+  // played and move numCourts with them, because numCourts is what the next
+  // reshuffle builds from — leave it behind and the first reshuffle after a
+  // court is added would quietly take it away again.
+  const handleAddCourt = useCallback(() => {
+    if (!schedule) return;
+    const activePartnerships = prunePartnerships(
+      partnerships, new Set(attendingPlayers.map((p) => p.id))
+    );
+    setSchedule({
+      rounds: addCourtToRemaining(schedule.rounds, completedRounds, activePartnerships),
+    });
+    setNumCourts(numCourts + 1);
+    setScheduleEdited(true);
+  }, [schedule, partnerships, attendingPlayers, completedRounds, numCourts, setNumCourts,
+      setSchedule, setScheduleEdited]);
+
+  const handleRemoveCourt = useCallback((courtNumber: number) => {
+    if (!schedule) return;
+    setSchedule({
+      rounds: removeCourtFromRemaining(schedule.rounds, completedRounds, courtNumber),
+    });
+    setNumCourts(Math.max(1, numCourts - 1));
+    setScheduleEdited(true);
+  }, [schedule, completedRounds, numCourts, setNumCourts, setSchedule, setScheduleEdited]);
+
+  // More rounds on the end. The ones already there do not move, and the new ones
+  // are built around them rather than from scratch.
+  const handleAddRounds = useCallback((count: number) => {
+    if (!schedule) return;
+    if (attendingPlayers.length < 4) return;
+    const activePartnerships = prunePartnerships(
+      partnerships, new Set(attendingPlayers.map((p) => p.id))
+    );
+    setSchedule(
+      extendSchedule(
+        attendingPlayers, numCourts, schedule.rounds, count, specialTypes, activePartnerships
+      )
+    );
+    setNumRounds(numRounds + count);
+  }, [schedule, attendingPlayers, partnerships, numCourts, numRounds, specialTypes,
+      setNumRounds, setSchedule]);
+
+  // Players who aren't in this session yet — including anyone removed from it
+  // earlier or subbed off, since a player who left may well come back, and a
+  // guest who has been taken off is still standing there.
+  const addablePlayers = sessionPlayers.filter(
     (p) => !attendingPlayers.some((a) => a.id === p.id)
   );
 
@@ -633,9 +787,20 @@ function App() {
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? handlePrint : undefined}
       />
+      {/* Lifted out of `main` and tucked up under the banner, so the two read as
+          one block with no seam between them. It has to sit outside `main`
+          because the banners below can come and go, and the tabs must stay
+          against the header rather than being pushed off it by a notice. */}
+      <div className="relative z-20 mx-auto -mt-3 max-w-5xl px-2">
+        <StepIndicator
+          current={step}
+          available={availableSteps}
+          onNavigate={handleStepNav}
+        />
+      </div>
       {/* Narrow side margins on purpose: every pixel across is a pixel the
           roster table and the court grid can use on a phone. */}
-      <main className="max-w-5xl mx-auto px-2 py-6 space-y-4">
+      <main className="max-w-5xl mx-auto px-2 pt-4 pb-6 space-y-4">
         {/* On every step, not just this one. A new build is worth a moment
             wherever somebody happens to be, and the alternative is holding it
             back until they navigate somewhere they may never go. */}
@@ -661,12 +826,6 @@ function App() {
               onDismiss={() => setInstallDismissed(true)}
             />
           )}
-
-        <StepIndicator
-          current={step}
-          available={availableSteps}
-          onNavigate={handleStepNav}
-        />
 
         {step === 'roster' && (
           <RosterPage
@@ -725,12 +884,22 @@ function App() {
             onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
-            onStartNewSession={handleStartNewSession}
             onUnsavedWorkChange={setScheduleHasWork}
             showSwapHint={!swapHintDismissed}
             onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
-            onAddPlayer={handleAddPlayer}
+            defaultRating={defaultRating}
+            actions={{
+              onStartNewSession: handleStartNewSession,
+              onAddPlayer: handleAddPlayer,
+              onCreatePlayer: handleCreatePlayer,
+              onAddGuest: handleAddGuest,
+              onSubstitute: handleSubstitute,
+              onEditRating: handleEditRating,
+              onAddCourt: handleAddCourt,
+              onRemoveCourt: handleRemoveCourt,
+              onAddRounds: handleAddRounds,
+            }}
           />
         )}
       </main>

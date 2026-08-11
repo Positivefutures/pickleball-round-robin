@@ -66,6 +66,21 @@ export const selectedIds = createStoredValue<string[]>('pb-selected-ids', []);
 export const removedIds = createStoredValue<string[]>('pb-removed-ids', []);
 
 /**
+ * People playing this session who are not in the group: a friend brought along,
+ * somebody's visiting brother. They are kept here rather than in the pool above
+ * for two reasons, and both of them bite.
+ *
+ * Sync watches the pool and would push a guest up as a permanent player, where
+ * the merge matches on name and lets the account win — so a guest called Dave
+ * would quietly become the group's Dave. And runMigrations() re-homes any player
+ * with no groups into the active one, so "a player belonging to nothing" does
+ * not survive a refresh.
+ *
+ * Nothing looks at this key but the session, and clearSession() empties it.
+ */
+export const guests = createStoredValue<Player[]>('pb-guests', []);
+
+/**
  * Fixed partnerships: couples kept on the same team every round. Persisted so
  * they survive a refresh and carry into the next session with the same crowd.
  */
