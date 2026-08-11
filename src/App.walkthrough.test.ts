@@ -1860,19 +1860,8 @@ describe('keeping score', () => {
 
   /** Empties both sides of the box that is already open. */
   function clearBoth() {
-    const back = () => {
-      const pad = scoreBox().querySelector('[aria-label="Score keypad"]')!;
-      click([...pad.querySelectorAll('button')].find(
-        (b) => b.getAttribute('aria-label') === 'Backspace'
-      )!);
-    };
-    for (const side of [0, 1]) {
-      click(sides()[side]);
-      // Two digits at most, and the key is disabled once there is nothing left.
-      back();
-      back();
-    }
-    click(sides()[0]);
+    // One key, which also leaves the typing on the first side.
+    key('Clear');
   }
 
   /** Types both numbers into the box that is already open, and saves. */

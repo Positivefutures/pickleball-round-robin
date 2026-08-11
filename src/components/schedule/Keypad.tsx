@@ -6,8 +6,8 @@
  * own keys rather than a text box, so the OS keyboard never comes up and shoves
  * Cancel and Done off the bottom of the screen.
  *
- * Three columns: the nine digits, then backspace, nought, and one key that
- * belongs to whoever is using the pad.
+ * Three columns: the nine digits, an optional row belonging to whoever is using
+ * the pad, then backspace, nought, and one more key of theirs.
  */
 const KEY =
   'min-h-12 rounded-md border border-[#999] bg-gray-100 font-bold text-gray-800 transition-colors hover:bg-gray-200 disabled:opacity-40';
@@ -21,11 +21,24 @@ interface Props {
   onBackspace: () => void;
   /** Nothing to rub out. */
   backspaceDisabled: boolean;
-  /** The bottom right key: 11 on a score, Clear on a court number. */
+  /**
+   * A row under the nine, of whole numbers rather than digits. The score pad
+   * carries 10, 11 and 12 there, because a game is nearly always won by one of
+   * them. Each replaces the side outright, so they are not typed into.
+   */
+  wholeRow?: { faces: string[]; onPress: (face: string) => void };
+  /** The bottom right key. Clear on both pads. */
   extraKey: { face: string; onPress: () => void };
 }
 
-export function Keypad({ label, onDigit, onBackspace, backspaceDisabled, extraKey }: Props) {
+export function Keypad({
+  label,
+  onDigit,
+  onBackspace,
+  backspaceDisabled,
+  wholeRow,
+  extraKey
+}: Props) {
   return (
     // type="button" on every one of these. Inside a form, a bare button submits,
     // and each digit would save and close the box.
@@ -37,6 +50,16 @@ export function Keypad({ label, onDigit, onBackspace, backspaceDisabled, extraKe
       {DIGITS.map((d) => (
         <button key={d} type="button" onClick={() => onDigit(d)} className={`${KEY} text-xl`}>
           {d}
+        </button>
+      ))}
+      {wholeRow?.faces.map((face) => (
+        <button
+          key={face}
+          type="button"
+          onClick={() => wholeRow.onPress(face)}
+          className={`${KEY} text-xl`}
+        >
+          {face}
         </button>
       ))}
       <button

@@ -253,20 +253,19 @@ describe('writing a score down', () => {
     expect(shown(el)).toEqual(['99', '5']);
   });
 
-  it('nudges a side up and down without retyping it', () => {
-    const el = dialog({ team1: 10, team2: 8 });
-    const plus = [...el.querySelectorAll('button')].find(
-      (b) => b.getAttribute('aria-label') === 'One more for the first side'
-    )!;
-    act(() => plus.click());
-    expect(shown(el)[0]).toBe('11');
-  });
-
-  it('will not nudge a side that has no number yet', () => {
-    const minus = [...dialog().querySelectorAll('button')].find(
-      (b) => b.getAttribute('aria-label') === 'One fewer for the first side'
-    )!;
-    expect(minus.disabled).toBe(true);
+  it('lays the pad out as the nine, the scores games end on, then the rest', () => {
+    // Written out in order because the row is the point: 10, 11 and 12 sit
+    // under 7, 8 and 9, where the eye already is. No plus or minus anywhere.
+    const faces = [...dialog().querySelector('[aria-label="Score keypad"]')!.children].map(
+      (b) => b.textContent
+    );
+    expect(faces).toEqual([
+      '1', '2', '3',
+      '4', '5', '6',
+      '7', '8', '9',
+      '10', '11', '12',
+      '⌫', '0', 'Clear'
+    ]);
   });
 
   it('colours the winner while it is still being typed', () => {
@@ -296,10 +295,12 @@ describe('writing a score down', () => {
     expect(button.disabled).toBe(true);
   });
 
-  it('writes eleven in one tap, because that is the score games go to', () => {
-    const el = dialog();
-    press(el, '11');
-    expect(shown(el)[0]).toBe('11');
+  it('writes a finished score in one tap, whichever of the three it was', () => {
+    for (const face of ['10', '11', '12']) {
+      const el = dialog();
+      press(el, face);
+      expect(shown(el)[0]).toBe(face);
+    }
   });
 
   it('moves to the other side after 11, the same as typing it', () => {
@@ -316,17 +317,36 @@ describe('writing a score down', () => {
     expect(shown(el)).toEqual(['11', '7']);
   });
 
-  it('takes a score back by emptying both sides and saving', () => {
+  it('empties both sides at once, not just the one being typed into', () => {
+    const el = dialog({ team1: 11, team2: 7 });
+    tapSide(el, 1);
+    press(el, 'Clear');
+    expect(shown(el)).toEqual(['–', '–']);
+  });
+
+  it('puts the typing back on the first side, so Clear starts the job over', () => {
+    const el = dialog({ team1: 11, team2: 7 });
+    tapSide(el, 1);
+    press(el, 'Clear');
+    press(el, '9');
+    expect(shown(el)).toEqual(['9', '–']);
+  });
+
+  it('takes a score back with Clear and Save', () => {
     // No delete button. Emptying the board and saving it is the way.
     let saved: CourtScore | null | undefined = { team1: 0, team2: 0 };
     const el = dialog({ team1: 11, team2: 7 }, (s) => { saved = s; });
-    backspace(el);
-    backspace(el);
-    tapSide(el, 1);
-    backspace(el);
-    expect(shown(el)).toEqual(['–', '–']);
+    press(el, 'Clear');
     save(el);
     expect(saved).toBeNull();
+  });
+
+  it('still rubs out one digit at a time', () => {
+    // Clear is the quick way, not the only one: a mistyped 1 in 11 should not
+    // cost the side that was already written down.
+    const el = dialog({ team1: 11, team2: 7 });
+    backspace(el);
+    expect(shown(el)).toEqual(['1', '7']);
   });
 
   it('names the sides, so the host knows which panel is which', () => {

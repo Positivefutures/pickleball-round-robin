@@ -9,7 +9,15 @@ import { useScrollLock } from '../../hooks/useScrollLock';
 
 /** Nobody wins a pickleball game by three figures. */
 const MAX_DIGITS = 2;
-const MAX_SCORE = 99;
+
+/**
+ * The scores a game actually ends on, each on a key of its own.
+ *
+ * Games go to 11, and to 12 or 10 often enough that all three are worth a tap
+ * rather than two. They sit under the nine digits, which is where the eye
+ * already is once 7, 8 and 9 have been passed.
+ */
+const WHOLE_SCORES = ['10', '11', '12'];
 
 interface Props {
   court: CourtAssignment;
@@ -40,7 +48,7 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
 
   // A half score is not a score, so both or neither. Both empty saves as a
   // deletion, which is how a score written down by mistake is taken back:
-  // backspace both sides, then Save.
+  // Clear, then Save.
   const canSave = (team1 === '') === (team2 === '');
 
   // What the panels are wearing right now, so the winner turns green as it is
@@ -59,20 +67,27 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
   }
 
   /**
-   * Eleven, in one tap.
+   * A finished score, in one tap.
    *
-   * Games are played to 11 far more often than to anything else, so the winning
-   * side is nearly always the same two digits. It replaces what is there rather
-   * than adding to it, and then moves across exactly as typing 1 then 1 does.
+   * It replaces what is there rather than adding to it, so 9 then the 11 key is
+   * eleven and not 91. Then it moves across, exactly as typing 1 then 1 does.
    */
-  function pressEleven() {
-    setValue('11');
+  function pressWhole(score: string) {
+    setValue(score);
     if (other === '') setSide(side === 'team1' ? 'team2' : 'team1');
   }
 
-  function nudge(delta: number) {
-    const next = Math.min(MAX_SCORE, Math.max(0, Number(value || '0') + delta));
-    setValue(String(next));
+  /**
+   * Both sides back to empty, and the typing back to the left.
+   *
+   * The way out of a score typed into the wrong side, which used to mean
+   * backspacing each one in turn. Saving from here takes the score off the
+   * court, so this is also how one written down by mistake is undone.
+   */
+  function clearBoth() {
+    setTeam1('');
+    setTeam2('');
+    setSide('team1');
   }
 
   function handleSubmit(e: FormEvent) {
@@ -100,28 +115,6 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
         active={side === which}
       />
     </button>
-  );
-
-  const nudgeRow = (which: Side) => (
-    <div className="flex justify-center gap-1">
-      <button
-        type="button"
-        onClick={() => { setSide(which); nudge(-1); }}
-        disabled={(which === 'team1' ? team1 : team2) === ''}
-        className="min-h-9 min-w-9 rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
-        aria-label={`One fewer for ${which === 'team1' ? 'the first side' : 'the second side'}`}
-      >
-        &minus;
-      </button>
-      <button
-        type="button"
-        onClick={() => { setSide(which); nudge(1); }}
-        className="min-h-9 min-w-9 rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300"
-        aria-label={`One more for ${which === 'team1' ? 'the first side' : 'the second side'}`}
-      >
-        +
-      </button>
-    </div>
   );
 
   return (
@@ -161,18 +154,13 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
           {sideButton('team2', formatTeam(court.team2, court))}
         </div>
 
-        <div className="mt-2 flex items-start justify-center gap-[8px]">
-          <div className="w-[6.5rem]">{nudgeRow('team1')}</div>
-          <span className="w-[5px]" />
-          <div className="w-[6.5rem]">{nudgeRow('team2')}</div>
-        </div>
-
         <Keypad
           label="Score keypad"
           onDigit={pressDigit}
           onBackspace={() => setValue(value.slice(0, -1))}
           backspaceDisabled={value === ''}
-          extraKey={{ face: '11', onPress: pressEleven }}
+          wholeRow={{ faces: WHOLE_SCORES, onPress: pressWhole }}
+          extraKey={{ face: 'Clear', onPress: clearBoth }}
         />
 
         <div className="mt-5 flex gap-3">

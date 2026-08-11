@@ -20,9 +20,9 @@ interface Props {
  * Renaming a court.
  *
  * The same panel and pad as the score box, with one number instead of two and
- * no nudges: a court is called what the centre calls it, and 7 is not one more
- * than 6 in any sense worth a button. Sharing the pad means the second box a
- * host meets is the one they already know.
+ * the nine digits alone: a court is called what the centre calls it, so 11 is
+ * no likelier than 3 and has earned no key of its own. Sharing the pad means
+ * the second box a host meets is the one they already know.
  *
  * Still a form, so the whole job is a tap, a digit and Done.
  */

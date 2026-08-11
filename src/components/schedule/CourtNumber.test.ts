@@ -204,9 +204,9 @@ describe('the box', () => {
     expect(shown()).toBe('79');
   });
 
-  it('is typed on the same pad as a score, without the nudges', () => {
-    // One panel, not two, and no plus or minus: 7 is not one more than 6 in
-    // any sense a court number cares about.
+  it('is typed on the same pad as a score, without the scores', () => {
+    // One panel, not two, and none of the 10, 11, 12 row: a hall numbers its
+    // courts from 1 up, so 11 is no likelier here than 3.
     render();
     click(courtButton(1, 'COURT 1'));
     expect(dialog().querySelectorAll('[role="status"]')).toHaveLength(1);
