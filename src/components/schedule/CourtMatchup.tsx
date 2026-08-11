@@ -4,6 +4,7 @@ import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
 import { TrashIcon } from './icons';
 import { GuestChip } from './GuestChip';
+import { Scoreboard } from './Scoreboard';
 
 interface Props {
   court: CourtAssignment;
@@ -20,6 +21,10 @@ interface Props {
   offFormat?: boolean;
   /** Opens the box for renaming this court. Absent on a round that cannot be edited. */
   onEditNumber?: () => void;
+  /** Whether this session keeps score. Off, and the board is not drawn at all. */
+  showScore?: boolean;
+  /** Opens the box for writing the score down. */
+  onEditScore?: () => void;
 }
 
 function LockIcon({ locked }: { locked: boolean }) {
@@ -306,7 +311,7 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false, onEditNumber }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onRequestRemove, readOnly = false, offFormat = false, onEditNumber, showScore = false, onEditScore }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -329,7 +334,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center gap-2 mb-3">
         <div className="flex items-center gap-2">
           {/* Still a heading either way. On a round that can be edited it holds
               a button, because the number is the host's to set: a centre gives
@@ -359,6 +364,27 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
             </span>
           )}
         </div>
+
+        {/* On the header line, between the court's name and its balance, because
+            that row is where a card says what it is rather than who is on it.
+
+            Not gated on readOnly, unlike everything else on this card. Writing
+            the score down after a round has been played is the ordinary case,
+            not the exception. Screen only: the sheet is read out before the
+            games, when there is nothing to write down yet.
+
+            A court with nobody on one side is a place waiting for players and
+            has no game to give a score to. */}
+        {showScore && court.team1.length > 0 && court.team2.length > 0 && (
+          <div className="no-print flex flex-1 justify-center">
+            <Scoreboard
+              score={court.score}
+              courtNumber={court.courtNumber}
+              onTap={onEditScore}
+            />
+          </div>
+        )}
+
         {showBalance && <BalanceIndicator ratingDiff={court.ratingDiff} />}
       </div>
 

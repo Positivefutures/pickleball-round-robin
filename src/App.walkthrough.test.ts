@@ -22,7 +22,7 @@ const NAMES = [
 ];
 
 /** Seeds a group of `inGroup` players with the first `selected` of them attending. */
-function seed(inGroup: number, selected: number, courts: number) {
+function seed(inGroup: number, selected: number, courts: number, scoring = false) {
   window.localStorage.clear();
   const players = NAMES.slice(0, inGroup).map((name, i) => ({
     id: `p${i + 1}`,
@@ -40,6 +40,7 @@ function seed(inGroup: number, selected: number, courts: number) {
   );
   window.localStorage.setItem('pb-num-courts', JSON.stringify(courts));
   window.localStorage.setItem('pb-num-rounds', JSON.stringify(8));
+  window.localStorage.setItem('pb-scoring-enabled', JSON.stringify(scoring));
   runMigrations();
 }
 
@@ -206,22 +207,24 @@ describe('9 players / 2 courts', () => {
     mount();
     generate();
 
-    // Nobody to add while all nine are in the session.
-    expect(buttons(/\+ Add Player/)).toHaveLength(0);
-
     const victim = storedSchedule().rounds[0].courts[0].team1[0];
     const card = roundCard(1);
     clickButton(new RegExp(`^${victim.name}`), card); // select, revealing the trash icon
     click(card.querySelector(`[aria-label="Remove ${victim.name}"]`)!);
     clickButton(/^Yes$/);
 
-    // The sit-out row's own button opens the Actions sheet straight onto the
-    // Add a Player view, rather than a second dialog that says the same thing.
-    expect(buttons(/\+ Add Player/).length).toBeGreaterThan(0);
-    clickButton(/\+ Add Player/);
+    action(/^Add a Player$/);
     expect(text(sheet())).toContain('Who is joining?');
     const offered = buttons(/./, sheet()).map(text);
     expect(offered.filter((t) => t.includes(victim.name))).toHaveLength(1);
+  });
+
+  it('offers nobody to add while the whole group is already playing', () => {
+    mount();
+    generate();
+
+    action(/^Add a Player$/);
+    expect(text(sheet())).toContain('Everyone in this group is already playing');
   });
 });
 
@@ -300,12 +303,7 @@ describe('10 in the group, 9 playing / 2 courts', () => {
     const before = storedSchedule();
     const kept = before.rounds.slice(0, 3).map(fingerprint);
 
-    // The button sits on the first unplayed round, and only there.
-    const adds = buttons(/\+ Add Player/);
-    expect(adds).toHaveLength(1);
-    expect(roundCard(4).contains(adds[0])).toBe(true);
-
-    click(adds[0]);
+    action(/^Add a Player$/);
     expect(text(sheet())).toContain('Who is joining?');
     clickButton(/^Jo/, sheet());
 
@@ -348,13 +346,15 @@ describe('10 in the group, 9 playing / 2 courts', () => {
 describe('9 in the group, 8 playing / 2 courts (nobody sits out)', () => {
   beforeEach(() => seed(9, 8, 2));
 
-  it('step 5 — Add Player shows with no "Sitting out" label', () => {
+  it('step 5 — the sit-out row is gone entirely, not left empty', () => {
+    // It used to render with no label so it could carry an Add Player button.
+    // With that button back in the Actions sheet there is nothing to hold up.
     mount();
     generate();
 
     expect(storedSchedule().rounds.every((r) => r.sitOuts.length === 0)).toBe(true);
     expect(container.textContent).not.toContain('Sitting out');
-    expect(buttons(/\+ Add Player/)).toHaveLength(1);
+    expect(buttons(/Add Player/)).toHaveLength(0);
   });
 });
 
@@ -903,7 +903,7 @@ describe('filling an empty place', () => {
    */
   function addPlayer(): string {
     const before = new Set(everyone(1));
-    clickButton(/\+ Add Player/);
+    action(/^Add a Player$/);
     const rows = buttons(/\d\.\d$/, sheet());
     expect(rows.length).toBeGreaterThan(0);
     click(rows[0]);
@@ -1423,6 +1423,214 @@ describe('the Actions sheet', () => {
         const everyone = [...onCourt(r), ...r.sitOuts.map((p) => p.name)];
         expect(everyone, `Round ${r.roundNumber}`).toContain('Nia');
       }
+    });
+  });
+});
+
+/**
+ * Keeping score, from the toggle in Setup to the number in localStorage.
+ *
+ * The unit tests prove the board colours itself and the table ranks correctly.
+ * What is proved here is the part only the whole app can show: that a score
+ * typed on a court reaches storage, survives a round being marked complete, and
+ * can still be changed afterwards.
+ */
+describe('keeping score', () => {
+  /** Every scoreboard on screen, found by the label rather than by position. */
+  function boards(scope: ParentNode = container): HTMLElement[] {
+    return [...scope.querySelectorAll('button[aria-haspopup="dialog"]')].filter((b) =>
+      (b.getAttribute('aria-label') ?? '').includes('score')
+    ) as HTMLElement[];
+  }
+
+  /** The open score box. Not sheet(): the Actions sheet answers to that too. */
+  function scoreBox(): HTMLElement {
+    const found = container.querySelector('[role="dialog"][aria-label*="score"]');
+    if (!found) throw new Error('the score box is not open');
+    return found as HTMLElement;
+  }
+
+  /** Taps a key on the box's own keypad, which is the only way in. */
+  function key(face: string) {
+    const pad = scoreBox().querySelector('[aria-label="Score keypad"]')!;
+    const found = [...pad.querySelectorAll('button')].find((b) => text(b) === face);
+    if (!found) throw new Error(`no key reading ${face}`);
+    click(found);
+  }
+
+  /** The two panels inside the open box, left then right. */
+  function sides(): HTMLElement[] {
+    return [...scoreBox().querySelectorAll('[aria-label^="Score for"]')] as HTMLElement[];
+  }
+
+  /** Types both numbers into the box that is already open, and saves. */
+  function fill(left: string, right: string) {
+    key('Clear');
+    for (const d of left) key(d);
+    // Tapped across rather than left to the auto-advance, which only fires on a
+    // full two digits. A score of 9 does not fill its side.
+    click(sides()[1]);
+    for (const d of right) key(d);
+    clickButton(/^Save$/, scoreBox());
+  }
+
+  /** Opens the nth board on screen and writes a score into it. */
+  function score(nth: number, left: string, right: string) {
+    click(boards()[nth]);
+    fill(left, right);
+  }
+
+  const firstCourt = () => storedSchedule().rounds[0].courts[0];
+
+  describe('with scoring on', () => {
+    beforeEach(() => seed(9, 9, 2, true));
+
+    it('puts a board on every court, waiting for a number', () => {
+      mount();
+      generate();
+
+      const round1 = boards(roundCard(1));
+      expect(round1).toHaveLength(2);
+      expect(round1[0].getAttribute('aria-label')).toMatch(/^Enter the score for court/);
+    });
+
+    it('writes what is typed through to the stored schedule', () => {
+      mount();
+      generate();
+      score(0, '11', '7');
+
+      expect(firstCourt().score).toEqual({ team1: 11, team2: 7 });
+    });
+
+    it('lets a score be changed after the round is marked complete', () => {
+      // The whole reason the board ignores readOnly. The host ticks the round
+      // off, then walks back and writes down what actually happened.
+      mount();
+      generate();
+      score(0, '11', '7');
+
+      markComplete(1);
+      // A completed round collapses, so the board is behind View.
+      clickButton(/^View$/, roundCard(1));
+
+      click(boards(roundCard(1))[0]);
+      fill('9', '11');
+
+      expect(firstCourt().score).toEqual({ team1: 9, team2: 11 });
+      expect(completedRounds()).toEqual([1]);
+    });
+
+    it('takes a score back with Clear and Save', () => {
+      mount();
+      generate();
+      score(0, '11', '7');
+      expect(firstCourt().score).toBeDefined();
+
+      click(boards()[0]);
+      clickButton(/^Clear$/, scoreBox());
+      clickButton(/^Save$/, scoreBox());
+
+      // Gone rather than zeroed: 0-0 is a score somebody could mean.
+      expect(firstCourt().score).toBeUndefined();
+    });
+
+    it('shows the standings once something has been scored', () => {
+      mount();
+      generate();
+      expect(container.textContent).toContain('No scores yet');
+
+      score(0, '11', '7');
+      expect(container.textContent).not.toContain('No scores yet');
+      expect(container.textContent).toContain('Standings');
+    });
+
+    it('drops a score when the round it was on is reshuffled', () => {
+      // Reshuffle rebuilds every round not marked complete, so the game that
+      // score described no longer exists. Pinned so it stays a decision.
+      mount();
+      generate();
+      score(0, '11', '7');
+
+      action(/^Reshuffle$/);
+      expect(firstCourt().score).toBeUndefined();
+    });
+
+    it('keeps a score on a round already marked complete through a reshuffle', () => {
+      mount();
+      generate();
+      score(0, '11', '7');
+      markComplete(1);
+
+      action(/^Reshuffle$/);
+      expect(firstCourt().score).toEqual({ team1: 11, team2: 7 });
+    });
+
+    it('keeps the preference but loses the scores on a new session', () => {
+      mount();
+      generate();
+      score(0, '11', '7');
+
+      action(/^Start New Session$/);
+      clickButton(/^Yes, Start New$/, sheet());
+
+      expect(storedSchedule()).toBeNull();
+      // The board is how this host runs their group. It outlives the afternoon.
+      expect(JSON.parse(window.localStorage.getItem('pb-scoring-enabled')!)).toBe(true);
+    });
+
+    it('tells a completed round it can still be scored', () => {
+      mount();
+      generate();
+      markComplete(1);
+      clickButton(/^View$/, roundCard(1));
+
+      expect(text(roundCard(1))).toContain('Scores can still be changed');
+      expect(text(roundCard(1))).not.toContain('can no longer be edited');
+    });
+  });
+
+  describe('with scoring off', () => {
+    beforeEach(() => seed(9, 9, 2, false));
+
+    it('draws no board and no standings', () => {
+      mount();
+      generate();
+
+      expect(boards()).toHaveLength(0);
+      expect(container.textContent).not.toContain('Standings');
+    });
+
+    it('still says a completed round is closed', () => {
+      mount();
+      generate();
+      markComplete(1);
+      clickButton(/^View$/, roundCard(1));
+
+      expect(text(roundCard(1))).toContain('can no longer be edited');
+    });
+
+    it('turns on from the Setup panel and puts boards on the courts', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+
+      // One control that goes both ways, so the same tap has to turn it back
+      // off again. A switch stuck on is the failure a Yes/No pair could not have.
+      const toggle = container.querySelector('button[role="switch"]') as HTMLButtonElement;
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+      act(() => toggle.click());
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+      expect(JSON.parse(window.localStorage.getItem('pb-scoring-enabled')!)).toBe(true);
+
+      act(() => toggle.click());
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+      expect(JSON.parse(window.localStorage.getItem('pb-scoring-enabled')!)).toBe(false);
+
+      act(() => toggle.click());
+      expect(JSON.parse(window.localStorage.getItem('pb-scoring-enabled')!)).toBe(true);
+
+      clickButton(/^Generate Schedule/);
+      expect(boards().length).toBeGreaterThan(0);
     });
   });
 });

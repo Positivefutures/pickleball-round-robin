@@ -9,6 +9,8 @@ interface Props {
   numPlayers: number;
   specialTypes: SpecialGameTypes;
   onOpenSpecialTypes: () => void;
+  scoringEnabled: boolean;
+  onScoringChange: (on: boolean) => void;
 }
 
 export function SessionConfig({
@@ -19,6 +21,8 @@ export function SessionConfig({
   numPlayers,
   specialTypes,
   onOpenSpecialTypes,
+  scoringEnabled,
+  onScoringChange,
 }: Props) {
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
@@ -108,6 +112,32 @@ export function SessionConfig({
           className="min-h-10 px-4 flex items-center justify-center bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
         >
           Select Special Game Types
+        </button>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
+        {/* A real switch, `role="switch"` rather than a checkbox, so a screen
+            reader says "on" and "off" and not "ticked". The knob is a box like
+            the track, sliding its own width across it. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={scoringEnabled}
+          aria-label="Keep Score?"
+          onClick={() => onScoringChange(!scoringEnabled)}
+          className={`flex h-7 w-[3.125rem] shrink-0 items-center rounded-[6px] border-2 transition-colors ${
+            scoringEnabled
+              ? 'border-green-700 bg-green-600'
+              : 'border-gray-400 bg-gray-200'
+          }`}
+        >
+          {/* Travel is the track's inside width less the knob's: 46 − 22. */}
+          <span
+            className={`block h-[22px] w-[22px] rounded-[4px] bg-white shadow transition-transform duration-150 ${
+              scoringEnabled ? 'translate-x-[1.5rem]' : 'translate-x-0'
+            }`}
+          />
         </button>
       </div>
     </div>

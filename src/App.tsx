@@ -81,6 +81,7 @@ function App() {
   const [numCourts, setNumCourts] = useStoredValue(stores.numCourts);
   const [numRounds, setNumRounds] = useStoredValue(stores.numRounds);
   const [specialTypes, setSpecialTypes] = useStoredValue(stores.specialTypes);
+  const [scoringEnabled, setScoringEnabled] = useStoredValue(stores.scoringEnabled);
 
   // Live session state — persisted so a refresh mid-session doesn't lose the
   // schedule or which rounds have already been played.
@@ -90,6 +91,7 @@ function App() {
   const [guests, setGuests] = useStoredValue(stores.guests);
   const [scheduleEdited, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
+  const [, setSessionId] = useStoredValue(stores.sessionId);
 
   const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
   // Setup opens the first time the host reaches it and stays open, so a trip
@@ -262,8 +264,9 @@ function App() {
       setPartnerships([]);
     }
     setScheduleRosterId(null);
+    setSessionId(null);
   }, [setSchedule, setCompletedRounds, setRemovedIds, setGuests, setScheduleEdited,
-      setSelectedIds, setPartnerships, setScheduleRosterId]);
+      setSelectedIds, setPartnerships, setScheduleRosterId, setSessionId]);
 
   // Switching rosters invalidates an in-progress session, so confirm first
   const handleSelectRoster = useCallback(
@@ -332,10 +335,13 @@ function App() {
     setRemovedIds([]);
     setScheduleEdited(false);
     setScheduleRosterId(activeRosterId);
+    // Nothing reads this yet. A session gets its name here so that sharing one
+    // already under way has a key to hand rather than minting one halfway.
+    setSessionId(generateId());
     setStep('schedule');
   }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
       activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
-      setScheduleEdited, setScheduleRosterId]);
+      setScheduleEdited, setScheduleRosterId, setSessionId]);
 
   const attendingPlayers = sessionPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
@@ -855,6 +861,8 @@ function App() {
             numCourts={numCourts}
             numRounds={numRounds}
             specialTypes={specialTypes}
+            scoringEnabled={scoringEnabled}
+            onScoringChange={setScoringEnabled}
             onTogglePlayer={togglePlayer}
             onSelectAll={selectAll}
             onDeselectAll={deselectAll}
@@ -889,6 +897,7 @@ function App() {
             onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
             defaultRating={defaultRating}
+            scoringEnabled={scoringEnabled}
             actions={{
               onStartNewSession: handleStartNewSession,
               onAddPlayer: handleAddPlayer,

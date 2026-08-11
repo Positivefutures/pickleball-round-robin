@@ -2,10 +2,11 @@
  * Shown in the footer and attached to every bug report, so it must be bumped
  * with each deploy — a stale version sends you looking at the wrong code.
  *
- * Scheme: patch for small changes (1.20.1, 1.20.2 …), middle in steps of ten
- * for a batch of features (1.10 → 1.20 → 1.30).
+ * Scheme: two numbers, no patch. Steps of ten for a batch of features
+ * (1.40 → 1.50), and the odd number in between for a smaller change (1.51).
+ * Nothing parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '1.40.0';
+export const APP_VERSION = '1.50';
 
 /**
  * Master switch for the accounts feature.

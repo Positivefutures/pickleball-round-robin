@@ -17,6 +17,8 @@ interface Props {
   numCourts: number;
   numRounds: number;
   specialTypes: SpecialGameTypes;
+  scoringEnabled: boolean;
+  onScoringChange: (on: boolean) => void;
   onTogglePlayer: (id: string) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -36,6 +38,8 @@ export function SetupPage({
   numCourts,
   numRounds,
   specialTypes,
+  scoringEnabled,
+  onScoringChange,
   onTogglePlayer,
   onSelectAll,
   onDeselectAll,
@@ -153,6 +157,8 @@ export function SetupPage({
           numPlayers={selectedIds.length}
           specialTypes={specialTypes}
           onOpenSpecialTypes={() => setSpecialTypesOpen(true)}
+          scoringEnabled={scoringEnabled}
+          onScoringChange={onScoringChange}
         />
       </div>
 

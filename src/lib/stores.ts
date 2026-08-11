@@ -41,6 +41,20 @@ export const numCourts = createStoredValue('pb-num-courts', 3);
 export const numRounds = createStoredValue('pb-num-rounds', 8);
 export const largeText = createStoredValue<boolean>('pb-large-text', false);
 
+/**
+ * Whether courts carry a scoreboard.
+ *
+ * The person's rather than the device's: keeping score is how this host runs
+ * their group, the same sort of thing as the number of courts they book. The
+ * device half below exists for what two phones could disagree about mid-session,
+ * and a preference is not that — a second phone at the same session showing no
+ * scoreboards would read as a fault.
+ *
+ * Off by default. An existing host's court cards should not change under them
+ * without being asked.
+ */
+export const scoringEnabled = createStoredValue<boolean>('pb-scoring-enabled', false);
+
 /** Gendered, mixed and equal-skill rounds, each with its own frequency. */
 export const specialTypes = createStoredValue<SpecialGameTypes>(
   KEYS.specialTypes,
@@ -55,6 +69,16 @@ export const specialTypes = createStoredValue<SpecialGameTypes>(
 
 /** Persisted so a refresh mid-session doesn't lose the schedule. */
 export const schedule = createStoredValue<Schedule | null>(KEYS.schedule, null);
+
+/**
+ * This session, by name. Minted when a schedule is generated and gone when the
+ * session is.
+ *
+ * Nothing reads it yet. It exists so that sharing a session already an hour
+ * under way has a key to hand, rather than having to invent one for an
+ * afternoon that is half over.
+ */
+export const sessionId = createStoredValue<string | null>('pb-session-id', null);
 
 /**
  * Round numbers marked complete. An arbitrary set — the host may complete
@@ -87,9 +111,9 @@ export const guests = createStoredValue<Player[]>('pb-guests', []);
 export const partnerships = createStoredValue<Partnership[]>(KEYS.partnerships, []);
 
 /**
- * True once the host has hand-modified the generated schedule — a swap or a
- * player removal. Persisted alongside the schedule so a refresh mid-session
- * doesn't make an edited schedule look untouched.
+ * True once the host has hand-modified the generated schedule — a swap, a
+ * player removal, or a score written down. Persisted alongside the schedule so a
+ * refresh mid-session doesn't make an edited schedule look untouched.
  */
 export const scheduleEdited = createStoredValue<boolean>('pb-schedule-edited', false);
 

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
@@ -21,8 +20,10 @@ interface Props {
   onToggleExpand: () => void;
   /** Opens the box for renaming a court in this round. */
   onEditCourtNumber: (courtIdx: number) => void;
-  /** Shown on this round's "Sitting out" line — only the first unplayed round gets one. */
-  sitOutAction?: ReactNode;
+  /** Whether this session keeps score. */
+  scoringEnabled: boolean;
+  /** Opens the box for writing down a court's score. */
+  onEditScore: (courtIdx: number) => void;
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -53,7 +54,8 @@ export function RoundCard({
   onToggleComplete,
   onToggleExpand,
   onEditCourtNumber,
-  sitOutAction,
+  scoringEnabled,
+  onEditScore,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
@@ -123,9 +125,13 @@ export function RoundCard({
 
       {showBody && (
         <>
+          {/* The line changes with scoring on, because the plain one would be a
+              lie: the players are fixed but the board is still live. */}
           {isComplete && (
             <p className="text-xs text-gray-500 italic mt-3 no-print">
-              This round is complete and can no longer be edited.
+              {scoringEnabled
+                ? 'This round is complete. Scores can still be changed.'
+                : 'This round is complete and can no longer be edited.'}
             </p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
@@ -152,6 +158,8 @@ export function RoundCard({
                   readOnly={isComplete}
                   offFormat={!!roundType && !courtMatchesType(court, roundType)}
                   onEditNumber={() => onEditCourtNumber(courtIdx)}
+                showScore={scoringEnabled}
+                onEditScore={() => onEditScore(courtIdx)}
                 />
               );
             })}
@@ -164,7 +172,6 @@ export function RoundCard({
             onRequestRemove={onRequestRemove}
             allPlayers={allPlayers}
             readOnly={isComplete}
-            action={sitOutAction}
           />
         </>
       )}

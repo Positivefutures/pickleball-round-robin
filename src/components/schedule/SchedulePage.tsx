@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Schedule, Player, LockedPair, Partnership, Round } from '../../types';
+import type { Schedule, Player, LockedPair, Partnership, Round, CourtScore } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
 import { renumberFrom } from '../../lib/courtNumbers';
@@ -8,6 +8,8 @@ import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
 import { CourtNumberDialog } from './CourtNumberDialog';
+import { ScoreDialog } from './ScoreDialog';
+import { StandingsPanel } from './StandingsPanel';
 import { SwapHint } from './SwapHint';
 import { ActionsButton } from './ActionsButton';
 import { ActionsSheet, type ActionsEntry, type ScheduleActions } from './ActionsSheet';
@@ -88,6 +90,8 @@ interface Props {
    */
   actions: Omit<ScheduleActions, 'onReshuffle'>;
   defaultRating: number;
+  /** Whether this session keeps score: the boards and the standings table. */
+  scoringEnabled: boolean;
 }
 
 // The padlocks shown for a round: every intact (non-broken) couple found in the
@@ -132,6 +136,7 @@ export function SchedulePage({
   addablePlayers,
   actions,
   defaultRating,
+  scoringEnabled,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
@@ -148,6 +153,11 @@ export function SchedulePage({
 
   // Which court is being renamed, by the round it was opened from.
   const [editingCourt, setEditingCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
+    null
+  );
+
+  // Which court is being scored. Same shape, and open on a completed round too.
+  const [scoringCourt, setScoringCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
     null
   );
 
@@ -192,6 +202,39 @@ export function SchedulePage({
       ),
     });
     setEditingCourt(null);
+  }
+
+  /**
+   * Writing a score down, or taking one back.
+   *
+   * Goes out through onUpdateSchedule like every other change to a schedule,
+   * rather than getting a route of its own. One seam is what lets a session be
+   * published from one place later.
+   */
+  function handleScoreDone(score: CourtScore | null) {
+    if (!scoringCourt) return;
+    const { roundIdx, courtIdx } = scoringCourt;
+    onUpdateSchedule({
+      rounds: schedule.rounds.map((round, ri) => {
+        if (ri !== roundIdx) return round;
+        return {
+          ...round,
+          courts: round.courts.map((court, ci) => {
+            if (ci !== courtIdx) return court;
+            if (score === null) {
+              if (court.score === undefined) return court;
+              // Deleted rather than zeroed, so an unscored court is a court with
+              // no score and the board goes back to its dashes.
+              const next = { ...court };
+              delete next.score;
+              return next;
+            }
+            return { ...court, score };
+          }),
+        };
+      }),
+    });
+    setScoringCourt(null);
   }
 
   function handleConfirmRemove() {
@@ -459,21 +502,9 @@ export function SchedulePage({
   const currentCourts = effectiveCourtCount(players.length, numCourts);
   const nextCourts = effectiveCourtCount(players.length - 1, numCourts);
 
-  // Add Player lands on the earliest round still to be played — one button, not
-  // one per round, since adding affects every unplayed round alike. Keyed off
-  // the original index because completed rounds are re-sorted for display.
-  const firstOpenIdx = schedule.rounds.findIndex((r) => !completedSet.has(r.roundNumber));
-  const canAddPlayer = firstOpenIdx !== -1 && addablePlayers.length > 0;
-
-  const addPlayerButton = (
-    <button
-      type="button"
-      onClick={() => openActions('add-player')}
-      className="no-print shrink-0 whitespace-nowrap rounded-md border border-[#999] bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300"
-    >
-      + Add Player
-    </button>
-  );
+  // Adding a player is an Actions card and only an Actions card. It used to have
+  // a shortcut on the first unplayed round's sit-out line, which put a second
+  // way in on a page whose whole point is that Actions is the one way in.
 
   return (
     <div className="space-y-6 no-print">
@@ -517,9 +548,8 @@ export function SchedulePage({
             onToggleComplete={() => handleToggleComplete(round.roundNumber)}
             onToggleExpand={() => handleToggleExpand(round.roundNumber)}
             onEditCourtNumber={(courtIdx) => setEditingCourt({ roundIdx, courtIdx })}
-            sitOutAction={
-              canAddPlayer && roundIdx === firstOpenIdx ? addPlayerButton : undefined
-            }
+            scoringEnabled={scoringEnabled}
+            onEditScore={(courtIdx) => setScoringCourt({ roundIdx, courtIdx })}
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
@@ -529,6 +559,10 @@ export function SchedulePage({
         </div>
         );
       })}
+
+      {/* Above the matrix on purpose. The standings are what the room asks for;
+          the partner matrix is a diagnostic. */}
+      {scoringEnabled && <StandingsPanel schedule={schedule} players={players} />}
 
       <PartnerSummary schedule={schedule} players={players} />
 
@@ -556,6 +590,14 @@ export function SchedulePage({
           roundNumber={schedule.rounds[editingCourt.roundIdx].roundNumber}
           onDone={handleCourtNumberDone}
           onCancel={() => setEditingCourt(null)}
+        />
+      )}
+
+      {scoringCourt && schedule.rounds[scoringCourt.roundIdx]?.courts[scoringCourt.courtIdx] && (
+        <ScoreDialog
+          court={schedule.rounds[scoringCourt.roundIdx].courts[scoringCourt.courtIdx]}
+          onDone={handleScoreDone}
+          onCancel={() => setScoringCourt(null)}
         />
       )}
 

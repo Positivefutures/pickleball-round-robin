@@ -46,7 +46,10 @@ const court: CourtAssignment = {
 let root: Root;
 let container: HTMLElement;
 
-function render(which: CourtAssignment = court): HTMLElement {
+function render(
+  which: CourtAssignment = court,
+  extra: { showScore?: boolean; readOnly?: boolean } = {}
+): HTMLElement {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -62,6 +65,8 @@ function render(which: CourtAssignment = court): HTMLElement {
         lockedTeams: { team1: false, team2: false },
         onToggleLock: () => {},
         onRequestRemove: () => {},
+        onEditScore: () => {},
+        ...extra,
       })
     );
   });
@@ -196,5 +201,72 @@ describe('a court with two players', () => {
   it('still says how close the two players are', () => {
     // One against one is a comparison that means something, unlike a 2v1.
     expect(render(singlesCourt).textContent).toContain('Diff');
+  });
+});
+
+/**
+ * The scoreboard on a court.
+ *
+ * Two of these are the reason the feature works at all and neither is visible in
+ * a screenshot: the board stays live on a round already marked complete, and a
+ * score never touches the colour of the players underneath it.
+ */
+/**
+ * The board, if there is one. Found by its label rather than by aria-haspopup:
+ * the court number opens a box too and carries the same attribute.
+ */
+function scoreboard(root: HTMLElement): HTMLElement | null {
+  return (
+    [...root.querySelectorAll('button[aria-haspopup="dialog"]')].find((b) =>
+      (b.getAttribute('aria-label') ?? '').includes('score')
+    ) as HTMLElement | undefined
+  ) ?? null;
+}
+
+const scoredCourt: CourtAssignment = {
+  courtNumber: 1,
+  team1: [players[0], players[1]],
+  team2: [players[2], players[3]],
+  ratingDiff: 0,
+  score: { team1: 11, team2: 7 },
+};
+
+describe('the scoreboard on a court', () => {
+  it('is not drawn at all when the session does not keep score', () => {
+    expect(scoreboard(render(court, { showScore: false }))).toBeNull();
+  });
+
+  it('is drawn when it does', () => {
+    expect(scoreboard(render(court, { showScore: true }))).not.toBeNull();
+  });
+
+  it('is still there on a round marked complete', () => {
+    // Everything else on this card freezes when the round is done. The board
+    // must not: writing the score down afterwards is the ordinary case.
+    const el = render(scoredCourt, { showScore: true, readOnly: true });
+    expect(scoreboard(el)).not.toBeNull();
+    expect(el.textContent).toContain('11');
+  });
+
+  it('is not drawn on a court still waiting for players', () => {
+    const empty: CourtAssignment = { courtNumber: 9, team1: [], team2: [], ratingDiff: 0 };
+    expect(scoreboard(render(empty, { showScore: true }))).toBeNull();
+  });
+
+  it('leaves the players their own colours', () => {
+    // Only the panels say who won. The chips keep saying which side you are on,
+    // and the two colour systems must not be allowed to overwrite each other.
+    const el = render(scoredCourt, { showScore: true });
+    const chip = (name: string) =>
+      [...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith(name));
+    expect(chip('Ben')!.className.split(/\s+/)).toContain('bg-blue-50');
+    expect(chip('Cara')!.className.split(/\s+/)).toContain('bg-orange-50');
+  });
+
+  it('is kept off the printed sheet', () => {
+    // Paper is read out at the net before the games, when there is nothing to
+    // write down yet.
+    const wrapper = scoreboard(render(court, { showScore: true }))!.parentElement!;
+    expect(wrapper.className.split(/\s+/)).toContain('no-print');
   });
 });

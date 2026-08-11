@@ -26,11 +26,29 @@ export interface SessionConfig {
   numRounds: number;
 }
 
+/** A finished game, as the host wrote it down. Both sides always present. */
+export interface CourtScore {
+  team1: number;
+  team2: number;
+}
+
 export interface CourtAssignment {
   courtNumber: number;
   team1: Player[];
   team2: Player[];
   ratingDiff: number;
+  /**
+   * What was played here, once somebody has entered it. Absent until then, and
+   * absent again once it is cleared. Never `{ team1: 0, team2: 0 }` standing in
+   * for "no score", because 0-0 is a score somebody could mean.
+   *
+   * It sits on the court because a court has no stable id of its own.
+   * `courtNumber` is the host's to rename and a court's index shifts when one is
+   * added or taken back, so a score keyed on either would come unstuck by
+   * teatime. Here it is carried by the object it belongs to, through every
+   * operation that already spreads that object.
+   */
+  score?: CourtScore;
 }
 
 // The three formats a round can be played in, on top of the ordinary round
