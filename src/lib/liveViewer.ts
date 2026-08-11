@@ -1,0 +1,142 @@
+import { SNAPSHOT_VERSION, type SessionSnapshot } from './sessionSnapshot';
+import { getSupabase, isSupabaseConfigured } from './supabase';
+import type { CourtAssignment, Player, Round } from '../types';
+
+/**
+ * Reading somebody else's session.
+ *
+ * The other end of liveSession.ts, and the only part of this app that runs for
+ * a person with no account. It asks the database one question — what is behind
+ * this key — and gets back a snapshot or nothing.
+ *
+ * Everything it gets back is checked before it is handed on. That is not
+ * ceremony: this is the one document in the app that arrives over a network
+ * rather than out of the browser's own storage, and the viewer walks straight
+ * into `schedule.rounds[i].courts[j].team1`. A snapshot written by a newer
+ * version of the app, or truncated, or simply not one, has to end as a sentence
+ * on screen rather than as a stack trace inside ErrorBoundary.
+ */
+
+export type LiveFetch =
+  /** There is a session behind this key and here it is. */
+  | { state: 'ok'; snapshot: SessionSnapshot }
+  /** No such key, or it has expired, or the host stopped sharing. */
+  | { state: 'gone' }
+  /** Written by a newer app than this one, so it cannot be trusted to render. */
+  | { state: 'outdated' }
+  | { state: 'offline' }
+  | { state: 'error'; message: string };
+
+export async function fetchShared(key: string): Promise<LiveFetch> {
+  if (!isSupabaseConfigured()) {
+    return { state: 'error', message: 'Shared sessions are not available here.' };
+  }
+
+  try {
+    // getSupabase() is one client for the whole page, and it keeps whatever
+    // session is in storage. So a host who opens their own link arrives here
+    // carrying their own token while a player arrives with none. It makes no
+    // difference: shared_session is a security definer function, so it answers
+    // the same question the same way either way. This looks like a bug and is
+    // not.
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.rpc('shared_session', { key });
+    if (error) throw new Error(error.message);
+
+    // Null covers all three endings on purpose. The function will not say
+    // whether a key was ever real, because that is exactly what somebody
+    // working through the key space would want to be told.
+    if (data === null || data === undefined) return { state: 'gone' };
+
+    return read(data);
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error ?? '');
+    if (looksOffline(text)) return { state: 'offline' };
+    return { state: 'error', message: 'Could not load this session just now.' };
+  }
+}
+
+function looksOffline(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('failed to fetch') ||
+    lower.includes('network') ||
+    lower.includes('load failed') ||
+    lower.includes('offline')
+  );
+}
+
+// ------------------------------------------------------------- reading it --
+
+function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function isPlayer(value: unknown): value is Player {
+  if (typeof value !== 'object' || value === null) return false;
+  const player = value as Partial<Player>;
+  return typeof player.id === 'string' && typeof player.name === 'string';
+}
+
+function isCourt(value: unknown): value is CourtAssignment {
+  if (typeof value !== 'object' || value === null) return false;
+  const court = value as Partial<CourtAssignment>;
+  return (
+    typeof court.courtNumber === 'number' &&
+    isArray(court.team1) &&
+    court.team1.every(isPlayer) &&
+    isArray(court.team2) &&
+    court.team2.every(isPlayer)
+  );
+}
+
+function isRound(value: unknown): value is Round {
+  if (typeof value !== 'object' || value === null) return false;
+  const round = value as Partial<Round>;
+  return (
+    typeof round.roundNumber === 'number' &&
+    isArray(round.courts) &&
+    round.courts.every(isCourt) &&
+    isArray(round.sitOuts) &&
+    round.sitOuts.every(isPlayer)
+  );
+}
+
+/**
+ * Turns whatever came back into a snapshot, or says why it will not.
+ *
+ * Only the fields the viewer actually walks into are checked. `rating` and
+ * `rosterIds` are not among them, deliberately: the publisher strips both, so a
+ * document that still carries them is an older one rather than a broken one,
+ * and refusing it would break links that work.
+ */
+export function read(value: unknown): LiveFetch {
+  if (typeof value !== 'object' || value === null) return { state: 'gone' };
+
+  const document = value as Partial<SessionSnapshot>;
+
+  // Greater, not different. This app can read everything it has ever written,
+  // and the number only goes up.
+  if (typeof document.version !== 'number') return { state: 'gone' };
+  if (document.version > SNAPSHOT_VERSION) return { state: 'outdated' };
+
+  const schedule = document.schedule;
+  if (typeof schedule !== 'object' || schedule === null) return { state: 'gone' };
+  if (!isArray(schedule.rounds) || !schedule.rounds.every(isRound)) return { state: 'gone' };
+  if (!isArray(document.players) || !document.players.every(isPlayer)) return { state: 'gone' };
+
+  return {
+    state: 'ok',
+    snapshot: {
+      version: document.version,
+      at: typeof document.at === 'string' ? document.at : '',
+      sessionId: typeof document.sessionId === 'string' ? document.sessionId : null,
+      schedule: { rounds: schedule.rounds },
+      completedRounds: isArray(document.completedRounds)
+        ? document.completedRounds.filter((n): n is number => typeof n === 'number')
+        : [],
+      players: document.players,
+      scoringEnabled: document.scoringEnabled === true
+    }
+  };
+}

@@ -48,22 +48,42 @@ export function canShare(): boolean {
 }
 
 /**
- * Opens the OS share sheet. The share function is injectable so this is testable
- * without a browser.
+ * Opens the OS share sheet on anything. The share function is injectable so this
+ * is testable without a browser.
  *
  * IMPORTANT: `share()` is called before this function awaits anything. iOS only
  * permits the sheet from a live user gesture, and an `await` before the call
- * spends that gesture — the sheet then silently never appears. Keep it first.
+ * spends that gesture — the sheet then silently never appears. Keep it first,
+ * and keep every caller synchronous up to here.
  */
-export async function shareApp(share = defaultShare()): Promise<ShareOutcome> {
+export async function shareLink(
+  payload: SharePayload,
+  share = defaultShare()
+): Promise<ShareOutcome> {
   if (!share) return 'unsupported';
 
   try {
-    await share(sharePayload());
+    await share(payload);
     return 'shared';
   } catch (err) {
     // The spec rejects with AbortError when the user closes the sheet
     if (err instanceof Error && err.name === 'AbortError') return 'dismissed';
     return 'failed';
   }
+}
+
+/** The app itself, which is what the Share App panel sends. */
+export async function shareApp(share = defaultShare()): Promise<ShareOutcome> {
+  return shareLink(sharePayload(), share);
+}
+
+/**
+ * One afternoon, rather than the app.
+ *
+ * A different title because targets like Mail use it as the subject, and
+ * "Pickleball Round Robin Generator" is an odd thing to head a message that
+ * means "watch our session".
+ */
+export function sessionPayload(url: string): SharePayload {
+  return { title: 'Pickleball Round Robin', url };
 }

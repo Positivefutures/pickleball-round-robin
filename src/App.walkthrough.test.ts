@@ -1128,6 +1128,38 @@ describe('the Actions sheet', () => {
     ]);
   });
 
+  it('leaves sharing out entirely when there is no database to share into', () => {
+    // Nine and not ten. The suite runs with the Supabase variables blanked, so
+    // this is the state of a build made without them, and a Share card there
+    // would open a panel that could never do anything. Same rule as Share App
+    // and My Account in the settings drawer: no configuration, no item, rather
+    // than a dead button.
+    seed(9, 9, 2);
+    mount();
+    generate();
+
+    clickButton(/^Actions$/);
+    expect(buttons(/Share Live Session/, sheet())).toHaveLength(0);
+  });
+
+  it('offers it as a tenth card once there is', () => {
+    // The other half, without which the test above would keep passing after
+    // somebody deleted the card altogether.
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'sb_publishable_test');
+    try {
+      seed(9, 9, 2);
+      mount();
+      generate();
+
+      clickButton(/^Actions$/);
+      expect(buttons(/./, sheet()).map(text)).toHaveLength(10);
+      expect(text(sheet())).toContain('Share Live Session');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   describe('Add a Court', () => {
     // Twelve over two courts is eight playing and four waiting. A third court
     // is exactly enough for the four of them.

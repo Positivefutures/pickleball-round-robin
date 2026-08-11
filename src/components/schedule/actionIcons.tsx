@@ -89,3 +89,43 @@ export function EditRatingIcon({ className }: { className?: string }) {
     />
   );
 }
+
+/**
+ * A QR code. Share Live Session.
+ *
+ * Drawn rather than composed, and deliberately not the ShareIcon the menu uses
+ * for Share App: the two send different things, and the square is what is
+ * actually going to be on screen when the card is tapped.
+ *
+ * Three finder squares and a scatter of modules, on the 24 grid the rest of the
+ * sheet's glyphs use. It is a picture of a code and not a real one, so nothing
+ * here has to encode anything.
+ */
+export function ShareSessionIcon({ className }: { className?: string }) {
+  const finder = (x: number, y: number) => (
+    <>
+      <rect x={x} y={y} width="7" height="7" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <rect x={x + 2.5} y={y + 2.5} width="2" height="2" fill="currentColor" />
+    </>
+  );
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      {finder(1, 1)}
+      {finder(16, 1)}
+      {finder(1, 16)}
+      <rect x="16" y="16" width="2.5" height="2.5" />
+      <rect x="20.5" y="16" width="2.5" height="2.5" />
+      <rect x="16" y="20.5" width="2.5" height="2.5" />
+      <rect x="20.5" y="20.5" width="2.5" height="2.5" />
+      <rect x="11" y="1" width="2.5" height="2.5" />
+      <rect x="11" y="6" width="2.5" height="2.5" />
+      <rect x="11" y="11" width="2.5" height="2.5" />
+      <rect x="1" y="11" width="2.5" height="2.5" />
+      <rect x="6" y="11" width="2.5" height="2.5" />
+      <rect x="16" y="11" width="2.5" height="2.5" />
+      <rect x="20.5" y="11" width="2.5" height="2.5" />
+      <rect x="11" y="16" width="2.5" height="2.5" />
+      <rect x="11" y="20.5" width="2.5" height="2.5" />
+    </svg>
+  );
+}

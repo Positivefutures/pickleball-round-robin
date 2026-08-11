@@ -175,6 +175,12 @@ function preferencesRow(at: string): Row {
     num_rounds: stores.numRounds.get(),
     large_text: stores.largeText.get(),
     special_types: stores.specialTypes.get(),
+    // Held back from the scoring release on purpose: preferences has fixed
+    // columns, so this needed an alter table run before any client could send
+    // it. That SQL is supabase/migrations/0005_live_sessions.sql. Sending this
+    // to a database without the column gets PGRST204, and PostgREST rejects the
+    // whole row, so every preference stops syncing for everyone signed in.
+    scoring_enabled: stores.scoringEnabled.get(),
     updated_at: at
   };
 }
@@ -592,8 +598,15 @@ function applyPulled(pulled: Pulled) {
 }
 
 function applyPreferences(row: Row) {
-  const { active_roster_id, default_rating, num_courts, num_rounds, large_text, special_types } =
-    row;
+  const {
+    active_roster_id,
+    default_rating,
+    num_courts,
+    num_rounds,
+    large_text,
+    special_types,
+    scoring_enabled
+  } = row;
 
   // Only if this device knows the group. Pointing at one it has not pulled yet
   // would empty every screen until it arrived.
@@ -607,6 +620,7 @@ function applyPreferences(row: Row) {
   if (typeof num_courts === 'number') stores.numCourts.set(num_courts);
   if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
   if (typeof large_text === 'boolean') stores.largeText.set(large_text);
+  if (typeof scoring_enabled === 'boolean') stores.scoringEnabled.set(scoring_enabled);
   if (special_types && typeof special_types === 'object') {
     stores.specialTypes.set(special_types as SpecialGameTypes);
   }
@@ -936,6 +950,12 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
     stores.selectedIds.set([]);
     stores.removedIds.set([]);
     stores.partnerships.set([]);
+    // The session's own name, and the people who were only in it. Both were
+    // being left behind, which cost nothing while nothing read them. Sharing
+    // reads both, so a session adopted away would have left a published copy
+    // naming a schedule this device no longer has.
+    stores.sessionId.set(null);
+    stores.guests.set([]);
 
     if (answered.preferences) applyPreferences(answered.preferences);
   } finally {

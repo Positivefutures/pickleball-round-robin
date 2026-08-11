@@ -47,6 +47,17 @@ const PROCESSORS = [
   { name: 'Ko-fi', dependency: null },
 ];
 
+/**
+ * Dependencies that ship in the bundle and reach nobody, so they belong to no
+ * company on the page above.
+ *
+ * React is the app itself. qrcode-generator draws the square a player scans:
+ * the link is encoded in the browser and never sent anywhere to be made into a
+ * picture, which is the whole reason it is a dependency rather than an image
+ * service. The test below reads their code and holds them to it.
+ */
+const LOCAL_ONLY = ['react', 'react-dom', 'qrcode-generator'];
+
 describe('the privacy policy page', () => {
   it('names every company the app sends anything to', () => {
     for (const { name } of PROCESSORS) {
@@ -70,13 +81,39 @@ describe('the privacy policy page', () => {
     const known = new Set(
       PROCESSORS.map((p) => p.dependency).filter((d): d is string => d !== null)
     );
-    // React is the app itself and reaches nobody. Everything else is somebody.
-    const ours = new Set(['react', 'react-dom']);
 
     const unaccounted = Object.keys(pkg.dependencies).filter(
-      (name) => !known.has(name) && !ours.has(name)
+      (name) => !known.has(name) && !LOCAL_ONLY.includes(name)
     );
     expect(unaccounted).toEqual([]);
+  });
+
+  it('is right that the local-only dependencies really are local', () => {
+    // LOCAL_ONLY is the escape hatch on the test above, so it has to be one
+    // that cannot be used carelessly. React is the app itself. qrcode-generator
+    // turns a string into a grid of squares, which is arithmetic and nothing
+    // else, and this reads its shipped code to say so rather than taking the
+    // comment above on trust.
+    //
+    // Primitives, not addresses. A URL sitting in a source file reaches nobody
+    // without something to call it with, and the QR encoder does contain the
+    // SVG namespace and a couple of links in its licence header.
+    for (const name of ['qrcode-generator']) {
+      const entry = JSON.parse(read(`node_modules/${name}/package.json`)) as { module?: string; main: string };
+      const source = read(`node_modules/${name}/${entry.module ?? entry.main}`);
+      for (const primitive of [
+        'fetch(',
+        'XMLHttpRequest',
+        'WebSocket',
+        'EventSource',
+        'sendBeacon',
+        'navigator.',
+        'localStorage',
+        'document.cookie'
+      ]) {
+        expect(`${name}: ${source.includes(primitive)}`).toBe(`${name}: false`);
+      }
+    }
   });
 
   it('points at the two buttons that carry out the rights', () => {

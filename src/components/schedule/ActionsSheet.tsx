@@ -16,7 +16,10 @@ import {
   SuccessIcon,
   SwapPeopleIcon,
 } from '../icons';
-import { AddCourtIcon, EditRatingIcon, RemoveCourtIcon } from './actionIcons';
+import { AddCourtIcon, EditRatingIcon, RemoveCourtIcon, ShareSessionIcon } from './actionIcons';
+import { LiveShareView } from './LiveShareView';
+import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 /** Everything the sheet can set in motion. Implemented in App. */
 export interface ScheduleActions {
@@ -46,6 +49,7 @@ type View =
   | 'add-round'
   | 'add-court'
   | 'remove-court'
+  | 'share-live'
   | 'done';
 
 /** The view an action card opens. Reshuffle has nothing to ask, so it just runs. */
@@ -85,7 +89,20 @@ const CARDS: Card[] = [
   { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, tone: ORANGE },
   { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, tone: NAVY },
   { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, tone: RED },
+  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, tone: NAVY },
 ];
+
+/**
+ * Whether a card is on offer at all, as against being on offer but disabled.
+ *
+ * Only sharing answers no, and only when the app was built without a database
+ * to share into. That follows Share App and My Account in the settings menu: no
+ * configuration means no item, rather than a button that cannot work.
+ */
+function offered(card: Card): boolean {
+  if (card.view !== 'share-live') return true;
+  return ACCOUNTS_ENABLED && isSupabaseConfigured();
+}
 
 const HEADINGS: Record<View, { title: string; sub?: string }> = {
   menu: { title: 'Actions', sub: 'Quick changes for this session' },
@@ -98,6 +115,7 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
   'remove-court': { title: 'Remove a Court', sub: 'Which court is going?' },
+  'share-live': { title: 'Share Live Session', sub: 'Let everyone watch on their own phone' },
   done: { title: '' },
 };
 
@@ -265,6 +283,9 @@ export function ActionsSheet({
   function disabledReason(card: Card): string | null {
     if (card.view === 'new-session') return null;
     if (card.view === 'add-round') return null;
+    // A finished session is still worth sharing: the standings are the thing
+    // people ask for once the last round is played.
+    if (card.view === 'share-live') return null;
     if (!hasOpenRound) return 'Every round is done. Add a round first.';
     if (card.view === 'reshuffle' && openRounds.length === 0) return 'Nothing left to shuffle.';
     if (card.view === 'add-sub' && addablePlayers.length === 0) {
@@ -393,7 +414,7 @@ export function ActionsSheet({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
                 {view === 'menu' && (
                   <div className="grid grid-cols-3 gap-3">
-                    {CARDS.map((card) => {
+                    {CARDS.filter(offered).map((card) => {
                       const reason = disabledReason(card);
                       return (
                         <button
@@ -705,6 +726,11 @@ export function ActionsSheet({
                     </p>
                   </div>
                 )}
+
+                {/* The one view that asks the sheet for nothing. It reads the
+                    publisher's own store and calls it directly, so there is no
+                    prop to thread and no action to add to ScheduleActions. */}
+                {view === 'share-live' && <LiveShareView />}
               </div>
             </>
           )}

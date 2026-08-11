@@ -74,11 +74,24 @@ export const schedule = createStoredValue<Schedule | null>(KEYS.schedule, null);
  * This session, by name. Minted when a schedule is generated and gone when the
  * session is.
  *
- * Nothing reads it yet. It exists so that sharing a session already an hour
- * under way has a key to hand, rather than having to invent one for an
- * afternoon that is half over.
+ * Read by sharing, which uses it to recognise an afternoon across a Stop and a
+ * Share rather than publishing it a second time under a second link.
  */
 export const sessionId = createStoredValue<string | null>('pb-session-id', null);
+
+/**
+ * The key this session is published under, or null while it is not.
+ *
+ * The device's rather than the person's, and it belongs beside the schedule for
+ * the same reason the schedule does: it names one afternoon on one phone. A
+ * second phone signed into the same account is not sharing this session, and
+ * would overwrite the link if it thought it was.
+ *
+ * It is also what makes republishing an upsert. Without it every save would
+ * mint a new key, and the QR code somebody photographed ten minutes ago would
+ * stop answering.
+ */
+export const shareKey = createStoredValue<string | null>('pb-share-key', null);
 
 /**
  * Round numbers marked complete. An arbitrary set — the host may complete

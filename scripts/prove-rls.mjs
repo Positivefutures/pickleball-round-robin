@@ -38,7 +38,12 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const KEYCHAIN_SERVICE = 'pbrr-supabase-db';
-const TABLES = ['profiles', 'rosters', 'players', 'preferences'];
+// shared_sessions is here for the same reason as the rest, and it is the one
+// that matters most: it is the only table with an anonymous way in at all, so
+// "nothing readable without signing in" has to keep being true of the table
+// itself even though a function beside it will serve one row to anybody holding
+// its key. prove-share.mjs covers that function; this list covers the table.
+const TABLES = ['profiles', 'rosters', 'players', 'preferences', 'shared_sessions'];
 
 // .invalid is reserved by RFC 2606 and can never be delivered to, so a
 // misconfiguration that starts sending confirmation mail bounces instead of
@@ -229,6 +234,15 @@ async function main() {
       rating: 4.0, gender: 'M', roster_ids: [],
     },
     preferences: { user_id: userA.id, num_courts: 1 },
+    // Ten characters exactly, or the check constraint refuses it before RLS
+    // gets a say and the probe passes for the wrong reason.
+    shared_sessions: {
+      user_id: userA.id,
+      share_key: `PLANT${RUN.toUpperCase().replace(/[^0-9A-HJKMNP-TV-Z]/g, '2').slice(0, 5)}`,
+      session_id: `planted-${RUN}`,
+      snapshot: { version: 1 },
+      expires_at: new Date(Date.now() + 3600_000).toISOString(),
+    },
   };
   for (const table of TABLES) {
     const { error } = await b.from(table).insert(plants[table]).select();
@@ -252,6 +266,15 @@ async function main() {
       await b.from('players').insert({
         user_id: userB.id, id: PLAYER_ID, name: 'B',
         rating: 4.0, gender: 'F', roster_ids: [],
+      }).select();
+    }
+    // B needs a row of its own here too, or the update below matches nothing
+    // and the check passes without having asked anything.
+    if (table === 'shared_sessions') {
+      await b.from('shared_sessions').insert({
+        user_id: userB.id, share_key: `BOWNS${RUN.toUpperCase().replace(/[^0-9A-HJKMNP-TV-Z]/g, '3').slice(0, 5)}`,
+        session_id: `b-${RUN}`, snapshot: { version: 1 },
+        expires_at: new Date(Date.now() + 3600_000).toISOString(),
       }).select();
     }
     const { data, error } = await b.from(table)

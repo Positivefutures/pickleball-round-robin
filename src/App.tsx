@@ -31,6 +31,7 @@ import { SharePanel } from './components/layout/SharePanel';
 import { AccountPanel } from './components/layout/AccountPanel';
 import { isSupabaseConfigured, hasAuthCallback } from './lib/supabase';
 import { startSync } from './lib/sync';
+import { startLive } from './lib/liveSession';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { UpdateBanner } from './components/layout/UpdateBanner';
@@ -159,8 +160,13 @@ function App() {
   // Sync starts itself, or doesn't. It returns immediately when accounts are
   // switched off, unconfigured, or nobody is signed in on this browser, so an
   // ordinary visit still loads no Supabase code and makes no request.
+  //
+  // startLive() is the same bargain for a session being shared: it does nothing
+  // unless this browser left one running, which is what picks a share back up
+  // after a reload part way through an afternoon.
   useEffect(() => {
     startSync();
+    startLive();
   }, []);
 
   // The panel opens first on every browser, and offers the OS share sheet from
