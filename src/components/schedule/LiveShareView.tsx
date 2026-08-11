@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
-import { CopyIcon, ShareIcon } from '../icons';
+import { CopyIcon, PersonIcon, ShareIcon } from '../icons';
 import {
   liveStatusStore,
   sharingAvailable,
@@ -35,7 +35,16 @@ const SECONDARY =
   'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
 const QUIET_TEXT = '#636A77';
 
-export function LiveShareView() {
+interface Props {
+  /**
+   * Opens My Account, having shut the sheet. Absent when the app was built
+   * with no database at all, which is the one case where there is nothing an
+   * account could do.
+   */
+  onCreateAccount?: () => void;
+}
+
+export function LiveShareView({ onCreateAccount }: Props) {
   const status = useSyncExternalStore(liveStatusStore.subscribe, liveStatusStore.get);
   const [copied, setCopied] = useState(false);
   const [hasSheet] = useState(canShare);
@@ -82,6 +91,9 @@ export function LiveShareView() {
     void shareLink(sessionPayload(url));
   }
 
+  // Signed out, or a build with nowhere to publish to. The card is offered
+  // either way: a host who has never signed in has no way of finding out that
+  // sharing exists if the thing that explains it is the thing being hidden.
   if (!sharingAvailable()) {
     return (
       <div className="space-y-3">
@@ -90,8 +102,21 @@ export function LiveShareView() {
           somewhere the other phones can reach.
         </p>
         <p className="text-sm" style={{ color: QUIET_TEXT }}>
-          Open the menu and choose My Account to sign in. Then come back here.
+          It is free, and it also keeps your groups and players safe if you lose
+          your phone.
         </p>
+        {onCreateAccount ? (
+          <button type="button" onClick={onCreateAccount} className={SECONDARY}>
+            <PersonIcon className="h-6 w-6" />
+            <span className="font-bold">Create an account</span>
+          </button>
+        ) : (
+          // No Supabase in this build, so there is no account to make. Saying
+          // where to go would send them to a menu item that is not there.
+          <p className="text-sm" style={{ color: QUIET_TEXT }}>
+            Accounts are switched off in this version of the app.
+          </p>
+        )}
       </div>
     );
   }

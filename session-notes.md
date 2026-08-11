@@ -734,14 +734,10 @@ Nothing mid-edit.
 
 ### Immediate next step
 
-**Phase 2b — `SignInBanner`.** It was held back because its promise ("sign in
-and your data is safe") was not yet true. Phase 4 shipped, so it is. Spec is in
-the plan: mirrors `InstallBanner`, gated on `rosterPlayers.length >= 4`, never
-when signed in, dismissal persists to a new `pb-signin-dismissed` key. One
-commit, reverts on its own.
-
-Then Phase 5 (outbox retry/backoff — the "one bar at the court" case; focus
-triggers are partly done) and Phase 6 (service worker).
+**The accounts plan is finished.** Phase 2b shipped on 2026-08-11 along with
+phases 5 and 6 before it, so every numbered phase is done. What is left is the
+launch checklist, whose first unticked item is the full restore test into a
+scratch Supabase project (Tier B, item 4).
 
 ### Open questions and pending decisions
 

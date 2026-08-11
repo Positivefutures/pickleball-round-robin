@@ -136,6 +136,13 @@ export const scheduleRosterId = createStoredValue<string | null>(KEYS.scheduleRo
 export const installDismissed = createStoredValue('pb-install-dismissed', false);
 
 /**
+ * Whether the host has waved away the offer of an account. Device rather than
+ * person, like the install offer above it: the banner is what somebody sees
+ * before they have an account, so there is nowhere else to keep it.
+ */
+export const signInDismissed = createStoredValue('pb-signin-dismissed', false);
+
+/**
  * Whether the host has waved away the line telling them how to swap two
  * players. Once is enough: they know now, and it sat at the top of the schedule
  * on every session for the rest of time.

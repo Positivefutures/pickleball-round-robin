@@ -1,5 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { MAX_COURT_NUMBER, parseCourtNumber } from '../../lib/courtNumbers';
+import { useScrollLock } from '../../hooks/useScrollLock';
+import { ScorePanel } from './Scoreboard';
+import { Keypad } from './Keypad';
+
+/** No hall has a court 100. Also the width of the panel. */
+const MAX_DIGITS = String(MAX_COURT_NUMBER).length;
 
 interface Props {
   /** What the court is called now, and what the box opens on. */
@@ -13,13 +19,33 @@ interface Props {
 /**
  * Renaming a court.
  *
- * One box, opened on the number already there and with it selected, so the
- * whole job is a tap, a digit and Done. A form rather than a pair of buttons
- * because the keypad on a phone offers Go, and that has to save it too.
+ * The same panel and pad as the score box, with one number instead of two and
+ * no nudges: a court is called what the centre calls it, and 7 is not one more
+ * than 6 in any sense worth a button. Sharing the pad means the second box a
+ * host meets is the one they already know.
+ *
+ * Still a form, so the whole job is a tap, a digit and Done.
  */
 export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }: Props) {
   const [text, setText] = useState(String(courtNumber));
+  // The number it opened on is what the court is called, not the start of what
+  // is being typed. The first digit replaces it, the way the old text box
+  // opened with its contents selected.
+  const [fresh, setFresh] = useState(true);
   const parsed = parseCourtNumber(text);
+
+  useScrollLock(true);
+
+  function pressDigit(digit: string) {
+    const next = ((fresh ? '' : text) + digit).replace(/^0+(?=\d)/, '').slice(0, MAX_DIGITS);
+    setFresh(false);
+    setText(next);
+  }
+
+  function edit(next: string) {
+    setFresh(false);
+    setText(next);
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,12 +54,15 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
   }
 
   return (
-    // Up at the top rather than centred. The box opens with the keypad already
-    // up on a phone, and centred put Cancel and Done underneath it.
+    // Up at the top rather than centred, as the score box is, so the two open
+    // in the same place.
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-6">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Court number"
+        className="mx-4 max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
       >
         <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-1">Court Number</h2>
         <p className="text-sm text-gray-600 mb-4">
@@ -41,22 +70,23 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
           finished ones keep the number they have.
         </p>
 
-        {/* inputMode rather than type="number": it still brings up the keypad on
-            a phone, without the spinners, and text is the only kind of box a
-            browser will let us preselect. */}
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={String(MAX_COURT_NUMBER).length}
-          autoFocus
-          value={text}
-          aria-label="Court number"
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => setText(e.target.value)}
-          className="w-full px-3 py-2 mb-5 text-center text-2xl font-bold border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        <div className="flex justify-center">
+          {/* Read out on its own, because unlike a score there is no second
+              panel to say which of the two this is. */}
+          <span role="status" aria-label={`Court number ${text === '' ? 'not set' : text}`}>
+            <ScorePanel value={text} tone="blank" active />
+          </span>
+        </div>
+
+        <Keypad
+          label="Court number keypad"
+          onDigit={pressDigit}
+          onBackspace={() => edit(text.slice(0, -1))}
+          backspaceDisabled={text === ''}
+          extraKey={{ face: 'Clear', onPress: () => edit('') }}
         />
 
-        <div className="flex gap-3">
+        <div className="mt-5 flex gap-3">
           <button
             type="button"
             onClick={onCancel}

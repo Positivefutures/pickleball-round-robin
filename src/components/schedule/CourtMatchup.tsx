@@ -327,13 +327,18 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
     // The same line as the card it sits on, so a court reads as a panel laid on
     // the round rather than as a box that happens to be near it.
     <div className="border-2 rounded-lg p-4 bg-white" style={{ borderColor: ROUND_EDGE }}>
-      <div className="flex justify-between items-center gap-2 mb-3">
-        <div className="flex items-center gap-2">
+      {/* The heading and the balance badge each take half of what is left, so
+          the board between them lands on the middle of the card and its colon
+          sits directly over the Vs. below. Not justify-between: that centres the
+          board between two things of different widths, which is not the middle
+          of anything. */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {/* Still a heading either way. On a round that can be edited it holds
               a button, because the number is the host's to set: a centre gives
               out courts 7, 8 and 9, and the app cannot know that. The dotted
               underline is the only hint that it opens something. */}
-          <h4 className="font-bold text-gray-700">
+          <h4 className="whitespace-nowrap font-bold text-gray-700">
             {canEdit ? (
               <button
                 type="button"
@@ -369,7 +374,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
             A court with nobody on one side is a place waiting for players and
             has no game to give a score to. */}
         {showScore && court.team1.length > 0 && court.team2.length > 0 && (
-          <div className="no-print flex flex-1 justify-center">
+          <div className="no-print shrink-0">
             <Scoreboard
               score={court.score}
               courtNumber={court.courtNumber}
@@ -378,7 +383,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           </div>
         )}
 
-        {showBalance && <BalanceIndicator ratingDiff={court.ratingDiff} />}
+        <div className="flex min-w-0 flex-1 justify-end">
+          {showBalance && <BalanceIndicator ratingDiff={court.ratingDiff} />}
+        </div>
       </div>
 
       <div className="flex items-start gap-2">

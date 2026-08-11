@@ -18,6 +18,9 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+/** Long enough for the Actions sheet to finish sliding out and unmount. */
+const SHEET_GONE_MS = 400;
+
 const NAMES = [
   'Ava', 'Ben', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy', 'Jo', 'Kit', 'Lex',
 ];
@@ -61,6 +64,21 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
 });
+
+/**
+ * A relaunch: the app all the way down and up again, with an optional change to
+ * what is in storage in between.
+ *
+ * The unmount is load-bearing. A store hands back its cache while anything is
+ * subscribed to it, so a second mount over a live first one would read the old
+ * values however the seed was changed.
+ */
+function remount(between?: () => void) {
+  act(() => root.unmount());
+  container.remove();
+  between?.();
+  mount();
+}
 
 function text(el: Element): string {
   return (el.textContent ?? '').trim();
@@ -289,6 +307,91 @@ describe('the swap hint', () => {
   });
 });
 
+/**
+ * The offer of an account, phase 2b of the accounts plan.
+ *
+ * Held back until phase 4 shipped, because until then its promise was not true:
+ * there was no pull, so a new phone got nothing back. It is the only part of
+ * accounts a host who never signs in would see, so what is tested here is
+ * mostly the gate — who is spared it — rather than what it says.
+ *
+ * The install banner never appears in these tests: `installRoute` answers
+ * 'manual' for a browser with no prompt and no iOS, which is happy-dom, so the
+ * one-at-a-time rule in App never suppresses this one here.
+ */
+describe('the sign-in banner', () => {
+  const LINE = 'A free account keeps them safe';
+
+  /** A build with Supabase configured, which is what production is. */
+  function withDatabase(run: () => void) {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'sb_publishable_test');
+    try {
+      run();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  }
+
+  it('is not offered at all when there is no database behind it', () => {
+    // The suite's default state, and a build made without the env vars. An
+    // account cannot be made, so it must not be asked for.
+    seed(9, 9, 2);
+    mount();
+    expect(container.textContent).not.toContain(LINE);
+  });
+
+  it('waits for a roster worth keeping', () => {
+    withDatabase(() => {
+      seed(3, 3, 1);
+      mount();
+      expect(container.textContent).not.toContain(LINE);
+
+      // Unmounted, not just detached: a store with a live subscriber keeps its
+      // cache, so the second mount would read the first one's three players.
+      remount(() => seed(4, 4, 1));
+      expect(container.textContent).toContain(LINE);
+    });
+  });
+
+  it('is not shown to somebody already signed in on this device', () => {
+    // Read from localStorage rather than from the auth store, which says
+    // 'unknown' until the Supabase client has loaded. The banner would
+    // otherwise flash on every launch at the one person it is not for.
+    withDatabase(() => {
+      seed(9, 9, 2);
+      window.localStorage.setItem('sb-example-auth-token', '{"access_token":"x"}');
+      mount();
+      expect(container.textContent).not.toContain(LINE);
+    });
+  });
+
+  it('opens My Account when it is taken up', () => {
+    withDatabase(() => {
+      seed(9, 9, 2);
+      mount();
+      clickButton(/^Sign in$/);
+      expect(container.querySelector('img[src="/account-top.png"]')).not.toBeNull();
+    });
+  });
+
+  it('goes away for good when it is waved off', () => {
+    withDatabase(() => {
+      seed(9, 9, 2);
+      mount();
+      const cross = [...container.querySelectorAll('button')].find(
+        (b) => b.getAttribute('aria-label') === 'Dismiss'
+      )!;
+      click(cross);
+      expect(container.textContent).not.toContain(LINE);
+
+      // And on the next launch. This one is remembered, unlike the update line.
+      remount();
+      expect(container.textContent).not.toContain(LINE);
+    });
+  });
+});
+
 describe('court numbers', () => {
   beforeEach(() => seed(9, 9, 2));
 
@@ -299,13 +402,14 @@ describe('court numbers', () => {
 
   function renameCourt(roundNumber: number, label: string, value: string) {
     clickButton(new RegExp(`^${label}$`), roundCard(roundNumber));
-    const box = container.querySelector('input[aria-label="Court number"]') as HTMLInputElement;
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-      setter.call(box, value);
-      box.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    clickButton(/^Done$/, box.closest('form')!);
+    const box = container.querySelector('[role="dialog"][aria-label="Court number"]')!;
+    const pad = box.querySelector('[aria-label="Court number keypad"]')!;
+    // The first digit replaces what the court is called now, so the whole
+    // number can just be typed.
+    for (const d of value) {
+      clickButton(new RegExp(`^${d}$`), pad);
+    }
+    clickButton(/^Done$/, box);
   }
 
   it('are kept through a reshuffle, and the played round keeps the one it was played on', () => {
@@ -1182,7 +1286,7 @@ describe('the Actions sheet', () => {
 
   const nameBox = () => sheet().querySelector('input[type="text"]') as HTMLInputElement;
 
-  it('offers the eight actions, in the order they were asked for', () => {
+  it('offers the nine actions, in the order they were asked for', () => {
     // Edit Player Rating is deliberately not among them. The pencil on a place
     // edits the rating along with the name and the gender, so a card that did
     // one of the three was a second road to the same place.
@@ -1193,8 +1297,8 @@ describe('the Actions sheet', () => {
     clickButton(/^Actions$/);
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
-      'Add a Player', 'Add a Sub', 'Add a Guest',
-      'Reshuffle', 'Start New Session',
+      'Add a Player', 'Sub a Player', 'Add a Guest',
+      'Share Live Session', 'Reshuffle', 'Start New Session',
       'Add a Round', 'Add a Court', 'Remove a Court',
     ]);
   });
@@ -1217,23 +1321,25 @@ describe('the Actions sheet', () => {
     expect(text(sheet())).toContain('reshuffled.');
   });
 
-  it('leaves sharing out entirely when there is no database to share into', () => {
-    // Nine and not ten. The suite runs with the Supabase variables blanked, so
-    // this is the state of a build made without them, and a Share card there
-    // would open a panel that could never do anything. Same rule as Share App
-    // and My Account in the settings drawer: no configuration, no item, rather
-    // than a dead button.
+  it('offers sharing with no database, and says why it cannot be done', () => {
+    // The suite runs with the Supabase variables blanked, which is a build made
+    // without them. The card used to be hidden here. It is not any more: a host
+    // who has never signed in has no way of learning that sharing exists if the
+    // thing that would explain it is the thing being hidden. What it must not
+    // do is offer an account this build could not make.
     seed(9, 9, 2);
     mount();
     generate();
 
-    clickButton(/^Actions$/);
-    expect(buttons(/Share Live Session/, sheet())).toHaveLength(0);
+    action(/^Share Live Session$/);
+    expect(text(sheet())).toContain('Accounts are switched off');
+    expect(buttons(/^Create an account$/, sheet())).toHaveLength(0);
   });
 
-  it('offers it as a ninth card once there is', () => {
-    // The other half, without which the test above would keep passing after
-    // somebody deleted the card altogether.
+  it('offers an account to a signed-out host, and comes back to the card', async () => {
+    // The whole point of the card being there. Tapping through lands in My
+    // Account, and closing it returns to the thing they were trying to do
+    // rather than to the schedule with the sheet gone.
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'sb_publishable_test');
     try {
@@ -1241,9 +1347,25 @@ describe('the Actions sheet', () => {
       mount();
       generate();
 
-      clickButton(/^Actions$/);
-      expect(buttons(/./, sheet()).map(text)).toHaveLength(9);
-      expect(text(sheet())).toContain('Share Live Session');
+      action(/^Share Live Session$/);
+      expect(text(sheet())).toContain('Sharing a session needs an account');
+
+      clickButton(/^Create an account$/, sheet());
+      // Waited out, so the sheet is really gone rather than mid-slide. Without
+      // this the assertion at the end could be reading the old one.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SHEET_GONE_MS));
+      });
+      expect(() => sheet()).toThrow();
+
+      // The panel has to load the Supabase client before it can say whether
+      // anyone is signed in, so this is its opening state rather than the sign
+      // in form. What matters here is that it opened, and how it closes.
+      const hero = container.querySelector('img[src="/account-top.png"]');
+      expect(hero).not.toBeNull();
+      click(hero!.closest('div')!.parentElement!);
+
+      expect(text(sheet())).toContain('Sharing a session needs an account');
     } finally {
       vi.unstubAllEnvs();
     }
@@ -1372,7 +1494,7 @@ describe('the Actions sheet', () => {
     });
   });
 
-  describe('Add a Sub', () => {
+  describe('Sub a Player', () => {
     // Twelve in the group, eleven playing: Lex is the one left to come on.
     beforeEach(() => seed(12, 11, 2));
 
@@ -1387,7 +1509,7 @@ describe('the Actions sheet', () => {
       );
       const playedAs = fingerprint(storedSchedule().rounds[0]);
 
-      action(/^Add a Sub$/);
+      action(/^Sub a Player$/);
       expect(text(sheet())).toContain('Who is coming off?');
       clickButton(new RegExp(`^${going}`), sheet());
       expect(text(sheet())).toContain(`Who is going on for ${going}?`);
@@ -1406,7 +1528,7 @@ describe('the Actions sheet', () => {
       markComplete(1);
 
       const going = storedSchedule().rounds[1].courts[0].team1[0].name;
-      action(/^Add a Sub$/);
+      action(/^Sub a Player$/);
       clickButton(new RegExp(`^${going}`), sheet());
       clickButton(/^Lex/, sheet());
 
@@ -1419,7 +1541,7 @@ describe('the Actions sheet', () => {
       generate();
 
       const going = storedSchedule().rounds[0].courts[0].team1[0].name;
-      action(/^Add a Sub$/);
+      action(/^Sub a Player$/);
       clickButton(new RegExp(`^${going}`), sheet());
       clickButton(/^Lex/, sheet());
 
@@ -1527,9 +1649,26 @@ describe('keeping score', () => {
     return [...scoreBox().querySelectorAll('[aria-label^="Score for"]')] as HTMLElement[];
   }
 
+  /** Empties both sides of the box that is already open. */
+  function clearBoth() {
+    const back = () => {
+      const pad = scoreBox().querySelector('[aria-label="Score keypad"]')!;
+      click([...pad.querySelectorAll('button')].find(
+        (b) => b.getAttribute('aria-label') === 'Backspace'
+      )!);
+    };
+    for (const side of [0, 1]) {
+      click(sides()[side]);
+      // Two digits at most, and the key is disabled once there is nothing left.
+      back();
+      back();
+    }
+    click(sides()[0]);
+  }
+
   /** Types both numbers into the box that is already open, and saves. */
   function fill(left: string, right: string) {
-    key('Clear');
+    clearBoth();
     for (const d of left) key(d);
     // Tapped across rather than left to the auto-advance, which only fires on a
     // full two digits. A score of 9 does not fill its side.
@@ -1584,14 +1723,14 @@ describe('keeping score', () => {
       expect(completedRounds()).toEqual([1]);
     });
 
-    it('takes a score back with Clear and Save', () => {
+    it('takes a score back by emptying both sides and saving', () => {
       mount();
       generate();
       score(0, '11', '7');
       expect(firstCourt().score).toBeDefined();
 
       click(boards()[0]);
-      clickButton(/^Clear$/, scoreBox());
+      clearBoth();
       clickButton(/^Save$/, scoreBox());
 
       // Gone rather than zeroed: 0-0 is a score somebody could mean.

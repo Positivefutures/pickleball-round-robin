@@ -269,6 +269,19 @@ describe('the scoreboard on a court', () => {
     const wrapper = scoreboard(render(court, { showScore: true }))!.parentElement!;
     expect(wrapper.className.split(/\s+/)).toContain('no-print');
   });
+
+  it('sits on the middle of the card, so its colon is over the Vs. below', () => {
+    // The heading and the balance badge take half of what is left each. Given
+    // the whole row, the board would centre itself between two things of
+    // different widths, which is the middle of nothing. happy-dom has no layout
+    // to measure, so what is pinned here is the arrangement that produces it.
+    const wrapper = scoreboard(render(scoredCourt, { showScore: true }))!.parentElement!;
+    const [left, middle, right] = [...wrapper.parentElement!.children];
+    expect(middle).toBe(wrapper);
+    expect(wrapper.className.split(/\s+/)).toContain('shrink-0');
+    expect(left.className.split(/\s+/)).toContain('flex-1');
+    expect(right.className.split(/\s+/)).toContain('flex-1');
+  });
 });
 
 /**

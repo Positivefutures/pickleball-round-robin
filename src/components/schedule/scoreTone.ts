@@ -18,7 +18,7 @@ export type Tone = 'blank' | 'win' | 'loss' | 'draw';
  * you are on and one for whether you won, and mixing them makes both unreadable.
  */
 export const PANEL_TONE: Record<Tone, string> = {
-  blank: 'border-gray-800 bg-white text-gray-300',
+  blank: 'border-gray-800 bg-white text-gray-800',
   win: 'border-green-700 bg-green-100 text-green-800',
   loss: 'border-red-700 bg-red-100 text-red-800',
   // Both sides the same, and neither of the other two colours. A level game is

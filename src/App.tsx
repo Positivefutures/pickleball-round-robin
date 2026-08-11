@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { Gender, Player, Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
@@ -29,11 +29,13 @@ import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
 import { AccountPanel } from './components/layout/AccountPanel';
-import { isSupabaseConfigured, hasAuthCallback } from './lib/supabase';
+import { isSupabaseConfigured, hasAuthCallback, hasStoredSession } from './lib/supabase';
+import { authStore } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { InstallBanner } from './components/layout/InstallBanner';
+import { SignInBanner } from './components/layout/SignInBanner';
 import { UpdateBanner } from './components/layout/UpdateBanner';
 import { updateStore, applyUpdate } from './lib/appUpdate';
 import { PrintNotice, type PrintProblem } from './components/layout/PrintNotice';
@@ -118,8 +120,13 @@ function App() {
   // they were emailed earlier would land straight in a panel that is supposed
   // to be switched off.
   const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
+  // What to do once My Account is closed again, set only when something sent
+  // the host there mid-task. A ref rather than state: nothing renders from it,
+  // and it must not be lost to the re-render that opening the panel causes.
+  const afterAccount = useRef<(() => void) | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
+  const [signInDismissed, setSignInDismissed] = useStoredValue(stores.signInDismissed);
   const [swapHintDismissed, setSwapHintDismissed] = useStoredValue(stores.swapHintDismissed);
 
   // Not stored, unlike the install dismissal above. There is a new build behind
@@ -128,6 +135,18 @@ function App() {
   const updateReady = useSyncExternalStore(updateStore.subscribe, updateStore.get) === 'ready';
   const [updateDismissed, setUpdateDismissed] = useState(false);
   const { canPrompt, promptInstall } = useInstallPrompt();
+
+  /**
+   * Whether somebody is signed in on this device, for the banner that offers an
+   * account to somebody who is not.
+   *
+   * `hasStoredSession` is a localStorage read and answers straight away, while
+   * the store says 'unknown' until the Supabase client has loaded — which for a
+   * signed-in host it does, but not before the first paint. Without it the
+   * banner would flash on every launch at the one person it is not for.
+   */
+  const auth = useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
+  const signedIn = auth.status === 'signed-in' || (auth.status === 'unknown' && hasStoredSession());
 
   // Read once: it cannot change without a reload, and re-reading per render
   // would run a matchMedia query on every keystroke.
@@ -174,6 +193,26 @@ function App() {
   // appeared on browsers without one, which is almost nobody.
   function handleShare() {
     setShowShare(true);
+  }
+
+  /**
+   * Opens My Account, with somewhere to go back to when it closes.
+   *
+   * The settings menu hands over nothing: it opened the panel from a standing
+   * start, so closing it means the schedule. Share Live Session hands over the
+   * way back to its own card, because a host who left to make an account was in
+   * the middle of trying to share the session in front of them.
+   */
+  function openAccount(onReturn?: () => void) {
+    afterAccount.current = onReturn ?? null;
+    setShowAccount(true);
+  }
+
+  function closeAccount() {
+    setShowAccount(false);
+    const back = afterAccount.current;
+    afterAccount.current = null;
+    back?.();
   }
 
   // A saved session belongs to the roster it was built from. On boot, follow it
@@ -779,6 +818,15 @@ function App() {
     [step, scheduleHasWork, handleStartNewSession]
   );
 
+  // Both banners wait for a roster worth keeping. Four players is a group
+  // somebody has typed in by hand, and the first point at which losing it would
+  // actually cost them an evening.
+  const worthKeeping = rosterPlayers.length >= 4;
+  const offerInstall =
+    !installed && !installDismissed && worthKeeping && installRoute({ canPrompt }) !== 'manual';
+  const offerSignIn =
+    ACCOUNTS_ENABLED && isSupabaseConfigured() && !signInDismissed && !signedIn && worthKeeping;
+
   return (
     <div
       className={`app-shell relative min-h-screen overflow-x-hidden bg-gray-800 ${
@@ -788,7 +836,7 @@ function App() {
       <SettingsPanel
         open={settingsOpen}
         onShare={handleShare}
-        onOpenAccount={() => setShowAccount(true)}
+        onOpenAccount={() => openAccount()}
         showAccountItem={ACCOUNTS_ENABLED && isSupabaseConfigured()}
         onOpenInstall={() => setShowInstall(true)}
         showInstallItem={!installed}
@@ -848,15 +896,22 @@ function App() {
         {/* Held back until there's a real roster worth keeping. The route check
             matters: browsers with no install path at all (desktop Firefox) must
             never be offered one. */}
-        {!installed &&
-          !installDismissed &&
-          rosterPlayers.length >= 4 &&
-          installRoute({ canPrompt }) !== 'manual' && (
-            <InstallBanner
-              onOpen={() => setShowInstall(true)}
-              onDismiss={() => setInstallDismissed(true)}
-            />
-          )}
+        {offerInstall && (
+          <InstallBanner
+            onOpen={() => setShowInstall(true)}
+            onDismiss={() => setInstallDismissed(true)}
+          />
+        )}
+
+        {/* One ask at a time. Both banners want the same 4-player roster, and
+            two coloured bars above every step is a page that nags. Install goes
+            first: it is the smaller favour and it was here already. */}
+        {!offerInstall && offerSignIn && (
+          <SignInBanner
+            onOpen={() => openAccount()}
+            onDismiss={() => setSignInDismissed(true)}
+          />
+        )}
 
         {step === 'roster' && (
           <RosterPage
@@ -924,6 +979,7 @@ function App() {
             addablePlayers={addablePlayers}
             defaultRating={defaultRating}
             scoringEnabled={scoringEnabled}
+            onOpenAccount={openAccount}
             actions={{
               onStartNewSession: handleStartNewSession,
               onAddPlayer: handleAddPlayer,
@@ -1027,7 +1083,7 @@ function App() {
 
       {showShare && <SharePanel onClose={() => setShowShare(false)} />}
 
-      {showAccount && <AccountPanel onClose={() => setShowAccount(false)} />}
+      {showAccount && <AccountPanel onClose={closeAccount} />}
 
       {showInstall && (
         <InstallPanel

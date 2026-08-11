@@ -561,7 +561,7 @@ export function SuccessIcon({ className }: { className?: string }) {
 
 /**
  * Two people, one above the other, with a path leading down from one and back up
- * from the other. `INBOX/people.svg`, on its own 32 grid. Add a Sub, where
+ * from the other. `INBOX/people.svg`, on its own 32 grid. Sub a Player, where
  * somebody steps off and somebody steps on.
  */
 export function SwapPeopleIcon({ className }: { className?: string }) {
@@ -576,6 +576,20 @@ export function SwapPeopleIcon({ className }: { className?: string }) {
       <path d="m23.8066406 13.515625c-.2651367 0-.5195313-.1054688-.7070313-.2929688l-2.6206055-2.6206055c-.390625-.390625-.390625-1.0234375 0-1.4140625s1.0234375-.390625 1.4140625 0l1.9135742 1.9135742 1.9130859-1.9135742c.390625-.390625 1.0234375-.390625 1.4140625 0 .390625.3901367.390625 1.0234375 0 1.4140625l-2.6201172 2.6206055c-.1874998.1875001-.4418944.2929688-.7070311.2929688z" />
       <path d="m11.1240234 23.1049805c-.2558594 0-.5117188-.0976563-.7070313-.2929688l-1.9135741-1.9135742-1.913086 1.9135742c-.390625.390625-1.0234375.390625-1.4140625 0-.390625-.3901367-.390625-1.0234375 0-1.4140625l2.6201172-2.6206055c.375-.375 1.0390625-.375 1.4140625 0l2.6206055 2.6206055c.390625.390625.390625 1.0234375 0 1.4140625-.1953125.1953125-.4511719.2929688-.7070313.2929688z" />
     </Solid>
+  );
+}
+
+/**
+ * Head and shoulders. Your account, wherever one is offered: the settings item
+ * that opens My Account, and the button in Share Live Session that says an
+ * account is what sharing needs. One definition, so the two cannot drift.
+ */
+export function PersonIcon({ className }: { className?: string }) {
+  return (
+    <Stroked className={className}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </Stroked>
   );
 }
 

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { CourtAssignment, CourtScore } from '../../types';
 import type { Side } from '../../lib/standings';
 import { ScorePanel, ScoreColon } from './Scoreboard';
+import { Keypad } from './Keypad';
 import { toneFor } from './scoreTone';
 import { formatTeam } from '../../utils/helpers';
 import { useScrollLock } from '../../hooks/useScrollLock';
@@ -38,7 +39,8 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
   const other = side === 'team1' ? team2 : team1;
 
   // A half score is not a score, so both or neither. Both empty saves as a
-  // deletion, which is what makes Clear then Save the way to take one back.
+  // deletion, which is how a score written down by mistake is taken back:
+  // backspace both sides, then Save.
   const canSave = (team1 === '') === (team2 === '');
 
   // What the panels are wearing right now, so the winner turns green as it is
@@ -54,6 +56,18 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
     if (next.length === MAX_DIGITS && other === '') {
       setSide(side === 'team1' ? 'team2' : 'team1');
     }
+  }
+
+  /**
+   * Eleven, in one tap.
+   *
+   * Games are played to 11 far more often than to anything else, so the winning
+   * side is nearly always the same two digits. It replaces what is there rather
+   * than adding to it, and then moves across exactly as typing 1 then 1 does.
+   */
+  function pressEleven() {
+    setValue('11');
+    if (other === '') setSide(side === 'team1' ? 'team2' : 'team1');
   }
 
   function nudge(delta: number) {
@@ -153,47 +167,13 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
           <div className="w-[6.5rem]">{nudgeRow('team2')}</div>
         </div>
 
-        {/* type="button" on every one of these. Inside a form, a bare button
-            submits, and each digit would save and close the box. */}
-        <div
-          role="group"
-          aria-label="Score keypad"
-          className="mx-auto mt-5 grid max-w-[15rem] grid-cols-3 gap-2"
-        >
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => pressDigit(d)}
-              className="min-h-12 rounded-md border border-[#999] bg-gray-100 text-xl font-bold text-gray-800 transition-colors hover:bg-gray-200"
-            >
-              {d}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setValue(value.slice(0, -1))}
-            disabled={value === ''}
-            aria-label="Backspace"
-            className="min-h-12 rounded-md border border-[#999] bg-gray-100 text-xl font-bold text-gray-800 transition-colors hover:bg-gray-200 disabled:opacity-40"
-          >
-            &#9003;
-          </button>
-          <button
-            type="button"
-            onClick={() => pressDigit('0')}
-            className="min-h-12 rounded-md border border-[#999] bg-gray-100 text-xl font-bold text-gray-800 transition-colors hover:bg-gray-200"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTeam1(''); setTeam2(''); setSide('team1'); }}
-            className="min-h-12 rounded-md border border-[#999] bg-gray-100 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-200"
-          >
-            Clear
-          </button>
-        </div>
+        <Keypad
+          label="Score keypad"
+          onDigit={pressDigit}
+          onBackspace={() => setValue(value.slice(0, -1))}
+          backspaceDisabled={value === ''}
+          extraKey={{ face: '11', onPress: pressEleven }}
+        />
 
         <div className="mt-5 flex gap-3">
           <button

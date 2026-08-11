@@ -130,8 +130,9 @@ function dialog(): HTMLElement {
   return found as HTMLElement;
 }
 
-function input(): HTMLInputElement {
-  return dialog().querySelector('input')!;
+/** What the box is showing, which is the panel and not a text box. */
+function shown(): string {
+  return text(dialog().querySelector('[role="status"]')!);
 }
 
 function button(name: string): HTMLElement {
@@ -140,14 +141,17 @@ function button(name: string): HTMLElement {
   return found as HTMLElement;
 }
 
+/** A key on the pad, by its face. */
+function press(face: string) {
+  const pad = dialog().querySelector('[aria-label="Court number keypad"]')!;
+  const found = [...pad.querySelectorAll('button')].find((b) => text(b) === face);
+  if (!found) throw new Error(`no key reading ${face}`);
+  click(found);
+}
+
+/** Types a number in. The first digit replaces what the court is called now. */
 function type(value: string) {
-  act(() => {
-    const el = input();
-    // What React listens for. Setting .value alone leaves its state behind.
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    setter.call(el, value);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  for (const d of value) press(d);
 }
 
 /** What each round in the saved schedule calls its first court. */
@@ -187,13 +191,41 @@ describe('the court heading', () => {
 });
 
 describe('the box', () => {
-  it('opens on the number the court has, selected and ready to type over', () => {
-    // The whole job should be a tap, a digit and Done.
+  it('opens on the number the court has, ready to be typed over', () => {
+    // The whole job should be a tap, a digit and Done, so the first key
+    // replaces what is there rather than making court 2 into court 27.
     render();
     click(courtButton(2, 'COURT 2'));
-    expect(input().value).toBe('2');
-    expect(document.activeElement).toBe(input());
-    expect([input().selectionStart, input().selectionEnd]).toEqual([0, 1]);
+    expect(shown()).toBe('2');
+    press('7');
+    expect(shown()).toBe('7');
+    // Only the first one. After that it is an ordinary two-digit number.
+    press('9');
+    expect(shown()).toBe('79');
+  });
+
+  it('is typed on the same pad as a score, without the nudges', () => {
+    // One panel, not two, and no plus or minus: 7 is not one more than 6 in
+    // any sense a court number cares about.
+    render();
+    click(courtButton(1, 'COURT 1'));
+    expect(dialog().querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(dialog().querySelector('input')).toBeNull();
+    const faces = [...dialog().querySelector('[aria-label="Court number keypad"]')!.children].map(
+      (b) => text(b)
+    );
+    expect(faces).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'Clear']);
+  });
+
+  it('rubs a digit out, and clears the whole thing', () => {
+    render();
+    click(courtButton(1, 'COURT 1'));
+    type('12');
+    expect(shown()).toBe('12');
+    click(button('⌫'));
+    expect(shown()).toBe('1');
+    click(button('Clear'));
+    expect(shown()).toBe('–');
   });
 
   it('says which round the change starts at', () => {
@@ -202,14 +234,17 @@ describe('the box', () => {
     expect(text(dialog())).toContain('Round 3');
   });
 
-  it('will not save an empty box, or anything that is not a number', () => {
+  it('will not save an empty box, or a court 0', () => {
+    // Nothing worse than a nought can be got in from a pad of digits. That
+    // "7a" is refused too is on parseCourtNumber, which owns the rule.
     render();
     click(courtButton(1, 'COURT 1'));
-    type('');
+    click(button('Clear'));
     expect((button('Done') as HTMLButtonElement).disabled).toBe(true);
-    type('7a');
+    type('0');
     expect((button('Done') as HTMLButtonElement).disabled).toBe(true);
     type('7');
+    expect(shown()).toBe('7');
     expect((button('Done') as HTMLButtonElement).disabled).toBe(false);
   });
 });

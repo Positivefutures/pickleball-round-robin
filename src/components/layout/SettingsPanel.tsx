@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from '../../lib/appInfo';
-import { ShareIcon } from '../icons';
+import { PersonIcon, ShareIcon } from '../icons';
 
 interface Props {
   open: boolean;
@@ -33,18 +33,8 @@ function Icon({ children }: { children: ReactNode }) {
   );
 }
 
-// ShareIcon lives in ../icons: the Share panel's button shows the same action,
-// and the two must not drift apart.
-
-// Head and shoulders — your account.
-function PersonIcon() {
-  return (
-    <Icon>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </Icon>
-  );
-}
+// ShareIcon and PersonIcon live in ../icons: the Share panel's button and the
+// one in Share Live Session show the same actions, and none of them must drift.
 
 // A phone with a plus — put this on your device.
 function AddToHomeScreenIcon() {
@@ -211,7 +201,11 @@ export function SettingsPanel({
         <SettingsItem icon={<ShareIcon className="h-6 w-6" />} label="Share App" onClick={onShare} />
         {/* No Supabase configured means no item, the same rule Donate follows */}
         {showAccountItem && (
-          <SettingsItem icon={<PersonIcon />} label="My Account" onClick={onOpenAccount} />
+          <SettingsItem
+            icon={<PersonIcon className="h-6 w-6" />}
+            label="My Account"
+            onClick={onOpenAccount}
+          />
         )}
         {showInstallItem && (
           <SettingsItem

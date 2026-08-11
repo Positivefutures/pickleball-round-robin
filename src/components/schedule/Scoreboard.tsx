@@ -66,14 +66,16 @@ interface PanelProps {
  * being clipped inside it.
  */
 export function ScorePanel({ value, tone, size = 'lg', active = false }: PanelProps) {
-  const shown = value === undefined || value === '' ? BLANK : value;
+  const empty = value === undefined || value === '';
   return (
     <span
       className={`flex items-center justify-center font-extrabold leading-none tabular-nums ${PANEL_SIZE[size]} ${PANEL_TONE[tone]} ${
         active ? 'ring-2 ring-blue-500 ring-offset-1' : ''
       }`}
     >
-      {shown}
+      {/* The faint colour is on the dash rather than in the blank tone, because
+          the court number box wears that tone with a number in it. */}
+      {empty ? <span className="text-gray-300">{BLANK}</span> : value}
     </span>
   );
 }

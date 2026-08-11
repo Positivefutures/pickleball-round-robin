@@ -98,6 +98,12 @@ interface Props {
   defaultRating: number;
   /** Whether this session keeps score: the boards and the standings table. */
   scoringEnabled: boolean;
+  /**
+   * Opens My Account, and calls what it is handed once that panel is closed.
+   * Sharing a session needs an account, and a host who taps Create an account
+   * is in the middle of something here to come back to.
+   */
+  onOpenAccount?: (onReturn: () => void) => void;
 }
 
 // The padlocks shown for a round: every intact (non-broken) couple found in the
@@ -144,6 +150,7 @@ export function SchedulePage({
   actions,
   defaultRating,
   scoringEnabled,
+  onOpenAccount,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
@@ -598,6 +605,14 @@ export function SchedulePage({
           numCourts={numCourts}
           defaultRating={defaultRating}
           actions={sheetActions}
+          onOpenAccount={
+            onOpenAccount
+              ? // Back onto the card they left, not the grid. They went to make
+                // an account so they could share this session, and a signed-in
+                // host landing here has a code being made for them already.
+                () => onOpenAccount(() => openActions('share-live'))
+              : undefined
+          }
         />
       )}
 

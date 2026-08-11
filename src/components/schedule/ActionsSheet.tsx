@@ -50,22 +50,19 @@ type View =
   | 'share-live'
   | 'done';
 
-/** Where the sheet opens. The sit-out row's own button opens Add a Player. */
-export type ActionsEntry = Extract<View, 'menu' | 'add-player'>;
+/**
+ * Where the sheet opens. The sit-out row's own button opens Add a Player, and
+ * coming back from My Account opens the card that sent you there.
+ */
+export type ActionsEntry = Extract<View, 'menu' | 'add-player' | 'share-live'>;
 
-interface Tone {
-  tint: string;
-  glyph: string;
-}
-
-// Sampled from INBOX/Actions.PNG rather than rounded to the nearest Tailwind
-// shade, and written as inline colours for the same reason the header banner is:
-// the design picked them, not the palette.
-const GREEN: Tone = { tint: '#E8F4E2', glyph: '#149A30' };
-const TEAL: Tone = { tint: '#DFF2F4', glyph: '#0396B4' };
-const NAVY: Tone = { tint: '#E9EFFB', glyph: '#1E376E' };
-const RED: Tone = { tint: '#FEECEA', glyph: '#CB2221' };
-const ORANGE: Tone = { tint: '#FEF3E9', glyph: '#FA631C' };
+// The two primaries, taken from the palette rather than sampled, plus the red
+// the one destructive card has always used. Written as var() so index.css stays
+// the only place the brand hexes are spelled out.
+const TEAL = 'var(--color-brand-teal)';
+const ORANGE = 'var(--color-brand-orange)';
+const RED = '#CB2221';
+const WHITE = '#FFFFFF';
 
 const NAVY_TEXT = '#051829';
 const QUIET_TEXT = '#636A77';
@@ -74,41 +71,38 @@ interface Card {
   view: Exclude<View, 'menu' | 'done' | 'new-player'>;
   label: string;
   Icon: (props: { className?: string }) => React.ReactElement;
-  tone: Tone;
+  /** The glyph's colour, or the button's fill when `filled`. */
+  color: string;
+  /** A solid button with a white glyph and label. Reshuffle alone. */
+  filled?: boolean;
 }
 
 const CARDS: Card[] = [
-  { view: 'add-player', label: 'Add a Player', Icon: AddPlayerSolidIcon, tone: GREEN },
-  { view: 'add-sub', label: 'Add a Sub', Icon: SwapPeopleIcon, tone: TEAL },
-  { view: 'add-guest', label: 'Add a Guest', Icon: GuestIcon, tone: TEAL },
+  { view: 'add-player', label: 'Add a Player', Icon: AddPlayerSolidIcon, color: TEAL },
+  { view: 'add-sub', label: 'Sub a Player', Icon: SwapPeopleIcon, color: TEAL },
+  { view: 'add-guest', label: 'Add a Guest', Icon: GuestIcon, color: TEAL },
   // No Edit Player Rating card. Tapping somebody on the schedule and pressing
   // the pencil edits their name, rating and gender in one panel, which is both
   // fewer taps and the place a host is already looking when they notice.
-  { view: 'reshuffle', label: 'Reshuffle', Icon: ShuffleIcon, tone: GREEN },
-  { view: 'new-session', label: 'Start New Session', Icon: ReplayIcon, tone: GREEN },
-  { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, tone: ORANGE },
-  { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, tone: NAVY },
-  { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, tone: RED },
-  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, tone: NAVY },
+  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, color: ORANGE },
+  { view: 'reshuffle', label: 'Reshuffle', Icon: ShuffleIcon, color: TEAL, filled: true },
+  { view: 'new-session', label: 'Start New Session', Icon: ReplayIcon, color: ORANGE },
+  { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, color: TEAL },
+  { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, color: TEAL },
+  { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, color: RED },
 ];
 
 /**
- * Whether a card is on offer at all, as against being on offer but disabled.
- *
- * Only sharing answers no, and only when the app was built without a database
- * to share into. That follows Share App and My Account in the settings menu: no
- * configuration means no item, rather than a button that cannot work.
+ * Whether an account could be made at all, which is not the same as having one.
+ * False only in a build with no Supabase env vars.
  */
-function offered(card: Card): boolean {
-  if (card.view !== 'share-live') return true;
-  return ACCOUNTS_ENABLED && isSupabaseConfigured();
-}
+const accountsPossible = () => ACCOUNTS_ENABLED && isSupabaseConfigured();
 
 const HEADINGS: Record<View, { title: string; sub?: string }> = {
   menu: { title: 'Actions', sub: 'Quick changes for this session' },
   'add-player': { title: 'Add a Player', sub: 'Who is joining?' },
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
-  'add-sub': { title: 'Add a Sub' },
+  'add-sub': { title: 'Sub a Player' },
   'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
   reshuffle: { title: 'Reshuffle', sub: 'Deal the remaining rounds again' },
   'new-session': { title: 'Start a new session?' },
@@ -166,6 +160,12 @@ interface Props {
   numCourts: number;
   defaultRating: number;
   actions: ScheduleActions;
+  /**
+   * Shuts the sheet and opens My Account. Offered by Share Live Session to a
+   * host who has not signed in, since that is the one thing standing between
+   * them and a QR code.
+   */
+  onOpenAccount?: () => void;
 }
 
 export function ActionsSheet({
@@ -179,6 +179,7 @@ export function ActionsSheet({
   numCourts,
   defaultRating,
   actions,
+  onOpenAccount,
 }: Props) {
   const [view, setView] = useState<View>(entry);
   const [message, setMessage] = useState('');
@@ -404,7 +405,7 @@ export function ActionsSheet({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
                 {view === 'menu' && (
                   <div className="grid grid-cols-3 gap-3">
-                    {CARDS.filter(offered).map((card) => {
+                    {CARDS.map((card) => {
                       const reason = disabledReason(card);
                       return (
                         <button
@@ -413,25 +414,30 @@ export function ActionsSheet({
                           disabled={reason !== null}
                           title={reason ?? undefined}
                           onClick={() => openAction(card)}
-                          className="flex flex-col items-center gap-2 rounded-lg border border-[#E7E8EA]
-                                     bg-white px-1.5 py-3 shadow-sm transition-colors
-                                     hover:bg-[#F8F9FB] disabled:opacity-40 disabled:hover:bg-white"
+                          className={`flex flex-col items-center gap-2 rounded-lg border px-1.5 py-3
+                                      shadow-sm transition-colors disabled:opacity-40 ${
+                                        card.filled
+                                          ? 'border-transparent hover:brightness-90'
+                                          : 'border-[#E7E8EA] bg-white hover:bg-[#F8F9FB] disabled:hover:bg-white'
+                                      }`}
+                          style={card.filled ? { backgroundColor: card.color } : undefined}
                         >
                           <span
-                            className="flex h-[55px] w-[55px] items-center justify-center rounded-xl"
+                            className="flex items-center justify-center"
                             style={
                               {
-                                backgroundColor: card.tone.tint,
-                                color: card.tone.glyph,
-                                '--chip-tint': card.tone.tint,
+                                color: card.filled ? WHITE : card.color,
+                                // The ring around the badge on the court glyphs,
+                                // which has to match whatever is behind it.
+                                '--chip-tint': card.filled ? card.color : WHITE,
                               } as React.CSSProperties
                             }
                           >
-                            <card.Icon className="h-[30px] w-[30px]" />
+                            <card.Icon className="h-9 w-9" />
                           </span>
                           <span
                             className="text-center text-[1rem] font-bold leading-tight"
-                            style={{ color: NAVY_TEXT }}
+                            style={{ color: card.filled ? WHITE : NAVY_TEXT }}
                           >
                             {card.label}
                           </span>
@@ -694,10 +700,23 @@ export function ActionsSheet({
                   </div>
                 )}
 
-                {/* The one view that asks the sheet for nothing. It reads the
-                    publisher's own store and calls it directly, so there is no
-                    prop to thread and no action to add to ScheduleActions. */}
-                {view === 'share-live' && <LiveShareView />}
+                {/* The one view that asks the sheet for almost nothing. It reads
+                    the publisher's own store and calls it directly, so there is
+                    no action to add to ScheduleActions. The one thing it cannot
+                    do for itself is open My Account, which lives above the
+                    schedule entirely. */}
+                {view === 'share-live' && (
+                  <LiveShareView
+                    onCreateAccount={
+                      onOpenAccount && accountsPossible()
+                        ? () => {
+                            requestClose();
+                            onOpenAccount();
+                          }
+                        : undefined
+                    }
+                  />
+                )}
               </div>
             </>
           )}

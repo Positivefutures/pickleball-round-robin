@@ -194,6 +194,23 @@ function press(el: HTMLElement, text: string) {
   act(() => button.click());
 }
 
+/** Rubs out one digit on the side being typed into. */
+function backspace(el: HTMLElement) {
+  const button = [...el.querySelectorAll('button')].find(
+    (b) => b.getAttribute('aria-label') === 'Backspace'
+  );
+  if (!button) throw new Error('no backspace key');
+  act(() => button.click());
+}
+
+/** Taps a side's panel, which is what moves the typing to it. */
+function tapSide(el: HTMLElement, which: 0 | 1) {
+  const button = [...el.querySelectorAll('button')].filter((b) =>
+    (b.getAttribute('aria-label') ?? '').startsWith('Score for')
+  )[which];
+  act(() => button.click());
+}
+
 function save(el: HTMLElement) {
   const button = [...el.querySelectorAll('button')].find((b) => b.textContent === 'Save');
   if (!button) throw new Error('no Save button');
@@ -279,11 +296,34 @@ describe('writing a score down', () => {
     expect(button.disabled).toBe(true);
   });
 
-  it('takes a score back with Clear and then Save', () => {
-    // No separate delete button. Emptying the board and saving it is the way.
+  it('writes eleven in one tap, because that is the score games go to', () => {
+    const el = dialog();
+    press(el, '11');
+    expect(shown(el)[0]).toBe('11');
+  });
+
+  it('moves to the other side after 11, the same as typing it', () => {
+    const el = dialog();
+    press(el, '11');
+    press(el, '7');
+    expect(shown(el)).toEqual(['11', '7']);
+  });
+
+  it('replaces the side it lands on rather than adding to it', () => {
+    // 9 then the 11 key is eleven, not 911 cut down to 91.
+    const el = dialog({ team1: 9, team2: 7 });
+    press(el, '11');
+    expect(shown(el)).toEqual(['11', '7']);
+  });
+
+  it('takes a score back by emptying both sides and saving', () => {
+    // No delete button. Emptying the board and saving it is the way.
     let saved: CourtScore | null | undefined = { team1: 0, team2: 0 };
     const el = dialog({ team1: 11, team2: 7 }, (s) => { saved = s; });
-    press(el, 'Clear');
+    backspace(el);
+    backspace(el);
+    tapSide(el, 1);
+    backspace(el);
     expect(shown(el)).toEqual(['–', '–']);
     save(el);
     expect(saved).toBeNull();

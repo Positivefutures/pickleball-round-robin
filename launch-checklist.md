@@ -649,8 +649,16 @@ The remaining phases of the accounts plan, which lives at
 `~/.claude/plans/pickleball-round-robin-generator-linked-mitten.md`. Listed here
 so there is one queue and not two.
 
-- [ ] **12. Phase 2b, the SignInBanner** **[me]**. Specced and ready. Its
-      promise is true now that Phase 4 has shipped
+- [x] **12. Phase 2b, the SignInBanner** **[me]**. Done 2026-08-11, and the last
+      phase of the accounts plan. One line above the step, offered once a group
+      is four players deep, gone for good on the cross, and never shown to
+      somebody already signed in. That last part reads `hasStoredSession()`
+      rather than the auth store, which says `unknown` until the Supabase client
+      has loaded: without it the banner flashed on every launch at the one
+      person it is not for. It waits its turn behind the install banner, which
+      wants the same four players, so no step ever carries two coloured bars.
+      Share Live Session offers the same account from inside the Actions sheet
+      in the same commit, and comes back to the card when the panel closes
 - [x] **13. Phase 5, outbox retry and backoff** **[me]**. The one-bar-at-the-court
       case, and the most likely real-world failure of the core feature. More
       launch-relevant than most of Tier E. Done 2026-08-09 in 1.9.9. The two
