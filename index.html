@@ -6,10 +6,27 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#FBFAF6" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      What iOS writes under the icon. Left to itself it works down a chain and
+      lands on the <title> below, which is two words too long for a home screen
+      and gets truncated. This pins it to the manifest's short_name instead.
+
+      The two capable flags are for iOS old enough to predate Safari reading
+      `display` out of the manifest. Modern Safari ignores them.
+
+      Deliberately not setting a black-translucent status bar. That draws the
+      app up behind the clock and the notch, which needs safe-area padding
+      threaded through the whole shell to not look broken, and that is a larger
+      change than this one.
+    -->
+    <meta name="apple-mobile-web-app-title" content="Round Robin" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Pickleball Round Robin</title>
     <meta
       name="description"
@@ -67,6 +84,36 @@
       content="Build fair pickleball round robins in seconds. Free, no ads, and no account needed."
     />
     <meta name="twitter:image" content="https://app.pbroundrobin.com/og-banner.png" />
+
+    <!--
+      The one inline script in this file, and it has to be inline.
+
+      Chrome fires beforeinstallprompt once its install criteria are met, which
+      needs a service worker with a fetch handler. On a first visit the worker
+      registers late enough that React is already listening. On every visit
+      after that the worker is active before the page has parsed, so the event
+      can arrive before the module below has even run. It is single-shot: miss
+      it and there is no second chance that page view, and an Android user who
+      could have had a one-tap install is sent to the written instructions for
+      a browser menu instead.
+
+      So the listener is registered here, ahead of everything, and the event is
+      parked on window for useInstallPrompt to adopt when it mounts. The
+      preventDefault is the same one the hook used to do: it stops Chrome's own
+      banner competing with ours. The custom event covers the ordinary case
+      where the prompt arrives after the app is already up.
+    -->
+    <script>
+      window.__installPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__installPrompt = e;
+        window.dispatchEvent(new Event('installpromptready'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__installPrompt = null;
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

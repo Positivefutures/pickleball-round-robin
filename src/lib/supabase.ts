@@ -35,14 +35,16 @@ export function getSupabase(): Promise<SupabaseClient> {
   client ??= import('@supabase/supabase-js').then(({ createClient }) =>
     createClient(url()!, anonKey()!, {
       auth: {
-        // The default. Worth naming, because it is why the emailed link only
-        // works in the browser that asked for it: PKCE keeps a verifier in that
-        // browser's storage, and the link carries a code that is useless
-        // without it. The 6-digit code has no such tie, which is what makes it
-        // the way in from a home-screen app.
+        // The default, and it stays. PKCE keeps a verifier in the asking
+        // browser's storage, which is exactly why the sign-in email carries no
+        // link any more: a link is useless in any other browser, and on a phone
+        // the mail app hands it to one. See docs/email-templates/README.md.
+        // The 6-digit code has no tie to a browser, so it is the only way in.
         flowType: 'pkce',
-        // The link comes back to "/" with ?code=... on it. Letting the client
-        // consume that is the whole of the link flow.
+        // Nothing we send lands here now, but a link emailed before the
+        // template changed still can, and so can an email-change confirmation.
+        // Letting the client consume those is free; linkArrival below is what
+        // makes the failures speak.
         detectSessionInUrl: true,
         persistSession: true,
         autoRefreshToken: true,
@@ -77,21 +79,121 @@ export function hasStoredSession(): boolean {
   return false;
 }
 
+/** What this page load looks like, if it looks like a return trip from a link. */
+export type LinkArrival =
+  /** An ordinary visit. */
+  | { kind: 'none' }
+  /** A code to spend, which needs a verifier this browser may not hold. */
+  | { kind: 'code' }
+  /** The link was real once. */
+  | { kind: 'expired' }
+  /** Anything else the server refused. */
+  | { kind: 'error' };
+
+function readArrival(): LinkArrival {
+  if (typeof window === 'undefined') return { kind: 'none' };
+  const { hash, search } = window.location;
+  // Errors come back on the query string under PKCE and on the fragment under
+  // the implicit flow. Reading both costs nothing and means a flow change
+  // cannot quietly turn this into a dead end again.
+  const params = new URLSearchParams(search);
+  const fragment = new URLSearchParams(hash.replace(/^#/, ''));
+  const code = params.get('error_code') ?? fragment.get('error_code') ?? '';
+
+  if (params.has('error') || params.has('error_description') || fragment.has('error')) {
+    return { kind: code.includes('expired') ? 'expired' : 'error' };
+  }
+  if (params.has('code') || hash.includes('access_token=')) return { kind: 'code' };
+  return { kind: 'none' };
+}
+
+let arrival: LinkArrival | null = null;
+
 /**
- * Whether this page load looks like a return trip from the emailed link.
+ * How this page load began, answered once and then remembered.
  *
- * Checked before anything is imported, so an ordinary visit never pays for the
- * client. A false positive costs one wasted import; a false negative would
- * leave someone staring at the app wondering whether they were signed in.
+ * Memoised because the answer has a short life: `detectSessionInUrl` rewrites
+ * the address as soon as the client has read it, so anything asking later would
+ * get 'none' and conclude nothing happened. First call wins, and every caller
+ * after it sees the same page load the first one did.
+ *
+ * Read before anything is imported, so an ordinary visit never pays for the
+ * client.
+ */
+export function linkArrival(): LinkArrival {
+  arrival ??= readArrival();
+  return arrival;
+}
+
+/**
+ * Whether this page load looks like a return trip from an emailed link.
+ *
+ * A false positive costs one wasted import; a false negative would leave
+ * someone staring at the app wondering whether they were signed in.
  */
 export function hasAuthCallback(): boolean {
-  if (typeof window === 'undefined') return false;
-  const { hash, search } = window.location;
-  const params = new URLSearchParams(search);
-  return (
-    params.has('code') ||
-    params.has('error_description') ||
-    hash.includes('access_token=') ||
-    hash.includes('error=')
-  );
+  return linkArrival().kind !== 'none';
 }
+
+/**
+ * What to tell somebody a link has just dumped back on the sign-in screen.
+ *
+ * Null on an ordinary visit, so the panel opened from the menu says nothing
+ * extra. Null is also the answer for a link that worked, by a route that cannot
+ * go wrong: this is only ever rendered on the signed-out panel, and a link that
+ * worked ends up on the signed-in one.
+ */
+export function linkNotice(): string | null {
+  switch (linkArrival().kind) {
+    case 'expired':
+      return 'That link has expired. Ask for a new code below.';
+    case 'code':
+    case 'error':
+      return 'That link did not sign you in. Ask for a code below instead.';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Takes the auth parameters back off the address, once they have been read.
+ *
+ * Two reasons, and the second is the one that bites. A spent code left on the
+ * URL is replayed by any reload, which fails the second time and reopens the
+ * panel saying the link did not work — on a page where it did. And a token in
+ * the address bar is a token in the history, on a screen someone may well be
+ * holding up at a court.
+ *
+ * Everything not ours is left exactly where it was: this runs on every arrival,
+ * including ones carrying a live session share.
+ */
+export function clearAuthParams(): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const names = ['code', 'error', 'error_code', 'error_description'];
+
+  let touched = false;
+  for (const name of names) {
+    if (url.searchParams.has(name)) {
+      url.searchParams.delete(name);
+      touched = true;
+    }
+  }
+
+  const fragment = new URLSearchParams(url.hash.replace(/^#/, ''));
+  if (names.some((name) => fragment.has(name)) || fragment.has('access_token')) {
+    url.hash = '';
+    touched = true;
+  }
+
+  // replaceState rather than pushState: the arrival is not a place anyone
+  // should be able to press Back into.
+  if (touched) window.history.replaceState(null, '', url.toString());
+}
+
+/** Exported for the tests. Nothing else may reach past the memo. */
+export const __testing = {
+  reset() {
+    arrival = null;
+  }
+};

@@ -1,17 +1,18 @@
-import { getSupabase, isSupabaseConfigured } from './supabase';
+import { clearAuthParams, getSupabase, isSupabaseConfigured } from './supabase';
 
 /**
  * Sign-in, and the state of it.
  *
  * Passwordless only. Nothing here calls a password API, so there is no password
- * to leak, reset or reuse. Asking to sign in sends one email carrying both a
- * link and a code, and either one gets you in:
+ * to leak, reset or reuse. Asking to sign in sends one email carrying a 6-digit
+ * code, and typing it is the only way in. There is deliberately no link.
  *
- * - The **link** is one tap, and works in the browser that asked for it.
- * - The **code** works anywhere, which is the point of it. A link tapped in iOS
- *   Mail opens Safari, and Safari does not share storage with an app launched
- *   from the home screen, so an installed user who follows the link is signed
- *   in somewhere they were not looking. Typing the code never leaves the app.
+ * A link would work in the browser that asked for it and nowhere else, because
+ * PKCE keeps the verifier in that browser's storage. On a phone the mail app
+ * hands links to a different browser, and an app launched from the home screen
+ * has storage Safari cannot see, so the tap that looks easiest is the one that
+ * fails. The code has no tie to a browser and never leaves the app. The reasons
+ * are written up in full in docs/email-templates/README.md.
  *
  * This module holds no user data and syncs nothing. Signing in and out changes
  * what the Account panel shows and nothing else.
@@ -154,9 +155,13 @@ export function initAuth(): Promise<void> {
     try {
       const supabase = await getSupabase();
       // getSession resolves after the client has consumed any code in the URL,
-      // so a link arrival lands here already signed in.
+      // so an arrival that worked lands here already signed in.
       const { data } = await supabase.auth.getSession();
       setState(fromSession(data.session));
+      // Read by then, spent or refused either way. linkArrival has already been
+      // memoised by the App render that opened the panel, so taking the
+      // parameters off now cannot cost anyone the reason it failed.
+      clearAuthParams();
       supabase.auth.onAuthStateChange((_event, session) => {
         setState(fromSession(session));
       });
@@ -171,7 +176,7 @@ export function initAuth(): Promise<void> {
   return started;
 }
 
-/** Sends the email carrying both the link and the code. */
+/** Sends the email carrying the code. */
 export async function sendSignInEmail(email: string): Promise<AuthResult> {
   const address = email.trim();
   if (!address) return { ok: false, message: 'Enter your email address first.' };
@@ -181,8 +186,12 @@ export async function sendSignInEmail(email: string): Promise<AuthResult> {
     const { error } = await supabase.auth.signInWithOtp({
       email: address,
       options: {
-        // The origin rather than the production URL, so this works from a dev
-        // server too. Both are on the Supabase redirect allow list.
+        // Kept although the template has no link in it, because Supabase still
+        // mints one and a template can always be edited back. This is what
+        // decides where a stray link lands: the app, which says what happened,
+        // rather than the project's default site URL, which does not. The
+        // origin rather than the production URL, so a dev server works too.
+        // Both are on the Supabase redirect allow list.
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
@@ -194,8 +203,10 @@ export async function sendSignInEmail(email: string): Promise<AuthResult> {
 }
 
 /**
- * Redeems the code from the email. Unlike the link this needs nothing stored in
- * the browser beforehand, which is why it works in an installed app.
+ * Redeems the code from the email. It needs nothing stored in the browser
+ * beforehand, which is why it works in an installed app and why it is the only
+ * way in. 'email' covers a signup token too, so one path handles a first sign
+ * in and every one after it.
  */
 export async function verifyCode(email: string, code: string): Promise<AuthResult> {
   const token = code.replace(/\D/g, '');

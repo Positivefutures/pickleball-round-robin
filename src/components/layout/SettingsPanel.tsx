@@ -8,6 +8,8 @@ interface Props {
   onOpenAccount: () => void;
   /** Hidden when there are no Supabase env vars, so there is never a dead button. */
   showAccountItem: boolean;
+  /** Spelled out on the account item, so the state is readable without opening it. */
+  signedIn: boolean;
   onOpenInstall: () => void;
   /** Hidden once launched from a home-screen icon — nothing left to install. */
   showInstallItem: boolean;
@@ -162,6 +164,7 @@ export function SettingsPanel({
   onShare,
   onOpenAccount,
   showAccountItem,
+  signedIn,
   onOpenInstall,
   showInstallItem,
   onToggleLargeText,
@@ -203,7 +206,7 @@ export function SettingsPanel({
         {showAccountItem && (
           <SettingsItem
             icon={<PersonIcon className="h-6 w-6" />}
-            label="My Account"
+            label={`My Account (${signedIn ? 'signed in' : 'signed out'})`}
             onClick={onOpenAccount}
           />
         )}

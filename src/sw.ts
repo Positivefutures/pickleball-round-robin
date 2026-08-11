@@ -50,8 +50,17 @@ const RUNTIME_IMAGES = /\.(png|jpg|jpeg|webp|svg)$/;
  * scrapers behind Messages, Slack and iOS share sheets, which fetch it once
  * from a server and never from this device. Cached it would be the largest
  * thing here by a factor of three, for nothing.
+ *
+ * The two screenshots are here for the same reason. Chrome reads them from the
+ * manifest to build its install dialog, which is a thing it draws before this
+ * app is installed and never again after. Storing them on the device would be
+ * caching a picture of the app for somebody already looking at the app.
  */
-export const NEVER_CACHE = new Set(['/og-banner.png']);
+export const NEVER_CACHE = new Set([
+  '/og-banner.png',
+  '/screenshot-roster.png',
+  '/screenshot-schedule.png',
+]);
 
 export type Route = 'pass' | 'shell' | 'image';
 

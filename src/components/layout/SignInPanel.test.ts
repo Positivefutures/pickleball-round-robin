@@ -58,12 +58,12 @@ let root: Root;
 let container: HTMLElement;
 let closed: number;
 
-function mount() {
+function mount(notice?: string) {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
-    root.render(createElement(SignInPanel, { onClose: () => (closed += 1) }));
+    root.render(createElement(SignInPanel, { onClose: () => (closed += 1), notice }));
   });
 }
 
@@ -190,6 +190,48 @@ describe('the two ways sending fails, which are not the same failure', () => {
   });
 });
 
+/**
+ * The end of the loop.
+ *
+ * Someone who taps a link on a phone lands back here signed out. Without a word
+ * of explanation this panel is indistinguishable from the one they started on,
+ * so they type their address again, get another email, tap the link again, and
+ * go round for as long as their patience lasts.
+ */
+describe('when a link put someone here', () => {
+  it('says why the panel opened, rather than looking like the tap did nothing', () => {
+    mount('That link has expired. Ask for a new code below.');
+
+    expect(text()).toContain('That link has expired. Ask for a new code below.');
+  });
+
+  // Told, not blocked. The way out is the field right below it, so the panel
+  // still has to be a working sign-in screen.
+  it('leaves the way out in place under it', () => {
+    mount('That link did not sign you in. Ask for a code below instead.');
+
+    expect(field('acct-email')).toBeTruthy();
+    expect(button(/Email me a login code/)).toBeTruthy();
+  });
+
+  // status rather than alert: it is news, not a failure, and nobody did
+  // anything wrong to cause it.
+  it('reads it out for a screen reader, since it explains an unasked-for screen', () => {
+    mount('That link has expired. Ask for a new code below.');
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'That link has expired. Ask for a new code below.'
+    );
+  });
+
+  it('says nothing extra when the panel was opened from the menu', () => {
+    mount();
+
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(text()).not.toContain('That link');
+  });
+});
+
 describe('before it asks the server anything', () => {
   it('says what is missing instead of sending an empty address', () => {
     mount();
@@ -241,12 +283,26 @@ describe('once the email is away', () => {
     expect(text()).toContain('host@example.com');
   });
 
-  it('explains why the code exists at all on an installed app', async () => {
+  /**
+   * The screen used to promise "a link and a code" and then explain, in a
+   * sentence about home screens that nobody could parse, which of the two to
+   * use. There is one way in now, so there is nothing to choose between and
+   * nothing to explain.
+   */
+  it('names the code, and offers nothing else', async () => {
     await sent();
 
-    expect(text()).toContain(
-      'Using the app from your home screen? Type the code. The link signs you in to your browser instead.'
-    );
+    expect(text()).toContain('We sent a 6 digit code to');
+    // Not a wording preference. A link is what created the loop: tapped on a
+    // phone it opens a browser holding no verifier, fails, and lands back on
+    // this panel. Mentioning one would send people looking for it.
+    expect(text().toLowerCase()).not.toContain('link');
+  });
+
+  it('points at the spam folder, which is where a missing code usually is', async () => {
+    await sent();
+
+    expect(text()).toContain('Not there? Check your spam folder.');
   });
 
   // Not "the address it sent to rather than the field", which this cannot tell

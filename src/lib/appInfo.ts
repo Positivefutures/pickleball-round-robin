@@ -6,7 +6,7 @@
  * (1.40 → 1.50), and the odd number in between for a smaller change (1.51).
  * Nothing parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '1.91';
+export const APP_VERSION = '2.00';
 
 /**
  * Master switch for the accounts feature.

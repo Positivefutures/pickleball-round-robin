@@ -25,6 +25,8 @@ import {
 
 interface Props {
   onClose: () => void;
+  /** Set only when a link opened this panel and failed. Shown on Sign In. */
+  notice?: string | null;
 }
 
 /**
@@ -258,7 +260,7 @@ function SignedIn({
  * whether you are signed in. Loading it here, on open, is also what keeps that
  * chunk off the critical path for everyone else.
  */
-export function AccountPanel({ onClose }: Props) {
+export function AccountPanel({ onClose, notice }: Props) {
   const auth = useSyncExternalStore(authStore.subscribe, authStore.get, authStore.get);
   const sync = useSyncExternalStore(
     syncStatusStore.subscribe,
@@ -299,8 +301,11 @@ export function AccountPanel({ onClose }: Props) {
     );
   }
 
+  // Only reached once the client has answered, which is what makes the notice
+  // safe to pass down unconditionally: a link that worked ends up signed in,
+  // and never renders it.
   if (auth.status === 'signed-out') {
-    return <SignInPanel onClose={onClose} />;
+    return <SignInPanel onClose={onClose} notice={notice} />;
   }
 
   // The decision takes the whole card until it is answered.

@@ -29,7 +29,7 @@ import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
 import { AccountPanel } from './components/layout/AccountPanel';
-import { isSupabaseConfigured, hasAuthCallback, hasStoredSession } from './lib/supabase';
+import { isSupabaseConfigured, hasAuthCallback, hasStoredSession, linkNotice } from './lib/supabase';
 import { authStore } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
@@ -120,6 +120,12 @@ function App() {
   // they were emailed earlier would land straight in a panel that is supposed
   // to be switched off.
   const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
+  // And what to say once it is open. Held in state rather than read where it is
+  // rendered, so closing the panel puts it down for good: it belongs to the
+  // arrival that opened this panel, not to every later visit to Sign In.
+  const [linkProblem, setLinkProblem] = useState(() =>
+    ACCOUNTS_ENABLED ? linkNotice() : null
+  );
   // What to do once My Account is closed again, set only when something sent
   // the host there mid-task. A ref rather than state: nothing renders from it,
   // and it must not be lost to the re-render that opening the panel causes.
@@ -150,7 +156,19 @@ function App() {
 
   // Read once: it cannot change without a reload, and re-reading per render
   // would run a matchMedia query on every keystroke.
-  const [installed] = useState(isStandalone);
+  const [installed, setInstalled] = useState(isStandalone);
+
+  // The one exception to reading it once. A native install lands while this tab
+  // is still open and still showing "Add to Home Screen" in the menu, so take
+  // the browser's word for it. A listener does not bring back the per-render
+  // matchMedia call the read above avoids.
+  useEffect(() => {
+    function onInstalled() {
+      setInstalled(true);
+    }
+    window.addEventListener('appinstalled', onInstalled);
+    return () => window.removeEventListener('appinstalled', onInstalled);
+  }, []);
 
   // Only ever set by a tap on the printer, and cleared by the next one, so a
   // stale complaint cannot outlive the attempt that caused it.
@@ -210,6 +228,7 @@ function App() {
 
   function closeAccount() {
     setShowAccount(false);
+    setLinkProblem(null);
     const back = afterAccount.current;
     afterAccount.current = null;
     back?.();
@@ -838,6 +857,7 @@ function App() {
         onShare={handleShare}
         onOpenAccount={() => openAccount()}
         showAccountItem={ACCOUNTS_ENABLED && isSupabaseConfigured()}
+        signedIn={signedIn}
         onOpenInstall={() => setShowInstall(true)}
         showInstallItem={!installed}
         onToggleLargeText={() => setLargeText((v) => !v)}
@@ -1083,7 +1103,7 @@ function App() {
 
       {showShare && <SharePanel onClose={() => setShowShare(false)} />}
 
-      {showAccount && <AccountPanel onClose={closeAccount} />}
+      {showAccount && <AccountPanel onClose={closeAccount} notice={linkProblem} />}
 
       {showInstall && (
         <InstallPanel

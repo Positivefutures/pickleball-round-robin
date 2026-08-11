@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { installRoute } from '../../lib/install';
+import { installRoute, isIos } from '../../lib/install';
 
 interface Props {
   canPrompt: boolean;
@@ -37,6 +37,20 @@ function AddToHomeGlyph() {
   );
 }
 
+// The three dots every non-Safari browser keeps its own menu behind.
+function MoreGlyph() {
+  return (
+    <svg
+      width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+      aria-hidden="true" className="inline-block shrink-0 align-text-bottom text-gray-700"
+    >
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
+}
+
 function Step({ n, children }: { n: number; children: ReactNode }) {
   return (
     <li className="flex gap-3">
@@ -48,8 +62,43 @@ function Step({ n, children }: { n: number; children: ReactNode }) {
   );
 }
 
+/**
+ * Points at the Share button in Safari's toolbar, which is the one thing the
+ * written steps cannot do: the button is outside the page, so nothing in here
+ * can highlight it.
+ *
+ * Only on an iPhone. iPad Safari puts Share in the top right, so the same arrow
+ * there would be pointing at nothing. The width test is the check, because a
+ * phone held in landscape is still a phone.
+ */
+function ShareArrow() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 bottom-0 hidden justify-center pb-2 max-[520px]:flex"
+    >
+      <div className="flex flex-col items-center gap-1 motion-safe:animate-bounce">
+        <span className="rounded-full bg-white/95 px-3 py-1 text-sm font-semibold text-gray-800 shadow-lg">
+          Share is down here
+        </span>
+        <svg
+          width="28" height="28" viewBox="0 0 24 24" fill="none"
+          stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+          className="drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)]"
+        >
+          <line x1="12" y1="3" x2="12" y2="20" />
+          <polyline points="5 13 12 20 19 13" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
   const route = installRoute({ canPrompt });
+  // The arrow belongs to Safari's toolbar, so it follows the share-sheet steps
+  // rather than the panel being open on any iOS browser.
+  const showArrow = route === 'ios' && isIos();
 
   return (
     <div
@@ -92,19 +141,41 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
           </ol>
         )}
 
+        {/* Chrome, Firefox and Edge on iOS are Safari underneath and get no
+            install prompt either, but each keeps its own Add to Home Screen
+            inside its own menu. Sending them to Safari's toolbar would be a
+            wrong instruction rather than a vague one. */}
+        {route === 'ios-other' && (
+          <>
+            <ol className="mt-5 space-y-3">
+              <Step n={1}>
+                Open your browser&rsquo;s menu <MoreGlyph />.
+              </Step>
+              <Step n={2}>
+                Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>{' '}
+                <AddToHomeGlyph />.
+              </Step>
+            </ol>
+            <p className="mt-4 text-sm text-gray-500">
+              Not finding it? Safari always has it, and the steps there are the same.
+            </p>
+          </>
+        )}
+
         {route === 'manual' && (
           <ol className="mt-5 space-y-3">
-            <Step n={1}>Open your browser&rsquo;s menu.</Step>
+            <Step n={1}>Open your browser&rsquo;s menu <MoreGlyph />.</Step>
             <Step n={2}>
-              Choose <IosShareGlyph /> <strong>Share</strong>, <strong>Install</strong>, or{' '}
-              <strong>Add to Home Screen</strong> — Safari keeps it under the Share button.
+              Choose <strong>Install</strong> or <strong>Add to Home Screen</strong>.
+              Safari keeps it under the Share button <IosShareGlyph />.
             </Step>
           </ol>
         )}
 
-        {/* Shown only alongside written steps. Under the native Install button an
-            iOS share-sheet screenshot would just be confusing. */}
-        {route !== 'native' && (
+        {/* The screenshot is of Safari's share sheet, so it only helps the one
+            route that is looking at Safari's share sheet. Under the native
+            Install button, or beside another browser's own menu, it misleads. */}
+        {route === 'ios' && (
           <img
             src="/share.png"
             alt="The iOS share sheet, with Add to Home Screen highlighted"
@@ -122,6 +193,8 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
           Close
         </button>
       </div>
+
+      {showArrow && <ShareArrow />}
     </div>
   );
 }

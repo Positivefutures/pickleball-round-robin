@@ -8,6 +8,7 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
+import { __testing as supabaseTesting } from './lib/supabase';
 import { APP_URL } from './lib/appInfo';
 import { sharePayload } from './lib/share';
 import { ROUND_TYPE_META } from './lib/roundTypes';
@@ -391,6 +392,124 @@ describe('the sign-in banner', () => {
       // And on the next launch. This one is remembered, unlike the update line.
       remount();
       expect(container.textContent).not.toContain(LINE);
+    });
+  });
+
+  /**
+   * The settings drawer says which way round it is, so somebody can tell
+   * whether their groups are being kept without opening the panel to find out.
+   */
+  describe('the account item in the settings menu', () => {
+    function accountLabel(): string {
+      const item = buttons(/^My Account/)[0];
+      if (!item) throw new Error('no My Account item in the settings drawer');
+      return text(item);
+    }
+
+    it('says signed out when there is no session', () => {
+      withDatabase(() => {
+        seed(9, 9, 2);
+        mount();
+        expect(accountLabel()).toBe('My Account (signed out)');
+      });
+    });
+
+    it('says signed in when a session is stored', () => {
+      withDatabase(() => {
+        seed(9, 9, 2);
+        // The same stored-token signal the banner test above relies on.
+        window.localStorage.setItem('sb-example-auth-token', '{"access_token":"x"}');
+        mount();
+        expect(accountLabel()).toBe('My Account (signed in)');
+      });
+    });
+  });
+
+  /**
+   * The loop, end to end, in the real App.
+   *
+   * Tapping a sign-in link on a phone lands here signed out: the link only
+   * works in the browser that asked for it, and the mail app opens a different
+   * one. My Account opens by itself, which is right. What was wrong is what it
+   * then said, which was nothing at all, so the panel was indistinguishable
+   * from the one the person had just left. They typed their address again, got
+   * another email, tapped the link again, and went round.
+   *
+   * Both halves are asserted together because either alone is worthless: a
+   * panel that opens and explains nothing is the bug, and an explanation nobody
+   * is shown is not a fix.
+   */
+  describe('arriving back from a link that did not work', () => {
+    /** withDatabase, but able to wait for the Supabase client to load. */
+    async function withDatabaseAsync(run: () => Promise<void>) {
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'sb_publishable_test');
+      try {
+        await run();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    }
+
+    /** A page load at `url`, with the last one's arrival forgotten. */
+    function arriveAt(url: string) {
+      window.history.replaceState({}, '', url);
+      supabaseTesting.reset();
+    }
+
+    /** Lets the dynamic import of the client, and getSession after it, settle. */
+    async function settle() {
+      for (let i = 0; i < 10; i++) {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+      }
+    }
+
+    afterEach(() => arriveAt('/'));
+
+    it('opens My Account and says the link expired', async () => {
+      await withDatabaseAsync(async () => {
+        seed(9, 9, 2);
+        arriveAt('/?error=access_denied&error_code=otp_expired');
+        mount();
+
+        // Opened without anyone touching the menu, which is the half that
+        // already worked.
+        expect(container.querySelector('img[src="/account-top.png"]')).not.toBeNull();
+
+        await settle();
+        expect(container.textContent).toContain(
+          'That link has expired. Ask for a new code below.'
+        );
+        // And it is still a working sign-in screen underneath it.
+        expect(container.querySelector('#acct-email')).not.toBeNull();
+      });
+    });
+
+    it('sends someone to the code when the link simply did not work here', async () => {
+      await withDatabaseAsync(async () => {
+        seed(9, 9, 2);
+        arriveAt('/?code=abc123');
+        mount();
+
+        await settle();
+        expect(container.textContent).toContain(
+          'That link did not sign you in. Ask for a code below instead.'
+        );
+      });
+    });
+
+    it('says nothing of the sort when My Account is opened from the menu', async () => {
+      await withDatabaseAsync(async () => {
+        seed(9, 9, 2);
+        arriveAt('/');
+        mount();
+        clickButton(/^Sign in$/);
+
+        await settle();
+        expect(container.textContent).not.toContain('That link');
+      });
     });
   });
 });

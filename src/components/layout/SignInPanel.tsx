@@ -2,10 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { sendSignInEmail, verifyCode } from '../../lib/auth';
 import { GroupsIcon, LockIcon, ShieldCheckIcon, SyncDevicesIcon } from '../icons';
 import { AccountShell, Problem } from './AccountShell';
-import { blurb, field, label, muted, primary, secondary } from './accountStyles';
+import { blurb, field, label, muted, note, primary, secondary } from './accountStyles';
 
 interface Props {
   onClose: () => void;
+  /**
+   * Why this panel opened by itself, when a link put someone here. Amber rather
+   * than the red of a Problem: nothing they did caused it, and the panel below
+   * is the fix rather than the complaint.
+   */
+  notice?: string | null;
 }
 
 /** Long enough for the shortest code Supabase will issue, short enough to reject a typo. */
@@ -36,7 +42,7 @@ function PromiseRow({ Icon, text }: { Icon: typeof GroupsIcon; text: string }) {
  * being sent. The second is deliberately narrow — once the code is on its way,
  * the only thing anyone wants is somewhere to type it.
  */
-export function SignInPanel({ onClose }: Props) {
+export function SignInPanel({ onClose, notice }: Props) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -91,12 +97,8 @@ export function SignInPanel({ onClose }: Props) {
     return (
       <AccountShell statusLine="Check your email" onClose={onClose}>
         <p className={blurb}>
-          We sent a link and a code to{' '}
+          We sent a 6 digit code to{' '}
           <span className="font-bold text-[#1F293D]">{sentTo}</span>.
-        </p>
-        <p className="mt-3 text-center leading-snug text-[#69727F]">
-          Using the app from your home screen? Type the code. The link signs you in to your
-          browser instead.
         </p>
 
         <div className="mt-5">
@@ -119,6 +121,12 @@ export function SignInPanel({ onClose }: Props) {
             className={`${field} text-center text-3xl font-bold tracking-[0.4em]`}
           />
         </div>
+
+        {/* The one thing worth saying here, and the reason most codes look like
+            they never arrived. */}
+        <p className="mt-3 text-center leading-snug text-[#69727F]">
+          Not there? Check your spam folder.
+        </p>
 
         {problem && <Problem>{problem}</Problem>}
 
@@ -153,6 +161,15 @@ export function SignInPanel({ onClose }: Props) {
 
   return (
     <AccountShell statusLine="You are not signed in" onClose={onClose}>
+      {/* Above everything, because it answers the question somebody arriving
+          from a link is already asking. Without it this panel looks like the
+          tap did nothing, and they start over. */}
+      {notice && (
+        <p role="status" className={`${note} border-amber-200 bg-amber-50 text-amber-900`}>
+          {notice}
+        </p>
+      )}
+
       <p className={blurb}>Sign in with your email to save and sync your data.</p>
 
       <ul className="mt-5 space-y-4">

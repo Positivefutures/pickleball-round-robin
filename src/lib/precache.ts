@@ -60,14 +60,20 @@ export const RUNTIME_CACHED_PUBLIC = [
   // added to a home screen, which only happens online. 252 KB, and the app
   // itself never renders it.
   '/icon-512.png',
+  // The same icon inset into Android's 80% safe zone, so its mask crops white
+  // rather than cropping the ring. Fetched at install time like the one above,
+  // and likewise never rendered by the app.
+  '/icon-maskable-512.png',
   // Referenced by nothing today. Left here rather than deleted because the
   // decision it needs is whether the app still uses it, not whether it caches.
   '/logo.png',
 ];
 
 /**
- * Never stored, at any point. Currently only the share banner, which exists for
- * scrapers rather than for people.
+ * Never stored, at any point. The share banner, which exists for scrapers
+ * rather than for people, and the two manifest screenshots, which exist for
+ * Chrome's install dialog. Both are things another program reads once from a
+ * server, so a copy on the phone would never be the copy anybody used.
  *
  * Written out again here rather than imported from `sw.ts`, which owns the copy
  * the worker actually enforces. That file has to stay free of imports, because
@@ -76,4 +82,8 @@ export const RUNTIME_CACHED_PUBLIC = [
  * round drags one into the wrong project. `precache.test.ts` asserts the two
  * lists agree, which is the part that matters.
  */
-export const NEVER_CACHED_PUBLIC = ['/og-banner.png'];
+export const NEVER_CACHED_PUBLIC = [
+  '/og-banner.png',
+  '/screenshot-roster.png',
+  '/screenshot-schedule.png',
+];
