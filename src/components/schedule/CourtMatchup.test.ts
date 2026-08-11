@@ -64,7 +64,7 @@ function render(
         allPlayers: players,
         lockedTeams: { team1: false, team2: false },
         onToggleLock: () => {},
-        onRequestRemove: () => {},
+        onOpenPlayerMenu: () => {},
         onEditScore: () => {},
         ...extra,
       })
@@ -306,8 +306,17 @@ describe('the gender marks', () => {
   });
 
   it('never take the width from the name they sit beside', () => {
+    // Hung on the left edge of the place instead of standing in the row, which
+    // is the only arrangement that costs the name nothing. A mark in the flow
+    // shortens every name on the two formats that most need to be read.
     const el = render(court, { showGender: true });
-    expect(mark(el, 'Ben is a woman')!.className.split(/\s+/)).toContain('shrink-0');
+    expect(mark(el, 'Ben is a woman')!.className.split(/\s+/)).toContain('absolute');
+
+    // Same name cell either way, down to the class list: nothing was nudged
+    // over to make room for the mark.
+    const nameCell = (root: HTMLElement) =>
+      [...root.querySelectorAll('span[title]')].find((s) => s.getAttribute('title') === 'Ben')!;
+    expect(nameCell(el).className).toBe(nameCell(render(court)).className);
   });
 
   it('are kept off the printed sheet', () => {

@@ -94,7 +94,7 @@ function PlayerButton({
       onClick={() =>
         interactive && onPlayerTap({ kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx })
       }
-      className={`w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
+      className={`relative w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
         locked
           ? `${bgClass} border-2 border-black`
           : selected
@@ -107,10 +107,7 @@ function PlayerButton({
           make its court taller than the one beside it, and a grid of courts
           that no longer lines up is harder to read than a shortened name. The
           title carries the whole of it. */}
-      <span
-        className={`min-w-0 flex-1 truncate text-left font-medium${showGender ? ' pl-1' : ''}`}
-        title={displayName}
-      >
+      <span className="min-w-0 flex-1 truncate text-left font-medium" title={displayName}>
         {displayName}
       </span>
       <GuestChip player={player} />

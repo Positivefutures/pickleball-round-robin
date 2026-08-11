@@ -44,16 +44,14 @@ function SitOutBox({
     <button
       type="button"
       onClick={() => interactive && onPlayerTap({ kind: 'sitout', roundIdx, sitOutIdx })}
-      className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
+      className={`relative inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
         selected
           ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500'
           : 'bg-gray-100 border-gray-400 hover:bg-gray-200'
       }${interactive ? '' : ' cursor-default'}`}
     >
       {showGender && <GenderMark player={player} />}
-      <span className={`font-medium text-gray-900${showGender ? ' -ml-1' : ''}`}>
-        {getDisplayName(player, allPlayers)}
-      </span>
+      <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
       <GuestChip player={player} />
       {selected && interactive ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />

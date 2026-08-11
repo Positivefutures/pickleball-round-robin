@@ -3,23 +3,19 @@ import { step } from '../lib/rating';
 /**
  * The minus / number / plus control for a player's rating.
  *
- * Extracted so the Add Player form and the Actions sheet's Edit Player Rating
- * step the same way, between the same bounds. See lib/rating.ts for those.
+ * Extracted so every form that sets one steps the same way, between the same
+ * bounds: Add Player on the Players tab, the roster's own edit row, Add a Guest
+ * and Edit Player from the schedule. See lib/rating.ts for the bounds.
  */
 export function RatingStepper({
   value,
   onChange,
-  /** Bigger buttons where the control is the only thing on the page. */
-  large = false,
 }: {
   value: number;
   onChange: (rating: number) => void;
-  large?: boolean;
 }) {
-  const button = large
-    ? 'min-w-14 min-h-14 text-2xl'
-    : 'min-w-9 min-h-10 text-lg';
-  const readout = large ? 'min-w-20 text-3xl' : 'min-w-10';
+  const button = 'min-w-9 min-h-10 text-lg';
+  const readout = 'min-w-10';
 
   return (
     <div className="flex items-center gap-1">

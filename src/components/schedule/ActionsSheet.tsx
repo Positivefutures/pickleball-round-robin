@@ -3,7 +3,6 @@ import type { Gender, Player, Round, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { DISCARD_WARNING } from '../../lib/steps';
 import { useScrollLock } from '../../hooks/useScrollLock';
-import { RatingStepper } from '../RatingStepper';
 import { PlayerForm } from '../roster/PlayerForm';
 import {
   AddPlayerSolidIcon,
@@ -16,7 +15,7 @@ import {
   SuccessIcon,
   SwapPeopleIcon,
 } from '../icons';
-import { AddCourtIcon, EditRatingIcon, RemoveCourtIcon, ShareSessionIcon } from './actionIcons';
+import { AddCourtIcon, RemoveCourtIcon, ShareSessionIcon } from './actionIcons';
 import { LiveShareView } from './LiveShareView';
 import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -32,7 +31,6 @@ export interface ScheduleActions {
   /** Somebody new for today only, never saved to the group. */
   onAddGuest: (name: string, rating: number, gender: Gender) => void;
   onSubstitute: (outgoingId: string, incomingId: string) => void;
-  onEditRating: (playerId: string, rating: number) => void;
   onAddCourt: () => void;
   onRemoveCourt: (courtNumber: number) => void;
   onAddRounds: (count: number) => void;
@@ -44,7 +42,6 @@ type View =
   | 'new-player'
   | 'add-sub'
   | 'add-guest'
-  | 'edit-rating'
   | 'reshuffle'
   | 'new-session'
   | 'add-round'
@@ -84,7 +81,9 @@ const CARDS: Card[] = [
   { view: 'add-player', label: 'Add a Player', Icon: AddPlayerSolidIcon, tone: GREEN },
   { view: 'add-sub', label: 'Add a Sub', Icon: SwapPeopleIcon, tone: TEAL },
   { view: 'add-guest', label: 'Add a Guest', Icon: GuestIcon, tone: TEAL },
-  { view: 'edit-rating', label: 'Edit Player Rating', Icon: EditRatingIcon, tone: TEAL },
+  // No Edit Player Rating card. Tapping somebody on the schedule and pressing
+  // the pencil edits their name, rating and gender in one panel, which is both
+  // fewer taps and the place a host is already looking when they notice.
   { view: 'reshuffle', label: 'Reshuffle', Icon: ShuffleIcon, tone: GREEN },
   { view: 'new-session', label: 'Start New Session', Icon: ReplayIcon, tone: GREEN },
   { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, tone: ORANGE },
@@ -111,7 +110,6 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
   'add-sub': { title: 'Add a Sub' },
   'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
-  'edit-rating': { title: 'Edit Player Rating' },
   reshuffle: { title: 'Reshuffle', sub: 'Deal the remaining rounds again' },
   'new-session': { title: 'Start a new session?' },
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
@@ -185,8 +183,6 @@ export function ActionsSheet({
   const [view, setView] = useState<View>(entry);
   const [message, setMessage] = useState('');
   const [subOut, setSubOut] = useState<Player | null>(null);
-  const [ratingFor, setRatingFor] = useState<Player | null>(null);
-  const [draftRating, setDraftRating] = useState(defaultRating);
   const [extraRounds, setExtraRounds] = useState(1);
 
   const [shown, setShown] = useState(false);
@@ -265,7 +261,6 @@ export function ActionsSheet({
 
   function openAction(card: Card) {
     if (card.view === 'add-sub') setSubOut(null);
-    if (card.view === 'edit-rating') setRatingFor(null);
     if (card.view === 'add-round') setExtraRounds(1);
     setView(card.view);
   }
@@ -273,7 +268,6 @@ export function ActionsSheet({
   function back() {
     if (view === 'new-player') setView('add-player');
     else if (view === 'add-sub' && subOut) setSubOut(null);
-    else if (view === 'edit-rating' && ratingFor) setRatingFor(null);
     else setView('menu');
   }
 
@@ -289,7 +283,6 @@ export function ActionsSheet({
       return 'Everyone in this group is already playing.';
     }
     if (card.view === 'add-sub' && players.length === 0) return 'Nobody to swap out.';
-    if (card.view === 'edit-rating' && players.length === 0) return 'Nobody to edit.';
     if (card.view === 'remove-court' && (firstOpen?.courts.length ?? 0) <= 1) {
       return 'There is only one court.';
     }
@@ -536,55 +529,6 @@ export function ActionsSheet({
                       finish(`${name} is in as a guest.`);
                     }}
                   />
-                )}
-
-                {view === 'edit-rating' && !ratingFor && (
-                  <div className="space-y-2">
-                    <p className="pb-1 text-sm" style={{ color: QUIET_TEXT }}>
-                      Whose rating is changing?
-                    </p>
-                    {players.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        className={ROW}
-                        onClick={() => {
-                          setRatingFor(p);
-                          setDraftRating(p.rating);
-                        }}
-                      >
-                        <span className="flex-1 font-medium text-gray-800">{p.name}</span>
-                        <span className="text-gray-500">{p.rating.toFixed(1)}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {view === 'edit-rating' && ratingFor && (
-                  <div className={CONFIRM}>
-                    <p className="text-lg font-bold" style={{ color: NAVY_TEXT }}>
-                      {ratingFor.name}
-                    </p>
-                    <div className="flex justify-center">
-                      <RatingStepper value={draftRating} onChange={setDraftRating} large />
-                    </div>
-                    <p className="text-sm" style={{ color: QUIET_TEXT }}>
-                      This is saved against the player, so it holds for next time. The schedule
-                      shows the new number and nobody changes court.
-                    </p>
-                    <div className={CONFIRM_FOOT}>
-                      <button
-                        type="button"
-                        className={PRIMARY}
-                        onClick={() => {
-                          actions.onEditRating(ratingFor.id, draftRating);
-                          finish(`${ratingFor.name} is now ${draftRating.toFixed(1)}.`);
-                        }}
-                      >
-                        Save Rating
-                      </button>
-                    </div>
-                  </div>
                 )}
 
                 {view === 'reshuffle' && (

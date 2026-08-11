@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CourtIcon, PencilIcon, StarIcon } from '../icons';
+import { CourtIcon } from '../icons';
 
 /**
  * The three Actions glyphs that are one shape with a smaller one at its corner:
@@ -70,22 +70,6 @@ export function RemoveCourtIcon({ className }: { className?: string }) {
       className={className}
       base={<CourtIcon className="h-full w-full" />}
       mark={<BadgeMark minus />}
-    />
-  );
-}
-
-/**
- * The rating star with a pencil at its corner. Edit Player Rating.
- *
- * The star is the one the Default Player Rating panel is headed with, so a
- * rating changed here and a rating set there read as the same thing.
- */
-export function EditRatingIcon({ className }: { className?: string }) {
-  return (
-    <Badged
-      className={className}
-      base={<StarIcon className="h-full w-full" />}
-      mark={<PencilIcon className="h-[58%] w-[58%] text-[var(--chip-tint)]" />}
     />
   );
 }

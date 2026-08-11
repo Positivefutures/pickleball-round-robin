@@ -559,11 +559,6 @@ function App() {
     [guests, setGuests, updatePlayer, schedule, sessionPlayers, setSchedule]
   );
 
-  const handleEditRating = useCallback(
-    (playerId: string, rating: number) => handleEditPlayerDetails(playerId, { rating }),
-    [handleEditPlayerDetails]
-  );
-
   /**
    * Name, rating and gender together, from the edit button on a place.
    *
@@ -934,7 +929,6 @@ function App() {
               onCreatePlayer: handleCreatePlayer,
               onAddGuest: handleAddGuest,
               onSubstitute: handleSubstitute,
-              onEditRating: handleEditRating,
               onAddCourt: handleAddCourt,
               onRemoveCourt: handleRemoveCourt,
               onAddRounds: handleAddRounds,

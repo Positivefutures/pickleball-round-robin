@@ -1145,7 +1145,10 @@ describe('the Actions sheet', () => {
 
   const nameBox = () => sheet().querySelector('input[type="text"]') as HTMLInputElement;
 
-  it('offers the nine actions, in the order they were asked for', () => {
+  it('offers the eight actions, in the order they were asked for', () => {
+    // Edit Player Rating is deliberately not among them. The pencil on a place
+    // edits the rating along with the name and the gender, so a card that did
+    // one of the three was a second road to the same place.
     seed(9, 9, 2);
     mount();
     generate();
@@ -1154,7 +1157,7 @@ describe('the Actions sheet', () => {
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
       'Add a Player', 'Add a Sub', 'Add a Guest',
-      'Edit Player Rating', 'Reshuffle', 'Start New Session',
+      'Reshuffle', 'Start New Session',
       'Add a Round', 'Add a Court', 'Remove a Court',
     ]);
   });
@@ -1191,7 +1194,7 @@ describe('the Actions sheet', () => {
     expect(buttons(/Share Live Session/, sheet())).toHaveLength(0);
   });
 
-  it('offers it as a tenth card once there is', () => {
+  it('offers it as a ninth card once there is', () => {
     // The other half, without which the test above would keep passing after
     // somebody deleted the card altogether.
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
@@ -1202,7 +1205,7 @@ describe('the Actions sheet', () => {
       generate();
 
       clickButton(/^Actions$/);
-      expect(buttons(/./, sheet()).map(text)).toHaveLength(10);
+      expect(buttons(/./, sheet()).map(text)).toHaveLength(9);
       expect(text(sheet())).toContain('Share Live Session');
     } finally {
       vi.unstubAllEnvs();
@@ -1424,63 +1427,6 @@ describe('the Actions sheet', () => {
       action(/^Start New Session$/);
       clickButton(/^Yes, Start New$/, sheet());
       expect(storedGuests()).toEqual([]);
-    });
-  });
-
-  describe('Edit Player Rating', () => {
-    beforeEach(() => seed(9, 9, 2));
-
-    it('saves it against the player and shows it on every round', () => {
-      mount();
-      generate();
-      markComplete(1);
-
-      const before = storedPlayers().find((p) => p.name === 'Ava')!.rating;
-      const games = storedSchedule().rounds.map(fingerprint);
-
-      action(/^Edit Player Rating$/);
-      clickButton(/^Ava/, sheet());
-      clickLabel('Raise the rating', sheet());
-      clickLabel('Raise the rating', sheet());
-      clickButton(/^Save Rating$/, sheet());
-
-      expect(storedPlayers().find((p) => p.name === 'Ava')!.rating).toBeCloseTo(before + 0.2);
-
-      // Every round, played or not, and nobody has changed court.
-      const after = storedSchedule();
-      expect(after.rounds.map(fingerprint)).toEqual(games);
-      for (const r of after.rounds) {
-        const ava = [...r.courts.flatMap((c) => [...c.team1, ...c.team2]), ...r.sitOuts]
-          .find((p) => p.name === 'Ava');
-        expect(ava?.rating, `Round ${r.roundNumber}`).toBeCloseTo(before + 0.2);
-      }
-    });
-
-    it('recalculates the balance of the court they are on', () => {
-      mount();
-      generate();
-
-      // Read the player off the schedule: who sits out round 1 is not fixed.
-      // Raising somebody on the stronger side always widens the gap, whereas
-      // raising the weaker side could close it and reopen it to the same number.
-      const sum = (t: { rating: number }[]) => t.reduce((n, p) => n + p.rating, 0);
-      const court = storedSchedule().rounds[0].courts[0];
-      const heavier = sum(court.team1) >= sum(court.team2) ? court.team1 : court.team2;
-      const raised = heavier[0];
-      const before = court.ratingDiff;
-
-      action(/^Edit Player Rating$/);
-      clickButton(new RegExp(`^${raised.name}`), sheet());
-      for (let i = 0; i < 4; i++) clickLabel('Raise the rating', sheet());
-      clickButton(/^Save Rating$/, sheet());
-
-      // Read the new rating back rather than assuming four tenths: the stepper
-      // rounds to one decimal, so a player seeded at 4.25 lands on 4.4 first.
-      const after = storedSchedule().rounds[0].courts[0];
-      const now = [...after.team1, ...after.team2].find((p) => p.id === raised.id)!;
-      expect(now.rating).toBeGreaterThan(raised.rating);
-      expect(after.ratingDiff).toBeCloseTo(Math.abs(sum(after.team1) - sum(after.team2)));
-      expect(after.ratingDiff).toBeCloseTo(before + (now.rating - raised.rating));
     });
   });
 
@@ -1867,6 +1813,68 @@ describe('the player menu on a place', () => {
 
     const after = storedSchedule().rounds.map((r) => fingerprint(r).split(victim.name).join('Renamed Person'));
     expect(after).toEqual(before.map((f) => f.split(victim.name).join('Renamed Person')));
+  });
+
+  it('saves a new rating through every round, including one already played', () => {
+    // This used to be the Actions sheet's own Edit Player Rating card. The card
+    // has gone and the pencil does the whole job, so the guard moved with it: a
+    // rating is worth nothing if the rounds on screen still show the old one.
+    mount();
+    generate();
+    markComplete(1);
+
+    // Round 2, because a completed round collapses and its places cannot be
+    // tapped. Everybody is somewhere in round 1, so its frozen copy is the
+    // thing being checked.
+    const victim = storedSchedule().rounds[1].courts[0].team1[0];
+    const before = storedPlayers().find((p) => p.id === victim.id)!.rating;
+    const games = storedSchedule().rounds.map(fingerprint);
+
+    openPlayerMenu(victim.name, 2);
+    clickButton(/^Edit Player$/);
+    clickLabel('Raise the rating');
+    clickLabel('Raise the rating');
+    clickButton(/^Save Changes$/);
+
+    // Read the new rating back rather than assuming two tenths: the stepper
+    // rounds to one decimal, so a player seeded at 3.75 lands on 3.9 first.
+    const saved = storedPlayers().find((p) => p.id === victim.id)!.rating;
+    expect(saved).toBeGreaterThan(before);
+
+    const after = storedSchedule();
+    expect(after.rounds.map(fingerprint)).toEqual(games);
+    for (const r of after.rounds) {
+      const copy = [...r.courts.flatMap((c) => [...c.team1, ...c.team2]), ...r.sitOuts]
+        .find((p) => p.id === victim.id);
+      expect(copy?.rating, `Round ${r.roundNumber}`).toBeCloseTo(saved);
+    }
+  });
+
+  it('recalculates the balance of the court they are on', () => {
+    mount();
+    generate();
+
+    // Read the player off the schedule: who sits out round 1 is not fixed.
+    // Raising somebody on the stronger side always widens the gap, whereas
+    // raising the weaker side could close it and reopen it to the same number.
+    const sum = (t: { rating: number }[]) => t.reduce((n, p) => n + p.rating, 0);
+    const court = storedSchedule().rounds[0].courts[0];
+    const heavier = sum(court.team1) >= sum(court.team2) ? court.team1 : court.team2;
+    const raised = heavier[0];
+    const before = court.ratingDiff;
+
+    openPlayerMenu(raised.name);
+    clickButton(/^Edit Player$/);
+    for (let i = 0; i < 4; i++) clickLabel('Raise the rating');
+    clickButton(/^Save Changes$/);
+
+    // Read the new rating back rather than assuming four tenths: the stepper
+    // rounds to one decimal, so a player seeded at 4.25 lands on 4.4 first.
+    const after = storedSchedule().rounds[0].courts[0];
+    const now = [...after.team1, ...after.team2].find((p) => p.id === raised.id)!;
+    expect(now.rating).toBeGreaterThan(raised.rating);
+    expect(after.ratingDiff).toBeCloseTo(Math.abs(sum(after.team1) - sum(after.team2)));
+    expect(after.ratingDiff).toBeCloseTo(before + (now.rating - raised.rating));
   });
 
   it('reaches the players sitting out too', () => {
