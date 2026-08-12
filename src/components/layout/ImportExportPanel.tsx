@@ -81,7 +81,7 @@ export function ImportExportPanel({
         </h2>
 
         <section className="mt-5">
-          <h3 className="mb-2 font-medium text-gray-700">Export</h3>
+          <h3 className="mb-2 font-medium text-gray-700">Export Groups</h3>
           <select
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
@@ -117,7 +117,7 @@ export function ImportExportPanel({
         </section>
 
         <section className="mt-6 border-t border-gray-200 pt-5">
-          <h3 className="mb-2 font-medium text-gray-700">Import</h3>
+          <h3 className="mb-2 font-medium text-gray-700">Import Groups</h3>
           <input
             ref={fileRef}
             type="file"

@@ -797,7 +797,11 @@ function App() {
             `A group called "${renamed[0].desired}" already existed, so this one is "${renamed[0].name}".`
           );
         }
-        details.push(`${added} player${added === 1 ? '' : 's'} added.`);
+        // "Added" was the wrong word beside the line under it: everybody in the
+        // file was added to the group, and this number is the ones who did not
+        // exist until now. "0 players added" on an import that worked read as
+        // nothing having happened.
+        details.push(`${added} new player${added === 1 ? '' : 's'} created.`);
         if (linked > 0) {
           details.push(
             `${linked} player${linked === 1 ? '' : 's'} already existed and ${

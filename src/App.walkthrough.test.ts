@@ -718,6 +718,40 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     expect(avas[0].rosterIds).toContain(idOf('Thursday'));
     expect(players).toHaveLength(3);
   });
+
+  /**
+   * "0 players added" on an import that worked read as nothing having
+   * happened. Everybody in the file was added to the group; the number is the
+   * ones who did not exist on this device until now.
+   */
+  it('counts the people it created, not the people it added to the group', async () => {
+    seedTwoGroups();
+    mount();
+    openImportExport();
+
+    // Ava is already here, in Tuesday. Zed is not here at all.
+    const csv = ['Group,Name,Rating,Gender', 'Weekenders,Ava,3.5,F', 'Weekenders,Zed,4.0,M'].join('\n');
+    const input = panel().querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File([csv], 'weekenders.csv', { type: 'text/csv' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    await act(async () => {
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('1 new player created.');
+    expect(container.textContent).not.toContain('1 player added.');
+    // The line under it is the other half, and it is unchanged.
+    expect(container.textContent).toContain('1 player already existed and was added to this group.');
+  });
+
+  it('heads its two halves Export Groups and Import Groups', () => {
+    seedTwoGroups();
+    mount();
+    openImportExport();
+    const heads = [...panel().querySelectorAll('h3')].map(text);
+    expect(heads).toContain('Export Groups');
+    expect(heads).toContain('Import Groups');
+  });
 });
 
 describe('step 6 — every step starts at the top', () => {
