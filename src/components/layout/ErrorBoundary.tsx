@@ -38,7 +38,6 @@ interface State {
 function crashContext(): FeedbackContext {
   return {
     version: APP_VERSION,
-    step: 'The app stopped',
     groups: stores.rosters.get().length,
     players: stores.players.get().length,
     sessionActive: Boolean(stores.schedule.get()),

@@ -24,7 +24,7 @@ import { DefaultRatingPanel } from './components/layout/DefaultRatingPanel';
 import { ImportExportPanel, ALL_GROUPS } from './components/layout/ImportExportPanel';
 import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
-import { stepLabel, type Step } from './lib/steps';
+import { type Step } from './lib/steps';
 import {
   currentStep, switchToGroup, resume as resumeGroup,
   forget as forgetGroupSession, clearSession as clearStoredSession,
@@ -1150,7 +1150,6 @@ function App() {
           kind={feedbackKind}
           context={{
             version: APP_VERSION,
-            step: stepLabel(step),
             groups: rosters.length,
             players: allPlayers.length,
             sessionActive: Boolean(schedule),

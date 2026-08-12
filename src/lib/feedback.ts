@@ -6,8 +6,6 @@ export type FeedbackKind = 'feature' | 'bug';
  */
 export interface FeedbackContext {
   version: string;
-  /** Which screen they were on, e.g. "3. Schedule". */
-  step: string;
   groups: number;
   players: number;
   sessionActive: boolean;
@@ -33,9 +31,14 @@ const LABEL: Record<FeedbackKind, string> = {
  * What gets attached, in the order it appears in the mail — the panel renders
  * this same list so the user can see it before sending. A bug needs the full
  * picture; on a feature suggestion the browser and viewport are just noise.
+ *
+ * Which screen they were on is deliberately not here. It is the screen the app
+ * happened to be showing when Send was pressed, not the one being written
+ * about, and a report saying Schedule about something on Players is worse than
+ * a report that says nothing at all.
  */
 export function diagnosticLines(ctx: FeedbackContext, kind: FeedbackKind): string[] {
-  const lines = [`Version: ${ctx.version}`, `Screen: ${ctx.step}`];
+  const lines = [`Version: ${ctx.version}`];
   if (kind === 'feature') return lines;
 
   lines.push(

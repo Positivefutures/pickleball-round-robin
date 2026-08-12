@@ -143,7 +143,9 @@ describe('ErrorBoundary', () => {
     expect(sent).toContain('[Bug] TypeError: x is not a function');
     // The diagnostics the Report a Bug panel sends, so both arrive alike.
     expect(sent).toContain(`Version: ${APP_VERSION}`);
-    expect(sent).toContain('Screen: The app stopped');
+    // No Screen line on any report now: the subject already says this one
+    // came from a crash.
+    expect(sent).not.toContain('Screen:');
     expect(sent).toContain('Groups: 1');
   });
 

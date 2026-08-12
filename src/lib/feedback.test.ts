@@ -15,7 +15,6 @@ import {
 
 const ctx: FeedbackContext = {
   version: '1.10.0',
-  step: '3. Schedule',
   groups: 3,
   players: 28,
   sessionActive: true,
@@ -44,11 +43,19 @@ describe('buildSubject', () => {
 });
 
 describe('diagnosticLines', () => {
-  it('gives a feature only the version and screen', () => {
-    expect(diagnosticLines(ctx, 'feature')).toEqual([
-      'Version: 1.10.0',
-      'Screen: 3. Schedule',
-    ]);
+  it('gives a feature the version and nothing else', () => {
+    expect(diagnosticLines(ctx, 'feature')).toEqual(['Version: 1.10.0']);
+  });
+
+  /**
+   * It was the screen the app happened to be showing when Send was pressed,
+   * not the one being written about. A report saying Schedule about something
+   * on Players is worse than one that says nothing.
+   */
+  it('never says which screen they were on, on either kind', () => {
+    for (const kind of ['feature', 'bug'] as const) {
+      expect(diagnosticLines(ctx, kind).join('\n')).not.toContain('Screen');
+    }
   });
 
   it('gives a bug the full picture', () => {

@@ -37,7 +37,7 @@ const COPY: Record<
 > = {
   feature: {
     title: 'Suggest a Feature',
-    intro: 'Ideas are welcome — the short ones are often the best ones.',
+    intro: 'Ideas are most welcome!',
     summary: 'Your idea, in one line',
     details: 'Tell me more (optional)',
     hint: 'What would it do, and when would you use it?',
