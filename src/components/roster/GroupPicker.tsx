@@ -50,7 +50,11 @@ export function GroupPicker({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
+      {/* As tall as the screen allows before anything scrolls, the same as
+          Manage Groups. The list used to be held to 288px whatever the phone
+          was, which is five groups, so a host with eight scrolled a short list
+          inside a short box with empty screen underneath it. */}
+      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full max-h-[92vh] flex flex-col">
         {/* The same heading as the panel it was opened from. */}
         <div className="mb-4">
           <PanelHeading icon={GroupSolidIcon} title={heading} />
@@ -65,7 +69,10 @@ export function GroupPicker({
           </p>
         )}
 
-        <div className="space-y-2 mb-5 max-h-72 overflow-y-auto">
+        {/* The one part that gives when there is not enough room, so the
+            heading stays on and Close stays reachable however many groups
+            there are. */}
+        <div className="space-y-2 mb-5 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {groups.map((g) => {
             const current = g.id === activeId;
             const count = countFor(g.id);

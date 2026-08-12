@@ -10,6 +10,7 @@ import {
 } from '../../lib/feedback';
 import { authStore } from '../../lib/auth';
 import { PanelGlyph } from '../PanelGlyph';
+import { FIELD_LABEL } from '../formLook';
 import { BugIcon, SendMailIcon } from '../icons';
 
 interface Props {
@@ -122,7 +123,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
           <>
             <p className="mt-1 mb-4 text-center text-sm text-gray-600">{copy.intro}</p>
 
-            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="fb-summary">
+            <label className={`mb-1 ${FIELD_LABEL}`} htmlFor="fb-summary">
               {copy.summary}
             </label>
             <input
@@ -144,7 +145,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
             />
 
             <label
-              className="mb-1 mt-4 block text-sm font-medium text-gray-700"
+              className={`mb-1 mt-4 ${FIELD_LABEL}`}
               htmlFor="fb-details"
             >
               {copy.details}
@@ -159,7 +160,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-green-500"
             />
 
-            <label className="mb-1 mt-4 block text-sm font-medium text-gray-700" htmlFor="fb-email">
+            <label className={`mb-1 mt-4 ${FIELD_LABEL}`} htmlFor="fb-email">
               Your email (if you&rsquo;d like a reply)
             </label>
             <input

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { Player, Gender, Roster } from '../../types';
 import { MAX_RATING, MIN_RATING } from '../../lib/rating';
 import { RatingStepper } from '../RatingStepper';
+import { FIELD_LABEL } from '../formLook';
 
 interface Props {
   onSubmit: (name: string, rating: number, gender: Gender) => void;
@@ -82,7 +83,10 @@ export function PlayerForm({
     setNameMissing(false);
     setName('');
     setRating(String(defaultRating));
-    setGender('M');
+    // Gender stays where it was put. A roster is typed in in runs, and snapping
+    // back to M after every save means setting it again for each of the women.
+    // The rating does go back to the default, which is a number somebody chose
+    // for exactly this: what a new player starts on.
     // Straight on to the next one. Twenty players is twenty names typed in a
     // row, and letting the keyboard drop between each of them means twenty
     // taps back into the same field. Not while editing: that Save closes a
@@ -135,7 +139,7 @@ export function PlayerForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex gap-3 items-end flex-wrap">
       <div className="flex-1 min-w-[160px]">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`${FIELD_LABEL} mb-1`}>
           Player Name
         </label>
         {/* Every offer of help is turned off here. A field labelled Player Name
@@ -169,7 +173,7 @@ export function PlayerForm({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`${FIELD_LABEL} mb-1`}>
           Rating
         </label>
         <RatingStepper
@@ -178,7 +182,7 @@ export function PlayerForm({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className={`${FIELD_LABEL} mb-1`}>
           Gender
         </label>
         <div className="flex">
@@ -211,8 +215,10 @@ export function PlayerForm({
 
       {showRosters && (
           <div>
-            <p className="block text-sm font-medium text-gray-700 mb-2">Groups</p>
-            <div className="space-y-1 max-h-44 overflow-y-auto">
+            <p className={`${FIELD_LABEL} mb-2`}>Groups</p>
+            {/* Was a flat 176px, which is six groups on any phone ever made.
+                A share of the screen instead, so a host with ten sees ten. */}
+            <div className="space-y-1 max-h-[45vh] overflow-y-auto overscroll-contain">
               {rosters!.map((r) => (
                 <label
                   key={r.id}

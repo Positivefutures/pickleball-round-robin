@@ -212,3 +212,24 @@ describe('the picker', () => {
     expect(() => dialog()).toThrow();
   });
 });
+
+/**
+ * The list used to be held to 288px whatever the phone was, which is five
+ * groups. A host with eight scrolled a short list inside a short box with
+ * empty screen underneath it.
+ */
+describe('how tall the picker gets', () => {
+  it('lets the card grow, and gives the list what is left', () => {
+    const card = open().querySelector('div') as HTMLElement;
+    const list = card.querySelector('.overflow-y-auto') as HTMLElement;
+
+    // The card takes the screen it is allowed, and the list is the part of it
+    // that gives, so the heading stays on and Close stays reachable.
+    expect(card.className).toContain('max-h-[92vh]');
+    expect(card.className).toContain('flex-col');
+    expect(list.className).toContain('flex-1');
+    expect(list.className).toContain('min-h-0');
+    // Nothing holds the list to a height of its own any more.
+    expect(list.className).not.toMatch(/max-h-\d/);
+  });
+});

@@ -343,3 +343,24 @@ describe('adding a group', () => {
     expect(box.value).toBe('');
   });
 });
+
+/**
+ * The pencil is the way in to Duplicate and Delete as much as to the name. A
+ * keyboard arriving unasked shoves the whole panel up the screen before the
+ * host has seen what is on it.
+ */
+describe('opening a group for editing', () => {
+  it('leaves the name field alone, and says what it is', () => {
+    render();
+    edit('Tuesday Crew');
+
+    const box = container.querySelector('#edit-group-name') as HTMLInputElement;
+    expect(box).not.toBeNull();
+    expect(box.value).toBe('Tuesday Crew');
+    expect(document.activeElement).not.toBe(box);
+
+    const label = container.querySelector('label[for="edit-group-name"]');
+    expect(text(label!)).toBe('Group Name');
+    expect(label!.className).toContain('font-bold');
+  });
+});

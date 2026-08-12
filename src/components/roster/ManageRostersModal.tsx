@@ -265,10 +265,17 @@ export function ManageRostersModal({
         {rosters.map((r) =>
           editingId === r.id ? (
             <div key={r.id} className="space-y-2 rounded-md bg-gray-50 p-2">
+              {/* Labelled, and not focused on arrival. The pencil is the way in
+                  to Duplicate and Delete as much as to the name, and a keyboard
+                  arriving unasked shoves the whole panel up the screen before
+                  the host has seen what is on it. */}
+              <label className="block font-bold text-gray-800" htmlFor="edit-group-name">
+                Group Name
+              </label>
               <input
+                id="edit-group-name"
                 type="text"
                 value={editingName}
-                autoFocus
                 onChange={(e) => setEditingName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

@@ -2857,6 +2857,28 @@ describe('the player roster panel', () => {
   });
 
   /**
+   * A roster is typed in in runs. Snapping back to M after every save means
+   * setting it again for each of the women.
+   */
+  it('leaves the gender where it was put', () => {
+    mount();
+    const box = container.querySelector('input[placeholder="Enter name"]') as HTMLInputElement;
+    const isOn = (face: string) =>
+      buttons(new RegExp(`^${face}$`))[0].className.includes('bg-brand-teal');
+
+    clickButton(/^F$/);
+    expect(isOn('F')).toBe(true);
+
+    type(box, 'Zoe');
+    clickButton(/^Add Player$/);
+
+    expect(storedPlayers().find((p) => p.name === 'Zoe')!.gender).toBe('F');
+    // Still on F for the next one.
+    expect(isOn('F')).toBe(true);
+    expect(isOn('M')).toBe(false);
+  });
+
+  /**
    * A field labelled Player Name with nothing said about autocomplete is read
    * by browsers and password managers as somewhere to put the owner's own
    * details, and what they open over it moves the page about while a name is
@@ -3156,5 +3178,42 @@ describe('changing groups', () => {
 
     expect(Object.keys(stored('pb-group-sessions', '{}'))).toEqual(['g1']);
     expect(stored('pb-group-sessions', '{}').g1.schedule).not.toBeNull();
+  });
+});
+
+/**
+ * What labels a control, anywhere in the app: bold and small, above the thing
+ * it names. In the ordinary weight at that size a label reads as a note about
+ * the field rather than the name of it.
+ */
+describe('the label over a control', () => {
+  beforeEach(() => seed(6, 6, 2));
+
+  it('is bold on every field of the Add Player form', () => {
+    mount();
+    const labels = [...container.querySelectorAll('.roster-panel, form')]
+      .flatMap((el) => [...el.querySelectorAll('label, p')])
+      .filter((el) => ['Player Name', 'Rating', 'Gender'].includes(text(el)));
+
+    expect(labels).toHaveLength(3);
+    for (const label of labels) {
+      expect(label.className).toContain('font-bold');
+      expect(label.className).toContain('text-sm');
+    }
+  });
+
+  it('is bold over the group ticks on Edit Player, and the list grows with the screen', () => {
+    mount();
+    click(container.querySelector('[aria-label="Edit Ava"]')!);
+
+    const groups = [...container.querySelectorAll('p')].find((p) => text(p) === 'Groups')!;
+    expect(groups).toBeTruthy();
+    expect(groups.className).toContain('font-bold');
+
+    // A share of the screen, not a flat 176px, which was six groups on any
+    // phone ever made.
+    const list = groups.parentElement!.querySelector('.overflow-y-auto')!;
+    expect(list.className).toContain('max-h-[45vh]');
+    expect(list.className).not.toContain('max-h-44');
   });
 });

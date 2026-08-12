@@ -308,7 +308,7 @@ export function RosterPage({
           two fixed overlays would double-dim the page and trap clicks. */}
       {editingPlayer && !orphanCandidate && !confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full max-h-[92vh] overflow-y-auto overscroll-contain">
             <div className="mb-4">
               <PanelHeading icon={PencilIcon} title="Edit Player" />
             </div>
@@ -482,7 +482,7 @@ export function RosterPage({
                 the three words stack instead of taking the width a phone needs
                 for the heading. Unheld, the heading is what wraps. */}
             <div className="flex shrink-0 flex-col items-center gap-1">
-              <span className="max-w-[5.25rem] text-center text-sm font-semibold leading-tight text-gray-600">
+              <span className="max-w-[5.25rem] text-center text-sm font-bold leading-tight text-gray-700">
                 Show All Players
               </span>
               <Toggle checked={showAll} onChange={toggleShowAll} label="Show All Players" />
