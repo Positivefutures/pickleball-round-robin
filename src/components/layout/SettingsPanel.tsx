@@ -201,6 +201,16 @@ export function SettingsPanel({
         </h2>
       </div>
       <nav className="mt-3 space-y-1">
+        {/* First, and the one item that goes away for good once it is done.
+            It is the thing a new host should do before anything else, and it
+            was sitting below an account they may never make. */}
+        {showInstallItem && (
+          <SettingsItem
+            icon={<AddToHomeScreenIcon />}
+            label="Add to Home Screen"
+            onClick={onOpenInstall}
+          />
+        )}
         <SettingsItem icon={<ShareIcon className="h-6 w-6" />} label="Share App" onClick={onShare} />
         {/* No Supabase configured means no item, the same rule Donate follows */}
         {showAccountItem && (
@@ -208,13 +218,6 @@ export function SettingsPanel({
             icon={<PersonIcon className="h-6 w-6" />}
             label={`My Account (${signedIn ? 'signed in' : 'signed out'})`}
             onClick={onOpenAccount}
-          />
-        )}
-        {showInstallItem && (
-          <SettingsItem
-            icon={<AddToHomeScreenIcon />}
-            label="Add to Home Screen"
-            onClick={onOpenInstall}
           />
         )}
         <SettingsItem

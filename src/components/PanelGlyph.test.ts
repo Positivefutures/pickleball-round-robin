@@ -20,6 +20,7 @@ import { resolve } from 'node:path';
 import { DefaultRatingPanel } from './layout/DefaultRatingPanel';
 import { ImportExportPanel } from './layout/ImportExportPanel';
 import { InstallPanel } from './layout/InstallPanel';
+import { SettingsPanel } from './layout/SettingsPanel';
 import { SpecialTypesPanel } from './setup/SpecialTypesPanel';
 import { PartnerPairing } from './setup/PartnerPairing';
 import { CourtIcon, LinkIcon, StarIcon, TwoArrowsIcon } from './icons';
@@ -243,5 +244,125 @@ describe('the game type symbols', () => {
 
     expect(gendered).toBe(26);
     expect(mixed).toBeGreaterThan(gendered);
+  });
+});
+
+/**
+ * Getting the app onto a home screen is the one instruction in here that
+ * somebody follows outside the app, on buttons this page cannot point at. The
+ * words have to match the browser they are being read in, so each route is
+ * rendered under the user agent that produces it.
+ */
+describe('the Add to Home Screen steps', () => {
+  const SAFARI =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const CHROME_IOS =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.54 Mobile/15E148 Safari/604.1';
+
+  /** Renders the panel as the browser that user agent belongs to would see it. */
+  function asBrowser(ua: string): string {
+    Object.defineProperty(window.navigator, 'userAgent', { value: ua, configurable: true });
+    Object.defineProperty(window.navigator, 'maxTouchPoints', { value: 5, configurable: true });
+    mount(createElement(InstallPanel, { canPrompt: false, onInstall: noop, onClose: noop }));
+    return container.textContent ?? '';
+  }
+
+  it('warns that Safari may be hiding Share behind its menu', () => {
+    const text = asBrowser(SAFARI);
+    expect(text).toContain('at the bottom of the screen');
+    expect(text).toContain('may need to tap');
+    expect(text).toContain('Menu');
+    // Two full lines and a shorter third, which is what that button looks like.
+    const lines = [...container.querySelectorAll('ol svg line')].map((l) =>
+      Number(l.getAttribute('x2')) - Number(l.getAttribute('x1'))
+    );
+    expect(lines.filter((w) => w > 16)).toHaveLength(2);
+    expect(lines.some((w) => w > 10 && w < 13)).toBe(true);
+  });
+
+  it('sends Chrome on iOS to its own Share button, top right', () => {
+    const text = asBrowser(CHROME_IOS);
+    expect(text).toContain('at the top right');
+    // Not its three-dot menu: Chrome has a Share button of its own up there.
+    expect(text).not.toContain("browser\u2019s menu");
+    expect(text).toContain('Add to Home Screen');
+  });
+
+  /**
+   * By the time that sheet is open the host knows what to do, and a third step
+   * made the shortest route look like the longest.
+   */
+  it('never tells anybody to tap Add afterwards', () => {
+    for (const ua of [SAFARI, CHROME_IOS]) {
+      const text = asBrowser(ua);
+      // The step that went said "Tap Add, top right". "Tap Add to Home
+      // Screen" is the step that stayed, so the whole phrase is the check.
+      expect(text).not.toContain('Add</strong>, top right');
+      expect(text).not.toContain('Add, top right');
+      expect(container.querySelectorAll('ol li')).toHaveLength(2);
+      act(() => root.unmount());
+      container.remove();
+    }
+    // Mounted once more so the shared afterEach has something to unmount.
+    asBrowser(SAFARI);
+  });
+});
+
+/**
+ * The order of the settings drawer. Add to Home Screen is the one item that
+ * goes away for good once it is done, and it was sitting below an account the
+ * host may never make.
+ */
+describe('the settings drawer', () => {
+  it('offers Add to Home Screen first', () => {
+    mount(
+      createElement(SettingsPanel, {
+        open: true,
+        onShare: noop,
+        onOpenAccount: noop,
+        showAccountItem: true,
+        signedIn: false,
+        onOpenInstall: noop,
+        showInstallItem: true,
+        onToggleLargeText: noop,
+        onOpenDefaultRating: noop,
+        onOpenImportExport: noop,
+        onOpenInstructions: noop,
+        onOpenDonate: noop,
+        onOpenFeature: noop,
+        onOpenBug: noop,
+      })
+    );
+    const items = [...container.querySelectorAll('nav button')].map((b) =>
+      (b.textContent ?? '').trim()
+    );
+    expect(items[0]).toBe('Add to Home Screen');
+    expect(items[1]).toBe('Share App');
+  });
+
+  it('drops it once the app is installed, without moving anything else', () => {
+    mount(
+      createElement(SettingsPanel, {
+        open: true,
+        onShare: noop,
+        onOpenAccount: noop,
+        showAccountItem: true,
+        signedIn: false,
+        onOpenInstall: noop,
+        showInstallItem: false,
+        onToggleLargeText: noop,
+        onOpenDefaultRating: noop,
+        onOpenImportExport: noop,
+        onOpenInstructions: noop,
+        onOpenDonate: noop,
+        onOpenFeature: noop,
+        onOpenBug: noop,
+      })
+    );
+    const items = [...container.querySelectorAll('nav button')].map((b) =>
+      (b.textContent ?? '').trim()
+    );
+    expect(items).not.toContain('Add to Home Screen');
+    expect(items[0]).toBe('Share App');
   });
 });

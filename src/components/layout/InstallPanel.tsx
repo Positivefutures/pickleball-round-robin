@@ -37,6 +37,26 @@ function AddToHomeGlyph() {
   );
 }
 
+/**
+ * Safari's page menu: two full lines and a third about a third shorter, left
+ * aligned. Newer Safari puts the Share button behind this rather than straight
+ * on the toolbar, so the first step is one tap longer than it used to be and
+ * the button is not where anybody remembers it.
+ */
+function SafariMenuGlyph() {
+  return (
+    <svg
+      width="20" height="20" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      aria-hidden="true" className="inline-block shrink-0 align-text-bottom text-blue-600"
+    >
+      <line x1="3.5" y1="7" x2="20.5" y2="7" />
+      <line x1="3.5" y1="12" x2="20.5" y2="12" />
+      <line x1="3.5" y1="17" x2="15" y2="17" />
+    </svg>
+  );
+}
+
 // The three dots every non-Safari browser keeps its own menu behind.
 function MoreGlyph() {
   return (
@@ -154,13 +174,10 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
           <ol className="mt-5 space-y-3">
             <Step n={1}>
               Tap the <strong>Share</strong> button <IosShareGlyph /> at the bottom of the
-              screen.
+              screen (may need to tap <strong>Menu</strong> <SafariMenuGlyph /> first).
             </Step>
             <Step n={2}>
-              Scroll down and tap <strong>Add to Home Screen</strong> <AddToHomeGlyph />.
-            </Step>
-            <Step n={3}>
-              Tap <strong>Add</strong>, top right.
+              Scroll down and tap <AddToHomeGlyph /> <strong>Add to Home Screen</strong>.
             </Step>
           </ol>
         )}
@@ -173,11 +190,10 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
           <>
             <ol className="mt-5 space-y-3">
               <Step n={1}>
-                Open your browser&rsquo;s menu <MoreGlyph />.
+                Tap the <strong>Share</strong> button <IosShareGlyph /> at the top right.
               </Step>
               <Step n={2}>
-                Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>{' '}
-                <AddToHomeGlyph />.
+                Tap <AddToHomeGlyph /> <strong>Add to Home Screen</strong>.
               </Step>
             </ol>
             <p className="mt-4 text-sm text-gray-500">
