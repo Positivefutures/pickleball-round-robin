@@ -3,7 +3,6 @@ import type { Schedule, Player } from '../../types';
 import type { StandingsRow } from '../../lib/standings';
 import { standings, hasAnyScore } from '../../lib/standings';
 import { ChevronDownIcon } from '../icons';
-import { GuestChip } from './GuestChip';
 
 /** Which column the table is being read down. */
 type SortKey = 'name' | 'wins' | 'losses' | 'differential' | 'pointsFor';
@@ -136,7 +135,6 @@ export function StandingsPanel({ schedule, players }: { schedule: Schedule; play
                   <td className="py-1 pr-2">
                     <span className="flex items-center gap-1">
                       <span className="truncate">{row.player.name}</span>
-                      <GuestChip player={row.player} />
                     </span>
                   </td>
                   <td className="py-1 px-2 text-right font-semibold tabular-nums">{row.wins}</td>

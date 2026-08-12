@@ -3,7 +3,6 @@ import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
 import { EditPlayerButton } from './EditPlayerButton';
-import { GuestChip } from './GuestChip';
 import { GenderMark } from './GenderMark';
 import { Scoreboard } from './Scoreboard';
 import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_HEADING_TEXT } from './roundLook';
@@ -114,7 +113,6 @@ function PlayerButton({
       >
         {displayName}
       </span>
-      <GuestChip player={player} />
       {selected && interactive ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (

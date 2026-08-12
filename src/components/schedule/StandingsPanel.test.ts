@@ -120,7 +120,12 @@ describe('once there are scores', () => {
     expect(diffs.every((d) => !d.startsWith('+-'))).toBe(true);
   });
 
-  it('marks a guest, so two people of one name do not read alike', () => {
+  /**
+   * A guest used to wear a badge here. It has gone at the host's request: a
+   * guest is somebody playing this afternoon like everybody else, and the
+   * standings are a list of who won what.
+   */
+  it('gives a guest a row like anybody else, and no badge on it', () => {
     const guest = player('Sam', true);
     const el = render(
       { rounds: [round(1, [court(['Sam', 'Ben'], ['Cara', 'Dan'], { team1: 11, team2: 7 })])] },
@@ -129,7 +134,8 @@ describe('once there are scores', () => {
     const sam = [...el.querySelectorAll('tbody tr')].find((tr) =>
       tr.textContent?.startsWith('Sam')
     );
-    expect(sam!.textContent).toContain('Guest');
+    expect(sam).toBeDefined();
+    expect(sam!.textContent).not.toContain('Guest');
   });
 
   it('keeps somebody who sat out all afternoon on the table', () => {

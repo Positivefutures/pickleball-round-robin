@@ -1765,7 +1765,16 @@ describe('the Actions sheet', () => {
 
       action(/^Add a Round$/);
       clickLabel('More rounds', sheet()); // 1 -> 2
-      expect(text(sheet())).toContain('Rounds 9 to 10 are added');
+      // Future tense: nothing has happened until the button below is pressed.
+      expect(text(sheet())).toContain('Rounds 9 to 10 will be added');
+      expect(text(sheet())).not.toContain('are added');
+      // And the line that explained itself twice has gone.
+      expect(text(sheet())).not.toContain('nothing above them changes');
+      // Centred under the stepper it belongs to.
+      const line = [...sheet().querySelectorAll('p')].find((el) =>
+        text(el).startsWith('Rounds 9 to 10')
+      )!;
+      expect(line.className).toContain('text-center');
       clickButton(/^Add 2 Rounds$/, sheet());
 
       const after = storedSchedule();
@@ -1867,7 +1876,13 @@ describe('the Actions sheet', () => {
         const everyone = [...onCourt(r), ...r.sitOuts.map((p) => p.name)];
         expect(everyone, `Round ${r.roundNumber}`).toContain('Sam');
       }
-      expect(container.textContent).toContain('Guest');
+      // No badge on them, on any round. A guest plays like anybody else on the
+      // sheet, which is what the printed version always did.
+      const cards = [...container.querySelectorAll('.round-card')];
+      expect(cards.length).toBeGreaterThan(0);
+      for (const card of cards) {
+        expect(card.textContent).not.toContain('Guest');
+      }
     });
 
     it('goes when the session goes', () => {

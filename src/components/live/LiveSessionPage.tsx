@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchShared, type LiveFetch } from '../../lib/liveViewer';
 import { APP_URL } from '../../lib/appInfo';
 import { StandingsPanel } from '../schedule/StandingsPanel';
-import { GuestChip } from '../schedule/GuestChip';
 import { LiveCourt } from './LiveCourt';
 
 /**
@@ -188,7 +187,6 @@ function Session({
                     className="flex items-center gap-1 rounded border border-[#e2e2e2] bg-gray-50 px-2 py-1 text-sm"
                   >
                     {player.name}
-                    <GuestChip player={player} />
                   </span>
                 ))}
               </div>

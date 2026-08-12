@@ -2,7 +2,6 @@ import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
-import { GuestChip } from './GuestChip';
 import { PLAYER_NAME_TEXT, ROUND_EDGE } from './roundLook';
 
 interface Props {
@@ -55,7 +54,6 @@ function SitOutBox({
       <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
         {getDisplayName(player, allPlayers)}
       </span>
-      <GuestChip player={player} />
       {selected && interactive ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (

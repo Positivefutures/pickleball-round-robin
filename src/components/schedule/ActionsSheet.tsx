@@ -784,12 +784,13 @@ export function ActionsSheet({
                         +
                       </button>
                     </div>
-                    <p className="text-gray-700">
+                    {/* Future tense: nothing has happened yet, and the sentence
+                        used to read as though it had. What it leaves out is
+                        already on the sheet's own subtitle. */}
+                    <p className="text-center text-gray-700">
                       {extraRounds === 1
-                        ? `Round ${lastRoundNumber + 1} is added.`
-                        : `Rounds ${lastRoundNumber + 1} to ${lastRoundNumber + extraRounds} are added.`}{' '}
-                      They are built around the games already scheduled, and nothing above them
-                      changes.
+                        ? `Round ${lastRoundNumber + 1} will be added.`
+                        : `Rounds ${lastRoundNumber + 1} to ${lastRoundNumber + extraRounds} will be added.`}
                     </p>
                     <div className={CONFIRM_FOOT}>
                       <button

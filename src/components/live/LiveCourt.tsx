@@ -1,7 +1,6 @@
 import type { CourtAssignment } from '../../types';
 import { ScoreColon, ScorePanel } from '../schedule/Scoreboard';
 import { toneFor } from '../schedule/scoreTone';
-import { GuestChip } from '../schedule/GuestChip';
 
 interface Props {
   court: CourtAssignment;
@@ -61,7 +60,6 @@ function Side({ players, tint }: { players: CourtAssignment['team1']; tint: stri
           <span className="min-w-0 flex-1 truncate font-medium" title={player.name}>
             {player.name}
           </span>
-          <GuestChip player={player} />
         </div>
       ))}
       {players.length === 0 && (
