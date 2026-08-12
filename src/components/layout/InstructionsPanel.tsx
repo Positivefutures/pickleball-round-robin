@@ -1,37 +1,152 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  BallIcon,
+  ChevronLeftIcon,
+  StepPlayersIcon,
+  StepScheduleIcon,
+  StepSetupIcon,
+  ShuffleIcon,
+  SyncDevicesIcon,
+  TipIcon,
+} from '../icons';
+import { ShareSessionIcon } from '../schedule/actionIcons';
+import { SHOTS } from './instructionShots';
 
 interface Props {
   onClose: () => void;
 }
 
-const CONTENTS = [
-  { id: 'instr-quick-start', label: 'Quick start' },
-  { id: 'instr-players', label: '1. Players' },
-  { id: 'instr-setup', label: '2. Setup' },
-  { id: 'instr-schedule', label: '3. Schedule' },
-  { id: 'instr-settings', label: 'Settings menu' },
-  { id: 'instr-good-to-know', label: 'Good to know' },
-];
+/**
+ * The manual, as a list of topics.
+ *
+ * Tap a topic, read a short page about it, come back. Nobody reads a manual
+ * front to back, so the front page is the index, and each chapter carries a
+ * Next link for the few who do.
+ *
+ * The pictures are real screenshots of the app running a fictional demo group,
+ * regenerated in one command by scripts/instructions-shots.mjs. If the UI
+ * changes, rerun the script rather than letting the manual drift.
+ */
 
-function jumpTo(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+type ChapterId =
+  | 'quick-start'
+  | 'players'
+  | 'setup'
+  | 'schedule'
+  | 'actions'
+  | 'share'
+  | 'account'
+  | 'settings'
+  | 'know';
+
+interface Chapter {
+  id: ChapterId;
+  title: string;
+  note: string;
+  icon: ReactNode;
 }
 
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: ReactNode;
-}) {
+/** The ☰ the Settings chapter is about. Drawn here; icons.tsx has no menu. */
+function MenuGlyph({ className = '' }: { className?: string }) {
   return (
-    <section id={id} className="scroll-mt-2 border-t border-gray-200 pt-6">
-      <h3 className="mb-3 text-xl font-bold text-gray-900">{title}</h3>
-      <div className="space-y-3">{children}</div>
-    </section>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
   );
+}
+
+const ICON = 'h-7 w-7 text-brand-teal';
+
+const CHAPTERS: Chapter[] = [
+  {
+    id: 'quick-start',
+    title: 'Quick start',
+    note: 'A schedule in under a minute',
+    icon: <BallIcon className={ICON} />,
+  },
+  {
+    id: 'players',
+    title: '1. Players & groups',
+    note: 'Add people, ratings, and groups',
+    icon: <StepPlayersIcon className={ICON} />,
+  },
+  {
+    id: 'setup',
+    title: '2. Set up the session',
+    note: 'Courts, rounds, partners, formats',
+    icon: <StepSetupIcon className={ICON} />,
+  },
+  {
+    id: 'schedule',
+    title: '3. Run the schedule',
+    note: 'Rounds, swaps, scores, standings',
+    icon: <StepScheduleIcon className={ICON} />,
+  },
+  {
+    id: 'actions',
+    title: 'Mid-session changes',
+    note: 'The Actions button, card by card',
+    icon: <ShuffleIcon className={ICON} />,
+  },
+  {
+    id: 'share',
+    title: 'Share the session live',
+    note: 'A QR code everyone can watch',
+    icon: <ShareSessionIcon className={ICON} />,
+  },
+  {
+    id: 'account',
+    title: 'Your account & sync',
+    note: 'One account, all your devices',
+    icon: <SyncDevicesIcon className={ICON} />,
+  },
+  {
+    id: 'settings',
+    title: 'The settings menu',
+    note: 'Everything behind the ☰ button',
+    icon: <MenuGlyph className={ICON} />,
+  },
+  {
+    id: 'know',
+    title: 'Good to know',
+    note: 'How the app thinks',
+    icon: <TipIcon className={ICON} />,
+  },
+];
+
+function Shot({ name, alt, caption }: { name: string; alt: string; caption?: string }) {
+  const size = SHOTS[name];
+  return (
+    <figure className="my-4">
+      <img
+        src={`/instructions/${name}.webp`}
+        alt={alt}
+        width={size.width}
+        height={size.height}
+        loading="lazy"
+        className="h-auto w-full rounded-xl border border-gray-200 bg-gray-50 shadow-sm"
+      />
+      {caption && (
+        <figcaption className="mt-1.5 text-center text-sm text-gray-500">{caption}</figcaption>
+      )}
+    </figure>
+  );
+}
+
+function Sub({ children }: { children: ReactNode }) {
+  return <h4 className="pt-2 font-semibold text-gray-800">{children}</h4>;
+}
+
+function P({ children }: { children: ReactNode }) {
+  return <p className="text-gray-600">{children}</p>;
 }
 
 // A labelled line: the thing you tap, then what it does.
@@ -51,11 +166,392 @@ function Tip({ children }: { children: ReactNode }) {
   );
 }
 
+// ------------------------------------------------------------- the chapters --
+
+function QuickStart() {
+  return (
+    <>
+      <ol className="ml-5 list-decimal space-y-1 text-gray-600 marker:font-semibold marker:text-gray-800">
+        <li>Add everyone on the <strong>1. Players</strong> tab.</li>
+        <li>Tap <strong>Continue to Setup</strong>. Set your courts and rounds.</li>
+        <li>Tick who actually showed up.</li>
+        <li>Tap <strong>Generate Schedule</strong> and play.</li>
+      </ol>
+      <Tip>
+        You need at least 4 players. Courts hold 4, but you can be two short: three courts
+        wants 12 and will run on 10, with the last court playing a 2v1 or a game of singles.
+      </Tip>
+      <Shot
+        name="quick-schedule"
+        alt="A generated schedule: Round 1 with two courts, each showing two teams"
+        caption="The result: every round, court by court."
+      />
+    </>
+  );
+}
+
+function Players() {
+  return (
+    <>
+      <Sub>Adding someone</Sub>
+      <P>
+        Type a name, set their rating with − and + (3.0 to 5.0), pick M or F, then tap
+        Add Player. Rating and gender are what the app uses to even out the teams.
+      </P>
+      <Shot
+        name="players"
+        alt="The group list: names with gender, rating, and a pencil on each row"
+        caption="Tap a row to tick someone. The pencil opens them."
+      />
+      <Sub>Changing someone</Sub>
+      <P>
+        Tap the pencil at the end of a player's row. Their name, rating, gender and
+        groups are all in there. Tapping the row itself ticks them instead.
+      </P>
+      <P>
+        To take somebody out of a group, open them with the pencil and untick it. If
+        it's the only group they're in, you'll be asked whether to delete them from
+        the app entirely.
+      </P>
+      <Shot
+        name="player-edit"
+        alt="The Edit Player dialog: name, rating, gender, and group checkboxes"
+        caption="One player, everything about them."
+      />
+      <Sub>Groups</Sub>
+      <Item term="My Groups">switches between your groups.</Item>
+      <Item term="Manage">adds, renames, and deletes groups.</Item>
+      <Item term="Show All Players">
+        lists everybody in the app rather than this group, so you can find a player
+        without going looking for the group they're in.
+      </Item>
+      <Item term="Add to Another Group">
+        tick several people in the list, then put them all in another group at once.
+      </Item>
+      <Tip>
+        One person can be in as many groups as you like — a Tuesday crowd and a weekend
+        crowd can share players without typing anyone twice.
+      </Tip>
+    </>
+  );
+}
+
+function Setup() {
+  return (
+    <>
+      <Sub>Courts and rounds</Sub>
+      <P>
+        Set how many courts you have and how many rounds to play. Watch the{' '}
+        <strong>Spots Filled</strong> line: it tells you how many players you need, and
+        how many will sit out each round.
+      </P>
+      <Sub>Who's playing</Sub>
+      <P>
+        Tick everyone who turned up. Select All and Deselect All are there for a fast
+        start.
+      </P>
+      <Shot
+        name="setup"
+        alt="The Setup page: courts, rounds, Spots Filled, Special Game Types, and Keep Score"
+        caption="The whole session on one page."
+      />
+      <Sub>Keep Score?</Sub>
+      <P>
+        Switch it on and every court gets a scoreboard. The scores you write down feed
+        a standings table under the schedule.
+      </P>
+      <Sub>Set Partners</Sub>
+      <P>
+        For couples who want to play together all session. Tap one player, then tap
+        their partner. Pairs are listed above the player list; tap the broken-link icon
+        to split one up.
+      </P>
+      <Shot
+        name="partners"
+        alt="Set Partners: one linked pair listed above the player list"
+        caption="A pair stays a team for the whole session."
+      />
+      <Sub>Special game types</Sub>
+      <P>
+        <strong>Special Game Types</strong> opens three formats you can drop into the
+        session: <strong>Gendered</strong> (men against men, women against women),
+        <strong> Mixed</strong> (a man and a woman on each team) and{' '}
+        <strong>Equal Skill</strong> (grouped by rating). Say Yes to any of them and
+        choose how often it comes round. Everything else stays a normal round robin.
+      </P>
+      <P>
+        A special round beats Set Partners, but only where it has to. A pair is split
+        for that round alone if they do not suit the format, then they are back
+        together.
+      </P>
+      <Shot
+        name="special-types"
+        alt="The Special Game Types panel: Gendered, Mixed, and Equal Skill, each with a switch"
+        caption="Three formats, each with its own frequency."
+      />
+    </>
+  );
+}
+
+function Schedule() {
+  return (
+    <>
+      <P>
+        Each round shows every court, its two teams, and a <strong>Diff</strong> badge
+        — the rating gap between the teams. Green is an even match, red is lopsided.
+      </P>
+      <Shot
+        name="round-card"
+        alt="A round card: courts with scoreboards, team names, Diff badges, and padlocks"
+        caption="One round. The scoreboards appear when Keep Score is on."
+      />
+      <Item term="COURT 1">
+        tap the heading to set the number your centre gave you. It changes that round
+        and every round after it.
+      </Item>
+      <Item term="Complete">
+        tick it as each round finishes; the round collapses out of the way.
+      </Item>
+      <Item term="Swap two players">tap one player, then tap the other.</Item>
+      <Item term="Padlock">
+        keeps a pair together, then <strong>Reshuffle</strong> rebuilds everything else
+        around them.
+      </Item>
+      <Item term="Player Summary">
+        at the bottom: games played, and who has partnered or played against whom.
+      </Item>
+      <Item term="Printer button, top right">
+        print or save a PDF — a clean sheet to post by the courts.
+      </Item>
+      <Sub>Scores</Sub>
+      <P>
+        With <strong>Keep Score?</strong> on, tap the scoreboard on any court. The pad
+        holds every score a game is won by, and Clear starts the entry over.
+      </P>
+      <Shot
+        name="keypad"
+        alt="The score pad for one court, with both teams named and a Save button"
+        caption="Tap a court's scoreboard to open its pad."
+      />
+      <Sub>Standings</Sub>
+      <P>
+        The table lives under the rounds: wins, losses, point difference, and points
+        scored, updated as results go in.
+      </P>
+      <Shot
+        name="standings"
+        alt="The Standings table: players ranked with wins, losses, Diff, and points"
+        caption="Standings build themselves from the scores."
+      />
+      <Tip>
+        Rounds you've already marked complete are never rewritten — they stay exactly
+        as they were played.
+      </Tip>
+    </>
+  );
+}
+
+function Actions() {
+  return (
+    <>
+      <P>
+        The <strong>Actions</strong> button sits above the schedule. Real sessions
+        drift: somebody leaves, a friend turns up, a court frees up. Every fix is a
+        card on this sheet.
+      </P>
+      <Shot
+        name="actions"
+        alt="The Actions sheet: nine cards including Add a Player, Reshuffle, and Share Live Session"
+        caption="Every mid-session change, one sheet."
+      />
+      <Item term="Add a Player">brings somebody from the group into the session.</Item>
+      <Item term="Sub a Player">swaps somebody in for somebody going home.</Item>
+      <Item term="Add a Guest">
+        somebody playing today only. Guests are never saved to the group.
+      </Item>
+      <Item term="Share Live Session">
+        puts the session on everyone's phone. It has a chapter of its own.
+      </Item>
+      <Item term="Reshuffle">rebuilds the rounds you haven't played yet.</Item>
+      <Item term="Start New Session">
+        clears the schedule but keeps the same crowd selected for the next one.
+      </Item>
+      <Item term="Add a Round">
+        one more round, planned around the games already scheduled.
+      </Item>
+      <Item term="Add / Remove a Court">
+        a court opened up, or the centre took one back.
+      </Item>
+      <Tip>
+        Whatever you change, rounds already marked complete are left alone. Only the
+        rounds still to play are rebuilt.
+      </Tip>
+    </>
+  );
+}
+
+function Share() {
+  return (
+    <>
+      <P>
+        Open <strong>Actions</strong>, then <strong>Share Live Session</strong>. The
+        app makes a link and a QR code. Anyone who scans it watches the session on
+        their own phone: courts, matchups, and scores as you write them down.
+      </P>
+      <Shot
+        name="share-qr"
+        alt="The Share Live Session sheet: a QR code, the link, and a Stop Sharing button"
+        caption="Point a camera at the code, or send the link."
+      />
+      <P>
+        Names, courts and scores are shared. Player ratings are not. Watching needs no
+        app and no account, just the link.
+      </P>
+      <P>
+        The link stops working after 24 hours, and <strong>Stop Sharing</strong> takes
+        it down sooner. Sharing needs you signed in, because the session has to be kept
+        somewhere the other phones can reach.
+      </P>
+    </>
+  );
+}
+
+function Account() {
+  return (
+    <>
+      <P>
+        The app works without an account. An account is how your groups survive a lost
+        phone, and how a second device gets them.
+      </P>
+      <Shot
+        name="account-signin"
+        alt="The My Account panel, signed out, asking for an email address"
+        caption="My Account, in the settings menu."
+      />
+      <Sub>Signing in</Sub>
+      <P>
+        Type your email and the app sends you a login code. There is no password. New
+        here, and the same step creates your account.
+      </P>
+      <Sub>What syncs</Sub>
+      <P>
+        Your groups, players and settings follow your account onto any device you sign
+        in on. The session being run right now stays on the phone running it — two
+        phones both ticking rounds complete is a fight with no winner. Share Live
+        Session is how other phones watch.
+      </P>
+      <Sub>Also in My Account</Sub>
+      <Item term="Change My Email Address">moves the account to a new address.</Item>
+      <Item term="Download My Data">everything the account holds, as a file.</Item>
+      <Item term="Delete Account">
+        removes the account and everything synced to it, for good.
+      </Item>
+    </>
+  );
+}
+
+function Settings() {
+  return (
+    <>
+      <P>The ☰ button, top right of any screen.</P>
+      <Item term="My Account">
+        sign in, sync, and everything in the chapter above.
+      </Item>
+      <Item term="Add to Home Screen">
+        keeps the app one tap away and opens it full screen.
+      </Item>
+      <Item term="Share App">
+        sends a link to the app however you normally share — text, email, AirDrop.
+      </Item>
+      <Item term="Toggle Font Size">bigger text for reading at arm's length.</Item>
+      <Item term="Default Player Rating">
+        the rating new players start at, so you're not adjusting every time.
+      </Item>
+      <Item term="Import / Export Groups">
+        saves a group as a spreadsheet file, or loads one in. Importing always creates
+        a new group; players you already have join it rather than being duplicated.
+      </Item>
+      <Item term="Donate">
+        this app is free; if you'd like to chip in, this opens my Ko-fi page.
+      </Item>
+      <Item term="Suggest a Feature / Report a Bug">
+        sends your message from inside the app. Bug reports carry your app version and
+        browser — never any player details.
+      </Item>
+    </>
+  );
+}
+
+function Know() {
+  return (
+    <>
+      <P>
+        <strong>Your groups live on this device.</strong> Signed in, they also sync to
+        your account and every other device you sign in on. Without an account,
+        clearing your browser data clears your groups — use Export to keep a copy.
+      </P>
+      <P>
+        A session survives a refresh, so you can close the tab mid-round robin and come
+        back to it.
+      </P>
+      <P>
+        Each group keeps its own session. Switch groups mid-afternoon and the session
+        you left is waiting when you switch back. A live share does stop when you
+        switch, so start it again if the other group's session was being watched.
+      </P>
+      <Sub>How the schedule thinks</Sub>
+      <P>
+        The app spreads everything it can count: you partner people you haven't
+        partnered, play people you haven't played, and sit-outs go to whoever has sat
+        out least. When the numbers don't divide into courts of four, the short court
+        (2v1 or singles) is passed around too.
+      </P>
+    </>
+  );
+}
+
+const BODY: Record<ChapterId, () => ReactNode> = {
+  'quick-start': QuickStart,
+  players: Players,
+  setup: Setup,
+  schedule: Schedule,
+  actions: Actions,
+  share: Share,
+  account: Account,
+  settings: Settings,
+  know: Know,
+};
+
+// ---------------------------------------------------------------- the panel --
+
 export function InstructionsPanel({ onClose }: Props) {
+  const [chapterId, setChapterId] = useState<ChapterId | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // A chapter opens at its top, not wherever the last page was left.
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = 0;
+  }, [chapterId]);
+
+  const index = CHAPTERS.findIndex((c) => c.id === chapterId);
+  const chapter = index >= 0 ? CHAPTERS[index] : null;
+  const next = chapter ? (CHAPTERS[index + 1] ?? null) : null;
+
   return (
     <div className="no-print fixed inset-0 z-50 flex flex-col bg-white">
-      <div className="flex items-center justify-between gap-4 bg-brand-teal px-6 py-2.5 text-white">
-        <h2 className="text-2xl font-bold tracking-tight">Instructions</h2>
+      <div className="flex items-center justify-between gap-4 bg-brand-teal px-4 py-2.5 text-white sm:px-6">
+        {chapter ? (
+          <button
+            type="button"
+            onClick={() => setChapterId(null)}
+            className="-ml-1 flex items-center gap-1 rounded-md px-2 py-1 text-lg font-bold transition-colors hover:bg-white/10"
+          >
+            <ChevronLeftIcon className="h-5 w-5" strokeWidth={3} />
+            All topics
+          </button>
+        ) : (
+          <h2 className="text-2xl font-bold tracking-tight">Instructions</h2>
+        )}
         <button
           type="button"
           onClick={onClose}
@@ -66,197 +562,66 @@ export function InstructionsPanel({ onClose }: Props) {
       </div>
 
       {/* overscroll-contain: hitting the end here must not scroll the app behind it */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-6">
-        <div className="mx-auto max-w-2xl space-y-6">
-          <p className="text-gray-600">
-            This app builds balanced doubles matchups for a round robin — everyone plays
-            with and against different people, and sit-outs are shared out evenly.
-          </p>
-
-          <nav className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Contents
-            </h3>
-            <ul className="grid gap-1 sm:grid-cols-2">
-              {CONTENTS.map((c) => (
-                <li key={c.id}>
+      <div ref={scroller} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+        <div className="mx-auto max-w-2xl">
+          {chapter ? (
+            <>
+              <h3 className="mb-4 flex items-center gap-2.5 text-2xl font-bold text-gray-900">
+                {chapter.icon}
+                {chapter.title}
+              </h3>
+              <div className="space-y-3">{BODY[chapter.id]()}</div>
+              <div className="mt-8 border-t border-gray-200 pt-4">
+                {next ? (
                   <button
                     type="button"
-                    onClick={() => jumpTo(c.id)}
-                    className="text-left font-medium text-green-700 hover:text-green-900 hover:underline"
+                    onClick={() => setChapterId(next.id)}
+                    className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-gray-50"
                   >
-                    {c.label}
+                    <span>
+                      <span className="block text-sm text-gray-500">Next</span>
+                      <span className="block font-bold text-gray-900">{next.title}</span>
+                    </span>
+                    <ChevronLeftIcon className="h-5 w-5 rotate-180 text-gray-400" />
                   </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <Section id="instr-quick-start" title="Quick start">
-            <ol className="ml-5 list-decimal space-y-1 text-gray-600 marker:font-semibold marker:text-gray-800">
-              <li>Add everyone on the <strong>Players</strong> tab.</li>
-              <li>Tap <strong>Continue to Setup</strong>. Set your courts and rounds.</li>
-              <li>Tick who actually showed up.</li>
-              <li>Tap <strong>Generate Schedule</strong> and play.</li>
-            </ol>
-            <Tip>
-              You need at least 4 players. Courts hold 4, but you can be two short:
-              three courts wants 12 and will run on 10, with the last court playing
-              a 2v1 or a game of singles.
-            </Tip>
-          </Section>
-
-          <Section id="instr-players" title="1. Players">
-            <h4 className="font-semibold text-gray-800">Adding someone</h4>
-            <p className="text-gray-600">
-              Type a name, set their rating with − and + (3.0 to 5.0), pick M or F, then tap
-              Add Player. Rating and gender are what the app uses to even out the teams.
-            </p>
-
-            <h4 className="pt-1 font-semibold text-gray-800">Changing someone</h4>
-            <p className="text-gray-600">
-              Tap the pencil at the end of a player's row. Their name, rating, gender and
-              groups are all in there. Tapping the row itself ticks them instead.
-            </p>
-            <p className="text-gray-600">
-              To take somebody out of a group, open them with the pencil and untick it. If
-              it's the only group they're in, you'll be asked whether to delete them from
-              the app entirely.
-            </p>
-
-            <h4 className="pt-1 font-semibold text-gray-800">Groups</h4>
-            <Item term="My Groups">switches between your groups.</Item>
-            <Item term="Manage">adds, renames, and deletes groups.</Item>
-            <Item term="Show All Players">
-              lists everybody in the app rather than this group, so you can find a player
-              without going looking for the group they're in.
-            </Item>
-            <Item term="Add to Another Group">
-              tick several people in the list, then put them all in another group at
-              once.
-            </Item>
-            <Item term="Pencil">
-              opens one player to change their details or their groups, and to delete
-              them for good.
-            </Item>
-            <Tip>
-              One person can be in as many groups as you like — a Tuesday crowd and a
-              weekend crowd can share players without typing anyone twice.
-            </Tip>
-          </Section>
-
-          <Section id="instr-setup" title="2. Setup">
-            <h4 className="font-semibold text-gray-800">Courts and rounds</h4>
-            <p className="text-gray-600">
-              Set how many courts you have and how many rounds to play. Watch the{' '}
-              <strong>Spots Filled</strong> line: it tells you how many players you need,
-              and how many will sit out each round.
-            </p>
-
-            <h4 className="pt-1 font-semibold text-gray-800">Who's playing</h4>
-            <p className="text-gray-600">
-              Tick everyone who turned up. Select All and Deselect All are there for a fast
-              start.
-            </p>
-
-            <h4 className="pt-1 font-semibold text-gray-800">Set Partners</h4>
-            <p className="text-gray-600">
-              For couples who want to play together all session. Tap one player, then tap
-              their partner. Pairs are listed above the player list; tap the broken-link
-              icon to split one up.
-            </p>
-
-            <h4 className="pt-1 font-semibold text-gray-800">Special game types</h4>
-            <p className="text-gray-600">
-              <strong>Special Game Types</strong> opens three formats you can drop into
-              the session: <strong>Gendered</strong> (men against men, women against women),
-              <strong> Mixed</strong> (a man and a woman on each team) and{' '}
-              <strong>Equal Skill</strong> (grouped by rating). Say Yes to any of them and
-              choose how often it comes round. Everything else stays a normal round robin.
-            </p>
-            <p className="text-gray-600">
-              A special round beats Set Partners, but only where it has to. A pair is split for
-              that round alone if they do not suit the format, then they are back together.
-            </p>
-          </Section>
-
-          <Section id="instr-schedule" title="3. Schedule">
-            <p className="text-gray-600">
-              Each round shows every court, its two teams, and a <strong>Diff</strong> badge
-              — the rating gap between the teams. Green is an even match, red is lopsided.
-            </p>
-            <Item term="COURT 1">
-              tap the heading to set the number your centre gave you. It changes that
-              round and every round after it.
-            </Item>
-            <Item term="Complete">
-              tick it as each round finishes; the round collapses out of the way.
-            </Item>
-            <Item term="Swap two players">tap one player, then tap the other.</Item>
-            <Item term="Padlock">
-              keeps a pair together, then <strong>Reshuffle</strong> rebuilds everything
-              else around them.
-            </Item>
-            <Item term="Trash icon">
-              someone had to leave. The rounds you haven't played yet rebuild around the
-              smaller group.
-            </Item>
-            <Item term="Player Summary">
-              at the bottom: games played, and who has partnered or played against whom.
-            </Item>
-            <Item term="Printer button, top right">
-              print or save a PDF — a clean sheet to post by the courts.
-            </Item>
-            <Item term="New Session">
-              clears the schedule but keeps the same crowd selected for the next one.
-            </Item>
-            <Tip>
-              Rounds you've already marked complete are never rewritten — they stay exactly
-              as they were played.
-            </Tip>
-          </Section>
-
-          <Section id="instr-settings" title="Settings menu">
-            <p className="text-gray-600">The ☰ button, top right of any screen.</p>
-            <Item term="Share App">
-              sends a link to the app however you normally share — text, email, AirDrop.
-            </Item>
-            <Item term="Add to Home Screen">
-              keeps the app one tap away and opens it full screen. Note the home screen
-              copy starts empty — use Import / Export Group to bring a group across.
-            </Item>
-            <Item term="Toggle Font Size">bigger text for reading at arm's length.</Item>
-            <Item term="Default Player Rating">
-              the rating new players start at, so you're not adjusting every time.
-            </Item>
-            <Item term="Import / Export Group">
-              saves a group as a spreadsheet file, or loads one in. Importing always creates
-              a new group; players you already have join it rather than being duplicated.
-            </Item>
-            <Item term="Donate">
-              this app is free; if you'd like to chip in, this opens my Ko-fi page.
-            </Item>
-            <Item term="Suggest a Feature / Report a Bug">
-              writes the message for you and opens your email app to send it. Bug reports
-              attach your app version and browser — never any player details.
-            </Item>
-          </Section>
-
-          <Section id="instr-good-to-know" title="Good to know">
-            <p className="text-gray-600">
-              <strong>Everything is stored on this device only.</strong> No account, no
-              sync. Clearing your browser data clears your groups — use Export to keep a
-              copy or move a group to another phone.
-            </p>
-            <p className="text-gray-600">
-              A session survives a refresh, so you can close the tab mid-round robin and
-              come back to it.
-            </p>
-            <p className="text-gray-600">
-              Switching groups while a session is running clears that session. You'll be
-              asked first.
-            </p>
-          </Section>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setChapterId(null)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-4 py-3 font-bold text-gray-900 transition-colors hover:bg-gray-50"
+                  >
+                    <ChevronLeftIcon className="h-5 w-5 text-gray-400" strokeWidth={2.5} />
+                    Back to all topics
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-4 text-gray-600">
+                This app builds balanced doubles matchups for a round robin — everyone
+                plays with and against different people, and sit-outs are shared out
+                evenly. Tap a topic to read about it.
+              </p>
+              <div className="space-y-2">
+                {CHAPTERS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setChapterId(c.id)}
+                    className="flex w-full items-center gap-3.5 rounded-lg border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+                  >
+                    {c.icon}
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-bold text-gray-900">{c.title}</span>
+                      <span className="block text-sm text-gray-500">{c.note}</span>
+                    </span>
+                    <ChevronLeftIcon className="h-5 w-5 shrink-0 rotate-180 text-gray-400" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

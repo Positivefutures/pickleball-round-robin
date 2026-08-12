@@ -22,7 +22,13 @@ import { NEVER_CACHE } from '../sw';
 import { PRECACHED_PUBLIC, RUNTIME_CACHED_PUBLIC, NEVER_CACHED_PUBLIC } from './precache';
 
 const publicDir = resolve(__dirname, '../../public');
-const onDisk = readdirSync(publicDir).map((name) => `/${name}`);
+// One level of folders is real today (public/instructions). Anything deeper
+// should fail this test until somebody makes it a decision here.
+const onDisk = readdirSync(publicDir, { withFileTypes: true }).flatMap((entry) =>
+  entry.isDirectory()
+    ? readdirSync(resolve(publicDir, entry.name)).map((name) => `/${entry.name}/${name}`)
+    : [`/${entry.name}`]
+);
 const listed = [...PRECACHED_PUBLIC, ...RUNTIME_CACHED_PUBLIC, ...NEVER_CACHED_PUBLIC];
 
 describe('the public folder', () => {
