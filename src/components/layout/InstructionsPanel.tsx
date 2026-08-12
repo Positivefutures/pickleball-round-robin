@@ -127,9 +127,17 @@ export function InstructionsPanel({ onClose }: Props) {
             <h4 className="pt-1 font-semibold text-gray-800">Groups</h4>
             <Item term="My Groups">switches between your groups.</Item>
             <Item term="Manage">adds, renames, and deletes groups.</Item>
-            <Item term="Select Players">
-              tick several people, then <strong>Add to Group</strong> puts them all in
-              another group at once.
+            <Item term="Add to Group">
+              tick several people in the list, then put them all in another group at
+              once.
+            </Item>
+            <Item term="Remove">
+              takes the ticked people out of this group. Anybody left with no group at
+              all is deleted from the app.
+            </Item>
+            <Item term="Pencil">
+              opens one player to change their details or their groups, and to delete
+              them for good.
             </Item>
             <Tip>
               One person can be in as many groups as you like — a Tuesday crowd and a

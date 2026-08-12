@@ -2393,3 +2393,212 @@ describe('duplicating a group', () => {
     expect(JSON.parse(window.localStorage.getItem('pb-active-roster')!)).toBe('g1');
   });
 });
+
+/**
+ * The Players panel after the Select Players mode was retired. Checkboxes are
+ * always on, so the row tap only ever ticks a box, and the two things it used to
+ * reveal now live in fixed places: a pencil on every row, and one Remove button
+ * over the table.
+ */
+describe('the player roster panel', () => {
+  /** Ava is in both groups. The other three are only in the active one. */
+  function seedGroups(twoGroups = true) {
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'pb-rosters',
+      JSON.stringify(
+        twoGroups
+          ? [
+              { id: 'g1', name: 'Test Group' },
+              { id: 'g2', name: 'Other Group' },
+            ]
+          : [{ id: 'g1', name: 'Test Group' }]
+      )
+    );
+    window.localStorage.setItem('pb-active-roster', JSON.stringify('g1'));
+    window.localStorage.setItem(
+      'pb-roster',
+      JSON.stringify([
+        { id: 'p1', name: 'Ava', rating: 3.5, gender: 'F', rosterIds: twoGroups ? ['g1', 'g2'] : ['g1'] },
+        { id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g1'] },
+        { id: 'p3', name: 'Cara', rating: 4, gender: 'F', rosterIds: ['g1'] },
+        { id: 'p4', name: 'Dan', rating: 4, gender: 'M', rosterIds: ['g1'] },
+      ])
+    );
+    runMigrations();
+  }
+
+  function storedRosters(): { id: string; name: string }[] {
+    return JSON.parse(window.localStorage.getItem('pb-rosters') ?? '[]');
+  }
+
+  function rosterIdsOf(name: string): string[] {
+    const found = (storedPlayers() as unknown as { name: string; rosterIds: string[] }[]).find(
+      (p) => p.name === name
+    );
+    if (!found) throw new Error(`${name} is not in storage`);
+    return found.rosterIds;
+  }
+
+  function labelled(label: string): HTMLElement {
+    const el = container.querySelector(`[aria-label="${label}"]`);
+    if (!el) throw new Error(`no control labelled ${label}`);
+    return el as HTMLElement;
+  }
+
+  function action(re: RegExp): HTMLButtonElement {
+    const found = buttons(re);
+    if (found.length === 0) throw new Error(`no button matching ${re}`);
+    return found[0] as HTMLButtonElement;
+  }
+
+  /** Sets a controlled input the way React will notice. */
+  function type(el: HTMLInputElement, value: string) {
+    act(() => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!.call(
+        el,
+        value
+      );
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  /** The names the table is showing, in the order it shows them. */
+  function listedNames(): string[] {
+    return [...container.querySelectorAll('.roster-table tbody tr td:nth-child(2)')].map(text);
+  }
+
+  beforeEach(() => seedGroups());
+
+  it('opens with the checkboxes on, both actions dead, and no way into a mode', () => {
+    mount();
+
+    expect(labelled('Select Ava')).toBeTruthy();
+    expect(labelled('Select all players')).toBeTruthy();
+    // The button that used to turn all of that on is gone for good.
+    expect(buttons(/Select Players/)).toHaveLength(0);
+    expect(buttons(/^Cancel$/)).toHaveLength(0);
+
+    expect(action(/^Add to Group$/).disabled).toBe(true);
+    expect(action(/^Remove$/).disabled).toBe(true);
+    expect(container.textContent).toContain('Tap players to select');
+  });
+
+  it('ticks a box from a tap anywhere on the row, and counts what is ticked', () => {
+    mount();
+
+    // The row, not the box: the tap target is the whole width of the table.
+    click(container.querySelectorAll('.roster-table tbody tr')[0]);
+
+    expect((labelled('Select Ava') as HTMLInputElement).checked).toBe(true);
+    expect(container.textContent).toContain('1 selected');
+    expect(action(/^Add to Group$/).disabled).toBe(false);
+    expect(action(/^Remove$/).disabled).toBe(false);
+
+    click(container.querySelectorAll('.roster-table tbody tr')[0]);
+    expect(container.textContent).toContain('Tap players to select');
+    expect(action(/^Remove$/).disabled).toBe(true);
+  });
+
+  it('opens a player from the pencil without ticking their row', () => {
+    mount();
+    click(labelled('Edit Cara'));
+
+    expect(container.textContent).toContain('Edit Player');
+    // The pencil stops the event before the row sees it.
+    expect(container.textContent).toContain('Tap players to select');
+  });
+
+  it('removes a player who has another group from this group only', () => {
+    mount();
+    click(labelled('Select Ava'));
+    clickButton(/^Remove$/);
+
+    expect(container.textContent).toContain('Remove 1 player from Test Group?');
+    expect(container.textContent).toContain('stay in their other groups');
+    clickButton(/^Yes, Remove$/);
+
+    expect(rosterIdsOf('Ava')).toEqual(['g2']);
+    expect(listedNames()).not.toContain('Ava');
+  });
+
+  it('warns that a mixed removal deletes the ones with nowhere else to go', () => {
+    mount();
+    click(labelled('Select Ava'));
+    click(labelled('Select Ben'));
+    clickButton(/^Remove$/);
+
+    // One prompt covers both halves, and says which is which.
+    expect(container.textContent).toContain('Remove 2 players from Test Group?');
+    expect(container.textContent).toContain('1 will stay in their other groups.');
+    expect(container.textContent).toContain('1 will be deleted from the app completely.');
+
+    clickButton(/^Yes, Remove$/);
+
+    expect(rosterIdsOf('Ava')).toEqual(['g2']);
+    expect(storedPlayers().map((p) => p.name)).not.toContain('Ben');
+  });
+
+  it('keeps everybody when the removal warning is cancelled', () => {
+    mount();
+    click(labelled('Select Ben'));
+    clickButton(/^Remove$/);
+    clickButton(/^Cancel$/);
+
+    expect(rosterIdsOf('Ben')).toEqual(['g1']);
+    expect(listedNames()).toContain('Ben');
+  });
+
+  it('deletes a player from every group, and they stay gone across a relaunch', () => {
+    mount();
+    click(labelled('Edit Ava'));
+    clickButton(/^Delete$/);
+
+    expect(container.textContent).toContain('Delete Ava from every group?');
+    expect(container.textContent).toContain('It cannot be undone.');
+    clickButton(/^Yes, Delete$/);
+
+    expect(storedPlayers().map((p) => p.name)).not.toContain('Ava');
+
+    remount();
+    expect(listedNames()).not.toContain('Ava');
+    // Not merely dropped from the group that was open: gone from the other too.
+    // The picker names each group with its head count alongside.
+    clickButton(/^Test Group$/);
+    clickButton(/^Other Group0 players/);
+    expect(listedNames()).not.toContain('Ava');
+  });
+
+  it('leaves the player alone when the delete warning is cancelled', () => {
+    mount();
+    click(labelled('Edit Ava'));
+    clickButton(/^Delete$/);
+    clickButton(/^Cancel$/);
+
+    expect(rosterIdsOf('Ava')).toEqual(['g1', 'g2']);
+  });
+
+  it('makes the second group from inside Add to Group, already ticked', () => {
+    seedGroups(false);
+    mount();
+
+    click(labelled('Select Ben'));
+    clickButton(/^Add to Group$/);
+    expect(container.textContent).toContain('This is your only group.');
+    // Nowhere to save to until a group exists.
+    expect(action(/^Save$/).disabled).toBe(true);
+
+    type(labelled('New group name') as HTMLInputElement, 'Thursday Crew');
+    clickButton(/^Create$/);
+
+    // Created and ticked in one press, so Save is the very next one.
+    expect(action(/^Save$/).disabled).toBe(false);
+    clickButton(/^Save$/);
+
+    const made = storedRosters().find((r) => r.name === 'Thursday Crew');
+    expect(made).toBeTruthy();
+    expect(rosterIdsOf('Ben')).toEqual(['g1', made!.id]);
+    // Adding to a group does not take them out of this one.
+    expect(listedNames()).toContain('Ben');
+  });
+});

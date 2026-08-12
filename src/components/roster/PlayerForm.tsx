@@ -9,6 +9,8 @@ interface Props {
   defaultRating: number;
   editingPlayer?: Player | null;
   onCancelEdit?: () => void;
+  /** Deletes the player outright. Only the edit dialog offers it. */
+  onDelete?: () => void;
   /** Roster checkboxes — only rendered when editing an existing player. */
   rosters?: Roster[];
   selectedRosterIds?: string[];
@@ -28,6 +30,7 @@ export function PlayerForm({
   defaultRating,
   editingPlayer,
   onCancelEdit,
+  onDelete,
   rosters,
   selectedRosterIds,
   onRosterToggle,
@@ -107,6 +110,17 @@ export function PlayerForm({
           className="px-4 py-2 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
         >
           Cancel
+        </button>
+      )}
+      {/* Pushed to the far end of the row, away from the two buttons a thumb is
+          aiming for. It only opens a warning; nothing goes on this press. */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="ml-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+        >
+          Delete
         </button>
       )}
     </>

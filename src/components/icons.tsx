@@ -100,22 +100,6 @@ export function GroupSolidIcon({ className }: { className?: string }) {
 }
 
 /**
- * A ticked box. The blue Select Players button.
- *
- * `INBOX/checkbox.svg` verbatim, drawn on the same 24 grid as the rest of this
- * file, so it needs no transform. The supplied `Select Players.svg` is not used:
- * it holds no paths at all, only three PNGs in an SVG wrapper, and would have
- * put raster artwork back into the app.
- */
-export function SelectPlayersIcon({ className }: { className?: string }) {
-  return (
-    <Solid className={className}>
-      <path d="m16.2 22h-8.4c-1.8 0-2.8 0-3.6-.4s-1.4-1-1.7-1.7c-.5-.9-.5-1.9-.5-3.7v-8.4c0-1.8 0-2.8.4-3.6s1-1.4 1.7-1.7c.9-.5 1.9-.5 3.7-.5h8.4c1.8 0 2.8 0 3.6.4s1.4 1 1.7 1.7c.5.9.5 1.9.5 3.7v8.4c0 1.8 0 2.8-.4 3.6s-1 1.4-1.7 1.7c-.9.5-1.9.5-3.7.5zm-8.4-18c-1.5 0-2.3 0-2.7.2s-.7.5-.9.9-.2 1.2-.2 2.7v8.4c0 1.5 0 2.3.2 2.7s.5.7.9.9 1.2.2 2.7.2h8.4c1.5 0 2.3 0 2.7-.2s.7-.5.9-.9.2-1.2.2-2.7v-8.4c0-1.5 0-2.3-.2-2.7s-.5-.7-.9-.9-1.2-.2-2.7-.2zm2.7 12c-.3 0-.5-.1-.7-.3l-3-3c-.4-.4-.4-1 0-1.4s1-.4 1.4 0l2.3 2.3 5.3-5.3c.4-.4 1-.4 1.4 0s.4 1 0 1.4l-6 6c-.2.2-.4.3-.7.3z" />
-    </Solid>
-  );
-}
-
-/**
  * A chain link. The Set Partners button on Setup.
  *
  * `INBOX/link.svg` verbatim, so it keeps the 512 grid it was drawn on rather

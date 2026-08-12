@@ -5,7 +5,7 @@ import { PlayerList } from './PlayerList';
 import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
 import { GroupPicker } from './GroupPicker';
-import { AddPlayerSolidIcon, ChevronDownIcon, GroupSolidIcon, SelectPlayersIcon } from '../icons';
+import { AddPlayerSolidIcon, ChevronDownIcon, GroupSolidIcon } from '../icons';
 
 // The panel headings all carry their icon in #60697c. It is written out at each
 // use rather than held in a constant, because Tailwind only generates a class it
@@ -19,7 +19,8 @@ interface Props {
   rosters: Roster[];
   activeRosterId: string;
   onSelectRoster: (id: string) => void;
-  onAddRoster: (name: string) => void;
+  /** Returns the group it made, so the Add to Group dialog can tick it. */
+  onAddRoster: (name: string) => Roster;
   onRenameRoster: (id: string, name: string) => void;
   onDeleteRoster: (id: string, moveTo: string | null) => void;
   /** A second group over the same players, who end up in both. */
@@ -64,12 +65,14 @@ export function RosterPage({
   // Selection is stamped with its group too, so switching groups clears it
   const [selection, setSelection] = useState<{ ids: string[]; rosterId: string } | null>(null);
   const [showAddToGroup, setShowAddToGroup] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const editingPlayer = editing?.rosterId === activeRosterId ? editing.player : null;
   const orphanCandidate = orphan?.rosterId === activeRosterId ? orphan.player : null;
-  const selecting = selection?.rosterId === activeRosterId;
-  const selectedIds = selecting ? selection!.ids : [];
+  const selectedIds = selection?.rosterId === activeRosterId ? selection.ids : [];
+  const activeRoster = rosters.find((r) => r.id === activeRosterId);
 
   useEffect(() => {
     if (!notice) return;
@@ -82,19 +85,17 @@ export function RosterPage({
   function handleSelectRoster(id: string) {
     setSelection(null);
     setShowAddToGroup(false);
+    setConfirmRemove(false);
     setEditing(null);
     setOrphan(null);
     setShowPicker(false);
     onSelectRoster(id);
   }
 
-  function startSelecting() {
-    setSelection({ ids: [], rosterId: activeRosterId });
-  }
-
-  function stopSelecting() {
+  function clearSelection() {
     setSelection(null);
     setShowAddToGroup(false);
+    setConfirmRemove(false);
   }
 
   function toggleSelect(id: string) {
@@ -122,7 +123,25 @@ export function RosterPage({
     setNotice(
       `${count} player${count === 1 ? '' : 's'} added to ${names.join(', ')}.`
     );
-    stopSelecting();
+    clearSelection();
+  }
+
+  // The ticked players, split by whether this group is their only one. Read off
+  // `players` rather than the ids, so an id left over from another device is
+  // simply absent rather than a hole to guard against further down.
+  const picked = players.filter((p) => selectedIds.includes(p.id));
+  const orphaned = picked.filter((p) => p.rosterIds.length <= 1);
+  const staying = picked.filter((p) => p.rosterIds.length > 1);
+
+  // Both calls are functional updates over the same store, so a loop is safe.
+  function handleRemoveSelected() {
+    staying.forEach((p) => onRemoveFromRoster(p.id, activeRosterId));
+    orphaned.forEach((p) => onDeletePlayer(p.id));
+    const count = picked.length;
+    setNotice(
+      `${count} player${count === 1 ? '' : 's'} removed from ${activeRoster?.name ?? 'this group'}.`
+    );
+    clearSelection();
   }
 
   function startEdit(player: Player) {
@@ -155,15 +174,19 @@ export function RosterPage({
     );
   }
 
-  // Row Remove: drop from this roster, unless it's the player's last one
-  function handleRemoveFromRoster(playerId: string) {
-    const player = allPlayers.find((p) => p.id === playerId);
-    if (!player) return;
-    if (player.rosterIds.length <= 1) {
-      setOrphan({ player, rosterId: activeRosterId });
-      return;
-    }
-    onRemoveFromRoster(playerId, activeRosterId);
+  // The Delete button inside the edit dialog. Unlike the orphan prompt, which
+  // is reached by accident, this one is asked for.
+  function handleDeletePlayer() {
+    if (!editingPlayer) return;
+    const { id, name } = editingPlayer;
+    onDeletePlayer(id);
+    setConfirmDelete(false);
+    closeEdit();
+    // They may have been ticked when the pencil was pressed
+    setSelection((prev) =>
+      prev ? { ...prev, ids: prev.ids.filter((x) => x !== id) } : prev
+    );
+    setNotice(`${name} deleted from every group.`);
   }
 
   function confirmOrphanDelete() {
@@ -182,8 +205,6 @@ export function RosterPage({
     }
     setOrphan(null);
   }
-
-  const activeRoster = rosters.find((r) => r.id === activeRosterId);
 
   return (
     <div className="space-y-6">
@@ -260,9 +281,9 @@ export function RosterPage({
         <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} />
       </div>
 
-      {/* The delete prompt replaces the edit modal rather than stacking on it —
+      {/* Both delete prompts replace the edit modal rather than stacking on it —
           two fixed overlays would double-dim the page and trap clicks. */}
-      {editingPlayer && !orphanCandidate && (
+      {editingPlayer && !orphanCandidate && !confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
             <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Edit Player</h2>
@@ -271,10 +292,73 @@ export function RosterPage({
               defaultRating={defaultRating}
               editingPlayer={editingPlayer}
               onCancelEdit={closeEdit}
+              onDelete={() => setConfirmDelete(true)}
               rosters={rosters}
               selectedRosterIds={draftRosterIds}
               onRosterToggle={toggleDraftRoster}
             />
+          </div>
+        </div>
+      )}
+
+      {editingPlayer && confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+            <p className="text-gray-800 text-center font-medium mb-2">
+              Delete {editingPlayer.name} from every group?
+            </p>
+            <p className="text-sm text-gray-600 text-center mb-4">
+              This removes them from the app completely. It cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePlayer}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmRemove && picked.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+            <p className="text-gray-800 text-center font-medium mb-2">
+              Remove {picked.length} player{picked.length === 1 ? '' : 's'} from{' '}
+              {activeRoster?.name ?? 'this group'}?
+            </p>
+            {/* One prompt covers a mixed selection. Removing somebody from their
+                last group deletes them, and that has to be said here rather than
+                in a second prompt after the first has already been agreed to. */}
+            <p className="text-sm text-gray-600 text-center mb-4">
+              {orphaned.length === 0
+                ? 'They’ll stay in their other groups.'
+                : staying.length === 0
+                  ? 'They belong to no other group. This deletes them from the app completely.'
+                  : `${staying.length} will stay in their other groups. ${orphaned.length} will be deleted from the app completely.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmRemove(false)}
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveSelected}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+              >
+                Yes, Remove
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -306,10 +390,11 @@ export function RosterPage({
         </div>
       )}
 
-      {showAddToGroup && selecting && (
+      {showAddToGroup && selectedIds.length > 0 && (
         <AddToGroupDialog
           playerCount={selectedIds.length}
           groups={rosters.filter((r) => r.id !== activeRosterId)}
+          onCreateGroup={onAddRoster}
           onConfirm={handleAddToGroups}
           onCancel={() => setShowAddToGroup(false)}
         />
@@ -337,8 +422,8 @@ export function RosterPage({
         />
       )}
 
-      {/* An empty group replaces the whole panel — heading and Select Players
-          included, since neither can be acted on with nobody in the list. */}
+      {/* An empty group replaces the whole panel, heading and buttons included,
+          since none of them can be acted on with nobody in the list. */}
       {players.length === 0 ? (
         <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 py-12 text-center">
           <p className="text-xl font-medium text-gray-400">Add your first player!</p>
@@ -353,45 +438,38 @@ export function RosterPage({
               {activeRoster?.name ?? 'Player Roster'} ({players.length})
               <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
             </h2>
-            {selecting ? (
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Set at the size of the names being counted, in both text
-                    modes. A row in the table carries no size class of its own,
-                    so it inherits the base, which is what text-base matches. */}
-                <span className="text-base font-bold text-gray-600">{selectedIds.length} selected</span>
-                <button
-                  onClick={() => setShowAddToGroup(true)}
-                  disabled={selectedIds.length === 0}
-                  className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Add to Group
-                </button>
-                <button
-                  onClick={stopSelecting}
-                  className="px-4 py-1.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Set at the size of the names being counted, in both text modes.
+                  A row in the table carries no size class of its own, so it
+                  inherits the base, which is what text-base matches.
+
+                  With nothing ticked it names the gesture instead of counting to
+                  zero. Tapping a row is the only way to work this panel now, and
+                  nothing else on the page teaches it. */}
+              <span className="text-base font-bold text-gray-600">
+                {selectedIds.length === 0
+                  ? 'Tap players to select'
+                  : `${selectedIds.length} selected`}
+              </span>
               <button
-                onClick={startSelecting}
-                disabled={rosters.length < 2 || players.length === 0}
-                title={rosters.length < 2 ? 'Create another group first' : undefined}
-                className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setShowAddToGroup(true)}
+                disabled={selectedIds.length === 0}
+                className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <SelectPlayersIcon className="w-[21px] h-[21px]" />
-                Select Players
+                Add to Group
               </button>
-            )}
+              <button
+                onClick={() => setConfirmRemove(true)}
+                disabled={selectedIds.length === 0}
+                className="px-4 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Remove
+              </button>
+            </div>
           </div>
           <PlayerList
             players={players}
-            allPlayers={allPlayers}
-            rosterName={activeRoster?.name}
             onEdit={startEdit}
-            onRemove={handleRemoveFromRoster}
-            selecting={selecting}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
