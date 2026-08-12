@@ -100,6 +100,45 @@ export function GroupSolidIcon({ className }: { className?: string }) {
 }
 
 /**
+ * Seven people in two rows, solid. Marks the list when it is every player in
+ * the app rather than one group, where the three-person glyph beside it would
+ * be saying the opposite of the heading.
+ *
+ * Drawn here rather than taken from Jeff's artwork, on the 24 grid the rest of
+ * this file uses. Seven small figures instead of three large ones is the whole
+ * point: at 30px it is the number of heads that reads, not any one of them.
+ * The gaps are what the drawing is really made of — the back row stops short
+ * of the front row's heads, and no two figures touch, because everything here
+ * is one colour and anything that touches becomes one shape.
+ */
+export function CrowdSolidIcon({ className }: { className?: string }) {
+  const back = [6.05, 11.95, 17.85];
+  const front = [3.1, 9.0, 14.9, 20.8];
+  return (
+    <Solid className={className}>
+      {back.map((x) => (
+        <circle key={`bh${x}`} cx={x} cy={6.2} r={1.45} />
+      ))}
+      {back.map((x) => (
+        <path
+          key={`bb${x}`}
+          d={`M${x - 1.9},8.7a1.9,1.9 0 0 1 3.8,0L${x + 1.9},10L${x - 1.9},10Z`}
+        />
+      ))}
+      {front.map((x) => (
+        <circle key={`fh${x}`} cx={x} cy={12.9} r={1.85} />
+      ))}
+      {front.map((x) => (
+        <path
+          key={`fb${x}`}
+          d={`M${x - 2.45},16a2.45,2.45 0 0 1 4.9,0L${x + 2.45},20.6L${x - 2.45},20.6Z`}
+        />
+      ))}
+    </Solid>
+  );
+}
+
+/**
  * A chain link. The Set Partners button on Setup.
  *
  * `INBOX/link.svg` verbatim, so it keeps the 512 grid it was drawn on rather

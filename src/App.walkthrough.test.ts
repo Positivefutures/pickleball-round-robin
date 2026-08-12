@@ -2555,6 +2555,24 @@ describe('the player roster panel', () => {
     expect(button.parentElement!.className).not.toContain('justify-between');
   });
 
+  /**
+   * The switch is the taller of the two things at the top of this panel. Laid
+   * out as rows, its height opened a hole between the heading and the button;
+   * as a column beside them, the button sits straight under the words it
+   * belongs to.
+   */
+  it('keeps the button under the heading rather than under the switch', () => {
+    mount();
+
+    const heading = container.querySelector('.roster-panel h2')!;
+    const button = action(/^Add to Another Group$/);
+    expect(heading.parentElement!.contains(button)).toBe(true);
+    // Beside the heading, not inside it.
+    expect(heading.contains(button)).toBe(false);
+    // And the switch is in the other column, not above the button.
+    expect(heading.parentElement!.contains(labelled('Show All Players'))).toBe(false);
+  });
+
   it('opens a player from the pencil without ticking their row', () => {
     mount();
     click(labelled('Edit Cara'));
@@ -2624,21 +2642,35 @@ describe('the player roster panel', () => {
   describe('showing every player', () => {
     beforeEach(() => seedGroups(true, true));
 
+    /** The heading's own glyph. One, always, and not always the same one. */
+    function glyph(): SVGElement {
+      const found = container.querySelectorAll('.roster-panel h2 svg');
+      if (found.length !== 1) throw new Error(`${found.length} glyphs on the heading`);
+      return found[0] as unknown as SVGElement;
+    }
+
     it('swaps the group for the whole pool, and back again', () => {
       mount();
 
       // Elle is in the other group, so the group list has never seen her.
       expect(listedNames()).not.toContain('Elle');
+      const group = glyph().outerHTML;
+      const groupShapes = glyph().children.length;
 
       click(labelled('Show All Players'));
 
       expect(text(container.querySelector('.roster-panel h2')!)).toBe('All Players (5)');
       expect(listedNames()).toContain('Elle');
+      // Three people for a group, a crowd for everybody: another drawing, and a
+      // busier one, because the number of figures is what the glyph is saying.
+      expect(glyph().outerHTML).not.toBe(group);
+      expect(glyph().children.length).toBeGreaterThan(groupShapes);
 
       click(labelled('Show All Players'));
 
       expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (4)');
       expect(listedNames()).not.toContain('Elle');
+      expect(glyph().outerHTML).toBe(group);
     });
 
     /**

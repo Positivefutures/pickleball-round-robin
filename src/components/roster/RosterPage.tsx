@@ -6,7 +6,7 @@ import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
 import { GroupPicker } from './GroupPicker';
 import { Toggle } from '../Toggle';
-import { AddPlayerSolidIcon, ChevronDownIcon, GroupSolidIcon } from '../icons';
+import { AddPlayerSolidIcon, ChevronDownIcon, CrowdSolidIcon, GroupSolidIcon } from '../icons';
 
 // The panel headings all carry their icon in #60697c. It is written out at each
 // use rather than held in a constant, because Tailwind only generates a class it
@@ -401,13 +401,54 @@ export function RosterPage({
         </div>
       ) : (
         <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
-          {/* Two rows rather than one. The heading and the switch say what the
-              list is, and the row under it acts on what has been ticked in it. */}
-          <div className="flex justify-between items-start gap-3 mb-3">
-            <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
-              {showAll ? 'All Players' : 'Group Members'} ({shown.length})
-              <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-            </h2>
+          {/* Two columns, not two rows. The heading and the button under it are
+              one column so the button follows the words it belongs to; the
+              switch is the other. Stacked as rows, the switch is the taller of
+              the two and its height became a hole under the heading. */}
+          <div className="flex justify-between items-start gap-3 mb-4">
+            <div className="min-w-0">
+              <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
+                {showAll ? 'All Players' : 'Group Members'} ({shown.length})
+                {/* Three people for a group, a crowd for everybody. The glyph
+                    is the fastest way to see which list is up, and the group
+                    one over the whole pool would say the opposite of the words
+                    beside it. */}
+                {showAll ? (
+                  <CrowdSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
+                ) : (
+                  <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
+                )}
+              </h2>
+
+              {/* Nothing to tick means nothing to act on, so the row goes with
+                  the list rather than leaving a dead button over an empty
+                  panel. */}
+              {shown.length > 0 && (
+                <div className="mt-2 flex items-center gap-3 flex-wrap">
+                  {/* Set at the size of the names being counted, in both text
+                      modes. A row in the table carries no size class of its
+                      own, so it inherits the base, which is what text-base
+                      matches. Absent rather than counting to zero, so the row
+                      is the button alone until there is something to say. */}
+                  {selectedIds.length > 0 && (
+                    <span className="text-base font-bold text-gray-600">
+                      {selectedIds.length} selected
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setShowAddToGroup(true)}
+                    disabled={selectedIds.length === 0}
+                    className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {/* "Another" only means anything against a list that is this
+                        group. Over the whole pool there is no this group to be
+                        another of, and the group in front is a target like any. */}
+                    {showAll ? 'Add to Group' : 'Add to Another Group'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Labelled above rather than beside, and held narrow enough that
                 the three words stack instead of taking the width a phone needs
                 for the heading. Unheld, the heading is what wraps. */}
@@ -418,33 +459,6 @@ export function RosterPage({
               <Toggle checked={showAll} onChange={toggleShowAll} label="Show All Players" />
             </div>
           </div>
-
-          {/* Nothing to tick means nothing to act on, so the row goes with the
-              list rather than leaving a dead button over an empty panel. */}
-          {shown.length > 0 && (
-            <div className="flex items-center gap-3 flex-wrap mb-4">
-              {/* Set at the size of the names being counted, in both text modes.
-                  A row in the table carries no size class of its own, so it
-                  inherits the base, which is what text-base matches. Absent
-                  rather than counting to zero, so the row is the button alone
-                  until there is something to say. */}
-              {selectedIds.length > 0 && (
-                <span className="text-base font-bold text-gray-600">
-                  {selectedIds.length} selected
-                </span>
-              )}
-              <button
-                onClick={() => setShowAddToGroup(true)}
-                disabled={selectedIds.length === 0}
-                className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {/* "Another" only means anything against a list that is this
-                    group. Over the whole pool there is no this group to be
-                    another of, and the group in front is a target like any. */}
-                {showAll ? 'Add to Group' : 'Add to Another Group'}
-              </button>
-            </div>
-          )}
 
           {shown.length === 0 ? (
             <p className="py-8 text-center text-gray-400">

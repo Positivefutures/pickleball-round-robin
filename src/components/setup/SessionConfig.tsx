@@ -78,9 +78,13 @@ function Stepper({
         {/* Square, with only a top and a bottom rule, and tucked a little way
             under the key on each side. The keys are opaque and sit above it, so
             what you see is one bar running behind them rather than three boxes
-            in a row. */}
+            in a row.
+
+            Light teal rather than the mockup's white: the number is the thing
+            on this panel that is being set, and the same tint carries a rating
+            on the players list. */}
         <span
-          className="-mx-2 flex flex-1 items-center justify-center border-y bg-white text-[1.4rem] font-bold"
+          className="-mx-2 flex flex-1 items-center justify-center border-y bg-brand-teal-light text-[1.4rem] font-bold"
           style={{ borderColor: EDGE, color: NAVY }}
         >
           {value}
