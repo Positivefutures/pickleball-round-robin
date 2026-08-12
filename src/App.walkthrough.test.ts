@@ -802,10 +802,10 @@ describe('Special Game Types', () => {
     clickButton(/^Continue to Setup/);
 
     // Nothing chosen yet, so Setup shows the button and no summary.
-    expect(container.textContent).toContain('Select Special Game Types');
+    expect(container.textContent).toContain('Special Game Types');
     expect(container.textContent).not.toContain('Mixed every');
 
-    clickButton(/^Select Special Game Types$/);
+    clickButton(/^Special Game Types$/);
     expect(container.textContent).toContain('Equal Skill Games');
     sayYes('mixed');
     clickButton(/^Done$/);
@@ -815,7 +815,7 @@ describe('Special Game Types', () => {
     // says it per round, which is where it is read.
     expect(container.textContent).toContain('Mixed every 2 rounds');
     expect(container.textContent).not.toContain('rounds 1, 3, 5, 7');
-    expect(container.textContent).toContain('Select Special Game Types');
+    expect(container.textContent).toContain('Special Game Types');
 
     clickButton(/^Generate Schedule/);
     expect(text(roundCard(1))).toContain('Mixed Round');
@@ -827,7 +827,7 @@ describe('Special Game Types', () => {
   it('gives round 1 to a type when two are switched on', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Select Special Game Types$/);
+    clickButton(/^Special Game Types$/);
     sayYes('gendered');
     sayYes('mixed');
     clickButton(/^Done$/);
@@ -847,7 +847,7 @@ describe('Special Game Types', () => {
   it('lets the host reorder the types, changing which opens the session', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Select Special Game Types$/);
+    clickButton(/^Special Game Types$/);
     sayYes('gendered');
     sayYes('mixed');
     move('Move Mixed Games up');
@@ -876,7 +876,7 @@ describe('Special Game Types', () => {
     it('marks the leftover court on a gendered round, on screen and on paper', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Select Special Game Types$/);
+      clickButton(/^Special Game Types$/);
       sayYes('gendered');
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
@@ -896,7 +896,7 @@ describe('Special Game Types', () => {
     it('says nothing when every court is in format', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Select Special Game Types$/);
+      clickButton(/^Special Game Types$/);
       sayYes('mixed'); // six of each gender fills all three mixed courts
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
@@ -913,7 +913,7 @@ describe('Special Game Types', () => {
       seed(9, 9, 2); // eight playing, one waiting
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Select Special Game Types$/);
+      clickButton(/^Special Game Types$/);
       sayYes('gendered');
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
@@ -1218,6 +1218,59 @@ describe('a roster short of a full set of courts', () => {
 
     expect(container.textContent).toContain('Need at least 10 players for 3 courts (have 9)');
     expect(storedSchedule()).toBeNull();
+  });
+
+  /**
+   * It used to ask for four first, and change its mind to fourteen the moment
+   * four were ticked. The app sent somebody to do a job and moved the
+   * goalposts on them.
+   */
+  it('asks for the real number from the start, with nobody ticked', () => {
+    seed(20, 0, 4);
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Generate Schedule/);
+
+    expect(container.textContent).toContain('Need at least 14 players for 4 courts (have 0)');
+    expect(container.textContent).not.toContain('Select at least 4 players');
+
+    // And it says the same thing after four, only with the count moved on. The
+    // grid has no labels of its own: a row is a <label> around a checkbox.
+    const tick = (name: string) => {
+      const row = [...container.querySelectorAll('label')].find((l) => text(l).startsWith(name));
+      if (!row) throw new Error(`no row for ${name}`);
+      click(row.querySelector('input')!);
+    };
+    for (const name of ['Ava', 'Ben', 'Cara', 'Dan']) tick(name);
+
+    clickButton(/^Generate Schedule/);
+    expect(container.textContent).toContain('Need at least 14 players for 4 courts (have 4)');
+  });
+
+  /**
+   * Full width it read as the main thing on the panel, which the two numbers
+   * above it are.
+   */
+  it('keeps the Special Game Types button to its own words, at the left', () => {
+    seed(9, 9, 2);
+    mount();
+    clickButton(/^Continue to Setup/);
+
+    const button = buttons(/^Special Game Types$/)[0];
+    expect(button.className).not.toContain('w-full');
+    // Nothing inside it stretches to fill a row either.
+    expect(button.querySelector('span')!.className).not.toContain('flex-1');
+  });
+
+  it('counts one court as one court', () => {
+    // Six in the group so Setup can be reached at all, two of them ticked.
+    seed(6, 2, 1);
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Generate Schedule/);
+
+    expect(container.textContent).toContain('Need at least 4 players for 1 court (have 2)');
+    expect(container.textContent).not.toContain('1 courts');
   });
 });
 

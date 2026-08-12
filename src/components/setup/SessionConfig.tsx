@@ -178,14 +178,16 @@ export function SessionConfig({
         {/* Full width with the chevron at its right end, so it reads as a way
             through to another panel rather than as something that happens here.
             The old blue pill said neither. */}
+        {/* As wide as its own words, at the left. Full width it read as the
+            main thing on the panel, which the two numbers above it are. */}
         <button
           type="button"
           onClick={onOpenSpecialTypes}
-          className="flex w-full items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
+          className="flex items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
           style={{ borderColor: TEAL, color: TEAL }}
         >
           <BallIcon className="h-6 w-6" />
-          <span className="min-w-0 flex-1 font-bold">Select Special Game Types</span>
+          <span className="min-w-0 font-bold">Special Game Types</span>
           <ChevronLeftIcon className="h-5 w-5 rotate-180" />
         </button>
 

@@ -69,11 +69,15 @@ export function SetupPage({
   const playersNeeded = minPlayersForCourts(numCourts);
   const canGenerate = selectedIds.length >= playersNeeded;
 
-  const errorMessage = !canGenerate
-    ? selectedIds.length < 4
-      ? 'Select at least 4 players to generate a schedule'
-      : `Need at least ${playersNeeded} players for ${numCourts} courts (have ${selectedIds.length})`
-    : '';
+  // One message, whatever is ticked. It used to ask for four first and then
+  // change its mind to fourteen once four were ticked, which is the app
+  // sending somebody to do a job and moving the goalposts on them. The floor
+  // is the floor from the start.
+  const errorMessage = canGenerate
+    ? ''
+    : `Need at least ${playersNeeded} players for ${numCourts} court${
+        numCourts === 1 ? '' : 's'
+      } (have ${selectedIds.length})`;
 
   const selectedPlayers = players.filter((p) => selectedIds.includes(p.id));
 

@@ -168,7 +168,7 @@ export function InstructionsPanel({ onClose }: Props) {
 
             <h4 className="pt-1 font-semibold text-gray-800">Special game types</h4>
             <p className="text-gray-600">
-              <strong>Select Special Game Types</strong> opens three formats you can drop into
+              <strong>Special Game Types</strong> opens three formats you can drop into
               the session: <strong>Gendered</strong> (men against men, women against women),
               <strong> Mixed</strong> (a man and a woman on each team) and{' '}
               <strong>Equal Skill</strong> (grouped by rating). Say Yes to any of them and

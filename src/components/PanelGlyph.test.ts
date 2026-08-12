@@ -205,3 +205,43 @@ describe('the glyph itself', () => {
     expect(opener()?.parentElement?.getAttribute('class')).toContain('text-brand-teal');
   });
 });
+
+/**
+ * The drawings do not fill their boxes equally: the two gendered symbols reach
+ * the edges, the mixed one fills 77% of its height. At one box size the mixed
+ * one read as the small icon on the panel, so each carries its own.
+ */
+describe('the game type symbols', () => {
+  function heading(title: string): Element {
+    mount(
+      createElement(SpecialTypesPanel, {
+        specialTypes: DEFAULT_SPECIAL_TYPES,
+        onChange: noop,
+        onMove: noop,
+        onClose: noop,
+      })
+    );
+    const found = [...container.querySelectorAll('h3')].find((h) =>
+      (h.textContent ?? '').includes(title)
+    );
+    if (!found) throw new Error(`no heading for ${title}`);
+    return found;
+  }
+
+  /** The box the drawing is given, in px, off its own size class. */
+  function boxOf(h: Element): number {
+    const found = h.querySelector('svg')?.getAttribute('class')?.match(/h-\[(\d+)px\]/);
+    if (!found) throw new Error('that heading has no sized glyph');
+    return Number(found[1]);
+  }
+
+  it('draws the mixed symbol in a bigger box than the gendered ones', () => {
+    const mixed = boxOf(heading('Mixed'));
+    act(() => root.unmount());
+    container.remove();
+    const gendered = boxOf(heading('Gendered'));
+
+    expect(gendered).toBe(26);
+    expect(mixed).toBeGreaterThan(gendered);
+  });
+});

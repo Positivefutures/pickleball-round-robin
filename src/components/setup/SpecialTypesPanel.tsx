@@ -43,13 +43,27 @@ function MoveButton({
   );
 }
 
-// Artwork Jeff has supplied so far. A type with no entry simply shows no icon.
-// Gendered takes two, because the format is men playing men and women playing
-// women, and one symbol can only say half of that.
-const TYPE_ICONS: Record<RoundType, ((p: { className?: string }) => ReactElement)[]> = {
-  gendered: [MenGamesIcon, WomenGamesIcon],
-  mixed: [MixedGamesIcon],
-  skill: [EqualSkillIcon],
+/**
+ * Artwork Jeff has supplied so far. A type with no entry simply shows no icon.
+ * Gendered takes two, because the format is men playing men and women playing
+ * women, and one symbol can only say half of that.
+ *
+ * Each carries its own size, because the drawings do not fill their boxes
+ * equally: the two gendered symbols reach the edges, the mixed one fills 77%
+ * of its height and the balance 96%. At one box size the mixed one read as the
+ * small icon on the panel. These three numbers put the same amount of ink on
+ * the page, which is what the eye is comparing.
+ */
+const TYPE_ICONS: Record<
+  RoundType,
+  { Icon: (p: { className?: string }) => ReactElement; size: string }[]
+> = {
+  gendered: [
+    { Icon: MenGamesIcon, size: 'w-[26px] h-[26px]' },
+    { Icon: WomenGamesIcon, size: 'w-[26px] h-[26px]' },
+  ],
+  mixed: [{ Icon: MixedGamesIcon, size: 'w-[34px] h-[34px]' }],
+  skill: [{ Icon: EqualSkillIcon, size: 'w-[27px] h-[27px]' }],
 };
 
 export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: Props) {
@@ -82,8 +96,8 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
                   {meta.title}
                   <span className="flex shrink-0 items-center gap-1">
-                    {TYPE_ICONS[type].map((Icon, n) => (
-                      <Icon key={n} className="w-[26px] h-[26px] text-[#60697c]" />
+                    {TYPE_ICONS[type].map(({ Icon, size }, n) => (
+                      <Icon key={n} className={`${size} text-[#60697c]`} />
                     ))}
                   </span>
                 </h3>
