@@ -57,6 +57,25 @@ function SafariMenuGlyph() {
   );
 }
 
+/**
+ * A caret pointing down: two lines meeting at a point, which is what the share
+ * sheet puts beside View More. Not an arrow — no shaft, no head.
+ *
+ * The sheet opens showing a few rows and hides the rest behind that button, so
+ * Add to Home Screen is often not on screen when step two is read.
+ */
+function ViewMoreGlyph() {
+  return (
+    <svg
+      width="20" height="20" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true" className="inline-block shrink-0 align-text-bottom text-blue-600"
+    >
+      <polyline points="6 9.5 12 15.5 18 9.5" />
+    </svg>
+  );
+}
+
 // The three dots every non-Safari browser keeps its own menu behind.
 function MoreGlyph() {
   return (
@@ -177,7 +196,8 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
               screen (may need to tap <strong>Menu</strong> <SafariMenuGlyph /> first).
             </Step>
             <Step n={2}>
-              Scroll down and tap <AddToHomeGlyph /> <strong>Add to Home Screen</strong>.
+              Scroll down and tap <AddToHomeGlyph /> <strong>Add to Home Screen</strong> (may
+              need to tap <strong>View More</strong> <ViewMoreGlyph /> first).
             </Step>
           </ol>
         )}

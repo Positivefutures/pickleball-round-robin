@@ -280,6 +280,23 @@ describe('the Add to Home Screen steps', () => {
     expect(lines.some((w) => w > 10 && w < 13)).toBe(true);
   });
 
+  /**
+   * The sheet opens showing a few rows and hides the rest, so Add to Home
+   * Screen is often not on it when step two is read.
+   */
+  it('warns that the sheet may be hiding the row behind View More', () => {
+    const text = asBrowser(SAFARI);
+    expect(text).toContain('View More');
+    expect(text).toContain('may need to tap');
+
+    // A caret, not an arrow: two lines meeting at a point, no shaft.
+    const caret = [...container.querySelectorAll('ol svg polyline')].find((p) =>
+      (p.getAttribute('points') ?? '').startsWith('6 9')
+    );
+    expect(caret).toBeTruthy();
+    expect(caret!.closest('svg')!.querySelector('line')).toBeNull();
+  });
+
   it('sends Chrome on iOS to its own Share button, top right', () => {
     const text = asBrowser(CHROME_IOS);
     expect(text).toContain('at the top right');
