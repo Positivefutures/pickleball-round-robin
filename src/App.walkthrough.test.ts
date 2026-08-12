@@ -2533,10 +2533,11 @@ describe('the player roster panel', () => {
   });
 
   /**
-   * The count reads left to right with the button at the far end, so the row
-   * says what is ticked before it says what can be done with it.
+   * Both of them read from the left, the count first and the button next to it.
+   * The button used to be thrown to the far end of the row, which on a wide
+   * screen put a stretch of nothing between a thing and its label.
    */
-  it('puts the count ahead of the button it is counting for', () => {
+  it('keeps the count and the button together at the left', () => {
     mount();
     click(labelled('Select Ava'));
 
@@ -2544,10 +2545,14 @@ describe('the player roster panel', () => {
       (el) => text(el) === '1 selected'
     )!;
     expect(count).toBeTruthy();
+    const button = action(/^Add to Another Group$/);
     expect(
-      count.compareDocumentPosition(action(/^Add to Another Group$/)) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+      count.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+
+    // Nothing pushes the button away from what comes before it.
+    expect(button.className).not.toContain('ml-auto');
+    expect(button.parentElement!.className).not.toContain('justify-between');
   });
 
   it('opens a player from the pencil without ticking their row', () => {
@@ -2667,15 +2672,39 @@ describe('the player roster panel', () => {
       expect(listedNames()).toEqual(['Ava', 'Elle']);
     });
 
-    it('puts a player from another group into this one from here', () => {
-      mount();
-      click(labelled('Show All Players'));
-      click(labelled('Select Elle'));
-      clickButton(/^Add to Another Group$/);
+    /**
+     * "Another" only means anything against a list that is this group. Over the
+     * whole pool there is no this group to be another of, and the group in front
+     * becomes a target like any other.
+     */
+    it('drops the word Another, and offers this group, over the whole pool', () => {
+      /** The Add to Group dialog, found by its heading. */
+      function dialog(): HTMLElement {
+        const found = [...container.querySelectorAll('.fixed.inset-0')].find((d) =>
+          text(d).includes('player')
+        );
+        if (!found) throw new Error('the add dialog is not open');
+        return found as HTMLElement;
+      }
 
-      // The group being looked at is not offered: they are already past it.
-      expect(container.textContent).toContain('Add 1 player to');
-      expect(container.textContent).toContain('the groups they’re already in');
+      mount();
+      // On the group's own list, this group is not on offer.
+      click(labelled('Select Ava'));
+      clickButton(/^Add to Another Group$/);
+      expect(text(dialog())).toContain('Add 1 player to');
+      expect(text(dialog())).not.toContain('Test Group');
+      clickButton(/^Cancel$/);
+
+      click(labelled('Show All Players'));
+      expect(buttons(/^Add to Another Group$/)).toHaveLength(0);
+
+      click(labelled('Select Elle'));
+      clickButton(/^Add to Group$/);
+
+      expect(text(dialog())).toContain('the groups they’re already in');
+      // Elle is not in Test Group, and putting her there is the obvious thing
+      // to want from a list she was found on.
+      expect(text(dialog())).toContain('Test Group');
     });
 
     /**
@@ -2698,6 +2727,76 @@ describe('the player roster panel', () => {
       click(labelled('Show All Players'));
       expect(listedNames()).toEqual(['Ben']);
     });
+  });
+
+  /**
+   * A field labelled Player Name with nothing said about autocomplete is read
+   * by browsers and password managers as somewhere to put the owner's own
+   * details, and what they open over it moves the page about while a name is
+   * being typed.
+   */
+  it('turns off every offer of help on the name field', () => {
+    mount();
+    const box = container.querySelector('input[placeholder="Enter name"]')!;
+
+    expect(box.getAttribute('autocomplete')).toBe('off');
+    expect(box.getAttribute('data-1p-ignore')).not.toBeNull();
+    expect(box.getAttribute('data-lpignore')).toBe('true');
+    // A name wants its first letter, and nothing else, changed for it.
+    expect(box.getAttribute('autocapitalize')).toBe('words');
+    expect(box.getAttribute('autocorrect')).toBe('off');
+    expect(box.getAttribute('spellcheck')).toBe('false');
+  });
+});
+
+/**
+ * The settings drawer, and the panel it slides aside.
+ */
+describe('the settings drawer', () => {
+  beforeEach(() => seed(6, 6, 0));
+
+  /** The panel is slid aside only while the drawer is open. */
+  function slidAside(): boolean {
+    return container.querySelector('.app-panel')!.className.includes('-translate-x-[80%]');
+  }
+
+  /** The sheet of nothing over the panel that takes the click. */
+  function veil(): HTMLElement | null {
+    return container.querySelector('.app-panel > .absolute.inset-0[aria-hidden="true"]');
+  }
+
+  it('closes from a tap anywhere on the panel behind it', () => {
+    mount();
+    expect(veil()).toBeNull();
+
+    clickLabel('Open settings');
+    expect(slidAside()).toBe(true);
+    expect(veil()).toBeTruthy();
+
+    click(veil()!);
+
+    expect(slidAside()).toBe(false);
+    expect(veil()).toBeNull();
+  });
+
+  /** The button still says what it does, and still does it. */
+  it('still closes from the button that opened it', () => {
+    mount();
+    clickLabel('Open settings');
+    clickLabel('Close settings');
+
+    expect(slidAside()).toBe(false);
+  });
+
+  it('leaves the items in the drawer working', () => {
+    mount();
+    clickLabel('Open settings');
+    clickButton(/^Instructions$/);
+
+    expect(container.textContent).toContain('Quick start');
+    // Opening one of its panels does not put the drawer away, so closing the
+    // panel lands back where it was left.
+    expect(slidAside()).toBe(true);
   });
 });
 

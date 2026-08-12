@@ -898,6 +898,21 @@ function App() {
           settingsOpen ? '-translate-x-[80%] shadow-2xl shadow-black/50' : ''
         }`}
       >
+      {/* With the drawer open the whole panel is a way back out, including the
+          strip of it still on screen. It covers the panel rather than sitting
+          beside it, so the sliver over the settings button closes the drawer
+          too, which is what pressing the button there already did.
+
+          Hidden from screen readers: the button underneath is still in the tab
+          order and still says Close settings, so there is nothing here for them
+          that they do not already have. */}
+      {settingsOpen && (
+        <div
+          className="absolute inset-0 z-30"
+          onClick={() => setSettingsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <Header
         // Past the roster step the group being worked on is the useful label
         title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}

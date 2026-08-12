@@ -133,6 +133,13 @@ export function PlayerForm({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Player Name
         </label>
+        {/* Every offer of help is turned off here. A field labelled Player Name
+            with no autocomplete set is read by browsers and password managers
+            as somewhere to put the owner's own contact details, and the panel
+            each of them opens over it is the most likely thing behind the page
+            jumping to the foot of itself as a name is typed. Nothing here wants
+            a saved address, a spelling correction or a capital in the middle of
+            McDonald, and a name does want its first letter capitalised. */}
         <input
           ref={nameRef}
           type="text"
@@ -142,6 +149,12 @@ export function PlayerForm({
             setNameMissing(false);
           }}
           placeholder="Enter name"
+          autoComplete="off"
+          autoCapitalize="words"
+          autoCorrect="off"
+          spellCheck={false}
+          data-1p-ignore
+          data-lpignore="true"
           aria-invalid={nameMissing}
           className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent ${
             nameMissing

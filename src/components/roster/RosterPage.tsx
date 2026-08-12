@@ -356,7 +356,10 @@ export function RosterPage({
       {showAddToGroup && selectedIds.length > 0 && (
         <AddToGroupDialog
           playerCount={selectedIds.length}
-          groups={rosters.filter((r) => r.id !== activeRosterId)}
+          // Over the whole pool the group in front is a target like any other:
+          // the ticked people may not be in it, and putting them there is the
+          // obvious thing to want. On its own list they are already in it.
+          groups={showAll ? rosters : rosters.filter((r) => r.id !== activeRosterId)}
           onCreateGroup={onAddRoster}
           onConfirm={handleAddToGroups}
           onCancel={() => setShowAddToGroup(false)}
@@ -419,7 +422,7 @@ export function RosterPage({
           {/* Nothing to tick means nothing to act on, so the row goes with the
               list rather than leaving a dead button over an empty panel. */}
           {shown.length > 0 && (
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <div className="flex items-center gap-3 flex-wrap mb-4">
               {/* Set at the size of the names being counted, in both text modes.
                   A row in the table carries no size class of its own, so it
                   inherits the base, which is what text-base matches. Absent
@@ -433,9 +436,12 @@ export function RosterPage({
               <button
                 onClick={() => setShowAddToGroup(true)}
                 disabled={selectedIds.length === 0}
-                className="ml-auto px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-1.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add to Another Group
+                {/* "Another" only means anything against a list that is this
+                    group. Over the whole pool there is no this group to be
+                    another of, and the group in front is a target like any. */}
+                {showAll ? 'Add to Group' : 'Add to Another Group'}
               </button>
             </div>
           )}
