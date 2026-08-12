@@ -46,7 +46,10 @@ export function PlayerMenu({
       >
         <PanelHeading icon={PencilIcon} title={player.name} />
         <p className="mt-1 mb-4 text-center text-sm text-gray-600">
-          {player.gender === 'F' ? 'Woman' : 'Man'}, rated {player.rating.toFixed(1)}
+          {/* The words the rest of the app uses. Everywhere else a player is M
+              or F and carries a Rating, and this was the one place saying it
+              another way. */}
+          {player.gender === 'F' ? 'Female' : 'Male'}, Rating: {player.rating.toFixed(1)}
         </p>
 
         <div className="space-y-3">

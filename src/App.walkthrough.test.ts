@@ -3217,3 +3217,28 @@ describe('the label over a control', () => {
     expect(list.className).not.toContain('max-h-44');
   });
 });
+
+/**
+ * The panel a place on a court opens. It described a player in words the rest
+ * of the app does not use: M and F on every other screen, and a Rating rather
+ * than being "rated".
+ */
+describe('the player panel on a court', () => {
+  beforeEach(() => seed(8, 8, 2));
+
+  it('says male or female, and gives the rating a label', () => {
+    mount();
+    generate();
+
+    // Tap a place to select it, which turns its rating into the pencil.
+    const first = storedSchedule()!.rounds[0].courts[0].team1[0];
+    clickButton(new RegExp(`^${first.name}`), container.querySelector('.round-card')!);
+    click(container.querySelector(`[aria-label="Edit ${first.name}"]`)!);
+
+    const panel = [...container.querySelectorAll('.fixed.inset-0')].pop()!;
+    expect(text(panel)).toContain(first.gender === 'F' ? 'Female' : 'Male');
+    expect(text(panel)).toContain(`Rating: ${first.rating.toFixed(1)}`);
+    expect(text(panel)).not.toContain('rated');
+    expect(text(panel)).not.toMatch(/\b(Man|Woman)\b/);
+  });
+});
