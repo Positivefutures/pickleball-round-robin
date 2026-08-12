@@ -1,4 +1,5 @@
 import { step } from '../lib/rating';
+import { STEPPER_KEY, STEPPER_VALUE } from './stepperLook';
 
 /**
  * The minus / number / plus control for a player's rating.
@@ -6,6 +7,11 @@ import { step } from '../lib/rating';
  * Extracted so every form that sets one steps the same way, between the same
  * bounds: Add Player on the Players tab, the roster's own edit row, Add a Guest
  * and Edit Player from the schedule. See lib/rating.ts for the bounds.
+ *
+ * Painted like the courts and rounds steppers on Setup, out of `stepperLook`:
+ * the same keys and the same ruled light-teal box. Its own sizes, though. This
+ * one shares a row with a name field and a Gender toggle, and the two big
+ * numbers on Setup have a row each.
  */
 export function RatingStepper({
   value,
@@ -14,27 +20,25 @@ export function RatingStepper({
   value: number;
   onChange: (rating: number) => void;
 }) {
-  const button = 'min-w-9 min-h-10 text-lg';
-  const readout = 'min-w-10';
+  const button = 'min-w-9 min-h-10 text-lg shrink-0 relative z-10';
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-stretch">
       <button
         type="button"
         aria-label="Lower the rating"
         onClick={() => onChange(step(value, -0.1))}
-        className={`${button} flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold`}
+        className={`${button} ${STEPPER_KEY}`}
       >
         &minus;
       </button>
-      <span className={`${readout} text-center font-medium text-gray-800`}>
-        {value.toFixed(1)}
-      </span>
+      {/* Tucked under both keys, which are opaque and sit above it. */}
+      <span className={`-mx-1.5 min-w-11 ${STEPPER_VALUE}`}>{value.toFixed(1)}</span>
       <button
         type="button"
         aria-label="Raise the rating"
         onClick={() => onChange(step(value, 0.1))}
-        className={`${button} flex items-center justify-center border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold`}
+        className={`${button} ${STEPPER_KEY}`}
       >
         +
       </button>

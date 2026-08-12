@@ -1,6 +1,8 @@
 import type { Gender, Player } from '../../types';
 import { PlayerForm } from '../roster/PlayerForm';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { PencilIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 /**
  * Correcting what the app has written down about somebody, from the schedule.
@@ -40,7 +42,9 @@ export function EditPlayerDialog({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
       >
-        <h2 className="mb-4 text-[1.35rem] font-extrabold text-[#222]">Edit Player</h2>
+        <div className="mb-4">
+          <PanelHeading icon={PencilIcon} title="Edit Player" />
+        </div>
 
         <PlayerForm
           defaultRating={defaultRating}

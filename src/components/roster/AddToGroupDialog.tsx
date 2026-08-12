@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { Roster } from '../../types';
+import { GroupSolidIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 interface Props {
   playerCount: number;
@@ -40,12 +42,13 @@ export function AddToGroupDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-        <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-1">
-          Add {playerCount} player{playerCount === 1 ? '' : 's'} to&hellip;
-        </h2>
+        <PanelHeading
+          icon={GroupSolidIcon}
+          title={`Add ${playerCount} player${playerCount === 1 ? '' : 's'} to…`}
+        />
         {/* Not "this group as well": with Show All Players on, the ticked people
             may not be in the group you are looking at. */}
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="mt-1 mb-4 text-center text-sm text-gray-600">
           They&rsquo;ll stay in the groups they&rsquo;re already in.
         </p>
 
@@ -64,7 +67,7 @@ export function AddToGroupDialog({
                   type="checkbox"
                   checked={checked.includes(g.id)}
                   onChange={() => toggle(g.id)}
-                  className="w-4 h-4 accent-green-600"
+                  className="w-4 h-4 accent-brand-teal"
                 />
                 {g.name}
               </label>

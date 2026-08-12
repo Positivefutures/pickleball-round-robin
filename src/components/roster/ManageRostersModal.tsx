@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 import { CopyIcon, GroupSolidIcon, PencilIcon, TrashIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 interface Props {
   rosters: Roster[];
@@ -73,8 +74,11 @@ export function ManageRostersModal({
     if (!trimmed) return;
     onAdd(trimmed);
     setNewName('');
-    // Keep the caret in the field so several groups can be added in a row
-    newNameRef.current?.focus();
+    // Let the keyboard go. The group that was just made is in the list above
+    // this field, and on a phone the keyboard is standing in front of it. The
+    // opposite of Add Player on the Players tab, where the list is nowhere near
+    // the field and the next name is the likeliest thing to happen next.
+    newNameRef.current?.blur();
   }
 
   function stopEditing() {
@@ -121,17 +125,15 @@ export function ManageRostersModal({
 
     return shell(
       <>
-        <p className="text-gray-800 text-center font-medium mb-2">
-          Delete &ldquo;{confirmingDelete.name}&rdquo;?
-        </p>
+        <PanelHeading icon={TrashIcon} title={`Delete “${confirmingDelete.name}”?`} />
 
         {count > 0 ? (
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="mt-2 mb-4 text-sm text-gray-600">
             {count} player{count === 1 ? ' is' : 's are'} only in this group. Move them or
             delete them?
           </p>
         ) : (
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="mt-2 mb-4 text-sm text-gray-600">
             Every player in it also belongs to another group, so no one will be lost.
           </p>
         )}
@@ -201,10 +203,9 @@ export function ManageRostersModal({
 
     return shell(
       <>
-        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
-          Duplicate Group
-          <CopyIcon className="w-[26px] h-[26px] text-[#60697c]" />
-        </h2>
+        <div className="mb-4">
+          <PanelHeading icon={CopyIcon} title="Duplicate Group" />
+        </div>
 
         <label className="block font-bold text-gray-800 mb-1" htmlFor="duplicate-name">
           New Group Name
@@ -256,10 +257,9 @@ export function ManageRostersModal({
     <>
       {/* Same treatment as the panel headings behind it: icon on the right,
           in the shared heading grey. */}
-      <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
-        Manage Groups
-        <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-      </h2>
+      <div className="mb-4">
+        <PanelHeading icon={GroupSolidIcon} title="Manage Groups" />
+      </div>
 
       <div className="space-y-2 mb-5">
         {rosters.map((r) =>

@@ -6,7 +6,16 @@ import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
 import { GroupPicker } from './GroupPicker';
 import { Toggle } from '../Toggle';
-import { AddPlayerSolidIcon, ChevronDownIcon, CrowdSolidIcon, GroupSolidIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
+import { useScrollLock } from '../../hooks/useScrollLock';
+import {
+  AddPlayerSolidIcon,
+  ChevronDownIcon,
+  CrowdSolidIcon,
+  GroupSolidIcon,
+  PencilIcon,
+  TrashIcon,
+} from '../icons';
 
 // The panel headings all carry their icon in #60697c. It is written out at each
 // use rather than held in a constant, because Tailwind only generates a class it
@@ -81,6 +90,22 @@ export function RosterPage({
   const selectedIds = selection?.rosterId === activeRosterId ? selection.ids : [];
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
   const shown = showAll ? allPlayers : players;
+
+  /**
+   * The page holds still under every dialog this panel opens.
+   *
+   * One lock for all of them rather than one each: a lock reads the scroll
+   * position when it takes hold, and a second taken while the first is on reads
+   * zero, because a pinned body has no scroll left to report. Manage Groups
+   * opens Duplicate and Delete inside itself, so nesting was never theoretical.
+   *
+   * What it fixes: tapping into New Group Name scrolled the page behind the
+   * dialog to bring a field into view that was not on it, and closing the
+   * dialog left the host somewhere they had never been.
+   */
+  useScrollLock(
+    showManage || showPicker || showAddToGroup || !!editing || !!orphan || confirmDelete
+  );
 
   useEffect(() => {
     if (!notice) return;
@@ -284,7 +309,9 @@ export function RosterPage({
       {editingPlayer && !orphanCandidate && !confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
-            <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Edit Player</h2>
+            <div className="mb-4">
+              <PanelHeading icon={PencilIcon} title="Edit Player" />
+            </div>
             <PlayerForm
               onSubmit={handleSubmit}
               defaultRating={defaultRating}
@@ -302,10 +329,11 @@ export function RosterPage({
       {editingPlayer && confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-2">
-              Delete {editingPlayer.name} from every group?
-            </p>
-            <p className="text-sm text-gray-600 text-center mb-4">
+            <PanelHeading
+              icon={TrashIcon}
+              title={`Delete ${editingPlayer.name} from every group?`}
+            />
+            <p className="mt-2 mb-4 text-sm text-gray-600 text-center">
               This removes them from the app completely. It cannot be undone.
             </p>
             <div className="flex gap-3">
@@ -329,10 +357,11 @@ export function RosterPage({
       {orphanCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-2">
-              Delete {orphanCandidate.name} permanently?
-            </p>
-            <p className="text-sm text-gray-600 text-center mb-4">
+            <PanelHeading
+              icon={TrashIcon}
+              title={`Delete ${orphanCandidate.name} permanently?`}
+            />
+            <p className="mt-2 mb-4 text-sm text-gray-600 text-center">
               They aren&rsquo;t in any group anymore. This removes them from the app completely.
             </p>
             <div className="flex gap-3">

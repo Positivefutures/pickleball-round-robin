@@ -6,6 +6,8 @@ import { Keypad } from './Keypad';
 import { toneFor } from './scoreTone';
 import { formatTeam } from '../../utils/helpers';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { ScoreboardIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 /** Nobody wins a pickleball game by three figures. */
 const MAX_DIGITS = 2;
@@ -128,9 +130,9 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
         aria-label={`Court ${court.courtNumber} score`}
         className="mx-4 max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
       >
-        <h2 className="mb-4 text-[1.35rem] font-extrabold text-[#222]">
-          Court {court.courtNumber} Score
-        </h2>
+        <div className="mb-4">
+          <PanelHeading icon={ScoreboardIcon} title={`Court ${court.courtNumber} Score`} />
+        </div>
 
         {/* Set at the size a name is on a court, and given most of the box to
             say it in. These wrap where a court's own places cut with an

@@ -1,4 +1,6 @@
 import type { Player } from '../../types';
+import { WarningIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 interface Props {
   player: Player;
@@ -29,10 +31,8 @@ export function RemovePlayerDialog({
       <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
         {tooFewPlayers ? (
           <>
-            <p className="text-gray-800 text-center font-medium mb-2">
-              Can&rsquo;t remove {player.name}
-            </p>
-            <p className="text-sm text-gray-600 text-center mb-4">
+            <PanelHeading icon={WarningIcon} title={`Can’t remove ${player.name}`} />
+            <p className="mt-2 mb-4 text-sm text-gray-600 text-center">
               Only {remainingCount} player{remainingCount === 1 ? '' : 's'} would be left, and a
               court needs 4.
             </p>
@@ -45,9 +45,12 @@ export function RemovePlayerDialog({
           </>
         ) : (
           <>
-            <p className="text-gray-800 text-center font-medium mb-4">
-              Remove {player.name} from remaining rounds?
-            </p>
+            <div className="mb-4">
+              <PanelHeading
+                icon={WarningIcon}
+                title={`Remove ${player.name} from remaining rounds?`}
+              />
+            </div>
 
             {courtsDropping && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4">

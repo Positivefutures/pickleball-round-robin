@@ -764,6 +764,33 @@ export function WarningIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Two hollow panels with a colon between them: the board a score is written on.
+ * Heads the Score panel, and it is the board on the court card drawn small,
+ * which is the thing the host tapped to get there.
+ *
+ * Stroked rather than filled, like the board itself. Two solid blocks would be
+ * two solid blocks.
+ */
+export function ScoreboardIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      <rect x="1.6" y="6.5" width="8" height="11" rx="2.5" />
+      <rect x="14.4" y="6.5" width="8" height="11" rx="2.5" />
+      <circle cx="12" cy="9.8" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="14.2" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /* ------------------------------------------------------- The settings panels
  * Every panel behind the settings drawer now opens with its own glyph, the same
  * way an action's panel does, so the thing you tapped is the thing you land on.

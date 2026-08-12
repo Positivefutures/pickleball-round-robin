@@ -2781,6 +2781,82 @@ describe('the player roster panel', () => {
   });
 
   /**
+   * One shape for every panel in the app: a teal glyph centred on top, the
+   * title centred under it, both the same size wherever you are. Checked here
+   * on two dialogs that used to disagree with each other about all three.
+   */
+  describe('the way a dialog is headed', () => {
+    /** The open dialog, whichever it is. */
+    function dialog(): HTMLElement {
+      const found = container.querySelector('.fixed.inset-0 > div');
+      if (!found) throw new Error('no dialog is open');
+      return found as HTMLElement;
+    }
+
+    function checkHeading(title: string) {
+      const glyph = dialog().querySelector('svg')!;
+      expect(glyph).toBeTruthy();
+      expect(glyph.parentElement!.className).toContain('text-brand-teal');
+
+      const h2 = dialog().querySelector('h2')!;
+      expect(text(h2)).toBe(title);
+      expect(h2.className).toContain('text-[1.35rem]');
+      expect(h2.className).toContain('font-extrabold');
+      expect(h2.className).toContain('text-center');
+      // The glyph comes first, so the title sits under it.
+      expect(
+        glyph.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+
+    it('heads Manage Groups that way', () => {
+      mount();
+      clickButton(/^Manage$/);
+      checkHeading('Manage Groups');
+    });
+
+    it('heads Edit Player that way', () => {
+      mount();
+      click(labelled('Edit Ava'));
+      checkHeading('Edit Player');
+    });
+
+    /**
+     * Tapping into a field inside a dialog used to scroll the page behind it,
+     * and closing the dialog left the host somewhere they had never been.
+     */
+    it('holds the page still underneath', () => {
+      // The body is shared with every test in this file, and a lock left on by
+      // one of them would make this pass without proving anything.
+      document.body.style.position = '';
+      mount();
+      expect(document.body.style.position).not.toBe('fixed');
+
+      clickButton(/^Manage$/);
+      expect(document.body.style.position).toBe('fixed');
+
+      clickButton(/^Done$/);
+      expect(document.body.style.position).not.toBe('fixed');
+    });
+  });
+
+  /**
+   * Twenty players is twenty names typed in a row. Letting the keyboard drop
+   * between each of them is twenty taps back into the same field.
+   */
+  it('leaves the caret in the name field after a player is added', () => {
+    mount();
+    const box = container.querySelector('input[placeholder="Enter name"]') as HTMLInputElement;
+    type(box, 'Zed');
+    clickButton(/^Add Player$/);
+
+    expect(listedNames()).toContain('Zed');
+    expect(document.activeElement).toBe(box);
+    // And it is empty again, ready for the next one.
+    expect(box.value).toBe('');
+  });
+
+  /**
    * A field labelled Player Name with nothing said about autocomplete is read
    * by browsers and password managers as somewhere to put the owner's own
    * details, and what they open over it moves the page about while a name is

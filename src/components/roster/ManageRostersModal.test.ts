@@ -317,3 +317,29 @@ describe('duplicating a group', () => {
     expect(button('Save').disabled).toBe(true);
   });
 });
+
+/**
+ * The keyboard is the whole point here. On a phone it stands in front of the
+ * list this panel is for, and the group that was just made is in that list.
+ */
+describe('adding a group', () => {
+  function nameField(): HTMLInputElement {
+    return container.querySelector('input[placeholder="New group name"]') as HTMLInputElement;
+  }
+
+  it('lets the keyboard go, so the new group is what you see next', () => {
+    render();
+    const box = nameField();
+    act(() => box.focus());
+    expect(document.activeElement).toBe(box);
+
+    typeInto('Thursday Crew', box);
+    click(button('Add'));
+
+    expect(onAdd).toHaveBeenCalledWith('Thursday Crew');
+    // Blurred, not merely re-rendered: a field still holding focus is a phone
+    // still holding a keyboard over the list.
+    expect(document.activeElement).not.toBe(box);
+    expect(box.value).toBe('');
+  });
+});

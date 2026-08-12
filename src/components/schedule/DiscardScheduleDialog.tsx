@@ -1,4 +1,6 @@
 import { DISCARD_WARNING } from '../../lib/steps';
+import { WarningIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 interface Props {
   heading: string;
@@ -23,12 +25,11 @@ export function DiscardScheduleDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-        {/* A heading, at the size every other panel in the app heads itself
-            with. It was a line of body copy in the middle of the box, which
-            read as the first half of the warning under it rather than as the
-            question being asked. */}
-        <h2 className="text-[1.35rem] font-extrabold text-[#222] text-center mb-2">{heading}</h2>
-        <p className="text-sm text-gray-600 text-center mb-4">{DISCARD_WARNING}</p>
+        {/* It was a line of body copy in the middle of the box, which read as
+            the first half of the warning under it rather than as the question
+            being asked. */}
+        <PanelHeading icon={WarningIcon} title={heading} />
+        <p className="mt-2 mb-4 text-sm text-gray-600 text-center">{DISCARD_WARNING}</p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}

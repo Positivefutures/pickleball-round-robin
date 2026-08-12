@@ -2,6 +2,7 @@ import type { Player } from '../../types';
 import { PencilIcon } from '../icons';
 import { TrashIcon } from './icons';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { PanelHeading } from '../PanelGlyph';
 
 /**
  * What can be done to one player, mid-session.
@@ -43,8 +44,8 @@ export function PlayerMenu({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
       >
-        <h2 className="mb-1 text-[1.35rem] font-extrabold text-[#222]">{player.name}</h2>
-        <p className="mb-4 text-sm text-gray-600">
+        <PanelHeading icon={PencilIcon} title={player.name} />
+        <p className="mt-1 mb-4 text-center text-sm text-gray-600">
           {player.gender === 'F' ? 'Woman' : 'Man'}, rated {player.rating.toFixed(1)}
         </p>
 

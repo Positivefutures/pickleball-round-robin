@@ -2,6 +2,7 @@ import type { SpecialGameTypes } from '../../types';
 import { ROUND_TYPE_META, specialSummary } from '../../lib/roundTypes';
 import { BallIcon, ChevronLeftIcon, StepPlayersIcon } from '../icons';
 import { Toggle } from '../Toggle';
+import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 
 /**
  * The Setup Round Robin panel, drawn from `INBOX/Setup-Round-Robin.png`.
@@ -14,11 +15,11 @@ import { Toggle } from '../Toggle';
 /** The primary teal, read from the one place it is written down. */
 const TEAL = 'var(--color-brand-teal)';
 
-/** Headings, labels and the numbers themselves. */
-const NAVY = '#0D1F44';
-
-/** The line around each box of the steppers. Mockup: #CCCFD9. */
-const EDGE = '#CCCFD9';
+/**
+ * Headings and labels. The steppers' own ink and edge are the same two colours,
+ * and live in `stepperLook` now that the rating stepper wears them too.
+ */
+const NAVY = STEPPER_INK;
 
 /** The rule under the steppers. Mockup: #E0E2E8. */
 const RULE = '#E0E2E8';
@@ -53,13 +54,9 @@ function Stepper({
   upLabel: string;
 }) {
   // A bare minus sign says nothing to a screen reader, which is why each key
-  // carries a label of its own. The keys stay live at the ends of their range
-  // and clamp, as they always have: a key that greys out at 1 court reads as
-  // something being wrong rather than as the floor being reached.
-  const key =
-    'relative z-10 flex w-[26%] shrink-0 items-center justify-center rounded-lg ' +
-    'border border-[#CCCFD9] bg-[#FAFAFA] text-brand-teal text-xl font-bold ' +
-    'transition-colors hover:bg-[#EFF0F2]';
+  // carries a label of its own. The look comes from `stepperLook`, which the
+  // rating stepper on the Players tab is painted out of too.
+  const key = `relative z-10 w-[26%] shrink-0 text-xl ${STEPPER_KEY}`;
 
   return (
     <div className="min-w-0 flex-1">
@@ -83,10 +80,7 @@ function Stepper({
             Light teal rather than the mockup's white: the number is the thing
             on this panel that is being set, and the same tint carries a rating
             on the players list. */}
-        <span
-          className="-mx-2 flex flex-1 items-center justify-center border-y bg-brand-teal-light text-[1.4rem] font-bold"
-          style={{ borderColor: EDGE, color: NAVY }}
-        >
+        <span className={`-mx-2 flex-1 text-[1.4rem] ${STEPPER_VALUE}`}>
           {value}
         </span>
         <button

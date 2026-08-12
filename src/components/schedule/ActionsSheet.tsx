@@ -453,7 +453,7 @@ export function ActionsSheet({
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <h2
-                        className="text-[1.75rem] font-extrabold leading-tight"
+                        className="text-[1.35rem] font-extrabold leading-tight"
                         style={{ color: NAVY_TEXT }}
                       >
                         {heading.title}
@@ -515,7 +515,7 @@ export function ActionsSheet({
                         </span>
                       )}
                       <h2
-                        className="mt-2 text-[1.75rem] font-extrabold leading-tight"
+                        className="mt-2 text-[1.35rem] font-extrabold leading-tight"
                         style={{ color: NAVY_TEXT }}
                       >
                         {heading.title}

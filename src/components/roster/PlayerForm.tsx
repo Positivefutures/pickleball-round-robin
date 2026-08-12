@@ -83,6 +83,11 @@ export function PlayerForm({
     setName('');
     setRating(String(defaultRating));
     setGender('M');
+    // Straight on to the next one. Twenty players is twenty names typed in a
+    // row, and letting the keyboard drop between each of them means twenty
+    // taps back into the same field. Not while editing: that Save closes a
+    // dialog, and there is nothing left to type into.
+    if (!editingPlayer) nameRef.current?.focus();
   }
 
   const showRosters = Boolean(editingPlayer && rosters && selectedRosterIds && onRosterToggle);
@@ -217,7 +222,7 @@ export function PlayerForm({
                     type="checkbox"
                     checked={selectedRosterIds!.includes(r.id)}
                     onChange={() => onRosterToggle!(r.id)}
-                    className="w-4 h-4 accent-green-600"
+                    className="w-4 h-4 accent-brand-teal"
                   />
                   {r.name}
                 </label>

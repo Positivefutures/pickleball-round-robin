@@ -3,6 +3,8 @@ import { MAX_COURT_NUMBER, parseCourtNumber } from '../../lib/courtNumbers';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { ScorePanel } from './Scoreboard';
 import { Keypad } from './Keypad';
+import { CourtIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 
 /** No hall has a court 100. Also the width of the panel. */
 const MAX_DIGITS = String(MAX_COURT_NUMBER).length;
@@ -64,8 +66,8 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
         aria-label="Court number"
         className="mx-4 max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
       >
-        <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-1">Court Number</h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <PanelHeading icon={CourtIcon} title="Court Number" />
+        <p className="mt-1 mb-4 text-center text-sm text-gray-600">
           This changes Round {roundNumber} and every round after it. Earlier rounds and
           finished ones keep the number they have.
         </p>

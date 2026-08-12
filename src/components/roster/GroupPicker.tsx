@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import type { Player, Roster } from '../../types';
-import { CheckIcon, GroupSolidIcon } from '../icons';
+import { CheckIcon } from '../icons';
+import { GroupSolidIcon } from '../icons';
+import { PanelHeading } from '../PanelGlyph';
 import { liveStatusStore } from '../../lib/liveSession';
 
 interface Props {
@@ -49,12 +51,10 @@ export function GroupPicker({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full">
-        {/* The same heading as the panel it was opened from, icon on the right
-            in the shared heading grey. */}
-        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
-          {heading}
-          <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-        </h2>
+        {/* The same heading as the panel it was opened from. */}
+        <div className="mb-4">
+          <PanelHeading icon={GroupSolidIcon} title={heading} />
+        </div>
 
         {/* The one thing a switch does not carry with it. The published copy is
             of this session, and pointing it at another group's would show the
