@@ -6,7 +6,7 @@ import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
 import { GenderMark } from './GenderMark';
 import { Scoreboard } from './Scoreboard';
-import { ROUND_EDGE } from './roundLook';
+import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_HEADING_TEXT } from './roundLook';
 
 interface Props {
   court: CourtAssignment;
@@ -108,7 +108,10 @@ function PlayerButton({
           make its court taller than the one beside it, and a grid of courts
           that no longer lines up is harder to read than a shortened name. The
           title carries the whole of it. */}
-      <span className="min-w-0 flex-1 truncate text-left font-medium" title={displayName}>
+      <span
+        className={`min-w-0 flex-1 truncate text-left font-medium ${PLAYER_NAME_TEXT}`}
+        title={displayName}
+      >
         {displayName}
       </span>
       <GuestChip player={player} />
@@ -338,7 +341,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
               a button, because the number is the host's to set: a centre gives
               out courts 7, 8 and 9, and the app cannot know that. The dotted
               underline is the only hint that it opens something. */}
-          <h4 className="whitespace-nowrap font-bold text-gray-700">
+          <h4 className={`whitespace-nowrap font-bold text-gray-700 ${ROUND_HEADING_TEXT}`}>
             {canEdit ? (
               <button
                 type="button"

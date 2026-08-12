@@ -69,6 +69,23 @@ const frame = (el: HTMLElement) => el.querySelector('button > span') as HTMLElem
 
 const classesOf = (el: HTMLElement) => el.className.split(/\s+/);
 
+/** A panel's height in px, from `h-[30px]` or from Tailwind's `h-10` step. */
+function heightOf(el: HTMLElement): number {
+  const cls = classesOf(el).find((c) => /^h-/.test(c));
+  if (!cls) throw new Error('the panel has no height');
+  const exact = cls.match(/^h-\[(\d+)px\]$/);
+  return exact ? Number(exact[1]) : Number(cls.slice(2)) * 4;
+}
+
+const minWidthOf = (el: HTMLElement) => classesOf(el).find((c) => c.startsWith('min-w-['));
+
+/** The number's own size in rem, which is always written out in full. */
+function fontRemOf(el: HTMLElement): number {
+  const cls = classesOf(el).find((c) => /^text-\[[\d.]+rem\]$/.test(c));
+  if (!cls) throw new Error('the panel has no size of its own');
+  return Number(cls.match(/[\d.]+/)![0]);
+}
+
 function board(score?: CourtScore, onTap = () => {}): HTMLElement {
   return mount(
     createElement(Scoreboard, { score, courtNumber: 3, onTap })
@@ -142,20 +159,35 @@ describe('a scored court', () => {
 
   it('holds both panels to one width, so the board does not twitch as a score changes', () => {
     // Without tabular figures "11" is narrower than "21" and the whole board
-    // shifts sideways under the host's thumb.
-    for (const panel of panels(board({ team1: 21, team2: 9 }))) {
+    // shifts sideways under the host's thumb. The width itself is a design
+    // number and moves; that the two share it is the thing that must not.
+    const [left, right] = panels(board({ team1: 21, team2: 9 }));
+    for (const panel of [left, right]) {
       expect(classesOf(panel)).toContain('tabular-nums');
-      expect(classesOf(panel)).toContain('min-w-[2rem]');
+      expect(minWidthOf(panel)).toBeTruthy();
     }
+    expect(minWidthOf(left)).toBe(minWidthOf(right));
   });
 
   it('rides the court header smaller than the dialog does', () => {
     // The board on a court is a readout beside COURT 3. The one in the box is
-    // the thing being typed into, and is the bigger of the two.
+    // the thing being typed into, and is still the bigger of the two, now that
+    // the small one has been taken up a fifth to be read from where the phone
+    // is lying.
     const small = panels(board({ team1: 11, team2: 7 }))[0];
-    expect(classesOf(small)).toContain('h-[25px]');
+    const big = panels(dialog())[0];
+
+    expect(heightOf(small)).toBeLessThan(heightOf(big));
     expect(classesOf(small)).toContain('border-2');
-    expect(classesOf(small)).toContain('min-w-[2rem]');
+  });
+
+  /**
+   * A score is read across a court, not held up to the face. It has to beat the
+   * body text around it, which the 0.9375rem it was drawn at did not.
+   */
+  it('sets the number larger than the text on the card around it', () => {
+    const small = panels(board({ team1: 11, team2: 7 }))[0];
+    expect(fontRemOf(small)).toBeGreaterThan(1);
   });
 
   it('keeps a thumb-sized tap target under the small board', () => {

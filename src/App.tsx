@@ -1061,7 +1061,7 @@ function App() {
       {pendingLeave === 'setup' && (
         <DiscardScheduleDialog
           heading="Back to Setup?"
-          cancelLabel="Keep Schedule"
+          cancelLabel="Cancel"
           confirmLabel="Go to Setup"
           onConfirm={() => {
             setPendingLeave(null);
@@ -1074,7 +1074,7 @@ function App() {
       {pendingLeave === 'roster' && (
         <DiscardScheduleDialog
           heading="Back to Players?"
-          cancelLabel="Keep Schedule"
+          cancelLabel="Cancel"
           confirmLabel="Go to Players"
           onConfirm={() => {
             setPendingLeave(null);

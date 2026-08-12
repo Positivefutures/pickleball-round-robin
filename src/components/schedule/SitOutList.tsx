@@ -3,7 +3,7 @@ import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
 import { GuestChip } from './GuestChip';
-import { ROUND_EDGE } from './roundLook';
+import { PLAYER_NAME_TEXT, ROUND_EDGE } from './roundLook';
 
 interface Props {
   players: Player[];
@@ -50,7 +50,11 @@ function SitOutBox({
           : 'bg-gray-100 hover:bg-gray-200'
       }${interactive ? '' : ' cursor-default'}`}
     >
-      <span className="font-medium text-gray-900">{getDisplayName(player, allPlayers)}</span>
+      {/* The same size as a name on a court. They are the same thing, and one
+          of them shrinking would read as the two meaning something different. */}
+      <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
+        {getDisplayName(player, allPlayers)}
+      </span>
       <GuestChip player={player} />
       {selected && interactive ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />

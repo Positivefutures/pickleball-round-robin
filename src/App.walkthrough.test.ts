@@ -965,7 +965,7 @@ describe('the step tabs', () => {
     click(setupTab());
     expect(container.textContent).toContain('Back to Setup?');
 
-    clickButton(/^Keep Schedule$/);
+    clickButton(/^Cancel$/);
     expect(container.textContent).toContain('Actions'); // still on the schedule
     expect(completedRounds()).toEqual([1]);
 
@@ -982,7 +982,7 @@ describe('the step tabs', () => {
     click(playersTab());
     expect(container.textContent).toContain('Back to Players?');
 
-    clickButton(/^Keep Schedule$/);
+    clickButton(/^Cancel$/);
     expect(container.textContent).toContain('Actions'); // still on the schedule
     expect(storedSchedule()).not.toBeNull();
     expect(completedRounds()).toEqual([1]);
@@ -991,6 +991,25 @@ describe('the step tabs', () => {
     clickButton(/^Go to Players$/);
     expect(container.textContent).toContain('Continue to Setup');
     expect(storedSchedule()).toBeNull();
+  });
+
+  /**
+   * It was a line of body copy in the middle of the box, which read as the
+   * first half of the warning under it rather than as the question being asked.
+   */
+  it('asks the question as a heading, at the size the panels use', () => {
+    mount();
+    generate();
+    // Nothing to lose, nothing to ask: the dialog only opens over real work.
+    markComplete(1);
+    click(setupTab());
+
+    const heading = container.querySelector('.fixed.inset-0 h2');
+    expect(heading).toBeTruthy();
+    expect(text(heading!)).toBe('Back to Setup?');
+    // The size every other panel in the app heads itself with.
+    expect(heading!.className).toContain('text-[1.35rem]');
+    expect(heading!.className).toContain('font-extrabold');
   });
 
   it('leaves Start New Session asking, even with nothing to lose', () => {
@@ -1017,11 +1036,11 @@ describe('the step tabs', () => {
 
     click(setupTab());
     expect(said()).toBe(true);
-    clickButton(/^Keep Schedule$/);
+    clickButton(/^Cancel$/);
 
     click(playersTab());
     expect(said()).toBe(true);
-    clickButton(/^Keep Schedule$/);
+    clickButton(/^Cancel$/);
 
     action(/^Start New Session$/);
     expect(said()).toBe(true);

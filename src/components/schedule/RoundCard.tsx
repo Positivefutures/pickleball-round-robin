@@ -3,7 +3,7 @@ import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
-import { ROUND_EDGE, ROUND_FILL } from './roundLook';
+import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from './roundLook';
 
 interface Props {
   round: Round;
@@ -96,7 +96,7 @@ export function RoundCard({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-[1.35rem] font-extrabold uppercase text-white">
+            <h3 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
               Round {round.roundNumber}
             </h3>
             {/* A completed round also carries View/Hide, which leaves no room
@@ -121,7 +121,7 @@ export function RoundCard({
             one dark thing on the card and look like a mistake. The tooltip is
             what actually says why it will not move. */}
         <label
-          className={`flex items-center gap-2 text-sm font-bold select-none no-print ${
+          className={`flex items-center gap-2 ${ROUND_HEADING_TEXT} font-bold select-none no-print ${
             isComplete && !canUncomplete
               ? 'text-white/70 cursor-default'
               : 'text-white cursor-pointer'

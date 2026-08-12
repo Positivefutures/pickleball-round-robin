@@ -19,8 +19,12 @@ import { PANEL_TONE, toneFor, type Tone } from './scoreTone';
  *
  * Two sizes. `sm` rides on the court's own header line beside COURT 3, where it
  * is a readout. `lg` is the box that fills it in, where it is the thing being
- * typed into. Every measurement below is the same ratio between the two, so the
- * pair cannot drift apart.
+ * typed into.
+ *
+ * The two used to be one ratio apart, 1.6 in every measurement. `sm` has since
+ * been taken up a fifth on its own: it is read from wherever the phone is
+ * sitting, and it was drawn for a board rather than for that. `lg` is held at
+ * arm's length with a keypad under it and needed nothing.
  */
 
 /** What an empty panel shows. An en dash, wide enough to read as waiting. */
@@ -31,20 +35,24 @@ export type ScoreSize = 'sm' | 'lg';
 /**
  * Sized in absolute `rem` rather than `text-xs`, which large-text mode scales.
  * These panels are a fixed height, so a scaled number would climb out of one.
+ *
+ * The stroke is the one thing on `sm` that did not go up with the rest: the
+ * source draws every line at one weight, and 2.4px is a line the screen has to
+ * round off anyway.
  */
 const PANEL_SIZE: Record<ScoreSize, string> = {
-  sm: 'h-[25px] min-w-[2rem] rounded-[5px] border-2 px-0.5 text-[0.9375rem]',
+  sm: 'h-[30px] min-w-[2.4rem] rounded-[6px] border-2 px-0.5 text-[1.125rem]',
   lg: 'h-10 min-w-[3.25rem] rounded-[8px] border-4 px-1 text-2xl',
 };
 
 const COLON_SIZE: Record<ScoreSize, { stack: string; pill: string }> = {
-  sm: { stack: 'gap-[3px]', pill: 'h-[5px] w-[4px]' },
+  sm: { stack: 'gap-[4px]', pill: 'h-[6px] w-[5px]' },
   lg: { stack: 'gap-[4px]', pill: 'h-[8px] w-[5px]' },
 };
 
 /** Panel to colon, the 60.6-unit gap of the source. */
 const INNER_GAP: Record<ScoreSize, string> = {
-  sm: 'gap-[5px]',
+  sm: 'gap-[6px]',
   lg: 'gap-[8px]',
 };
 
