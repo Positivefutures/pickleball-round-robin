@@ -65,7 +65,6 @@ function render(): HTMLElement {
         onAdd: () => {},
         onUpdate: () => {},
         onAddPlayersToRosters: () => {},
-        onRemoveFromRoster: () => {},
         onDeletePlayer: () => {},
         onContinue: () => {},
         defaultRating: 3.5,

@@ -11,13 +11,14 @@ interface Props {
 }
 
 /**
- * The group's players, one per row, always tickable.
+ * The players it is handed, one per row, always tickable. Which players that is
+ * — this group or every one in the app — is the panel's business, not this
+ * table's.
  *
  * The checkboxes used to appear only after a Select Players button was pressed,
  * and a row tap meant two different things depending on whether that had
  * happened. Now the row tap only ever ticks the box, and the one thing it used
  * to reveal — a way in to a player — is a pencil sitting on every row instead.
- * Removing somebody is the panel's job now, not a row's.
  */
 export function PlayerList({
   players,

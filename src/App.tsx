@@ -66,7 +66,6 @@ function App() {
     updatePlayer,
     addPlayersToRosters,
     importGroups,
-    removeFromRoster,
     deletePlayer,
     reassignRoster,
   } = usePlayers();
@@ -973,7 +972,6 @@ function App() {
             onAdd={addPlayer}
             onUpdate={updatePlayer}
             onAddPlayersToRosters={addPlayersToRosters}
-            onRemoveFromRoster={removeFromRoster}
             onDeletePlayer={deletePlayer}
             onContinue={() => setStep('setup')}
             defaultRating={defaultRating}

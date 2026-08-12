@@ -115,25 +115,25 @@ export function InstructionsPanel({ onClose }: Props) {
 
             <h4 className="pt-1 font-semibold text-gray-800">Changing someone</h4>
             <p className="text-gray-600">
-              Tap a player's row in the list. Their gender and rating are replaced by{' '}
-              <strong>Edit</strong> and <strong>Remove</strong> buttons. Tap the row again,
-              or anywhere else, to put it back.
+              Tap the pencil at the end of a player's row. Their name, rating, gender and
+              groups are all in there. Tapping the row itself ticks them instead.
             </p>
             <p className="text-gray-600">
-              Remove takes a player out of the current group only. If it's the only group
-              they're in, you'll be asked whether to delete them from the app entirely.
+              To take somebody out of a group, open them with the pencil and untick it. If
+              it's the only group they're in, you'll be asked whether to delete them from
+              the app entirely.
             </p>
 
             <h4 className="pt-1 font-semibold text-gray-800">Groups</h4>
             <Item term="My Groups">switches between your groups.</Item>
             <Item term="Manage">adds, renames, and deletes groups.</Item>
-            <Item term="Add to Group">
+            <Item term="Show All Players">
+              lists everybody in the app rather than this group, so you can find a player
+              without going looking for the group they're in.
+            </Item>
+            <Item term="Add to Another Group">
               tick several people in the list, then put them all in another group at
               once.
-            </Item>
-            <Item term="Remove">
-              takes the ticked people out of this group. Anybody left with no group at
-              all is deleted from the app.
             </Item>
             <Item term="Pencil">
               opens one player to change their details or their groups, and to delete

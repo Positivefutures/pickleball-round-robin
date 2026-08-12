@@ -43,8 +43,10 @@ export function AddToGroupDialog({
         <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-1">
           Add {playerCount} player{playerCount === 1 ? '' : 's'} to&hellip;
         </h2>
+        {/* Not "this group as well": with Show All Players on, the ticked people
+            may not be in the group you are looking at. */}
         <p className="text-sm text-gray-600 mb-4">
-          They&rsquo;ll stay in this group as well.
+          They&rsquo;ll stay in the groups they&rsquo;re already in.
         </p>
 
         {groups.length === 0 ? (

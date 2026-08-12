@@ -2396,13 +2396,18 @@ describe('duplicating a group', () => {
 
 /**
  * The Players panel after the Select Players mode was retired. Checkboxes are
- * always on, so the row tap only ever ticks a box, and the two things it used to
- * reveal now live in fixed places: a pencil on every row, and one Remove button
- * over the table.
+ * always on, so the row tap only ever ticks a box, and the one thing it used to
+ * reveal is a pencil on every row.
+ *
+ * Taking somebody out of a group is the pencil's job now. The panel's own
+ * buttons only ever add.
  */
 describe('the player roster panel', () => {
-  /** Ava is in both groups. The other three are only in the active one. */
-  function seedGroups(twoGroups = true) {
+  /**
+   * Ava is in both groups. The other three are only in the active one, and Elle
+   * is only in the other, so All Players has somebody the group list has not.
+   */
+  function seedGroups(twoGroups = true, outsider = false) {
     window.localStorage.clear();
     window.localStorage.setItem(
       'pb-rosters',
@@ -2423,6 +2428,9 @@ describe('the player roster panel', () => {
         { id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g1'] },
         { id: 'p3', name: 'Cara', rating: 4, gender: 'F', rosterIds: ['g1'] },
         { id: 'p4', name: 'Dan', rating: 4, gender: 'M', rosterIds: ['g1'] },
+        ...(outsider
+          ? [{ id: 'p5', name: 'Elle', rating: 4, gender: 'F', rosterIds: ['g2'] }]
+          : []),
       ])
     );
     runMigrations();
@@ -2471,17 +2479,19 @@ describe('the player roster panel', () => {
   beforeEach(() => seedGroups());
 
   /**
-   * "Riverside Club (37)" read as a score. The panel is the group's membership
-   * list, and the heading now says which of the two numbers it is counting.
+   * "Riverside Club (37)" read as a score. The heading says what it is counting
+   * instead, and leaves naming the group to the panel above that does nothing
+   * else.
    */
-  it('heads the list with the group name, the word Members, and the count', () => {
+  it('heads the list with what it is counting, not the name of the group', () => {
     mount();
 
     const heading = container.querySelector('.roster-panel h2')!;
-    expect(text(heading)).toBe('Test Group Members (4)');
+    // Naming the group is the job of the panel above that does nothing else.
+    expect(text(heading)).toBe('Group Members (4)');
   });
 
-  it('opens with the checkboxes on, both actions dead, and no way into a mode', () => {
+  it('opens with the checkboxes on, one dead action, and no way into a mode', () => {
     mount();
 
     expect(labelled('Select Ava')).toBeTruthy();
@@ -2490,9 +2500,21 @@ describe('the player roster panel', () => {
     expect(buttons(/Select Players/)).toHaveLength(0);
     expect(buttons(/^Cancel$/)).toHaveLength(0);
 
-    expect(action(/^Add to Group$/).disabled).toBe(true);
-    expect(action(/^Remove$/).disabled).toBe(true);
-    expect(container.textContent).toContain('Tap players to select');
+    expect(action(/^Add to Another Group$/).disabled).toBe(true);
+    // Nothing is ticked, so there is nothing to count.
+    expect(container.textContent).not.toContain('selected');
+  });
+
+  /**
+   * Taking somebody out of a group is a one-player job done behind the pencil.
+   * A red button over a list of ticks was too easy a thing to reach for.
+   */
+  it('offers no way to remove the ticked players', () => {
+    mount();
+    click(labelled('Select Ava'));
+
+    expect(buttons(/^Remove$/)).toHaveLength(0);
+    expect(container.textContent).not.toContain('Remove 1 player');
   });
 
   it('ticks a box from a tap anywhere on the row, and counts what is ticked', () => {
@@ -2503,12 +2525,29 @@ describe('the player roster panel', () => {
 
     expect((labelled('Select Ava') as HTMLInputElement).checked).toBe(true);
     expect(container.textContent).toContain('1 selected');
-    expect(action(/^Add to Group$/).disabled).toBe(false);
-    expect(action(/^Remove$/).disabled).toBe(false);
+    expect(action(/^Add to Another Group$/).disabled).toBe(false);
 
     click(container.querySelectorAll('.roster-table tbody tr')[0]);
-    expect(container.textContent).toContain('Tap players to select');
-    expect(action(/^Remove$/).disabled).toBe(true);
+    expect(container.textContent).not.toContain('1 selected');
+    expect(action(/^Add to Another Group$/).disabled).toBe(true);
+  });
+
+  /**
+   * The count reads left to right with the button at the far end, so the row
+   * says what is ticked before it says what can be done with it.
+   */
+  it('puts the count ahead of the button it is counting for', () => {
+    mount();
+    click(labelled('Select Ava'));
+
+    const count = [...container.querySelectorAll('.roster-panel span')].find(
+      (el) => text(el) === '1 selected'
+    )!;
+    expect(count).toBeTruthy();
+    expect(
+      count.compareDocumentPosition(action(/^Add to Another Group$/)) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('opens a player from the pencil without ticking their row', () => {
@@ -2517,47 +2556,7 @@ describe('the player roster panel', () => {
 
     expect(container.textContent).toContain('Edit Player');
     // The pencil stops the event before the row sees it.
-    expect(container.textContent).toContain('Tap players to select');
-  });
-
-  it('removes a player who has another group from this group only', () => {
-    mount();
-    click(labelled('Select Ava'));
-    clickButton(/^Remove$/);
-
-    expect(container.textContent).toContain('Remove 1 player from Test Group?');
-    expect(container.textContent).toContain('stay in their other groups');
-    clickButton(/^Yes, Remove$/);
-
-    expect(rosterIdsOf('Ava')).toEqual(['g2']);
-    expect(listedNames()).not.toContain('Ava');
-  });
-
-  it('warns that a mixed removal deletes the ones with nowhere else to go', () => {
-    mount();
-    click(labelled('Select Ava'));
-    click(labelled('Select Ben'));
-    clickButton(/^Remove$/);
-
-    // One prompt covers both halves, and says which is which.
-    expect(container.textContent).toContain('Remove 2 players from Test Group?');
-    expect(container.textContent).toContain('1 will stay in their other groups.');
-    expect(container.textContent).toContain('1 will be deleted from the app completely.');
-
-    clickButton(/^Yes, Remove$/);
-
-    expect(rosterIdsOf('Ava')).toEqual(['g2']);
-    expect(storedPlayers().map((p) => p.name)).not.toContain('Ben');
-  });
-
-  it('keeps everybody when the removal warning is cancelled', () => {
-    mount();
-    click(labelled('Select Ben'));
-    clickButton(/^Remove$/);
-    clickButton(/^Cancel$/);
-
-    expect(rosterIdsOf('Ben')).toEqual(['g1']);
-    expect(listedNames()).toContain('Ben');
+    expect(container.textContent).not.toContain('1 selected');
   });
 
   it('deletes a player from every group, and they stay gone across a relaunch', () => {
@@ -2589,12 +2588,12 @@ describe('the player roster panel', () => {
     expect(rosterIdsOf('Ava')).toEqual(['g1', 'g2']);
   });
 
-  it('makes the second group from inside Add to Group, already ticked', () => {
+  it('makes the second group from inside Add to Another Group, already ticked', () => {
     seedGroups(false);
     mount();
 
     click(labelled('Select Ben'));
-    clickButton(/^Add to Group$/);
+    clickButton(/^Add to Another Group$/);
     expect(container.textContent).toContain('This is your only group.');
     // Nowhere to save to until a group exists.
     expect(action(/^Save$/).disabled).toBe(true);
@@ -2611,6 +2610,94 @@ describe('the player roster panel', () => {
     expect(rosterIdsOf('Ben')).toEqual(['g1', made!.id]);
     // Adding to a group does not take them out of this one.
     expect(listedNames()).toContain('Ben');
+  });
+
+  /**
+   * Show All Players. Finding somebody used to mean knowing which group they
+   * were in and going there first.
+   */
+  describe('showing every player', () => {
+    beforeEach(() => seedGroups(true, true));
+
+    it('swaps the group for the whole pool, and back again', () => {
+      mount();
+
+      // Elle is in the other group, so the group list has never seen her.
+      expect(listedNames()).not.toContain('Elle');
+
+      click(labelled('Show All Players'));
+
+      expect(text(container.querySelector('.roster-panel h2')!)).toBe('All Players (5)');
+      expect(listedNames()).toContain('Elle');
+
+      click(labelled('Show All Players'));
+
+      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (4)');
+      expect(listedNames()).not.toContain('Elle');
+    });
+
+    /**
+     * Ticks are dropped on the way through. Somebody ticked in one list and
+     * hidden in the other would still be counted, and Add to Another Group
+     * would send a player the host can no longer see.
+     */
+    it('drops the ticks when the list changes under them', () => {
+      mount();
+      click(labelled('Select Ava'));
+      expect(container.textContent).toContain('1 selected');
+
+      click(labelled('Show All Players'));
+      expect(container.textContent).not.toContain('1 selected');
+      expect((labelled('Select Ava') as HTMLInputElement).checked).toBe(false);
+    });
+
+    /**
+     * Left on, changing group would leave every row where it was, and the
+     * switch would look like it had swallowed the change.
+     */
+    it('goes back to the group list when the group changes', () => {
+      mount();
+      click(labelled('Show All Players'));
+      expect(listedNames()).toContain('Elle');
+
+      clickButton(/^Test Group$/);
+      clickButton(/^Other Group/);
+
+      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (2)');
+      expect(listedNames()).toEqual(['Ava', 'Elle']);
+    });
+
+    it('puts a player from another group into this one from here', () => {
+      mount();
+      click(labelled('Show All Players'));
+      click(labelled('Select Elle'));
+      clickButton(/^Add to Another Group$/);
+
+      // The group being looked at is not offered: they are already past it.
+      expect(container.textContent).toContain('Add 1 player to');
+      expect(container.textContent).toContain('the groups they’re already in');
+    });
+
+    /**
+     * An empty group used to replace the whole panel, switch included, which
+     * would have left no way to find out where everybody had got to.
+     */
+    it('keeps the switch on a group with nobody in it', () => {
+      window.localStorage.setItem('pb-active-roster', JSON.stringify('g2'));
+      window.localStorage.setItem(
+        'pb-roster',
+        JSON.stringify([{ id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g1'] }])
+      );
+      mount();
+
+      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (0)');
+      expect(container.textContent).toContain('Nobody in this group yet');
+      // Nothing to tick, so nothing to add to another group either.
+      expect(buttons(/^Add to Another Group$/)).toHaveLength(0);
+
+      click(labelled('Show All Players'));
+      expect(listedNames()).toEqual(['Ben']);
+    });
   });
 });
 
@@ -2777,7 +2864,7 @@ describe('changing groups', () => {
     expect(container.textContent).not.toContain('Switch groups?');
 
     // A group nobody has set up opens on Players, with its own members.
-    expect(text(container.querySelector('.roster-panel h2')!)).toBe('Tuesday Crew Members (8)');
+    expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (8)');
     expect(stored('pb-schedule', 'null')).toBeNull();
     // And the courts already in use rather than a reset to the default three.
     expect(stored('pb-num-courts', '0')).toBe(3);

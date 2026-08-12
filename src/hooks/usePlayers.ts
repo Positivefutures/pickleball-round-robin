@@ -42,17 +42,6 @@ export function usePlayers() {
     [setPlayers]
   );
 
-  const removeFromRoster = useCallback(
-    (playerId: string, rosterId: string) => {
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === playerId ? { ...p, rosterIds: p.rosterIds.filter((r) => r !== rosterId) } : p
-        )
-      );
-    },
-    [setPlayers]
-  );
-
   /** Permanent — drops the player from every roster and from the pool. */
   const deletePlayer = useCallback(
     (id: string) => {
@@ -128,7 +117,6 @@ export function usePlayers() {
     setPlayerRosters,
     addPlayersToRosters,
     importGroups,
-    removeFromRoster,
     deletePlayer,
     reassignRoster,
   };
