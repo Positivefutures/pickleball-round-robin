@@ -435,7 +435,7 @@ export function RosterPage({
         <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
           <div className="flex justify-between items-center gap-3 flex-wrap mb-4">
             <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
-              {activeRoster?.name ?? 'Player Roster'} ({players.length})
+              {activeRoster ? `${activeRoster.name} Members` : 'Player Roster'} ({players.length})
               <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
             </h2>
             <div className="flex items-center gap-3 flex-wrap">

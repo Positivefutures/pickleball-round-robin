@@ -19,7 +19,10 @@ import {
 } from './outbox';
 import { createStoredValue, type StoredValue } from './store';
 import * as stores from './stores';
-import { planMerge, remapSession, type Snapshot } from './syncMerge';
+import { planMerge, remapSession, remapParked, type Snapshot } from './syncMerge';
+import {
+  switchToGroup, resume as resumeGroup, forget as forgetGroupSession,
+} from './groupSessions';
 import { getSupabase, hasAuthCallback, hasStoredSession, isSupabaseConfigured } from './supabase';
 
 /**
@@ -593,10 +596,17 @@ function applyPulled(pulled: Pulled) {
       applyPreferences(pulled.preferences);
     }
 
-    // A group deleted on the other device may have been the one open here.
+    // A group deleted on the other device may have been the one open here. Its
+    // parked session goes too, and the group taking its place is opened rather
+    // than merely pointed at, so the live slot stops describing a group that is
+    // no longer in the list.
     const rosters = stores.rosters.get();
-    if (!rosters.some((r) => r.id === stores.activeRosterId.get())) {
-      stores.activeRosterId.set(rosters[0]?.id ?? '');
+    const open = stores.activeRosterId.get();
+    if (!rosters.some((r) => r.id === open)) {
+      forgetGroupSession(open);
+      const next = rosters[0]?.id ?? '';
+      stores.activeRosterId.set(next);
+      if (next) resumeGroup(next);
     }
   } finally {
     applying = false;
@@ -607,7 +617,18 @@ function applyPulled(pulled: Pulled) {
   saveMirror();
 }
 
-function applyPreferences(row: Row) {
+/**
+ * @param starting True on the two paths that hand this device a whole account:
+ * combine and adopt. Only those may write the four settings that now belong to
+ * a group rather than to the person.
+ *
+ * On an ordinary pull they are skipped. The row carries whichever group happened
+ * to be open on the device that sent it, so applying it here would let a phone
+ * sitting on Riverside's four courts reset the two courts Tuesday Crew is
+ * playing on. On a device that is only just arriving there is no group with an
+ * opinion yet, and they are the right thing to open every group with.
+ */
+function applyPreferences(row: Row, starting = false) {
   const {
     active_roster_id,
     default_rating,
@@ -625,13 +646,13 @@ function applyPreferences(row: Row) {
     typeof active_roster_id === 'string' &&
     stores.rosters.get().some((r) => r.id === active_roster_id)
   ) {
-    stores.activeRosterId.set(active_roster_id);
+    // Through the one door, so the group being left is parked and the group
+    // being opened is filled in. Setting the id alone would leave this device
+    // showing one group's name over another group's session.
+    switchToGroup(active_roster_id);
   }
   if (typeof default_rating === 'number') stores.defaultRating.set(default_rating);
-  if (typeof num_courts === 'number') stores.numCourts.set(num_courts);
-  if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
   if (typeof large_text === 'boolean') stores.largeText.set(large_text);
-  if (typeof scoring_enabled === 'boolean') stores.scoringEnabled.set(scoring_enabled);
   // One way only, unlike every line above it. The rest of this row is
   // last-write-wins, which is right for a setting somebody can change their
   // mind about; it is wrong for a hint that has been read. A device that
@@ -639,6 +660,11 @@ function applyPreferences(row: Row) {
   // otherwise carry that false to a phone where the banner had been closed,
   // and reopen it — which is the complaint this column exists to end.
   if (swap_hint_dismissed === true) stores.swapHintDismissed.set(true);
+
+  if (!starting) return;
+  if (typeof num_courts === 'number') stores.numCourts.set(num_courts);
+  if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
+  if (typeof scoring_enabled === 'boolean') stores.scoringEnabled.set(scoring_enabled);
   if (special_types && typeof special_types === 'object') {
     stores.specialTypes.set(special_types as SpecialGameTypes);
   }
@@ -930,6 +956,9 @@ export async function combineWithAccount(): Promise<SyncReport> {
     stores.selectedIds.set(session.selectedIds);
     stores.removedIds.set(session.removedIds);
     stores.partnerships.set(session.partnerships);
+    // And every group the host is not looking at, which refers to the same
+    // players and is filed under a group id that may itself have been adopted.
+    stores.groupSessions.set(remapParked(stores.groupSessions.get(), plan.changes));
     stores.activeRosterId.set(
       plan.rosters.some((r) => r.id === session.activeRosterId)
         ? session.activeRosterId
@@ -938,7 +967,7 @@ export async function combineWithAccount(): Promise<SyncReport> {
 
     // The account's preferences win. They are single scalars, trivially re-set,
     // and not worth a second question.
-    if (answered.preferences) applyPreferences(answered.preferences);
+    if (answered.preferences) applyPreferences(answered.preferences, true);
   } finally {
     applying = false;
   }
@@ -1015,8 +1044,16 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
     // naming a schedule this device no longer has.
     stores.sessionId.set(null);
     stores.guests.set([]);
+    stores.step.set('roster');
+    stores.setupSeen.set(false);
 
-    if (answered.preferences) applyPreferences(answered.preferences);
+    if (answered.preferences) applyPreferences(answered.preferences, true);
+
+    // Last, because applyPreferences may have changed groups on the way past and
+    // parked this empty session on its way. Every parked group goes the same way
+    // as the live one did, and for the same reason: the ids they were built from
+    // are no longer in the pool.
+    stores.groupSessions.set({});
   } finally {
     applying = false;
   }

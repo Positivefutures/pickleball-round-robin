@@ -1,11 +1,19 @@
+import { useSyncExternalStore } from 'react';
 import type { Player, Roster } from '../../types';
 import { CheckIcon, GroupSolidIcon } from '../icons';
+import { liveStatusStore } from '../../lib/liveSession';
 
 interface Props {
   groups: Roster[];
   /** Every player in the app, so each group can show how many are in it. */
   players: Player[];
   activeId: string;
+  /**
+   * Named for where it was opened from. The Players tab calls it My Groups, to
+   * match the panel underneath it; the banner calls it Change Groups, because
+   * from there it is a move rather than a setting.
+   */
+  heading?: string;
   onSelect: (id: string) => void;
   onClose: () => void;
 }
@@ -20,7 +28,20 @@ interface Props {
  * bordered card every other dialog in the app uses, with room for the name and
  * the size of the group beside it.
  */
-export function GroupPicker({ groups, players, activeId, onSelect, onClose }: Props) {
+export function GroupPicker({
+  groups,
+  players,
+  activeId,
+  heading = 'My Groups',
+  onSelect,
+  onClose,
+}: Props) {
+  const live = useSyncExternalStore(
+    liveStatusStore.subscribe,
+    liveStatusStore.get,
+    liveStatusStore.get
+  );
+
   function countFor(rosterId: string) {
     return players.filter((p) => p.rosterIds.includes(rosterId)).length;
   }
@@ -31,9 +52,18 @@ export function GroupPicker({ groups, players, activeId, onSelect, onClose }: Pr
         {/* The same heading as the panel it was opened from, icon on the right
             in the shared heading grey. */}
         <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
-          My Groups
+          {heading}
           <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
         </h2>
+
+        {/* The one thing a switch does not carry with it. The published copy is
+            of this session, and pointing it at another group's would show the
+            wrong scores to everyone holding the link. */}
+        {(live.state === 'live' || live.state === 'publishing') && (
+          <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Sharing stops when you change groups. Start it again from the new session.
+          </p>
+        )}
 
         <div className="space-y-2 mb-5 max-h-72 overflow-y-auto">
           {groups.map((g) => {

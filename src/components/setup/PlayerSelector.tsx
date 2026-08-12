@@ -58,8 +58,10 @@ export function PlayerSelector({
                 className="accent-brand-teal"
               />
               <span className="font-medium text-sm">{player.name}</span>
-              <span className="text-xs text-gray-400">{player.gender}</span>
-              <span className="text-xs text-gray-500 ml-auto">
+              {/* Gender and rating travel together on the right. Beside the name
+                  they read as part of it, and no two rows lined them up. */}
+              <span className="text-xs text-gray-400 ml-auto">{player.gender}</span>
+              <span className="text-xs text-gray-500">
                 {player.rating.toFixed(1)}
               </span>
             </label>

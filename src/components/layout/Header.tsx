@@ -13,6 +13,8 @@
  * as the panel illustrations, so the joins against the background are invisible.
  */
 
+import { ChevronDownIcon } from '../icons';
+
 /** The banner's height. Every other measurement here is a multiple of it. */
 const HEIGHT = 'clamp(110px, 26.25vw, 165px)';
 
@@ -52,11 +54,22 @@ interface HeaderProps {
   title: string;
   settingsOpen: boolean;
   onToggleSettings: () => void;
+  /**
+   * Makes the title the way to another group, with a chevron after it. Omitted
+   * where the title is the app's own name and leads nowhere.
+   */
+  onTitleClick?: () => void;
   /** Omitted on steps with nothing worth printing, which hides the button. */
   onPrint?: () => void;
 }
 
-export function Header({ title, settingsOpen, onToggleSettings, onPrint }: HeaderProps) {
+export function Header({
+  title,
+  settingsOpen,
+  onToggleSettings,
+  onTitleClick,
+  onPrint,
+}: HeaderProps) {
   // Both buttons have to stay legible wherever the diagonal happens to fall
   // behind them, which is teal at their right and cream at their left on a
   // narrow screen. A solid fill reads on either; an outline does not.
@@ -113,7 +126,29 @@ export function Header({ title, settingsOpen, onToggleSettings, onPrint }: Heade
           className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
           style={{ color: NAVY }}
         >
-          {title}
+          {onTitleClick ? (
+            /* The whole name is the target, which on a phone is the only tap
+               area big enough to be worth having. The chevron runs on from the
+               last word rather than sitting in a corner of its own, so a name
+               that wraps to three lines keeps it. */
+            <button
+              type="button"
+              onClick={onTitleClick}
+              aria-haspopup="dialog"
+              className="text-left hover:opacity-70 transition-opacity"
+            >
+              {title}
+              {/* Sized against the title rather than in pixels, so it holds its
+                  share of the line at every width the banner clamps to. The
+                  glyph is a thin chevron inside a 24 box, so it needs most of a
+                  full em to carry against type this heavy. */}
+              <ChevronDownIcon
+                className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
+              />
+            </button>
+          ) : (
+            title
+          )}
         </h1>
       </div>
 

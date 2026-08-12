@@ -74,8 +74,10 @@ export function PartnerPairing({
               }`}
             >
               <span className="font-medium text-sm">{player.name}</span>
-              <span className="text-xs text-gray-400">{player.gender}</span>
-              <span className="text-xs text-gray-500 ml-auto">
+              {/* Held to the right, the same as the Select Players grid this
+                  mode replaces. The two are one list in two states. */}
+              <span className="text-xs text-gray-400 ml-auto">{player.gender}</span>
+              <span className="text-xs text-gray-500">
                 {player.rating.toFixed(1)}
               </span>
             </button>

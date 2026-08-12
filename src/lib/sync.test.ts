@@ -788,10 +788,10 @@ describe('reading the account back', () => {
 
   /**
    * The swap hint is a latch, alone in a row that is otherwise last-write-wins.
-   * A device that changed the court count while its own copy of the flag still
-   * said false would otherwise carry that false to a phone where the banner had
-   * been closed, and reopen it — which is the complaint the column exists to
-   * end. Everything else in the row still has to land.
+   * A device that changed a preference while its own copy of the flag still said
+   * false would otherwise carry that false to a phone where the banner had been
+   * closed, and reopen it — which is the complaint the column exists to end. The
+   * person's preferences in the row still have to land.
    */
   it('never lets another device reopen a swap hint this one has closed', async () => {
     alreadySynced();
@@ -803,7 +803,7 @@ describe('reading the account back', () => {
     server.preferences = [
       {
         user_id: ME,
-        num_courts: 7,
+        default_rating: 3.25,
         swap_hint_dismissed: false,
         updated_at: at,
         server_updated_at: at
@@ -814,8 +814,62 @@ describe('reading the account back', () => {
     signIn(ME);
     await settle();
 
-    expect(stores.numCourts.get()).toBe(7);
+    expect(stores.defaultRating.get()).toBe(3.25);
     expect(stores.swapHintDismissed.get()).toBe(true);
+  });
+
+  /**
+   * Courts, rounds, round types and the scoreboard describe the group in front
+   * of the host now, not the host. The row carries whichever group happened to
+   * be open on the device that sent it, so a phone sitting on a four-court club
+   * night must not reset the two courts this one is playing on.
+   */
+  it('leaves this group\'s courts alone when another device pulls in', async () => {
+    alreadySynced();
+    stores.numCourts.set(2);
+    outbox.set({});
+    const at = tick();
+    server.preferences = [
+      { user_id: ME, num_courts: 7, updated_at: at, server_updated_at: at }
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.numCourts.get()).toBe(2);
+  });
+
+  /**
+   * The other device's choice of group arrives here as a preference, and it is
+   * the one path that can change groups without anybody tapping anything. It has
+   * to go through the same door the pickers use: the live session stores are
+   * read everywhere as the active group's, so moving the id on its own would
+   * leave this device showing one group's name over another group's schedule.
+   */
+  it('parks this group before taking the group another device is on', async () => {
+    stores.groupSessions.set({});
+    stores.schedule.set({ rounds: [] } as never);
+    stores.selectedIds.set(['p1', 'p2']);
+    alreadySynced();
+    outbox.set({});
+    const at = tick();
+    server.rosters = [serverRoster('g2', 'Thursday')];
+    server.preferences = [
+      { user_id: ME, active_roster_id: 'g2', updated_at: at, server_updated_at: at }
+    ];
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(stores.activeRosterId.get()).toBe('g2');
+    // Thursday has never been set up, so the slot is empty rather than holding
+    // Tuesday's session under Thursday's name.
+    expect(stores.schedule.get()).toBeNull();
+    expect(stores.selectedIds.get()).toEqual([]);
+    // And Tuesday is where it was left, waiting to be come back to.
+    expect(stores.groupSessions.get().g1.selectedIds).toEqual(['p1', 'p2']);
   });
 
   it('takes a swap hint closed on another device', async () => {

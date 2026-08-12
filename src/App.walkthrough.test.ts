@@ -2470,6 +2470,17 @@ describe('the player roster panel', () => {
 
   beforeEach(() => seedGroups());
 
+  /**
+   * "Riverside Club (37)" read as a score. The panel is the group's membership
+   * list, and the heading now says which of the two numbers it is counting.
+   */
+  it('heads the list with the group name, the word Members, and the count', () => {
+    mount();
+
+    const heading = container.querySelector('.roster-panel h2')!;
+    expect(text(heading)).toBe('Test Group Members (4)');
+  });
+
   it('opens with the checkboxes on, both actions dead, and no way into a mode', () => {
     mount();
 
@@ -2600,5 +2611,237 @@ describe('the player roster panel', () => {
     expect(rosterIdsOf('Ben')).toEqual(['g1', made!.id]);
     // Adding to a group does not take them out of this one.
     expect(listedNames()).toContain('Ben');
+  });
+});
+
+/**
+ * The Select Players grid and the Partners panel above it.
+ *
+ * Both are one row per player, and the two have to agree about where the gender
+ * and the rating sit, because Set Partners is the same list in another state.
+ */
+describe('the Setup player list', () => {
+  beforeEach(() => seed(8, 8, 2));
+
+  /** One row of the grid, found by the name it opens with. */
+  function row(name: string): HTMLElement {
+    const found = [...container.querySelectorAll('label, button')].find((el) =>
+      text(el).startsWith(name)
+    );
+    if (!found) throw new Error(`no row for ${name}`);
+    return found as HTMLElement;
+  }
+
+  function storedPartnerships(): { player1Id: string; player2Id: string }[] {
+    return JSON.parse(window.localStorage.getItem('pb-partnerships') ?? '[]');
+  }
+
+  /** Links two players, from the Setup page, and comes back out of the mode. */
+  function pair(one: string, two: string) {
+    clickButton(/^Set Partners$/);
+    clickButton(new RegExp(`^${one}`));
+    clickButton(new RegExp(`^${two}`));
+    clickButton(/^Done Pairing$/);
+  }
+
+  it('holds the gender and the rating together on the right of a row', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+
+    // Name, then gender, then rating. What moved is which of them takes the
+    // space left over: beside the name the gender read as part of it, and no
+    // two rows lined their ratings up.
+    const spans = row('Ava').querySelectorAll('span');
+    expect(text(spans[0])).toBe('Ava');
+    expect(text(spans[1])).toBe('M');
+    expect(text(spans[2])).toBe('3.5');
+    expect(spans[1].className).toContain('ml-auto');
+    expect(spans[2].className).not.toContain('ml-auto');
+  });
+
+  it('says the same thing in the Set Partners view', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Set Partners$/);
+
+    const spans = row('Ava').querySelectorAll('span');
+    expect(text(spans[1])).toBe('M');
+    expect(spans[1].className).toContain('ml-auto');
+    expect(spans[2].className).not.toContain('ml-auto');
+  });
+
+  it('breaks every couple at once, and hands them back still ticked', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    pair('Ava', 'Ben');
+    pair('Cara', 'Dan');
+
+    expect(storedPartnerships()).toHaveLength(2);
+    expect(container.textContent).toContain('Partners');
+
+    clickButton(/^Unlink All$/);
+
+    expect(storedPartnerships()).toEqual([]);
+    // The panel goes with the last couple, and all four are back in the grid
+    // with their boxes still ticked, which is what makes this cheap to undo.
+    expect(buttons(/^Unlink All$/)).toHaveLength(0);
+    for (const name of ['Ava', 'Ben', 'Cara', 'Dan']) {
+      expect((row(name).querySelector('input') as HTMLInputElement).checked).toBe(true);
+    }
+  });
+
+  it('offers nothing to unlink until there is a couple to break', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+
+    expect(buttons(/^Unlink All$/)).toHaveLength(0);
+  });
+});
+
+/**
+ * Changing groups without losing the group you are leaving.
+ *
+ * This used to be a red dialog warning that switching would clear the session,
+ * and it was only reachable from the Players tab. Now every group keeps its own
+ * afternoon — the schedule, the scores, the couples, the court count and the tab
+ * it was left on — and the group name in the banner is the way between them.
+ */
+describe('changing groups', () => {
+  const RIVERSIDE = 'Riverside Club';
+  const TUESDAY = 'Tuesday Crew';
+
+  function seedTwoGroups() {
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'pb-rosters',
+      JSON.stringify([
+        { id: 'g1', name: RIVERSIDE },
+        { id: 'g2', name: TUESDAY },
+      ])
+    );
+    window.localStorage.setItem('pb-active-roster', JSON.stringify('g1'));
+    const make = (names: string[], rosterId: string, prefix: string) =>
+      names.map((name, i) => ({
+        id: `${prefix}${i + 1}`,
+        name,
+        rating: 3.5 + (i % 4) * 0.25,
+        gender: i % 2 === 0 ? 'M' : 'F',
+        rosterIds: [rosterId],
+      }));
+    window.localStorage.setItem(
+      'pb-roster',
+      JSON.stringify([
+        ...make(NAMES, 'g1', 'r'),
+        ...make(['Iris', 'Jack', 'Kim', 'Lou', 'Mia', 'Ned', 'Opal', 'Pete'], 'g2', 't'),
+      ])
+    );
+    window.localStorage.setItem('pb-num-courts', JSON.stringify(2));
+    window.localStorage.setItem('pb-num-rounds', JSON.stringify(4));
+    runMigrations();
+  }
+
+  beforeEach(seedTwoGroups);
+
+  const stored = (key: string, fallback: string) =>
+    JSON.parse(window.localStorage.getItem(key) ?? fallback);
+
+  /**
+   * Through the group name in the banner, which is the whole point of the
+   * feature. The name is the button, so its text is exactly the group's.
+   */
+  function changeGroup(from: string, to: string) {
+    clickButton(new RegExp(`^${from}$`), container.querySelector('header')!);
+    clickButton(new RegExp(`^${to}`));
+  }
+
+  /** Riverside set up on three courts, one couple linked, and a schedule run. */
+  function runRiverside() {
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Select All$/);
+    clickLabel('More courts'); // 2 -> 3
+    clickButton(/^Set Partners$/);
+    clickButton(/^Ava/);
+    clickButton(/^Ben/);
+    clickButton(/^Done Pairing$/);
+    clickButton(/^Generate Schedule/);
+  }
+
+  it('carries the whole afternoon across and back', () => {
+    mount();
+    runRiverside();
+    markComplete(1);
+    const built = JSON.stringify(storedSchedule());
+
+    // Nothing is asked, because nothing is being thrown away.
+    changeGroup(RIVERSIDE, TUESDAY);
+    expect(container.textContent).not.toContain('Switch groups?');
+
+    // A group nobody has set up opens on Players, with its own members.
+    expect(text(container.querySelector('.roster-panel h2')!)).toBe('Tuesday Crew Members (8)');
+    expect(stored('pb-schedule', 'null')).toBeNull();
+    // And the courts already in use rather than a reset to the default three.
+    expect(stored('pb-num-courts', '0')).toBe(3);
+
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Select All$/);
+    clickLabel('Fewer courts'); // 3 -> 2
+
+    changeGroup(TUESDAY, RIVERSIDE);
+
+    // Straight back onto the schedule, exactly as it was left.
+    expect(container.querySelectorAll('.round-card').length).toBeGreaterThan(0);
+    expect(JSON.stringify(storedSchedule())).toBe(built);
+    expect(completedRounds()).toEqual([1]);
+    expect(stored('pb-num-courts', '0')).toBe(3);
+    expect(stored('pb-partnerships', '[]')).toHaveLength(1);
+  });
+
+  it('gives each group back the tab it was left on', () => {
+    mount();
+    runRiverside();
+
+    changeGroup(RIVERSIDE, TUESDAY);
+    clickButton(/^Continue to Setup/);
+    expect(container.textContent).toContain('Select Players');
+
+    // Riverside was left on the schedule, Tuesday on Setup, and each comes back
+    // to its own.
+    changeGroup(TUESDAY, RIVERSIDE);
+    expect(container.querySelectorAll('.round-card').length).toBeGreaterThan(0);
+
+    changeGroup(RIVERSIDE, TUESDAY);
+    expect(container.querySelectorAll('.round-card')).toHaveLength(0);
+    expect(container.textContent).toContain('Select Players');
+  });
+
+  it('reopens the group and the tab a relaunch closed on', () => {
+    mount();
+    runRiverside();
+    changeGroup(RIVERSIDE, TUESDAY);
+    clickButton(/^Continue to Setup/);
+
+    remount();
+
+    expect(container.textContent).toContain('Select Players');
+    expect(buttons(new RegExp(`^${TUESDAY}$`))).toHaveLength(1);
+  });
+
+  it('leaves the banner alone on Players, where My Groups is already on the page', () => {
+    mount();
+
+    // The app's own name up there, and nothing to tap on it. The group name and
+    // its chevron are further down the page, on the My Groups panel.
+    const header = container.querySelector('header')!;
+    expect(buttons(new RegExp(`^${RIVERSIDE}$`), header)).toHaveLength(0);
+    expect(header.textContent).toContain('Pickleball');
+  });
+
+  it('files each group under its own name, and nowhere else', () => {
+    mount();
+    runRiverside();
+    changeGroup(RIVERSIDE, TUESDAY);
+
+    expect(Object.keys(stored('pb-group-sessions', '{}'))).toEqual(['g1']);
+    expect(stored('pb-group-sessions', '{}').g1.schedule).not.toBeNull();
   });
 });

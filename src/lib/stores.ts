@@ -1,4 +1,6 @@
 import type { Player, Roster, Schedule, Partnership, SpecialGameTypes } from '../types';
+import type { Step } from './steps';
+import type { GroupSession } from './groupSessions';
 import { createStoredValue } from './store';
 import { KEYS, DEFAULT_ROSTER_NAME } from './migrations';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
@@ -37,18 +39,20 @@ export const activeRosterId = createStoredValue<string>(
 export const players = createStoredValue<Player[]>(KEYS.players, []);
 
 export const defaultRating = createStoredValue('pb-default-rating', 4.0);
+export const largeText = createStoredValue<boolean>('pb-large-text', false);
+
+// ------------------------------------------------------- The group in front
+// How this club night is run. These four hold the active group's answers and
+// nobody else's: groupSessions.ts parks them under the group being left and
+// restores the group being opened, so Riverside's four courts and Tuesday's two
+// stop overwriting each other. A group nobody has set up yet inherits whatever
+// is here, which is the last thing the host used.
+
 export const numCourts = createStoredValue('pb-num-courts', 3);
 export const numRounds = createStoredValue('pb-num-rounds', 8);
-export const largeText = createStoredValue<boolean>('pb-large-text', false);
 
 /**
  * Whether courts carry a scoreboard.
- *
- * The person's rather than the device's: keeping score is how this host runs
- * their group, the same sort of thing as the number of courts they book. The
- * device half below exists for what two phones could disagree about mid-session,
- * and a preference is not that — a second phone at the same session showing no
- * scoreboards would read as a fault.
  *
  * Off by default. An existing host's court cards should not change under them
  * without being asked.
@@ -66,6 +70,37 @@ export const specialTypes = createStoredValue<SpecialGameTypes>(
 // phones at one court both ticking a round complete is a conflict with no
 // sensible answer, and a session lasts an afternoon — so this half stays where
 // it is rather than following the person around.
+
+/**
+ * Which tab is open.
+ *
+ * Persisted, and part of what a group is parked with, so coming back to a group
+ * lands where that group was left. It also means a relaunch reopens the tab the
+ * host was on rather than always the first one.
+ *
+ * Read through currentStep() in groupSessions.ts, never raw: a stored 'schedule'
+ * with no schedule under it is a tab that cannot draw.
+ */
+export const step = createStoredValue<Step>('pb-step', 'roster');
+
+/**
+ * Whether this group has ever been taken as far as Setup. Once it has, the tab
+ * stays open, so a trip back to Players is never a dead end.
+ */
+export const setupSeen = createStoredValue<boolean>('pb-setup-seen', false);
+
+/**
+ * Every group's state but the one open, keyed by group id.
+ *
+ * The stores below are the live slot: they always describe the active group,
+ * which is why sync and sharing can go on reading them without knowing any of
+ * this exists. Switching groups empties the live slot into here and fills it
+ * back up from the group being opened. See groupSessions.ts.
+ */
+export const groupSessions = createStoredValue<Record<string, GroupSession>>(
+  'pb-group-sessions',
+  {}
+);
 
 /** Persisted so a refresh mid-session doesn't lose the schedule. */
 export const schedule = createStoredValue<Schedule | null>(KEYS.schedule, null);

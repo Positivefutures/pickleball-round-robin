@@ -25,6 +25,10 @@ import { ImportExportPanel, ALL_GROUPS } from './components/layout/ImportExportP
 import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
 import { stepLabel, type Step } from './lib/steps';
+import {
+  currentStep, switchToGroup, resume as resumeGroup,
+  forget as forgetGroupSession, clearSession as clearStoredSession,
+} from './lib/groupSessions';
 import { FeedbackPanel } from './components/layout/FeedbackPanel';
 import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
@@ -46,6 +50,7 @@ import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
 import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
+import { GroupPicker } from './components/roster/GroupPicker';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
@@ -96,16 +101,20 @@ function App() {
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
   const [, setSessionId] = useStoredValue(stores.sessionId);
 
-  const [step, setStep] = useState<Step>(schedule ? 'schedule' : 'roster');
+  // Both persisted, and both parked with the group being left, so coming back to
+  // a group reopens the tab it was left on. Read through currentStep(), which
+  // refuses a saved 'schedule' with no schedule under it.
+  const [, setStep] = useStoredValue(stores.step);
+  const step = currentStep();
   // Setup opens the first time the host reaches it and stays open, so a trip
-  // back to Players is never a dead end. It starts open on a boot that lands on
-  // a saved schedule, since they plainly went through Setup to build it.
-  const [setupSeen, setSetupSeen] = useState(schedule !== null);
+  // back to Players is never a dead end.
+  const [setupSeen, setSetupSeen] = useStoredValue(stores.setupSeen);
   // What the schedule step says it would lose by being left. Reported up from
   // SchedulePage, which owns the locks and broken couples that count towards it.
   const [scheduleHasWork, setScheduleHasWork] = useState(false);
   const [pendingLeave, setPendingLeave] = useState<'setup' | 'roster' | null>(null);
-  const [pendingRosterSwitch, setPendingRosterSwitch] = useState<string | null>(null);
+  // Change Groups, opened from the group name in the banner.
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showDefaultRating, setShowDefaultRating] = useState(false);
@@ -192,7 +201,7 @@ function App() {
   // Reaching Setup once is what opens its tab, by whichever route.
   useEffect(() => {
     if (step !== 'roster') setSetupSeen(true);
-  }, [step]);
+  }, [step, setSetupSeen]);
 
   // Sync starts itself, or doesn't. It returns immediately when accounts are
   // switched off, unconfigured, or nobody is signed in on this browser, so an
@@ -234,8 +243,16 @@ function App() {
     back?.();
   }
 
-  // A saved session belongs to the roster it was built from. On boot, follow it
-  // rather than stranding the user in a schedule full of another roster's players.
+  /**
+   * A saved session belongs to the group it was built from, and the live slot is
+   * supposed to hold the active group's. Anything else is storage written by an
+   * older build, so straighten it out before a schedule full of another group's
+   * players reaches the screen.
+   *
+   * Every route that changes groups now goes through switchToGroup, which keeps
+   * the two in step, so this only ever fires once on the first launch after the
+   * upgrade.
+   */
   useEffect(() => {
     if (schedule && scheduleRosterId && scheduleRosterId !== activeRosterId) {
       setActiveRosterId(scheduleRosterId);
@@ -302,6 +319,17 @@ function App() {
     setPartnerships((prev) => prev.filter((p) => !arePartners(id1, id2, [p])));
   }, [setPartnerships]);
 
+  /**
+   * Every couple broken at once.
+   *
+   * Emptying the store outright is right rather than heavy-handed: the effect
+   * above prunes any partnership whose members are not both selected, so what is
+   * stored is always exactly what the Partners panel is showing.
+   */
+  const clearPartnerships = useCallback(() => {
+    setPartnerships([]);
+  }, [setPartnerships]);
+
   const selectAll = useCallback(() => {
     setSelectedIds(rosterPlayers.map((p) => p.id));
   }, [rosterPlayers, setSelectedIds]);
@@ -312,56 +340,39 @@ function App() {
 
   // keepSelection is used by "Start New Session": the same crowd usually plays
   // each time, so the previously chosen players stay selected for the next one.
-  // A roster switch clears the selection instead, since it's a different group.
+  // The body lives in groupSessions.ts, which needs the same thing to open a
+  // group nobody has set up yet.
   const clearSession = useCallback((keepSelection = false) => {
-    setSchedule(null);
-    setCompletedRounds([]);
-    setRemovedIds([]);
-    // Guests belong to the session and go with it, whichever way it ends. They
-    // are in nobody's group, so there is nowhere for them to be kept.
-    setGuests([]);
-    setScheduleEdited(false);
-    // "Start New Session" keeps the crowd (and their couples); a group switch
-    // clears both since it's a different set of people.
-    if (!keepSelection) {
-      setSelectedIds([]);
-      setPartnerships([]);
-    }
-    setScheduleRosterId(null);
-    setSessionId(null);
-  }, [setSchedule, setCompletedRounds, setRemovedIds, setGuests, setScheduleEdited,
-      setSelectedIds, setPartnerships, setScheduleRosterId, setSessionId]);
+    clearStoredSession(keepSelection);
+  }, []);
 
-  // Switching rosters invalidates an in-progress session, so confirm first
-  const handleSelectRoster = useCallback(
-    (id: string) => {
-      if (id === activeRosterId) return;
-      if (schedule) {
-        setPendingRosterSwitch(id);
-        return;
-      }
-      setActiveRosterId(id);
-      setSelectedIds([]);
-      setPartnerships([]);
-    },
-    [activeRosterId, schedule, setActiveRosterId, setSelectedIds, setPartnerships]
-  );
-
-  const confirmRosterSwitch = useCallback(() => {
-    if (!pendingRosterSwitch) return;
-    clearSession();
-    setActiveRosterId(pendingRosterSwitch);
-    setPendingRosterSwitch(null);
-    setStep('roster');
-  }, [pendingRosterSwitch, clearSession, setActiveRosterId]);
+  /**
+   * Changing groups, from either picker.
+   *
+   * Nothing is lost and nothing is asked. The group being left is parked whole —
+   * its session, its scores, its couples, the tab it was on — and the group
+   * being opened is put back exactly as it was.
+   */
+  const switchGroup = useCallback((id: string) => {
+    switchToGroup(id);
+    setShowGroupPicker(false);
+  }, []);
 
   const handleDeleteRoster = useCallback(
     (id: string, moveTo: string | null) => {
       reassignRoster(id, moveTo);
-      if (scheduleRosterId === id) clearSession();
+      // The parked session goes with the group, and nothing is filed on the way
+      // out: there is nowhere left to come back to.
+      forgetGroupSession(id);
+      const before = activeRosterId;
       deleteRoster(id);
+      // Deleting the group that was open moves the active one along, and the
+      // live slot is still full of the group that just went. Comparing rather
+      // than assuming, because deleteRoster refuses to delete the last group.
+      const after = stores.activeRosterId.get();
+      if (after !== before) resumeGroup(after);
     },
-    [reassignRoster, deleteRoster, scheduleRosterId, clearSession]
+    [reassignRoster, deleteRoster, activeRosterId]
   );
 
   /**
@@ -422,7 +433,7 @@ function App() {
     setStep('schedule');
   }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
       activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
-      setScheduleEdited, setScheduleRosterId, setSessionId]);
+      setScheduleEdited, setScheduleRosterId, setSessionId, setStep]);
 
   const attendingPlayers = sessionPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
@@ -801,28 +812,23 @@ function App() {
         details.push(`${skipped} row${skipped === 1 ? '' : 's'} skipped.`);
       }
 
-      if (schedule) {
-        details.push('Your session is still running — switch groups from My Groups when ready.');
-      } else {
-        setActiveRosterId(created[0].roster.id);
-        setSelectedIds([]);
-        setPartnerships([]);
-        setStep('roster');
-      }
+      // Straight into the group that just arrived. A session already running is
+      // parked under its own group on the way, so there is nothing to warn about
+      // and nothing to come back for.
+      switchToGroup(created[0].roster.id);
 
       const title = multi
         ? `${created.length} groups imported.`
         : `"${created[0].name}" created.`;
       return { ok: true, title, details };
     },
-    [rosters, defaultRating, addRoster, importGroups, schedule, setActiveRosterId,
-     setSelectedIds, setPartnerships]
+    [rosters, defaultRating, addRoster, importGroups]
   );
 
   const handleStartNewSession = useCallback(() => {
     clearSession(true); // keep the selected players for the next session
     setStep('roster');
-  }, [clearSession]);
+  }, [clearSession, setStep]);
 
   // Which tabs are doors. Schedule is never one: the only way onto it is
   // Generate, which builds a new schedule rather than returning to the old one.
@@ -851,7 +857,7 @@ function App() {
       if (target === 'setup') setStep('setup');
       else handleStartNewSession();
     },
-    [step, scheduleHasWork, handleStartNewSession]
+    [step, scheduleHasWork, handleStartNewSession, setStep]
   );
 
   // Both banners wait for a roster worth keeping. Four players is a group
@@ -896,6 +902,9 @@ function App() {
       <Header
         // Past the roster step the group being worked on is the useful label
         title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}
+        // And there it is also the way to another group. The roster step has the
+        // My Groups panel a little way down the page, so it needs no chevron.
+        onTitleClick={step === 'roster' ? undefined : () => setShowGroupPicker(true)}
         settingsOpen={settingsOpen}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         // Only the Schedule step has something worth printing
@@ -956,7 +965,7 @@ function App() {
             players={rosterPlayers}
             rosters={rosters}
             activeRosterId={activeRosterId}
-            onSelectRoster={handleSelectRoster}
+            onSelectRoster={switchGroup}
             onAddRoster={addRoster}
             onRenameRoster={renameRoster}
             onDeleteRoster={handleDeleteRoster}
@@ -986,6 +995,7 @@ function App() {
             onDeselectAll={deselectAll}
             onCreatePartnership={createPartnership}
             onRemovePartnership={removePartnership}
+            onClearPartnerships={clearPartnerships}
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
             onSpecialTypeChange={updateSpecialType}
@@ -1061,31 +1071,17 @@ function App() {
         />
       )}
 
-      {pendingRosterSwitch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-gray-800 text-center font-medium mb-2">Switch groups?</p>
-            <p className="text-sm text-gray-600 text-center mb-4">
-              You have a round robin session in progress for{' '}
-              <span className="font-medium">{activeRoster?.name}</span>. Switching groups will
-              clear it.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPendingRosterSwitch(null)}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmRosterSwitch}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
-              >
-                Switch
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Change Groups. The same panel the Players tab opens, under its own
+          heading, because from here it is a move rather than a setting. */}
+      {showGroupPicker && (
+        <GroupPicker
+          heading="Change Groups"
+          groups={rosters}
+          players={allPlayers}
+          activeId={activeRosterId}
+          onSelect={switchGroup}
+          onClose={() => setShowGroupPicker(false)}
+        />
       )}
 
       <footer className="text-center text-xs text-gray-400 pt-6 no-print" style={{ paddingBottom: 40 }}>

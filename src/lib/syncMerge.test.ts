@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planMerge, remapSession } from './syncMerge';
+import { planMerge, remapSession, remapParked } from './syncMerge';
 import type { Snapshot } from './syncMerge';
 import type { Player, Roster, Schedule } from '../types';
 
@@ -216,5 +216,47 @@ describe('remapSession', () => {
       partnerships: []
     };
     expect(remapSession(bare, changes)).toEqual(bare);
+  });
+
+  /**
+   * The groups the host is not looking at need the same treatment, key included.
+   * A parked session that kept the old ids would draw its schedule perfectly and
+   * silently stop applying its couples, which is the failure remapSession exists
+   * to prevent, one Tuesday later.
+   */
+  describe('remapParked', () => {
+    const parked = {
+      old_r: {
+        schedule,
+        selectedIds: ['old_p', 'keep'],
+        removedIds: ['old_p'],
+        partnerships: [{ player1Id: 'old_p', player2Id: 'keep' }],
+        numCourts: 4
+      },
+      untouched: {
+        schedule: null,
+        selectedIds: ['keep'],
+        removedIds: [],
+        partnerships: [],
+        numCourts: 2
+      }
+    };
+
+    it('refiles a group under its adopted id, with its references followed', () => {
+      const next = remapParked(parked, changes);
+
+      expect(Object.keys(next).sort()).toEqual(['new_r', 'untouched']);
+      expect(next.new_r.selectedIds).toEqual(['new_p', 'keep']);
+      expect(next.new_r.partnerships).toEqual([{ player1Id: 'new_p', player2Id: 'keep' }]);
+      expect(next.new_r.schedule!.rounds[0].courts[0].team1[0].id).toBe('new_p');
+      expect(next.new_r.schedule!.rounds[0].courts[0].team1[0].rosterIds).toEqual(['new_r']);
+      // Everything the merge has no opinion about rides along untouched.
+      expect(next.new_r.numCourts).toBe(4);
+      expect(next.untouched).toEqual(parked.untouched);
+    });
+
+    it('has nothing to say about a device with one group', () => {
+      expect(remapParked({}, changes)).toEqual({});
+    });
   });
 });

@@ -206,3 +206,32 @@ export function remapSession(session: SessionRefs, changes: IdChanges): SessionR
     }))
   };
 }
+
+/**
+ * The same job for the sessions the host is not looking at.
+ *
+ * A parked session refers to players and to the group it is filed under, so
+ * adopting the account's ids has to reach it too, key included. Miss it and a
+ * group the host comes back to next Tuesday has lost its couples, which is the
+ * quiet kind of breakage remapSession exists to prevent.
+ */
+export function remapParked<T extends Omit<SessionRefs, 'activeRosterId' | 'scheduleRosterId'>>(
+  parked: Record<string, T>,
+  changes: IdChanges
+): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [rosterId, saved] of Object.entries(parked)) {
+    const remapped = remapSession(
+      { ...saved, activeRosterId: rosterId, scheduleRosterId: null },
+      changes
+    );
+    out[changes.rosters[rosterId] ?? rosterId] = {
+      ...saved,
+      schedule: remapped.schedule,
+      selectedIds: remapped.selectedIds,
+      removedIds: remapped.removedIds,
+      partnerships: remapped.partnerships
+    };
+  }
+  return out;
+}

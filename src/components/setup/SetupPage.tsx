@@ -24,6 +24,8 @@ interface Props {
   onDeselectAll: () => void;
   onCreatePartnership: (id1: string, id2: string) => void;
   onRemovePartnership: (id1: string, id2: string) => void;
+  /** Breaks every couple at once, the counterpart of Deselect All. */
+  onClearPartnerships: () => void;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
   onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
@@ -45,6 +47,7 @@ export function SetupPage({
   onDeselectAll,
   onCreatePartnership,
   onRemovePartnership,
+  onClearPartnerships,
   onCourtsChange,
   onRoundsChange,
   onSpecialTypeChange,
@@ -181,9 +184,19 @@ export function SetupPage({
       {mode === 'select' && pairs.length > 0 && (
         <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
           <div className="mb-3">
-            <h3 className="text-[1.35rem] font-extrabold text-[#222]">
-              Partners
-            </h3>
+            {/* Heading and link on one line, the same shape as Select Players
+                below. The sentence sits under both, where it has the width. */}
+            <div className="flex justify-between items-center gap-3">
+              <h3 className="text-[1.35rem] font-extrabold text-[#222]">
+                Partners
+              </h3>
+              <button
+                onClick={onClearPartnerships}
+                className="text-sm text-brand-teal hover:text-brand-teal-dark font-medium"
+              >
+                Unlink All
+              </button>
+            </div>
             <p className="text-sm text-gray-500 mt-1">
               These players stay together all session. Tap the broken-link icon to
               separate a pair and return them to the list below.
