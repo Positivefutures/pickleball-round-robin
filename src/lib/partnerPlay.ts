@@ -126,6 +126,17 @@ export function matchKey(key1: string, key2: string): string {
  * fits, skipping any match whose teams are already on court this round. Order is
  * the boss: the schedule is not reordered to even out sit-outs, because the
  * circle it came from already does that over a full pass.
+ *
+ * When the fixtures left in this pass will not fill the courts, the next pass is
+ * opened early to fill them rather than leaving a court standing empty. That is
+ * Jeff's call, made knowing what it costs: 28 fixtures across 3 courts leaves
+ * one over at the end, so the round that plays it starts two teams on their
+ * second meeting while two other teams have not had their first. An idle court
+ * on a booked evening is the worse of the two.
+ *
+ * It only ever bites on that last short round of a pass. Whenever the courts
+ * divide the fixture list evenly, every pass is exactly full and no round is
+ * ever mixed.
  */
 export function nextMatches(
   teams: Team[],
@@ -142,14 +153,24 @@ export function nextMatches(
 
   const busy = new Set<number>();
   const picked: Match[] = [];
-  for (const m of fixtures) {
-    if (picked.length >= capacity) break;
-    if (countOf(m) > pass) continue;
-    if (busy.has(m.a) || busy.has(m.b)) continue;
-    picked.push(m);
-    busy.add(m.a);
-    busy.add(m.b);
+
+  // One sweep per pass, oldest first, so a fixture still owed from this pass is
+  // always taken ahead of one borrowed from the next.
+  for (let level = pass; picked.length < capacity; level++) {
+    const before = picked.length;
+    for (const m of fixtures) {
+      if (picked.length >= capacity) break;
+      if (countOf(m) !== level) continue;
+      if (busy.has(m.a) || busy.has(m.b)) continue;
+      picked.push(m);
+      busy.add(m.a);
+      busy.add(m.b);
+    }
+    // Nothing at this level and nothing above it either: every team that could
+    // still be put on a court already is. Stop rather than spin.
+    if (picked.length === before && !fixtures.some((m) => countOf(m) > level)) break;
   }
+
   return picked;
 }
 

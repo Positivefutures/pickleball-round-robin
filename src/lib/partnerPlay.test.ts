@@ -142,16 +142,35 @@ describe('a night of partner play', () => {
     expect(shape.slice(6, 9)).toEqual(shape.slice(0, 3));
   });
 
-  it('does not start the next pass early to fill an idle court', () => {
-    // 8 teams on 3 courts: 28 fixtures is not a multiple of 3, so the last round
-    // of the pass has one fixture left and two courts stand empty. Starting the
-    // next pass there would rematch teams before everyone had met.
+  it('opens the next pass early rather than leave a court empty', () => {
+    // 8 teams on 3 courts: 28 fixtures is not a multiple of 3, so the round that
+    // plays the 28th has two courts spare. They are filled from the top of the
+    // next pass — two teams start their second meeting while two others are
+    // still waiting on their first, which is the price of not idling a court.
     const players = makePlayers(16);
     const s = generateSchedule(players, 3, 10, undefined, pairEveryone(players));
 
+    for (const r of s.rounds) expect(r.courts).toHaveLength(3);
+
+    // All 28 still get played, and nothing is played three times in ten rounds.
     const played = fixturesIn(s.rounds);
     expect(new Set(played).size).toBe(28);
-    expect(s.rounds[9].courts).toHaveLength(1);
+    const counts = new Map<string, number>();
+    for (const f of played) counts.set(f, (counts.get(f) ?? 0) + 1);
+    expect(Math.max(...counts.values())).toBe(2);
+    expect([...counts.values()].filter((n) => n === 2)).toHaveLength(2);
+  });
+
+  it('still fills every pass exactly when the courts divide the fixtures', () => {
+    // 8 teams on 4 courts: 28 fixtures, 4 a round. No round is ever mixed, so
+    // the early-start rule never comes into it.
+    const players = makePlayers(16);
+    const s = generateSchedule(players, 4, 14, undefined, pairEveryone(players));
+
+    const first = fixturesIn(s.rounds.slice(0, 7));
+    const second = fixturesIn(s.rounds.slice(7, 14));
+    expect(new Set(first).size).toBe(28);
+    expect(second).toEqual(first);
   });
 
   it('shares the sit-outs out evenly over a full pass', () => {
