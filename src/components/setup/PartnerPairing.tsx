@@ -1,5 +1,6 @@
 import type { Player, Partnership } from '../../types';
 import { resolvePairs } from '../../lib/partnerships';
+import { partnerPlayTeams } from '../../lib/partnerPlay';
 import { LinkIcon } from '../icons';
 import { PairList } from './PairList';
 
@@ -28,6 +29,13 @@ export function PartnerPairing({
     .filter((p) => !pairedIds.has(p.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // Pairing the last couple changes what the schedule will be, so the panel
+  // says so at the moment it happens rather than leaving the host to notice on
+  // the Schedule page. The same call the scheduler makes, so the two cannot
+  // disagree about whether tonight is partner play.
+  const partnerPlay = partnerPlayTeams(players, partnerships);
+  const spare = partnerPlay?.spares[0];
+
   return (
     <div>
       <div className="mb-3">
@@ -48,6 +56,26 @@ export function PartnerPairing({
       {players.length === 0 && (
         <p className="text-sm text-gray-500">
           No players selected yet. Go back and select players first.
+        </p>
+      )}
+
+      {partnerPlay && (
+        <div className="mb-4 rounded-md border border-[#615fff] bg-[#eef2ff] px-3 py-2.5">
+          <p className="text-sm font-semibold text-[#312c85]">
+            Partner play: {partnerPlay.teams.length} teams
+          </p>
+          <p className="mt-0.5 text-sm text-[#3730a3]">
+            Pairs stay together all session. Each team meets all the others before
+            any rematch.
+          </p>
+        </div>
+      )}
+
+      {spare && (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span className="font-semibold">{spare.name}</span> is not in a pair, so
+          they will sit out every round. Pair them up, or take them out of the
+          session.
         </p>
       )}
 

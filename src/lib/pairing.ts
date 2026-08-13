@@ -9,6 +9,13 @@ import {
 } from './roundTypes';
 import { findSpecialAssignment, partnershipFitsType } from './specialRounds';
 import {
+  fixtureList,
+  matchesToCourts,
+  nextMatches,
+  partnerPlayTeams,
+  recordTeamMatches,
+} from './partnerPlay';
+import {
   chooseShortCourtPlayers,
   effectiveCourtCount,
   findBestAssignment,
@@ -29,6 +36,7 @@ function initHistory(players: Player[]): PairingHistory {
     gamesPlayed: {},
     shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
+    teamMatchCounts: {},
   };
   for (const p of players) {
     history.partnerCounts[p.id] = {};
@@ -150,6 +158,35 @@ function buildRound(
         ...roundLocks.map((lp) => ({ player1Id: lp.player1Id, player2Id: lp.player2Id })),
       ]
     : [];
+
+  // A night where everybody has a partner is a round robin between the teams,
+  // and that is a different job from the one below: the fixture list decides who
+  // plays, so it also decides who sits, and determineSitOuts never runs.
+  //
+  // It stands down for a round the host has taken charge of. A padlock pins this
+  // round by hand and a special game type splits the couples it does not suit,
+  // and in both cases the round is outside the sequence: it spends no fixtures
+  // and the round robin picks up where it left off afterwards.
+  const partnerPlay = !roundType && !hasLocks
+    ? partnerPlayTeams(players, partnerships)
+    : null;
+  if (partnerPlay) {
+    const { teams } = partnerPlay;
+    const fixtures = fixtureList(teams.length);
+    const capacity = Math.min(effectiveCourts, Math.floor(teams.length / 2));
+    const matches = nextMatches(teams, fixtures, history, capacity);
+    const courts = matchesToCourts(teams, matches);
+
+    const playing = new Set(courts.flatMap((c) => [...c.team1, ...c.team2]).map((p) => p.id));
+    const sitOuts = players.filter((p) => !playing.has(p.id));
+
+    updateHistory(history, courts, sitOuts);
+    recordTeamMatches(history, courts, teams);
+
+    // The spare on an odd roster falls out of this naturally: they are in no
+    // team, so they are never in `playing`, so they sit every round.
+    return { roundNumber, courts, sitOuts };
+  }
 
   // Locked players cannot sit out (only applies on the pure-locks path).
   const lockedIds = hasLocks && !hasPartnerships
@@ -315,11 +352,17 @@ export function regenerateRemaining(
   // still appear in them; their history entries are harmless because they are
   // never candidates for the rounds being rebuilt.
   const completedInOrder = allRounds.filter((r) => completedSet.has(r.roundNumber));
+  // On a partner-play night the fixtures already used up are replayed too, so a
+  // reshuffle of the rounds still to come carries on down the list rather than
+  // starting the round robin again and repeating fixtures already played.
+  const partnerPlay = partnerPlayTeams(players, partnerships);
   for (const round of completedInOrder) {
     updateHistory(history, round.courts, round.sitOuts);
     const playedAs = roundTypeOf(round);
     if (playedAs) {
       updateSpecialMissCounts(history, playedAs, round.courts, round.sitOuts);
+    } else if (partnerPlay) {
+      recordTeamMatches(history, round.courts, partnerPlay.teams);
     }
   }
 

@@ -118,4 +118,11 @@ export interface PairingHistory {
    * got an ordinary one. Whoever has missed most goes first next time.
    */
   specialMissCounts: Record<RoundType, Record<string, number>>;
+  /**
+   * On a night of partner play, how many times each pair of fixed teams has met.
+   * Keyed by the two team keys, so it survives a reshuffle: the round robin
+   * reads the lowest count off here to know which fixtures are still owed.
+   * Empty on every other kind of session.
+   */
+  teamMatchCounts: Record<string, number>;
 }
