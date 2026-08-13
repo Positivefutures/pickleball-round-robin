@@ -29,7 +29,7 @@ export function PartnerPairing({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div data-tutorial="partner-pairing">
+    <div>
       <div className="mb-3">
         {/* The same chain link as the button that opened this, so the heading
             confirms where you have landed. Its own colour rather than one of

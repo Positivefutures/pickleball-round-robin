@@ -62,7 +62,6 @@ export function PlayerMenu({
             Edit Player
           </button>
           <button
-            data-tutorial="remove-remaining"
             type="button"
             onClick={onRemove}
             className={`${row} border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}

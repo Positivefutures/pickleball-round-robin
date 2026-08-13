@@ -583,9 +583,8 @@ describe('signing in on a device still holding only the example group', () => {
     expect(rowsFor('rosters').map((r) => r.name)).toContain('Sunday');
   });
 
-  it('takes it silently even after the tour removed sample players', async () => {
-    // The tutorial has people leave the session and the group. Fewer sample
-    // players than the seed wrote is still nothing anybody made.
+  it('takes it silently even after sample players were deleted', async () => {
+    // Fewer sample players than the seed wrote is still nothing anybody made.
     fresh(seededPlayers().slice(4));
     accountHasGroups();
 
@@ -702,7 +701,7 @@ describe('signing in on a device still holding only the example group', () => {
   it('hands over a plain empty group when the account holds nothing and the example must go', async () => {
     // Signed into somebody else before, meeting an empty account. The example
     // is replaced, and what replaces it is a plain group — this person has an
-    // account, they are past being toured.
+    // account, they are past needing samples.
     fresh();
     __testing.account.set(SOMEONE_ELSE);
 

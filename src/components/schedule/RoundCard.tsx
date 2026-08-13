@@ -90,9 +90,6 @@ export function RoundCard({
 
   return (
     <div
-      // The tour spotlights "the first round still being played", which is
-      // exactly the cards this attribute is absent from completed ones.
-      data-tutorial={isComplete ? undefined : 'open-round'}
       className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
       style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
     >

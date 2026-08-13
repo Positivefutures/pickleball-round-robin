@@ -40,11 +40,11 @@ const TOPICS = [
 let root: Root;
 let container: HTMLElement;
 
-function mount(onStartTutorial: () => void = () => {}): HTMLElement {
+function mount(): HTMLElement {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  act(() => root.render(createElement(InstructionsPanel, { onClose: () => {}, onStartTutorial })));
+  act(() => root.render(createElement(InstructionsPanel, { onClose: () => {} })));
   return container;
 }
 
@@ -74,20 +74,6 @@ function allText(): string {
 }
 
 describe('the topic list', () => {
-  it('puts the tutorial entry above the chapter list, and it fires', () => {
-    let started = 0;
-    mount(() => {
-      started += 1;
-    });
-
-    const body = container.textContent ?? '';
-    expect(body.indexOf('Take the Tutorial')).toBeGreaterThan(-1);
-    expect(body.indexOf('Take the Tutorial')).toBeLessThan(body.indexOf('Quick start'));
-
-    click('Take the Tutorial');
-    expect(started).toBe(1);
-  });
-
   it('offers every chapter, and each one opens and comes back', () => {
     mount();
     for (const topic of TOPICS) {

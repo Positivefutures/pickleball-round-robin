@@ -747,8 +747,8 @@ function counts(snapshot: Snapshot): Counts {
  * seed's record (pb-example-meta) names the roster and every sample player it
  * minted. One group, and it is that roster, still carrying the name the app
  * gave it, because renaming it is the smallest sign a host has started using
- * it. And every player still one of the seeded ones: deletions are fine, the
- * tour removes people, but a single player somebody typed in is the whole of
+ * it. And every player still one of the seeded ones: deletions are fine, but a
+ * single player somebody typed in is the whole of
  * what a merge could have saved, and the question gets asked.
  *
  * This is not "the device looks quiet", it is "there is provably nothing here
@@ -1036,7 +1036,7 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
     // The account may be empty, which is a real answer on a shared device: the
     // person signing in has nothing yet. The app still needs one group to open
     // on. Not the example group — this person has an account, they are past
-    // being toured — so a plain empty one.
+    // needing samples — so a plain empty one.
     stores.rosters.set(
       answered.server.rosters.length > 0
         ? answered.server.rosters

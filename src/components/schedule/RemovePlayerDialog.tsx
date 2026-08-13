@@ -67,7 +67,6 @@ export function RemovePlayerDialog({
                 Cancel
               </button>
               <button
-                data-tutorial="remove-confirm"
                 onClick={onConfirm}
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
               >

@@ -56,10 +56,9 @@ export const RUNTIME_CACHED_PUBLIC = [
   // session like the banner, and in the same way: it is decoration, so a first
   // visit that has not fetched it yet loses nothing.
   '/corner-dots.png',
-  // Named in the manifest, fetched by the operating system when the app is
-  // added to a home screen, and rendered large by the tutorial splash. 252 KB.
-  // On screen at first launch like the banner halves above, and cached the
-  // same way: a first launch necessarily has a network.
+  // Named in the manifest and fetched by the operating system when the app is
+  // added to a home screen, which only happens online. 252 KB, and the app
+  // itself never renders it.
   '/icon-512.png',
   // The same icon inset into Android's 80% safe zone, so its mask crops white
   // rather than cropping the ring. Fetched at install time like the one above,

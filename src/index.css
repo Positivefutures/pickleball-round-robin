@@ -84,29 +84,12 @@ body {
   padding-right: 0.25rem;
 }
 
-/* The tutorial's arrow bobs toward whatever the tour is pointing at. */
-@keyframes tutorial-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(8px);
-  }
-}
-.tutorial-arrow {
-  animation: tutorial-bob 1s ease-in-out infinite;
-}
-
-/* The Actions sheet and the tutorial arrow are the only things in the app that
-   move. Somebody who has asked their system not to animate gets each where it
-   is going without the travel, rather than not at all. */
+/* The Actions sheet is the one thing in the app that moves. Somebody who has
+   asked their system not to animate gets it where it is going without the
+   travel, rather than not at all. */
 @media (prefers-reduced-motion: reduce) {
   .sheet-panel {
     transition: none !important;
-  }
-  .tutorial-arrow {
-    animation: none !important;
   }
 }
 

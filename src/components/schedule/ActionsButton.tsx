@@ -42,7 +42,6 @@ export function ActionsButton({ onClick }: { onClick: () => void }) {
         <Halftone side="left" colour="#F36C11" />
         <Halftone side="right" colour="#2E9DB6" />
         <button
-          data-tutorial="actions-button"
           type="button"
           onClick={onClick}
           aria-haspopup="dialog"

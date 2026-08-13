@@ -46,9 +46,6 @@ function seed(inGroup: number, selected: number, courts: number, scoring = false
   window.localStorage.setItem('pb-num-courts', JSON.stringify(courts));
   window.localStorage.setItem('pb-num-rounds', JSON.stringify(8));
   window.localStorage.setItem('pb-scoring-enabled', JSON.stringify(scoring));
-  // These tests are about everything except the tutorial, whose splash would
-  // otherwise greet every mount. App.splash.test.ts leaves this flag off.
-  window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
   runMigrations();
 }
 
@@ -623,7 +620,6 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
   /** Seeds two groups with Ava in both. */
   function seedTwoGroups() {
     window.localStorage.clear();
-    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify([
@@ -694,7 +690,6 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     act(() => root.unmount());
     container.remove();
     window.localStorage.clear();
-    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     runMigrations();
     mount();
     openImportExport();
@@ -2541,7 +2536,6 @@ describe('the player roster panel', () => {
    */
   function seedGroups(twoGroups = true, outsider = false) {
     window.localStorage.clear();
-    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify(
@@ -3161,7 +3155,6 @@ describe('changing groups', () => {
 
   function seedTwoGroups() {
     window.localStorage.clear();
-    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify([

@@ -1,8 +1,8 @@
 import type { Gender, Player } from '../types';
 
 /**
- * The practice group a fresh install opens with, and the one the tutorial
- * plays in.
+ * The practice group a fresh install opens with: something to try before
+ * there is anything to type.
  *
  * Twenty-four people is enough for every feature to demonstrate itself: six
  * full courts, sit-outs when there are fewer, and an even split of men and
@@ -56,10 +56,9 @@ export const EXAMPLE_ROSTER: { name: string; rating: number; gender: Gender }[] 
 /**
  * The twenty-four sample players, freshly minted for one roster.
  *
- * Ids come from the caller so the migration and the tutorial's temporary group
- * can each hand in generateId(). Always fresh, never matched against existing
- * players by name — a host may genuinely have a Sarah M. of their own, and she
- * must not be pulled into a group that gets deleted when the tutorial ends.
+ * Ids come from the caller, which hands in generateId(). Always fresh, never
+ * matched against existing players by name — a host may genuinely have a
+ * Sarah M. of their own, and she is not one of the samples.
  */
 export function buildExamplePlayers(rosterId: string, newId: () => string): Player[] {
   return EXAMPLE_ROSTER.map((entry) => ({

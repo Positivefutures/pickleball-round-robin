@@ -196,34 +196,3 @@ export const swapHintDismissed = createStoredValue('pb-swap-hint-dismissed', fal
  * device's seed, not the person's data.
  */
 export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMeta, null);
-
-/**
- * The splash's "Don't show at startup" box. Device rather than person, like
- * the dismissals above it: a new phone showing the invitation once loses
- * nothing.
- */
-export const tutorialDismissed = createStoredValue('pb-tutorial-dismissed', false);
-
-/** True once the tutorial has been finished. Ends the splash's return visits. */
-export const tutorialCompleted = createStoredValue('pb-tutorial-completed', false);
-
-/**
- * When the splash last showed, epoch milliseconds. The first persisted
- * timestamp in the app: the splash returns on the Players tab at most once an
- * hour until it is completed or waved away, and an hour has to be measured
- * from somewhere that survives a relaunch.
- */
-export const tutorialSplashAt = createStoredValue<number>('pb-tutorial-splash-at', 0);
-
-/**
- * A tutorial run's cleanup record. A rerun plays in a temporary group that
- * must not outlive it, so the run is written down before the switch and erased
- * after the cleanup — whichever of finish, stop or next-launch sweep gets
- * there first. Null whenever no tutorial is underway.
- */
-export interface TutorialPersist {
-  mode: 'first-run' | 'rerun';
-  rerun?: { tempRosterId: string; tempPlayerIds: string[]; prevRosterId: string };
-}
-
-export const tutorialState = createStoredValue<TutorialPersist | null>('pb-tutorial-state', null);

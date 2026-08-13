@@ -14,8 +14,6 @@ import { SHOTS } from './instructionShots';
 
 interface Props {
   onClose: () => void;
-  /** Closes this panel and hands the screen to the guided tour. */
-  onStartTutorial: () => void;
 }
 
 /**
@@ -526,7 +524,7 @@ const BODY: Record<ChapterId, () => ReactNode> = {
 
 // ---------------------------------------------------------------- the panel --
 
-export function InstructionsPanel({ onClose, onStartTutorial }: Props) {
+export function InstructionsPanel({ onClose }: Props) {
   const [chapterId, setChapterId] = useState<ChapterId | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -605,29 +603,6 @@ export function InstructionsPanel({ onClose, onStartTutorial }: Props) {
                 plays with and against different people, and sit-outs are shared out
                 evenly. Tap a topic to read about it.
               </p>
-              {/* Promoted above the reading: the tour is doing, and doing
-                  teaches this app faster than any chapter. */}
-              <button
-                type="button"
-                onClick={onStartTutorial}
-                className="mb-4 flex w-full items-center gap-3.5 rounded-lg border-2 border-brand-orange bg-brand-orange-light px-4 py-3 text-left transition-colors hover:bg-orange-100"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-7 w-7 shrink-0"
-                  fill="var(--color-brand-orange)"
-                  aria-hidden="true"
-                >
-                  <path d="M8 5.5v13a1 1 0 0 0 1.52.85l10.2-6.5a1 1 0 0 0 0-1.7L9.52 4.65A1 1 0 0 0 8 5.5Z" />
-                </svg>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-bold text-gray-900">Take the Tutorial</span>
-                  <span className="block text-sm text-gray-500">
-                    A three minute guided tour. You do every step yourself.
-                  </span>
-                </span>
-                <ChevronLeftIcon className="h-5 w-5 shrink-0 rotate-180 text-gray-400" />
-              </button>
               <div className="space-y-2">
                 {CHAPTERS.map((c) => (
                   <button

@@ -18,7 +18,7 @@ export function PlayerSelector({
   const sorted = [...players].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div data-tutorial="player-selector">
+    <div>
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-[1.35rem] font-extrabold text-[#222]">
           Select Players
