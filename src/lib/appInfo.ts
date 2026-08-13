@@ -9,6 +9,13 @@
 export const APP_VERSION = '2.80';
 
 /**
+ * The app's name as the header and the splash screen show it. Here rather than
+ * in App.tsx so both can read the one string; `index.html`'s <title> writes it
+ * out again because static HTML cannot import a constant.
+ */
+export const APP_TITLE = 'Pickleball Round Robin Generator';
+
+/**
  * Master switch for the accounts feature.
  *
  * Back on 2026-08-08 to carry on testing. It was briefly off after a sign-in

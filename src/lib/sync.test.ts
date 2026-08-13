@@ -18,6 +18,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { AuthState } from './auth';
 import type { Player } from '../types';
+import { buildExamplePlayers } from './exampleGroup';
 
 // ------------------------------------------------------------ the stand-ins --
 
@@ -518,24 +519,30 @@ describe('a question left unanswered while the app carries on', () => {
  * The one case where the merge question is skipped, and why skipping it is not
  * the same as the silent branches above.
  *
- * A fresh install opens on one empty group called "My First Group". Somebody
+ * A fresh install opens on the example group and its sample players. Somebody
  * signing in on it, who already has groups on their account, was being asked
  * whether to combine the two or replace one — a warning about their own data,
- * about a group they never made, with one sensible answer. The placeholder is
- * taken away with the same move that brings their groups down.
+ * about two dozen players they never made, with one sensible answer. The
+ * example is taken away with the same move that brings their groups down.
  *
  * Every test below that still expects 'choice' is the important half. The guard
  * has to be narrow, or it becomes a silent replace, which is the exact thing the
  * rest of this file exists to prevent.
  */
-describe('signing in on a device holding only the starter group', () => {
+describe('signing in on a device still holding only the example group', () => {
+  function seededPlayers() {
+    let n = 0;
+    return buildExamplePlayers('g1', () => `ex${n++}`);
+  }
+
   /** Puts the device in the state a fresh install leaves it in. */
-  function fresh(rosters = [{ id: 'g1', name: 'My First Group' }], players: Player[] = []) {
+  function fresh(players = seededPlayers(), rosters = [{ id: 'g1', name: 'Example Group' }]) {
     // Set rather than seeded through storage: these stores are module-level and
     // a live subscription from an earlier test keeps their cache.
     stores.rosters.set(rosters);
     stores.players.set(players);
     stores.activeRosterId.set(rosters[0].id);
+    stores.exampleMeta.set({ rosterId: 'g1', playerIds: seededPlayers().map((p) => p.id) });
     outbox.set({});
   }
 
@@ -544,7 +551,7 @@ describe('signing in on a device holding only the starter group', () => {
     server.players = [serverPlayer('sp', 'Ava', ['sg'])];
   }
 
-  it('takes the account copy without asking, and the placeholder goes with it', async () => {
+  it('takes the account copy without asking, and the example goes with it', async () => {
     fresh();
     accountHasGroups();
 
@@ -555,9 +562,11 @@ describe('signing in on a device holding only the starter group', () => {
     expect(syncStatusStore.get().state).not.toBe('choice');
     expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
     expect(names(stores.players.get())).toEqual(['Ava']);
-    // The whole point: no empty group left behind next to their real ones.
-    expect(stores.rosters.get().map((r) => r.name)).not.toContain('My First Group');
+    // The whole point: no sample crowd left behind next to their real groups.
+    expect(stores.rosters.get().map((r) => r.name)).not.toContain('Example Group');
     expect(stores.activeRosterId.get()).toBe('sg');
+    // The seed record goes with it, so this branch can never match again.
+    expect(stores.exampleMeta.get()).toBeNull();
   });
 
   it('claims the device, so the next edit is saved rather than asked about', async () => {
@@ -574,36 +583,49 @@ describe('signing in on a device holding only the starter group', () => {
     expect(rowsFor('rosters').map((r) => r.name)).toContain('Sunday');
   });
 
-  it('still asks when somebody is in that group, which is a host who has started', async () => {
-    fresh(
-      [{ id: 'g1', name: 'My First Group' }],
-      [{ id: 'p1', name: 'Ava', rating: 4, gender: 'F', rosterIds: ['g1'] }]
-    );
+  it('takes it silently even after the tour removed sample players', async () => {
+    // The tutorial has people leave the session and the group. Fewer sample
+    // players than the seed wrote is still nothing anybody made.
+    fresh(seededPlayers().slice(4));
     accountHasGroups();
 
     startSync();
     signIn(ME);
     await settle();
 
-    expect(syncStatusStore.get().state).toBe('choice');
+    expect(syncStatusStore.get().state).not.toBe('choice');
   });
 
-  it('still asks when the group has been renamed, empty or not', async () => {
-    // Renaming it is the smallest sign somebody means to use it, and the name
-    // is the only thing separating a placeholder from a group made on purpose.
-    fresh([{ id: 'g1', name: 'Tuesday' }]);
-    accountHasGroups();
-
-    startSync();
-    signIn(ME);
-    await settle();
-
-    expect(syncStatusStore.get().state).toBe('choice');
-  });
-
-  it('still asks when there is a second group, empty or not', async () => {
+  it('still asks when somebody typed a player in, which is a host who has started', async () => {
     fresh([
-      { id: 'g1', name: 'My First Group' },
+      ...seededPlayers(),
+      { id: 'p9', name: 'Jeff B', rating: 4, gender: 'M', rosterIds: ['g1'] }
+    ]);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still asks when the group has been renamed', async () => {
+    // Renaming it is the smallest sign somebody means to use it, and the name
+    // is part of what separates the seed's group from one meant on purpose.
+    fresh(seededPlayers(), [{ id: 'g1', name: 'Tuesday' }]);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still asks when there is a second group', async () => {
+    fresh(seededPlayers(), [
+      { id: 'g1', name: 'Example Group' },
       { id: 'g2', name: 'Sunday' }
     ]);
     accountHasGroups();
@@ -615,23 +637,56 @@ describe('signing in on a device holding only the starter group', () => {
     expect(syncStatusStore.get().state).toBe('choice');
   });
 
+  it('still asks on an install with no seed record, example-looking or not', async () => {
+    // An updated install never had the seed. Whatever it holds, somebody put
+    // it there.
+    fresh();
+    stores.exampleMeta.set(null);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).toBe('choice');
+  });
+
+  it('still adopts a never-used install from before the example existed', async () => {
+    // The old starter group, empty and never renamed, is the same provable
+    // nothing it always was.
+    stores.rosters.set([{ id: 'g1', name: 'My First Group' }]);
+    stores.players.set([]);
+    stores.activeRosterId.set('g1');
+    stores.exampleMeta.set(null);
+    outbox.set({});
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
+  });
+
   it('still seeds a first sign-in up when the account is empty, rather than adopting nothing', async () => {
-    // The placeholder is this person's only group and there is nothing to
-    // replace it with. Taking the account copy here would hand them an empty
-    // account and quietly drop the group the app opens on.
+    // The example is this person's only group and there is nothing to replace
+    // it with. Taking the account copy here would hand them an empty account
+    // and quietly drop the group the app opens on.
     fresh();
     startSync();
     signIn(ME);
     await settle();
 
     expect(syncStatusStore.get().state).not.toBe('choice');
-    expect(stores.rosters.get().map((r) => r.name)).toEqual(['My First Group']);
-    expect(rowsFor('rosters').map((r) => r.name)).toContain('My First Group');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Example Group']);
+    expect(rowsFor('rosters').map((r) => r.name)).toContain('Example Group');
+    expect(rowsFor('players')).toHaveLength(24);
   });
 
   it('does not ask a device that was signed into somebody else, having nothing of theirs', async () => {
     // The other-account warning protects data this device is holding for the
-    // previous person. An empty placeholder is not that.
+    // previous person. A crowd of sample players is not that.
     fresh();
     __testing.account.set(SOMEONE_ELSE);
     accountHasGroups();
@@ -642,6 +697,23 @@ describe('signing in on a device holding only the starter group', () => {
 
     expect(syncStatusStore.get().state).not.toBe('choice');
     expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
+  });
+
+  it('hands over a plain empty group when the account holds nothing and the example must go', async () => {
+    // Signed into somebody else before, meeting an empty account. The example
+    // is replaced, and what replaces it is a plain group — this person has an
+    // account, they are past being toured.
+    fresh();
+    __testing.account.set(SOMEONE_ELSE);
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get()).toEqual([{ id: 'default', name: 'My Group' }]);
+    expect(stores.players.get()).toEqual([]);
+    expect(stores.exampleMeta.get()).toBeNull();
   });
 });
 

@@ -45,6 +45,7 @@ function seed() {
   window.localStorage.setItem('pb-selected-ids', JSON.stringify(players.map((p) => p.id)));
   window.localStorage.setItem('pb-num-courts', JSON.stringify(2));
   window.localStorage.setItem('pb-num-rounds', JSON.stringify(4));
+  window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
   runMigrations();
 }
 

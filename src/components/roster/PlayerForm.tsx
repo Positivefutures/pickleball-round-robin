@@ -136,7 +136,7 @@ export function PlayerForm({
   );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form data-tutorial="player-form" onSubmit={handleSubmit} className="space-y-4">
       <div className="flex gap-3 items-end flex-wrap">
       <div className="flex-1 min-w-[160px]">
         <label className={`${FIELD_LABEL} mb-1`}>
@@ -151,6 +151,7 @@ export function PlayerForm({
             McDonald, and a name does want its first letter capitalised. */}
         <input
           ref={nameRef}
+          data-tutorial="player-name-input"
           type="text"
           value={name}
           onChange={(e) => {

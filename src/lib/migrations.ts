@@ -1,6 +1,7 @@
 import type { Player, Roster, SpecialGameTypes } from '../types';
 import { generateId } from '../utils/helpers';
 import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './roundTypes';
+import { EXAMPLE_GROUP_NAME, buildExamplePlayers } from './exampleGroup';
 
 export const KEYS = {
   rosters: 'pb-rosters',
@@ -14,11 +15,13 @@ export const KEYS = {
   specialTypes: 'pb-special-types',
   legacyGenderedEnabled: 'pb-gendered-enabled',
   legacyGenderedFrequency: 'pb-gendered-frequency',
+  exampleMeta: 'pb-example-meta',
 } as const;
 
-// Only ever applied on a fresh install (see the freshInstall branch below), so
-// existing users keep the group name they already have.
-export const DEFAULT_ROSTER_NAME = 'My First Group';
+// The name minted when the app needs a group and has no example to give: a
+// legacy pool being re-homed, or an empty account being adopted. Fresh installs
+// get the example group instead — see the seeding branch below.
+export const EMPTY_GROUP_NAME = 'My Group';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -44,11 +47,27 @@ function write(key: string, value: unknown) {
  */
 export function runMigrations() {
   let rosters = read<Roster[]>(KEYS.rosters, []);
-  const freshInstall = rosters.length === 0;
 
-  if (freshInstall) {
-    rosters = [{ id: generateId(), name: DEFAULT_ROSTER_NAME }];
-    write(KEYS.rosters, rosters);
+  if (rosters.length === 0) {
+    const pool = read<Player[]>(KEYS.players, []);
+    if (pool.length === 0) {
+      // A true fresh install: no groups and nobody in the pool. Open on the
+      // example group, fully populated, so there is something to try before
+      // there is anything to type. What was seeded is recorded so sync can
+      // tell an untouched example install from data somebody made.
+      const rosterId = generateId();
+      rosters = [{ id: rosterId, name: EXAMPLE_GROUP_NAME }];
+      const seeded = buildExamplePlayers(rosterId, generateId);
+      write(KEYS.rosters, rosters);
+      write(KEYS.players, seeded);
+      write(KEYS.exampleMeta, { rosterId, playerIds: seeded.map((p) => p.id) });
+    } else {
+      // A pool from before groups existed, with no roster list yet. Those
+      // players get a plain group of their own — never the example crowd,
+      // which would bury a real roster under twenty-four strangers.
+      rosters = [{ id: generateId(), name: EMPTY_GROUP_NAME }];
+      write(KEYS.rosters, rosters);
+    }
   }
 
   const rosterIds = new Set(rosters.map((r) => r.id));

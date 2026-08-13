@@ -544,6 +544,7 @@ export function ActionsSheet({
                       return (
                         <button
                           key={card.view}
+                          data-tutorial={`card-${card.view}`}
                           type="button"
                           disabled={reason !== null}
                           title={reason ?? undefined}
@@ -598,6 +599,7 @@ export function ActionsSheet({
                       </button>
                     ))}
                     <button
+                      data-tutorial="someone-new"
                       type="button"
                       className={`${ROW} font-medium text-green-700`}
                       onClick={() => setView('new-player')}
@@ -719,6 +721,7 @@ export function ActionsSheet({
                           Cancel
                         </button>
                         <button
+                          data-tutorial="rebuild-rounds"
                           type="button"
                           className={PRIMARY_ORANGE}
                           onClick={() => {
@@ -742,6 +745,7 @@ export function ActionsSheet({
                     </p>
                     <div className={CONFIRM_FOOT}>
                       <button
+                        data-tutorial="confirm-new-session"
                         type="button"
                         className={DESTRUCTIVE}
                         onClick={() => {

@@ -46,6 +46,9 @@ function seed(inGroup: number, selected: number, courts: number, scoring = false
   window.localStorage.setItem('pb-num-courts', JSON.stringify(courts));
   window.localStorage.setItem('pb-num-rounds', JSON.stringify(8));
   window.localStorage.setItem('pb-scoring-enabled', JSON.stringify(scoring));
+  // These tests are about everything except the tutorial, whose splash would
+  // otherwise greet every mount. App.splash.test.ts leaves this flag off.
+  window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
   runMigrations();
 }
 
@@ -620,6 +623,7 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
   /** Seeds two groups with Ava in both. */
   function seedTwoGroups() {
     window.localStorage.clear();
+    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify([
@@ -690,6 +694,7 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     act(() => root.unmount());
     container.remove();
     window.localStorage.clear();
+    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     runMigrations();
     mount();
     openImportExport();
@@ -716,7 +721,13 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     const idOf = (n: string) => rosters.find((r: { name: string }) => r.name === n).id;
     expect(avas[0].rosterIds).toContain(idOf('Tuesday'));
     expect(avas[0].rosterIds).toContain(idOf('Thursday'));
-    expect(players).toHaveLength(3);
+    // A clean install opens with the 24 sample players; the import lands
+    // beside them, never merged into them.
+    const imported = players.filter((p: { rosterIds: string[] }) =>
+      p.rosterIds.some((id) => id === idOf('Tuesday') || id === idOf('Thursday'))
+    );
+    expect(imported).toHaveLength(3);
+    expect(players).toHaveLength(27);
   });
 
   /**
@@ -2530,6 +2541,7 @@ describe('the player roster panel', () => {
    */
   function seedGroups(twoGroups = true, outsider = false) {
     window.localStorage.clear();
+    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify(
@@ -3149,6 +3161,7 @@ describe('changing groups', () => {
 
   function seedTwoGroups() {
     window.localStorage.clear();
+    window.localStorage.setItem('pb-tutorial-dismissed', JSON.stringify(true));
     window.localStorage.setItem(
       'pb-rosters',
       JSON.stringify([

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runMigrations, KEYS, DEFAULT_ROSTER_NAME } from './migrations';
+import { runMigrations, KEYS, EMPTY_GROUP_NAME } from './migrations';
 import type { Player, SpecialGameTypes } from '../types';
 import { ROUND_TYPES, orderedTypes } from './roundTypes';
 
@@ -15,15 +15,58 @@ beforeEach(() => localStorage.clear());
 describe('runMigrations — rosters', () => {
   // The literal, not the constant — this pins what a first-time user actually
   // sees, which asserting against the imported constant would not.
-  it('drops a first-time user into "My First Group"', () => {
+  it('drops a first-time user into "Example Group" with 24 sample players', () => {
     runMigrations();
     const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
     expect(rosters).toHaveLength(1);
-    expect(rosters[0].name).toBe('My First Group');
-    expect(DEFAULT_ROSTER_NAME).toBe('My First Group');
+    expect(rosters[0].name).toBe('Example Group');
     expect(read<string>(KEYS.activeRoster)).toBe(rosters[0].id);
+
+    const players = read<Player[]>(KEYS.players);
+    expect(players).toHaveLength(24);
+    expect(players.filter((p) => p.gender === 'M')).toHaveLength(12);
+    expect(players.filter((p) => p.gender === 'F')).toHaveLength(12);
+    expect(players.every((p) => p.rating >= 3.0 && p.rating <= 4.5)).toBe(true);
+    // A spread of levels, not one number 24 times over.
+    expect(new Set(players.map((p) => p.rating)).size).toBeGreaterThanOrEqual(5);
+    // First name and last initial, the way a host would type them.
+    expect(players.every((p) => /^[A-Z][a-z]+ [A-Z]\.$/.test(p.name))).toBe(true);
+    expect(
+      players.every((p) => p.rosterIds.length === 1 && p.rosterIds[0] === rosters[0].id)
+    ).toBe(true);
+
     expect(read<number[]>(KEYS.completedRounds)).toEqual([]);
     expect(read<unknown[]>(KEYS.partnerships)).toEqual([]);
+  });
+
+  it('records the example seed so sync can recognise an untouched install', () => {
+    runMigrations();
+    const rosters = read<{ id: string }[]>(KEYS.rosters);
+    const players = read<Player[]>(KEYS.players);
+    const meta = read<{ rosterId: string; playerIds: string[] }>(KEYS.exampleMeta);
+    expect(meta.rosterId).toBe(rosters[0].id);
+    expect([...meta.playerIds].sort()).toEqual(players.map((p) => p.id).sort());
+  });
+
+  it('gives a legacy player pool a plain group, never the example one', () => {
+    // Players from before groups existed, with no roster list yet. Burying
+    // them under 24 strangers would be worse than no seed at all.
+    seed({ [KEYS.players]: [{ id: 'a', name: 'Jeff B', rating: 4.0, gender: 'M' }] });
+    runMigrations();
+    const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
+    expect(rosters).toHaveLength(1);
+    expect(rosters[0].name).toBe('My Group');
+    expect(EMPTY_GROUP_NAME).toBe('My Group');
+    expect(read<Player[]>(KEYS.players)).toHaveLength(1);
+    expect(read<unknown>(KEYS.exampleMeta)).toBeNull();
+  });
+
+  it('seeds the example only once', () => {
+    runMigrations();
+    const snapshot = JSON.stringify(localStorage);
+    runMigrations();
+    expect(JSON.stringify(localStorage)).toBe(snapshot);
+    expect(read<Player[]>(KEYS.players)).toHaveLength(24);
   });
 
   it('never renames a group an existing user already has', () => {

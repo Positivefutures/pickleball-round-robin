@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import {
+  useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore,
+} from 'react';
 import type { Gender, Player, Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
@@ -48,16 +50,20 @@ import { scheduleToPdf, PDF_FILE_NAME, PDF_TITLE } from './lib/schedulePdf';
 import { isStandalone, isIos, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
-import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL } from './lib/appInfo';
+import {
+  APP_VERSION, APP_TITLE, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL,
+} from './lib/appInfo';
+import { SplashScreen } from './components/tutorial/SplashScreen';
+import { TutorialOverlay } from './components/tutorial/TutorialOverlay';
+import {
+  startTutorial, sweepAbandonedTutorial, subscribeTutorial, getTutorialView,
+} from './lib/tutorial';
 import { RosterPage } from './components/roster/RosterPage';
 import { GroupPicker } from './components/roster/GroupPicker';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
 import { PrintSchedule } from './components/print/PrintSchedule';
-
-// Shown in the banner on the Players step, and as the settings drawer's heading.
-const APP_TITLE = 'Pickleball Round Robin Generator';
 
 function App() {
   const {
@@ -182,11 +188,45 @@ function App() {
   // stale complaint cannot outlive the attempt that caused it.
   const [printProblem, setPrintProblem] = useState<PrintProblem | null>(null);
 
+  // The guided tour: null while it is not running. The engine owns the state;
+  // this is a window onto it.
+  const tutorialView = useSyncExternalStore(subscribeTutorial, getTutorialView, getTutorialView);
+  const [showSplash, setShowSplash] = useState(false);
+
+  // A tutorial recorded as underway on a fresh mount is one a reload or crash
+  // walked out on. Swept before first paint, so a rerun's leftover temporary
+  // group never gets a frame on screen.
+  useLayoutEffect(() => {
+    sweepAbandonedTutorial();
+  }, []);
+
+  // The splash greets a launch and returns on the Players tab at most once an
+  // hour, until the tour is completed or waved away with its checkbox.
+  useEffect(() => {
+    if (tutorialView || showSplash) return;
+    if (step !== 'roster') return;
+    if (stores.tutorialCompleted.get() || stores.tutorialDismissed.get()) return;
+    if (Date.now() - stores.tutorialSplashAt.get() < 3_600_000) return;
+    setShowSplash(true);
+    stores.tutorialSplashAt.set(Date.now());
+  }, [step, tutorialView, showSplash]);
+
+  // One door into the tour, from the splash and from Instructions alike.
+  // Whatever panel is open closes first; the overlay owns the screen from here.
+  const handleStartTutorial = useCallback(() => {
+    setShowSplash(false);
+    setShowInstructions(false);
+    setSettingsOpen(false);
+    startTutorial();
+  }, []);
+
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
+  // The tutorial overlay is deliberately absent: several of the dialogs it
+  // spotlights hold this lock themselves, and two locks fight over the offset.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
-    !!feedbackKind || showDonate || showShare || showAccount || showInstall
+    !!feedbackKind || showDonate || showShare || showAccount || showInstall || showSplash
   );
 
   // Every step starts at the top. The button that moved you here is often the
@@ -1129,7 +1169,10 @@ function App() {
       </div>
 
       {showInstructions && (
-        <InstructionsPanel onClose={() => setShowInstructions(false)} />
+        <InstructionsPanel
+          onClose={() => setShowInstructions(false)}
+          onStartTutorial={handleStartTutorial}
+        />
       )}
 
       {showShare && <SharePanel onClose={() => setShowShare(false)} />}
@@ -1186,6 +1229,16 @@ function App() {
           onClose={() => setShowDefaultRating(false)}
         />
       )}
+
+      {/* Last of the overlays, so they paint above every panel and every
+          dialog trapped in the app-panel's stacking context. */}
+      {showSplash && (
+        <SplashScreen
+          onStartTutorial={handleStartTutorial}
+          onClose={() => setShowSplash(false)}
+        />
+      )}
+      {tutorialView && <TutorialOverlay view={tutorialView} />}
 
       {/* Outside the sliding panel so a print started from the drawer is never
           caught mid-slide. */}

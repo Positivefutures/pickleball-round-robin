@@ -124,7 +124,7 @@ export function SessionConfig({
   const specials = specialSummary(specialTypes, numRounds);
 
   return (
-    <div className="space-y-4">
+    <div data-tutorial="session-config" className="space-y-4">
       {/* Bottom-aligned, so the two rows of keys stay level with each other when
           one label wraps and the other does not. In large text on a phone,
           "Number of Rounds" takes two lines and "Number of Courts" takes one. */}

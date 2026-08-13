@@ -2,7 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Player, Roster, SpecialGameTypes } from '../types';
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore, initAuth } from './auth';
-import { DEFAULT_ROSTER_NAME } from './migrations';
+import { EMPTY_GROUP_NAME } from './migrations';
+import { EXAMPLE_GROUP_NAME } from './exampleGroup';
 import {
   drop,
   enqueue,
@@ -739,22 +740,36 @@ function counts(snapshot: Snapshot): Counts {
 }
 
 /**
- * Whether this device holds nothing but the empty group a fresh install opens
- * with.
+ * Whether this device holds nothing anybody made.
  *
- * All three parts matter. One group, because a second one is something somebody
- * made. Still carrying the name the app gave it, because renaming it is the
- * smallest sign a host has started using it. And nobody in it, which is the
- * whole of what a merge could have saved.
+ * A fresh install opens on the example group and its sample players, so
+ * "empty" is no longer the test — "still exactly what the seed wrote" is. The
+ * seed's record (pb-example-meta) names the roster and every sample player it
+ * minted. One group, and it is that roster, still carrying the name the app
+ * gave it, because renaming it is the smallest sign a host has started using
+ * it. And every player still one of the seeded ones: deletions are fine, the
+ * tour removes people, but a single player somebody typed in is the whole of
+ * what a merge could have saved, and the question gets asked.
  *
- * Anything else and the question still gets asked. This is not "the device
- * looks quiet", it is "there is provably nothing here to lose".
+ * This is not "the device looks quiet", it is "there is provably nothing here
+ * to lose".
  */
-function onlyTheStarterGroup(): boolean {
+function untouchedExampleInstall(): boolean {
   const { rosters, players } = snapshotNow();
-  return (
-    players.length === 0 && rosters.length === 1 && rosters[0].name === DEFAULT_ROSTER_NAME
-  );
+  const meta = stores.exampleMeta.get();
+  if (meta) {
+    const seeded = new Set(meta.playerIds);
+    return (
+      rosters.length === 1 &&
+      rosters[0].id === meta.rosterId &&
+      rosters[0].name === EXAMPLE_GROUP_NAME &&
+      players.every((p) => seeded.has(p.id))
+    );
+  }
+  // Installs from before the example group existed opened on one empty group
+  // named "My First Group". A never-used one is the same provable nothing it
+  // always was, so it keeps the silent path it always had.
+  return players.length === 0 && rosters.length === 1 && rosters[0].name === 'My First Group';
 }
 
 /**
@@ -837,20 +852,20 @@ async function onSignedIn(id: string) {
 
     const reason = owner === null ? ('server-has-data' as const) : ('other-account' as const);
 
-    // Nothing on this device but the empty group a fresh install opens with.
+    // Nothing on this device but what the fresh-install seed wrote.
     //
     // The question below is worth asking when both sides hold something. Here
-    // one side holds nothing: an empty placeholder cannot be folded into
-    // anybody's groups and cannot be lost by taking theirs. So the account's
-    // copy is taken whole, silently, and the placeholder goes with it — it is
-    // replaced rather than deleted, because adoptAccountCopy sets the roster
-    // list rather than editing it.
+    // one side holds nothing anybody made: sample players cannot be folded
+    // into anybody's groups and cannot be lost by taking theirs. So the
+    // account's copy is taken whole, silently, and the example goes with it —
+    // it is replaced rather than deleted, because adoptAccountCopy sets the
+    // roster list rather than editing it.
     //
     // Asking here offered a choice between the groups somebody already has and
-    // one they never made, phrased as a warning about their own data. It has
-    // one sensible answer, and a first sign-in is the worst moment to hand
-    // someone a decision they cannot lose by getting wrong.
-    if (onlyTheStarterGroup()) {
+    // two dozen players they never made, phrased as a warning about their own
+    // data. It has one sensible answer, and a first sign-in is the worst
+    // moment to hand someone a decision they cannot lose by getting wrong.
+    if (untouchedExampleInstall()) {
       choice = { id, reason, server, preferences: pulled.preferences, cursor: pulled.cursor };
       cancelRetry();
       await adoptAccountCopy();
@@ -1020,14 +1035,20 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
   try {
     // The account may be empty, which is a real answer on a shared device: the
     // person signing in has nothing yet. The app still needs one group to open
-    // on, so it gets the same starting group a fresh install would.
+    // on. Not the example group — this person has an account, they are past
+    // being toured — so a plain empty one.
     stores.rosters.set(
       answered.server.rosters.length > 0
         ? answered.server.rosters
-        : [{ id: 'default', name: DEFAULT_ROSTER_NAME }]
+        : [{ id: 'default', name: EMPTY_GROUP_NAME }]
     );
     stores.players.set(answered.server.players);
     stores.activeRosterId.set(stores.rosters.get()[0]?.id ?? 'default');
+
+    // The example the seed wrote is gone with everything else, so its record
+    // goes too. Left behind, the silent-adoption test above could mistake a
+    // future state for an untouched install.
+    stores.exampleMeta.set(null);
 
     // Every id the session referred to has just gone. Clearing it is honest;
     // leaving it would show a schedule of people who are no longer in the pool.

@@ -353,6 +353,7 @@ export function ManageRostersModal({
       <form onSubmit={handleAdd} className="flex gap-2 mb-5">
         <input
           ref={newNameRef}
+          data-tutorial="new-group-name"
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}

@@ -24,6 +24,7 @@ export function EditPlayerButton({
   const label = `Edit ${player.name}`;
   return (
     <span
+      data-tutorial="edit-player"
       role="button"
       tabIndex={0}
       aria-label={label}

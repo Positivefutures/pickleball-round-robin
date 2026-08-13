@@ -1,8 +1,9 @@
 import type { Player, Roster, Schedule, Partnership, SpecialGameTypes } from '../types';
 import type { Step } from './steps';
 import type { GroupSession } from './groupSessions';
+import type { ExampleMeta } from './exampleGroup';
 import { createStoredValue } from './store';
-import { KEYS, DEFAULT_ROSTER_NAME } from './migrations';
+import { KEYS, EMPTY_GROUP_NAME } from './migrations';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 
 /**
@@ -23,7 +24,7 @@ import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 
 /** runMigrations() guarantees at least one roster and a valid active id. */
 export const rosters = createStoredValue<Roster[]>(KEYS.rosters, [
-  { id: 'default', name: DEFAULT_ROSTER_NAME },
+  { id: 'default', name: EMPTY_GROUP_NAME },
 ]);
 
 export const activeRosterId = createStoredValue<string>(
@@ -186,3 +187,43 @@ export const signInDismissed = createStoredValue('pb-signin-dismissed', false);
  * by a new phone showing the hint once.
  */
 export const swapHintDismissed = createStoredValue('pb-swap-hint-dismissed', false);
+
+/**
+ * What the fresh-install seed created, or null on a device that was never
+ * seeded (updated installs, live-share viewers). Written by runMigrations(),
+ * read by sync to recognise a device holding nothing anybody made, and cleared
+ * when an account copy replaces the example. Never synced: it describes this
+ * device's seed, not the person's data.
+ */
+export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMeta, null);
+
+/**
+ * The splash's "Don't show at startup" box. Device rather than person, like
+ * the dismissals above it: a new phone showing the invitation once loses
+ * nothing.
+ */
+export const tutorialDismissed = createStoredValue('pb-tutorial-dismissed', false);
+
+/** True once the tutorial has been finished. Ends the splash's return visits. */
+export const tutorialCompleted = createStoredValue('pb-tutorial-completed', false);
+
+/**
+ * When the splash last showed, epoch milliseconds. The first persisted
+ * timestamp in the app: the splash returns on the Players tab at most once an
+ * hour until it is completed or waved away, and an hour has to be measured
+ * from somewhere that survives a relaunch.
+ */
+export const tutorialSplashAt = createStoredValue<number>('pb-tutorial-splash-at', 0);
+
+/**
+ * A tutorial run's cleanup record. A rerun plays in a temporary group that
+ * must not outlive it, so the run is written down before the switch and erased
+ * after the cleanup — whichever of finish, stop or next-launch sweep gets
+ * there first. Null whenever no tutorial is underway.
+ */
+export interface TutorialPersist {
+  mode: 'first-run' | 'rerun';
+  rerun?: { tempRosterId: string; tempPlayerIds: string[]; prevRosterId: string };
+}
+
+export const tutorialState = createStoredValue<TutorialPersist | null>('pb-tutorial-state', null);

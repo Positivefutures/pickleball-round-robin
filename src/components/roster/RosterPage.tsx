@@ -263,6 +263,7 @@ export function RosterPage({
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           <button
+            data-tutorial="manage-groups"
             onClick={() => setShowManage(true)}
             className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
           >
@@ -282,6 +283,7 @@ export function RosterPage({
       {players.length > 0 && (
         <div className="flex flex-col items-end gap-1">
           <button
+            data-tutorial="continue-setup"
             onClick={onContinue}
             disabled={players.length < 4}
             className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -296,7 +298,10 @@ export function RosterPage({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      <div
+        data-tutorial="roster-add-panel"
+        className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6"
+      >
         <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
           Add Player
           <AddPlayerSolidIcon className="w-[26px] h-[26px] text-[#60697c]" />

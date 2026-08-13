@@ -123,6 +123,7 @@ export function SetupPage({
     <div>
       <div className="flex justify-between">
         <button
+          data-tutorial="set-partners"
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
           className="flex items-center gap-2 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -139,6 +140,7 @@ export function SetupPage({
           )}
         </button>
         <button
+          data-tutorial="generate-schedule"
           onClick={handleGenerate}
           className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
         >
