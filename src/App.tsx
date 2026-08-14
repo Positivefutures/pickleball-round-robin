@@ -14,7 +14,7 @@ import { carryCourtNumbers } from './lib/courtNumbers';
 import { generateId } from './utils/helpers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
-import { PLAIN_ROBIN, openedSettings } from './lib/robins';
+import { PLAIN_ROBIN, openedSettings, warmRobin } from './lib/robins';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
   toAllGroupsFileName,
@@ -236,6 +236,13 @@ function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [step]);
+
+  // Gets the next dressed-up robin fetched and decoded, if one is due on the
+  // next open of the settings drawer. Nothing happens on the visits in between,
+  // so an ordinary session makes no request for it at all.
+  useEffect(() => {
+    warmRobin();
+  }, []);
 
   // Before first paint, so a tour interrupted by a relaunch is either back on
   // screen or gone, never flashing on a frame late.

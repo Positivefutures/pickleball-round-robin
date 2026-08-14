@@ -12,6 +12,7 @@ import { __testing as supabaseTesting } from './lib/supabase';
 import { APP_URL } from './lib/appInfo';
 import { sharePayload } from './lib/share';
 import { ROUND_TYPE_META } from './lib/roundTypes';
+import { __robinTesting as robinTesting } from './lib/robins';
 import type { Schedule, Round, CourtAssignment } from './types';
 
 declare global {
@@ -3250,10 +3251,62 @@ describe('the settings drawer', () => {
 
     const COSTUME = /^\/robins\/[a-z]+\.webp$/;
 
+    // The queue is module state, so it outlives the test that filled it.
+    beforeEach(() => {
+      robinTesting.forget();
+      vi.unstubAllGlobals();
+    });
+
     function visit() {
       clickLabel('Open settings');
       clickLabel('Close settings');
     }
+
+    /** Every src handed to a `new Image()` from here on. */
+    function fetched(): string[] {
+      const srcs: string[] = [];
+      const real = window.Image;
+      vi.stubGlobal(
+        'Image',
+        class extends real {
+          set src(value: string) {
+            srcs.push(value);
+            super.src = value;
+          }
+          get src() {
+            return super.src;
+          }
+        }
+      );
+      return srcs;
+    }
+
+    it('fetches the next costume before the drawer is ever opened', () => {
+      // An image already on screen goes on painting the picture it has until
+      // the new one is fetched and decoded, measured at 400ms on a throttled
+      // connection. So the drawer has to be handed a picture that is already
+      // there, which means fetching it an open early.
+      window.localStorage.setItem('pb-settings-opens', '5');
+      const srcs = fetched();
+
+      mount();
+
+      const warmed = srcs.filter((s) => s.startsWith('/robins/'));
+      expect(warmed).toHaveLength(1);
+      clickLabel('Open settings');
+      expect(robin()).toBe(warmed[0]);
+    });
+
+    it('fetches nothing on a session that is nowhere near one', () => {
+      window.localStorage.setItem('pb-settings-opens', '1');
+      const srcs = fetched();
+
+      mount();
+      clickLabel('Open settings');
+
+      expect(srcs.filter((s) => s.startsWith('/robins/'))).toEqual([]);
+      expect(robin()).toBe('/icon-192.png');
+    });
 
     it('opens on the app icon five times, and dresses up on the sixth', () => {
       mount();
@@ -3598,6 +3651,13 @@ describe('the player panel on a court', () => {
  * way back up.
  */
 describe('the way between a round and the standings', () => {
+  // These spies are installed over and over in one file, and vitest hands back
+  // the spy that is already there rather than a fresh one. Without this the
+  // calls of the last test count towards the next.
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   /** Every element scrollIntoView was called on, in order. */
   function watchScroll(): Element[] {
     const seen: Element[] = [];
@@ -3639,10 +3699,45 @@ describe('the way between a round and the standings', () => {
     expect(text(seen[0].querySelector('h3')!)).toBe('Standings');
   });
 
-  it('offers the way back to the top from the table', () => {
+  it('goes to the very top while every round is still to play', () => {
     seed(9, 9, 2, true);
     mount();
     generate();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    clickButton(/^Back to Top$/);
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+  });
+
+  it('goes to the next round to play once anything is finished', () => {
+    // Not to the header: with rounds behind them the top of the page is a
+    // banner and a row of tabs, and what they came back for is under it.
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+    markComplete(2);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const seen = watchScroll();
+
+    clickButton(/^Back to Top$/);
+
+    // Nothing here may fall back to the top of the document. Only the object
+    // form is the page's own: releasing a scroll lock calls scrollTo(x, y).
+    expect(scrollTo.mock.calls.filter((c) => typeof c[0] === 'object')).toEqual([]);
+    expect(seen).toHaveLength(1);
+    expect(text(seen[0].querySelector('h3')!)).toBe('Round 3');
+    // The 24px gap between cards stays on screen, so the completed round above
+    // ends on the top edge rather than a hair over it.
+    expect((seen[0] as HTMLElement).className).toContain('scroll-mt-6');
+  });
+
+  it('goes back to the very top once there is no round left to play', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    for (let n = 1; n <= 8; n++) markComplete(n);
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 
     clickButton(/^Back to Top$/);

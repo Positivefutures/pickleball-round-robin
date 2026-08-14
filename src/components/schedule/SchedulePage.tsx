@@ -253,6 +253,16 @@ export function SchedulePage({
    */
   const standingsRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * The first round still to be played, which is where Back to Top goes.
+   *
+   * Completed rounds float to the top of the list, so this is the card directly
+   * under the last of them and it is the one thing on the page worth being
+   * shown. Null on a session where nothing is finished yet, and on one where
+   * everything is: neither has a next round to put at the top.
+   */
+  const nextRoundRef = useRef<HTMLDivElement>(null);
+
   function scrollBehavior(): ScrollBehavior {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
   }
@@ -261,7 +271,24 @@ export function SchedulePage({
     standingsRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   }
 
+  /**
+   * Back up the page, to the round being played rather than to the header.
+   *
+   * With rounds behind them, the top of the page is a banner and a row of tabs
+   * the host has read, and everything they came back for is below it. So the
+   * card that is next lands against the top of the screen instead, which puts
+   * the bottom edge of the last completed round exactly on it — the `scroll-mt`
+   * on that card is the gap between the two, so the gap stays on screen.
+   *
+   * With nothing completed, the first round is already the top of the page and
+   * the header goes with it.
+   */
   function scrollToTop() {
+    const next = nextRoundRef.current;
+    if (next) {
+      next.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+      return;
+    }
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 
@@ -622,6 +649,14 @@ export function SchedulePage({
     .map((round, roundIdx) => ({ round, roundIdx, complete: completedSet.has(round.roundNumber) }))
     .sort((a, b) => Number(b.complete) - Number(a.complete)); // stable: keeps numeric order within each group
 
+  // Where Back to Top lands: the first round still to play, but only once
+  // something is finished. With nothing finished the first round is the top of
+  // the page anyway, and the header deserves to come back with it.
+  const anyComplete = completedSet.size > 0;
+  const nextRoundNumber = anyComplete
+    ? orderedRounds.find(({ complete }) => !complete)?.round.roundNumber
+    : undefined;
+
   // Courts in play right now vs. what would remain after the pending removal.
   const currentCourts = effectiveCourtCount(players.length, numCourts);
   const nextCourts = effectiveCourtCount(players.length - 1, numCourts);
@@ -659,7 +694,16 @@ export function SchedulePage({
         // The tour's anchor goes on the round the host calls Round 1, keyed on
         // its number rather than on where it lands in the list: a completed
         // round floats to the top, and the tour must not follow it there.
-        <div key={round.roundNumber} data-tutorial={round.roundNumber === 1 ? 'round-1' : undefined}>
+        //
+        // scroll-mt-6 is the same 24px as the space-y-6 above it, so landing
+        // here leaves that gap on screen and the completed round above ends
+        // exactly on the top edge rather than a hair over it.
+        <div
+          key={round.roundNumber}
+          ref={round.roundNumber === nextRoundNumber ? nextRoundRef : undefined}
+          className={round.roundNumber === nextRoundNumber ? 'scroll-mt-6' : undefined}
+          data-tutorial={round.roundNumber === 1 ? 'round-1' : undefined}
+        >
           <RoundCard
             round={round}
             roundIdx={roundIdx}

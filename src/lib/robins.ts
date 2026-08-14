@@ -81,6 +81,53 @@ export function pickCostume(roll: number, last: number): number {
 }
 
 /**
+ * The costume already fetched and decoded, waiting for the open it belongs to.
+ *
+ * In memory rather than in storage on purpose. It is not a fact about the host,
+ * it is a picture this tab has ready, and a reload throws the picture away.
+ * warmRobin() runs again on the next mount and queues another.
+ *
+ * The Image is kept alive along with the name. Dropping it leaves the bytes in
+ * the HTTP cache but lets the decoded copy be collected, which is the half that
+ * costs the frame.
+ */
+let queued: { costume: number; src: string; img: HTMLImageElement } | null = null;
+
+/**
+ * Fetches and decodes the next costume, so the drawer opens with it already
+ * there.
+ *
+ * Setting `src` on an image on screen does not change what is on screen. The
+ * browser goes on painting the picture it has until the new one has been
+ * fetched and decoded, which measured at 400ms on a slow connection: the drawer
+ * slid open showing the app icon and the bird arrived afterwards, which gives
+ * the joke away as a glitch.
+ *
+ * So the work happens an open early. Called on mount and after every plain
+ * open, and it only reaches the network when a costume is genuinely next, which
+ * is one file of about 10 KB roughly every third visit to the drawer. A session
+ * that never gets near one never fetches anything.
+ *
+ * Returns what it queued, or null when nothing was due.
+ */
+export function warmRobin(): string | null {
+  if (queued) return queued.src;
+  if (!isCostumeOpen(settingsOpens.get() + 1)) return null;
+
+  const costume = pickCostume(Math.random(), lastRobin.get());
+  const src = robinSrc(ROBIN_COSTUMES[costume]);
+  const img = new Image();
+  img.src = src;
+  // decode() rather than onload: it resolves when the picture can be painted
+  // without costing a frame, which is the whole point. A rejection means the
+  // file did not arrive, and the drawer falling back to a late swap is a better
+  // answer than an unhandled rejection.
+  void img.decode().catch(() => {});
+  queued = { costume, src, img };
+  return src;
+}
+
+/**
  * Counts an open of the settings drawer and hands back the picture to show.
  *
  * Called from the button that opens the drawer rather than from the drawer
@@ -90,9 +137,29 @@ export function pickCostume(roll: number, last: number): number {
 export function openedSettings(): string {
   const opens = settingsOpens.get() + 1;
   settingsOpens.set(opens);
-  if (!isCostumeOpen(opens)) return PLAIN_ROBIN;
 
-  const costume = pickCostume(Math.random(), lastRobin.get());
+  if (!isCostumeOpen(opens)) {
+    // The next one may be due, in which case this is the moment to go and get
+    // it: the host has to close this drawer and open it again first.
+    warmRobin();
+    return PLAIN_ROBIN;
+  }
+
+  // Warmed on the open before this one, except on a device that has just
+  // arrived at a costume open some other way. Picking here still works, it is
+  // only the first frame that suffers.
+  const pick = queued ?? {
+    costume: pickCostume(Math.random(), lastRobin.get()),
+    src: '',
+  };
+  const costume = pick.costume;
+  queued = null;
   lastRobin.set(costume);
-  return robinSrc(ROBIN_COSTUMES[costume]);
+  return pick.src || robinSrc(ROBIN_COSTUMES[costume]);
 }
+
+export const __robinTesting = {
+  forget() {
+    queued = null;
+  },
+};

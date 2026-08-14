@@ -15,15 +15,21 @@ import {
   PLAIN_OPENS,
   PLAIN_ROBIN,
   ROBIN_COSTUMES,
+  __robinTesting,
   isCostumeOpen,
   openedSettings,
   pickCostume,
   robinSrc,
+  warmRobin,
 } from './robins';
 
 beforeEach(() => {
   window.localStorage.clear();
+  __robinTesting.forget();
   vi.restoreAllMocks();
+  // The queue is module state and the Image spy is a global, so neither goes
+  // away with the test that made it.
+  vi.unstubAllGlobals();
 });
 
 describe('which opens get a costume', () => {
@@ -119,5 +125,106 @@ describe('opening the drawer', () => {
       const src = openedSettings();
       if (src !== PLAIN_ROBIN) expect(known.has(src)).toBe(true);
     }
+  });
+});
+
+/**
+ * Getting the picture there before the drawer is.
+ *
+ * Setting `src` on an image already on screen does not change what is on
+ * screen: the browser paints the old one until the new one has been fetched and
+ * decoded. Measured at 400ms on a throttled connection, which is long enough to
+ * read as the app glitching rather than as a joke.
+ */
+describe('warming the next costume', () => {
+  /** The srcs handed to a `new Image()` since the spy went on. */
+  function fetched(): string[] {
+    const srcs: string[] = [];
+    const real = window.Image;
+    vi.stubGlobal(
+      'Image',
+      class extends real {
+        set src(value: string) {
+          srcs.push(value);
+          super.src = value;
+        }
+        get src() {
+          return super.src;
+        }
+      }
+    );
+    return srcs;
+  }
+
+  it('fetches nothing on the visits that are not near one', () => {
+    // The drawer is opened on the app icon far more often than not, and none of
+    // those visits should cost a request.
+    const srcs = fetched();
+    expect(warmRobin()).toBeNull(); // opens 0, next is 1
+    openedSettings(); // 1
+    openedSettings(); // 2
+    openedSettings(); // 3
+    expect(srcs).toEqual([]);
+  });
+
+  it('fetches the costume on the open before it is worn', () => {
+    const srcs = fetched();
+    for (let n = 1; n <= 4; n++) openedSettings();
+    expect(srcs).toEqual([]);
+
+    openedSettings(); // the fifth, and the sixth wears one
+    expect(srcs).toHaveLength(1);
+    expect(srcs[0]).toMatch(/^\/robins\/[a-z]+\.webp$/);
+  });
+
+  it('opens the drawer on the very costume it fetched', () => {
+    // Any other answer means the drawer opens on a picture nobody has loaded,
+    // which is the whole bug.
+    for (let n = 1; n <= 5; n++) openedSettings();
+    __robinTesting.forget();
+
+    // Two rolls far apart, so an open that picked again instead of taking what
+    // was queued would land somewhere else and be caught rather than colliding
+    // with it one time in eleven.
+    const rolls = [0.05, 0.95];
+    vi.spyOn(Math, 'random').mockImplementation(() => rolls.shift() ?? 0.5);
+    const warmed = warmRobin();
+
+    expect(warmed).not.toBeNull();
+    expect(openedSettings()).toBe(warmed);
+  });
+
+  it('fetches one costume however often it is asked', () => {
+    // App calls it on mount, and every plain open calls it again. None of those
+    // may start a second download or change the answer under a queued one.
+    for (let n = 1; n <= 5; n++) openedSettings();
+    __robinTesting.forget();
+    const srcs = fetched();
+
+    const first = warmRobin();
+    expect(warmRobin()).toBe(first);
+    expect(warmRobin()).toBe(first);
+
+    expect(srcs).toEqual([first]);
+    expect(openedSettings()).toBe(first);
+  });
+
+  it('queues the next one straight after wearing one', () => {
+    for (let n = 1; n <= 6; n++) openedSettings();
+    const srcs = fetched();
+    openedSettings(); // 7, plain, and the ninth is the next costume
+    expect(srcs).toEqual([]);
+    openedSettings(); // 8, plain, and the ninth is next
+    expect(srcs).toHaveLength(1);
+    expect(openedSettings()).toBe(srcs[0]); // 9
+  });
+
+  it('still dresses up when nothing was warmed at all', () => {
+    // A tab that arrived at a costume open without ever warming one. Late is
+    // better than plain.
+    for (let n = 1; n <= 5; n++) openedSettings();
+    __robinTesting.forget();
+
+    expect(openedSettings()).toMatch(/^\/robins\/[a-z]+\.webp$/);
   });
 });
