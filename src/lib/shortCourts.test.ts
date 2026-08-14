@@ -44,6 +44,7 @@ function emptyHistory(): PairingHistory {
     partnerCounts: {},
     opponentCounts: {},
     sitOutCounts: {},
+    sitOutOrder: [],
     gamesPlayed: {},
     shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },

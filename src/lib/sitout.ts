@@ -113,6 +113,8 @@ interface SitOutUnit {
   avgGames: number;
   prevSat: boolean; // any member sat out the previous round
   misses: number; // rounds of this round's game type the unit has missed
+  cyclePos: number; // earliest member's place in the sit-out cycle
+  rand: number; // pre-assigned tie-break, drawn once so the sort stays unbiased
 }
 
 /**
@@ -144,8 +146,20 @@ export function determineSitOuts(
 
   const missed = (p: Player) => (missCounts ? missCounts[p.id] ?? 0 : 0);
 
-  // No partnerships → original per-player behaviour (unchanged).
+  // Once everyone has sat out, the rotation repeats in the order the first
+  // cycle happened to take: whoever sat round 1 sits first again. The order is
+  // read off history, which is replayed from the saved rounds, so it holds
+  // across a reshuffle, a reload and an extension.
+  const cycleOrder = history.sitOutOrder ?? [];
+  const cyclePos = new Map(cycleOrder.map((id, i) => [id, i]));
+  const posOf = (p: Player) => cyclePos.get(p.id) ?? Infinity;
+
+  // No partnerships → per-player behaviour.
   if (!partnerships || partnerships.length === 0) {
+    // Drawn once per player, not inside the comparator: `Math.random() - 0.5`
+    // as a comparator is a biased shuffle, and it made whoever was first in
+    // the roster sit out round 1 about twice as often as anyone else.
+    const rand = new Map(candidates.map((p) => [p.id, Math.random()]));
     const sorted = [...candidates].sort((a, b) => {
       const aPlayed = history.gamesPlayed[a.id] ?? 0;
       const bPlayed = history.gamesPlayed[b.id] ?? 0;
@@ -161,7 +175,10 @@ export function determineSitOuts(
       // Everything else equal, sit whoever has already had this game type
       if (missCounts && missed(a) !== missed(b)) return missed(a) - missed(b);
 
-      return Math.random() - 0.5;
+      // Keep the established cycle order; players yet to sit rank last
+      if (posOf(a) !== posOf(b)) return posOf(a) - posOf(b);
+
+      return rand.get(a.id)! - rand.get(b.id)!;
     });
 
     return sorted.slice(0, numSitOuts);
@@ -195,22 +212,29 @@ export function determineSitOuts(
       avgGames: (games(p1) + games(p2)) / 2,
       prevSat: sat(p1) || sat(p2),
       misses: Math.min(missed(p1), missed(p2)),
+      cyclePos: Math.min(posOf(p1), posOf(p2)),
+      rand: Math.random(),
     });
   }
 
   // Everyone else is a single unit.
   for (const p of candidates) {
     if (claimed.has(p.id)) continue;
-    units.push({ players: [p], avgGames: games(p), prevSat: sat(p), misses: missed(p) });
+    units.push({
+      players: [p], avgGames: games(p), prevSat: sat(p), misses: missed(p),
+      cyclePos: posOf(p), rand: Math.random(),
+    });
   }
 
   // Highest games-played sits first; avoid back-to-back sit-outs; then sit
-  // whoever has already had this round's game type; random tie-break.
+  // whoever has already had this round's game type; then keep the cycle order;
+  // pre-assigned random tie-break.
   units.sort((a, b) => {
     if (b.avgGames !== a.avgGames) return b.avgGames - a.avgGames;
     if (a.prevSat !== b.prevSat) return (a.prevSat ? 1 : 0) - (b.prevSat ? 1 : 0);
     if (missCounts && a.misses !== b.misses) return a.misses - b.misses;
-    return Math.random() - 0.5;
+    if (a.cyclePos !== b.cyclePos) return a.cyclePos - b.cyclePos;
+    return a.rand - b.rand;
   });
 
   const result: Player[] = [];

@@ -103,7 +103,20 @@ export interface Partnership {
 export interface PairingHistory {
   partnerCounts: Record<string, Record<string, number>>;
   opponentCounts: Record<string, Record<string, number>>;
+  /**
+   * Written but read nowhere: the rotation runs off `gamesPlayed`, and the
+   * order of the rotation lives in `sitOutOrder`. Kept because it is cheap and
+   * honest, but wiring it into a decision would change behaviour for
+   * latecomers, who are protected by having played no games yet.
+   */
   sitOutCounts: Record<string, number>;
+  /**
+   * Player ids in the order they first sat out. Once everyone has sat, the
+   * rotation starts over in this same order, so the second cycle repeats the
+   * first. Rebuilt by replaying the saved rounds, like every count here, so it
+   * survives a reshuffle and a reload.
+   */
+  sitOutOrder: string[];
   gamesPlayed: Record<string, number>;
   /**
    * How many games on a court the roster could not fill a player has had — a

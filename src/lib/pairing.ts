@@ -33,6 +33,7 @@ function initHistory(players: Player[]): PairingHistory {
     partnerCounts: {},
     opponentCounts: {},
     sitOutCounts: {},
+    sitOutOrder: [],
     gamesPlayed: {},
     shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
@@ -90,6 +91,7 @@ function updateHistory(
   }
   for (const p of sitOuts) {
     history.sitOutCounts[p.id] = (history.sitOutCounts[p.id] ?? 0) + 1;
+    if (!history.sitOutOrder.includes(p.id)) history.sitOutOrder.push(p.id);
   }
 }
 
