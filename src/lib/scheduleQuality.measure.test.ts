@@ -20,6 +20,20 @@
  *     464 vs 150 forced (13p); 532 vs 162 (14p) — nothing steers shape today
  *   sit-out spread max 1, short-game spread 0 (no short-court config measured),
  *   special miss spread max 2 (mixed q2), worst pair partnered 3x (5x gendered q2)
+ *
+ * AFTER (2026-08-14, fairness overhaul landed), same sweep:
+ *   back-to-back repeat partnerships: 0 in every normal config (3 at 11p with
+ *     the 2v1, from 37); no pair partnered more than 2x in normal play
+ *   repeats sit at the structural floor: level ratings 155 vs 150 forced by
+ *     the maths, 16p/4c 0 or 1, never-partnered pairs avg 2.2 of 66 at
+ *     12p/3c/12r (was 17.2)
+ *   round-1 sitter: chi-square 7.5 (was 335), max 1.11x expected (was 1.94x)
+ *   sit-out cycle 2 matched cycle 1: 100% at 13p/3c and 14p/3c (was 9%, 4%)
+ *   rating gaps, normal rounds: 7-13% of courts past the 0.5 target (variety
+ *     now outranks the cap by decision), p95 0.75-1.0, worst court 2.0
+ *   3:1 gender courts: 268 of 300 rounds at 12p (was 426); meeting everyone
+ *     outranks court shape, so roughly one court a round still lands 3:1
+ *   sit-out spread max 1, short-game spread max 1, special miss spread max 2
  */
 import { appendFileSync } from 'node:fs';
 import { describe, it } from 'vitest';

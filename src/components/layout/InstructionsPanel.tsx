@@ -501,10 +501,21 @@ function Know() {
       </P>
       <Sub>How the schedule thinks</Sub>
       <P>
-        The app spreads everything it can count: you partner people you haven't
-        partnered, play people you haven't played, and sit-outs go to whoever has sat
-        out least. When the numbers don't divide into courts of four, the short court
-        (2v1 or singles) is passed around too.
+        The schedule keeps a set of promises, in order. Sit-outs come first: nobody
+        sits twice before everyone has sat once, who opens the bench is luck, and the
+        rotation repeats in the order the first cycle set.
+      </P>
+      <P>
+        Partners are next. You team up with someone new every round until you've
+        played with everyone available, and never the same person twice running.
+        After that comes meeting the whole group, as teammate or opponent.
+      </P>
+      <P>
+        Even games still count, just a little less. The app aims for a small rating
+        gap between teams and will stretch it slightly rather than repeat a
+        partnership. Whoever missed a special game type goes first when it returns,
+        courts lean all-gendered or two-and-two over three-and-one, and the short
+        court (2v1 or singles) is passed around like the bench is.
       </P>
     </>
   );
