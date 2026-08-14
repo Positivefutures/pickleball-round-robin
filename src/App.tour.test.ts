@@ -83,9 +83,9 @@ function overlay(): HTMLElement | null {
 }
 
 function splashShowing(): boolean {
-  // No space between the two halves: the headline is broken over two lines with
-  // a <br>, which contributes nothing to textContent.
-  return body().includes('Try the app');
+  // Only the first half of the headline: it is broken over two lines with a
+  // <br>, which contributes nothing to textContent, so the two run together.
+  return body().includes('Let’s jump');
 }
 
 function click(el: Element) {

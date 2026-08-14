@@ -70,18 +70,21 @@ export function SplashScreen({ onContinue }: { onContinue: () => void }) {
           className="h-[9.5rem] w-[9.5rem] select-none"
         />
 
+        {/* Broken by hand rather than left to wrap. The whole line does not fit
+            at this size on a phone, and the browser's own break puts "in" on a
+            line by itself. */}
         <h1
           className="mt-7 text-[2.5rem] font-extrabold leading-[1.1] tracking-tight"
           style={{ color: INK }}
         >
-          Try the app
+          Let&rsquo;s jump
           <br />
-          right away
+          right in
         </h1>
 
         <p className="mt-5 text-xl leading-relaxed text-[#3A4353]">
-          We&rsquo;ve added a sample group with {EXAMPLE_ROSTER.length} players. Use it to
-          create a round robin and see how everything works.
+          I&rsquo;ve added a sample group with {EXAMPLE_ROSTER.length} players. Use it to
+          create your first round robin to see how everything works.
         </p>
 
         <button
