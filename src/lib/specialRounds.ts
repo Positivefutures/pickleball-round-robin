@@ -2,12 +2,11 @@ import type {
   CourtAssignment, PairingHistory, Partnership, Player, RoundType,
 } from '../types';
 import { courtRatingDiff, fisherYatesShuffle } from '../utils/helpers';
-import { scoreAssignment } from './scoring';
+import { getInteractionCount, scoreAssignment } from './scoring';
 import { partnerKey } from './partnerships';
 import {
   findBestAssignment,
   findBestAssignmentWithPartners,
-  getInteractionCount,
   pickBestSplit,
   pickShortSplit,
   type Assignment,

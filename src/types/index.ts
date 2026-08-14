@@ -117,6 +117,16 @@ export interface PairingHistory {
    * survives a reshuffle and a reload.
    */
   sitOutOrder: string[];
+  /** Rounds folded into this history so far, building and replaying alike. */
+  roundsRecorded: number;
+  /**
+   * partnerKey -> the `roundsRecorded` value when that pair last partnered.
+   * Cumulative counts cannot tell rounds 8 and 9 from rounds 1 and 9; this can,
+   * and the scorer fines the recent repeat far harder. When rounds complete out
+   * of order a rebuilt round treats later completed rounds as recent — the same
+   * accepted approximation as carrying the previous round's sit-outs.
+   */
+  lastPartneredRound: Record<string, number>;
   gamesPlayed: Record<string, number>;
   /**
    * How many games on a court the roster could not fill a player has had — a

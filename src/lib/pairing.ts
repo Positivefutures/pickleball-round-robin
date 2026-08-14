@@ -34,6 +34,8 @@ function initHistory(players: Player[]): PairingHistory {
     opponentCounts: {},
     sitOutCounts: {},
     sitOutOrder: [],
+    roundsRecorded: 0,
+    lastPartneredRound: {},
     gamesPlayed: {},
     shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
@@ -66,10 +68,12 @@ function updateHistory(
   courts: CourtAssignment[],
   sitOuts: Player[]
 ) {
+  history.roundsRecorded = (history.roundsRecorded ?? 0) + 1;
   for (const court of courts) {
     for (const team of [court.team1, court.team2]) {
       if (team.length === 2) {
         incrementBidirectional(history.partnerCounts, team[0].id, team[1].id);
+        history.lastPartneredRound[partnerKey(team[0].id, team[1].id)] = history.roundsRecorded;
       }
     }
     for (const p1 of court.team1) {

@@ -1,7 +1,7 @@
 import type { CourtAssignment, LockedPair, PairingHistory, Partnership, Player } from '../types';
 import { courtRatingDiff, fisherYatesShuffle } from '../utils/helpers';
 import { partnerKey } from './partnerships';
-import { scoreAssignment } from './scoring';
+import { getInteractionCount, getPartnerCount, scoreAssignment, scoreCourt } from './scoring';
 
 /** What every court-filling routine hands back: the courts it built, and anyone left over. */
 export interface Assignment {
@@ -101,6 +101,39 @@ export function pickShortSplit(
 }
 
 /**
+ * What a candidate short-court group costs in repeated company. A trio's pair
+ * side is exactly what `pickShortSplit` will choose — a couple if one is
+ * there, otherwise the two weakest — so the cost of that pairing is known
+ * before the group is settled. A couple costs nothing: partnering is their
+ * whole arrangement. A game of singles is judged on opponent repeats instead.
+ */
+function shortGroupCost(
+  group: Player[],
+  history: PairingHistory,
+  coupleKeys: Set<string>
+): number {
+  if (group.length === 3) {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        if (coupleKeys.has(partnerKey(group[i].id, group[j].id))) return 0;
+      }
+    }
+    const byRating = [...group].sort((a, b) => b.rating - a.rating);
+    const [p1, p2] = [byRating[1], byRating[2]];
+    const count = getPartnerCount(history, p1.id, p2.id);
+    const last = history.lastPartneredRound?.[partnerKey(p1.id, p2.id)];
+    const gap = last === undefined
+      ? Infinity
+      : (history.roundsRecorded ?? 0) + 1 - last;
+    return count * count * 40 + 25 * Math.max(0, 3 - gap);
+  }
+  if (group.length === 2) {
+    return history.opponentCounts[group[0].id]?.[group[1].id] ?? 0;
+  }
+  return 0;
+}
+
+/**
  * Who plays the short game this round.
  *
  * Whoever has had fewest of them goes first — the same rotation the sit-out line
@@ -151,12 +184,37 @@ export function chooseShortCourtPlayers(
   }
   units.sort((a, b) => a.short - b.short || a.rand - b.rand);
 
+  // The rotation stands: fewest short games goes first, always. But the last
+  // place often has several players tied on that count, and the pair side of
+  // the 2v1 falls out of whoever gets it — the one spot the round's scorer
+  // never sees. Left to the random tie-break it was quietly reuniting recent
+  // partners, so among rotation ties the freshest resulting pair wins.
+  const coupleKeys = new Set(
+    keepTogether.map((c) => partnerKey(c.player1Id, c.player2Id))
+  );
   const chosen: Player[] = [];
-  for (const u of units) {
-    if (chosen.length + u.players.length > size) continue;
-    chosen.push(...u.players);
-    if (chosen.length === size) return [...held, ...chosen];
+  const remaining = [...units];
+  while (chosen.length < size) {
+    const fitting = remaining.filter((u) => chosen.length + u.players.length <= size);
+    if (fitting.length === 0) break;
+    let pick = fitting[0];
+    const ties = fitting.filter((u) => u.short === pick.short);
+    if (ties.length > 1 && chosen.length + pick.players.length === size) {
+      let bestCost = Infinity;
+      for (const u of ties) {
+        const cost = shortGroupCost(
+          [...held, ...chosen, ...u.players], history, coupleKeys
+        );
+        if (cost < bestCost) {
+          bestCost = cost;
+          pick = u;
+        }
+      }
+    }
+    chosen.push(...pick.players);
+    remaining.splice(remaining.indexOf(pick), 1);
   }
+  if (chosen.length === size) return [...held, ...chosen];
 
   // Nothing but held-back couples left to draw on. Split one rather than leave
   // a court standing empty.
@@ -166,15 +224,6 @@ export function chooseShortCourtPlayers(
     if (!taken.has(p.id)) chosen.push(p);
   }
   return [...held, ...chosen];
-}
-
-export function getInteractionCount(
-  history: PairingHistory,
-  id1: string,
-  id2: string
-): number {
-  return (history.partnerCounts[id1]?.[id2] ?? 0)
-    + (history.opponentCounts[id1]?.[id2] ?? 0);
 }
 
 export function pickBestSplit(
@@ -188,47 +237,27 @@ export function pickBestSplit(
     [[four[0], four[3]], [four[1], four[2]]],
   ];
 
-  let bestSplit = splits[0];
+  // Scored by the same cost function as whole rounds, so the split chooser
+  // cannot disagree with the round sampler about what a good court is. The
+  // coverage term is left out: all three splits share the same six pairs.
+  let best: CourtAssignment | null = null;
   let bestScore = Infinity;
 
-  const MAX_DIFF = 0.5;
-
   for (const [team1, team2] of splits) {
-    const ratingDiff = courtRatingDiff(team1, team2);
-
-    // Hard penalty if this split exceeds the max allowed rating difference
-    const capPenalty = ratingDiff > MAX_DIFF ? 200 * (ratingDiff - MAX_DIFF) : 0;
-
-    let partnerPenalty = 0;
-    partnerPenalty += Math.pow(history.partnerCounts[team1[0].id]?.[team1[1].id] ?? 0, 1.5);
-    partnerPenalty += Math.pow(history.partnerCounts[team2[0].id]?.[team2[1].id] ?? 0, 1.5);
-
-    let opponentPenalty = 0;
-    for (const p1 of team1) {
-      for (const p2 of team2) {
-        opponentPenalty += Math.pow(history.opponentCounts[p1.id]?.[p2.id] ?? 0, 1.5);
-      }
-    }
-
-    // Reward splits where partners are new to each other
-    let splitNovelty = 0;
-    if (getInteractionCount(history, team1[0].id, team1[1].id) === 0) splitNovelty += 5;
-    if (getInteractionCount(history, team2[0].id, team2[1].id) === 0) splitNovelty += 5;
-
-    const score = capPenalty + ratingDiff * 3 + partnerPenalty * 8 + opponentPenalty * 6 - splitNovelty;
+    const court: CourtAssignment = {
+      courtNumber,
+      team1,
+      team2,
+      ratingDiff: courtRatingDiff(team1, team2),
+    };
+    const score = scoreCourt(court, history);
     if (score < bestScore) {
       bestScore = score;
-      bestSplit = [team1, team2];
+      best = court;
     }
   }
 
-  const [team1, team2] = bestSplit;
-  return {
-    courtNumber,
-    team1,
-    team2,
-    ratingDiff: courtRatingDiff(team1, team2),
-  };
+  return best!;
 }
 
 // Build courts by greedily targeting players who haven't met yet.
@@ -242,12 +271,16 @@ function buildGreedyCourts(
   const playerMap = new Map(activePlayers.map((p) => [p.id, p]));
   const groups: Player[][] = [];
 
-  // Build a sorted list of unmet pairs (lowest interaction count first)
+  // Build a sorted list of unmet pairs, lowest debt first. Partnering counts
+  // double: a pair that has already been a team owes more variety than a pair
+  // that has only stood across the net, and a plain interaction count could
+  // not tell those apart — which is how repeat partners slipped through.
   const pairDebts: { id1: string; id2: string; count: number }[] = [];
   const playerList = activePlayers.filter((p) => pool.has(p.id));
   for (let i = 0; i < playerList.length; i++) {
     for (let j = i + 1; j < playerList.length; j++) {
-      const count = getInteractionCount(history, playerList[i].id, playerList[j].id);
+      const count = getPartnerCount(history, playerList[i].id, playerList[j].id)
+        + getInteractionCount(history, playerList[i].id, playerList[j].id);
       pairDebts.push({ id1: playerList[i].id, id2: playerList[j].id, count });
     }
   }
@@ -282,23 +315,29 @@ function buildGreedyCourts(
     pool.delete(seed1);
     pool.delete(seed2);
 
-    // Pick 2 more players that maximize new interactions with the seeds
+    // Pick 2 more players by how fresh they are against the seeds. A player
+    // who has never PARTNERED a seed scores 2, never met them at all scores 3
+    // — so the group keeps room for a new team even after everyone has met.
+    const freshness = (id: string, others: string[]) => {
+      let f = 0;
+      for (const other of others) {
+        if (getPartnerCount(history, id, other) === 0) f += 2;
+        if (getInteractionCount(history, id, other) === 0) f += 1;
+      }
+      return f;
+    };
     const remaining = Array.from(pool);
     const scored = remaining.map((id) => {
-      // Count how many of the 2 seeds this player hasn't met
-      let newPairs = 0;
-      if (getInteractionCount(history, id, seed1!) === 0) newPairs++;
-      if (getInteractionCount(history, id, seed2!) === 0) newPairs++;
       // Small tiebreaker: total unmet count (prefer players with more unmet people)
       let totalUnmet = 0;
       for (const otherId of remaining) {
         if (otherId !== id && getInteractionCount(history, id, otherId) === 0) totalUnmet++;
       }
-      return { id, newPairs, totalUnmet, rand: Math.random() };
+      return { id, fresh: freshness(id, [seed1!, seed2!]), totalUnmet, rand: Math.random() };
     });
-    // Sort: most new pairs first, then most unmet, then random
+    // Sort: freshest first, then most unmet, then random
     scored.sort((a, b) => {
-      if (b.newPairs !== a.newPairs) return b.newPairs - a.newPairs;
+      if (b.fresh !== a.fresh) return b.fresh - a.fresh;
       if (b.totalUnmet !== a.totalUnmet) return b.totalUnmet - a.totalUnmet;
       return a.rand - b.rand;
     });
@@ -306,17 +345,24 @@ function buildGreedyCourts(
     const pick3 = scored[0]?.id;
     if (pick3) pool.delete(pick3);
 
-    // Re-score for 4th player considering all 3 already picked
+    // Re-score for 4th player considering all 3 already picked. Below
+    // freshness, prefer a fourth who makes the court's men even in number —
+    // 0, 2 or 4 men is a gendered or mixed shape, 3 and 1 is nobody's
+    // favourite game.
+    const trio = (pick3 ? [seed1, seed2, pick3] : [seed1, seed2])
+      .map((id) => playerMap.get(id!)!)
+      .filter(Boolean);
+    const trioMen = trio.filter((p) => p.gender === 'M').length;
     const remaining2 = Array.from(pool);
-    const scored2 = remaining2.map((id) => {
-      let newPairs = 0;
-      if (getInteractionCount(history, id, seed1!) === 0) newPairs++;
-      if (getInteractionCount(history, id, seed2!) === 0) newPairs++;
-      if (pick3 && getInteractionCount(history, id, pick3) === 0) newPairs++;
-      return { id, newPairs, rand: Math.random() };
-    });
+    const scored2 = remaining2.map((id) => ({
+      id,
+      fresh: freshness(id, pick3 ? [seed1!, seed2!, pick3] : [seed1!, seed2!]),
+      lopsided: (trioMen + (playerMap.get(id)?.gender === 'M' ? 1 : 0)) % 2,
+      rand: Math.random(),
+    }));
     scored2.sort((a, b) => {
-      if (b.newPairs !== a.newPairs) return b.newPairs - a.newPairs;
+      if (b.fresh !== a.fresh) return b.fresh - a.fresh;
+      if (a.lopsided !== b.lopsided) return a.lopsided - b.lopsided;
       return a.rand - b.rand;
     });
 
@@ -334,6 +380,104 @@ function buildGreedyCourts(
 
   const extras = Array.from(pool).map((id) => playerMap.get(id)!).filter(Boolean);
   return { groups, extras };
+}
+
+/**
+ * Builds a round the other way about: teams first, courts second.
+ *
+ * The greedy and random strategies pick each court's four players and only
+ * then split them into teams, so late in a session — when few never-partnered
+ * pairs remain — they stop stumbling onto the fresh pairings that still
+ * exist. This one starts from the pairing promise itself: match everyone to
+ * the freshest partner available (greedy, in random order, priced with the
+ * scorer's own repeat and recency numbers), then give each team the opposing
+ * team that scores cheapest. The full-round scorer arbitrates between all
+ * three strategies as usual.
+ */
+function buildFreshTeamCourts(
+  activePlayers: Player[],
+  numCourts: number,
+  history: PairingHistory
+): CourtAssignment[] | null {
+  const pairCost = (p: Player, q: Player): number => {
+    const count = getPartnerCount(history, p.id, q.id);
+    if (count === 0) return 0;
+    let cost = count * count * 40;
+    const last = history.lastPartneredRound?.[partnerKey(p.id, q.id)];
+    if (last !== undefined) {
+      const gap = (history.roundsRecorded ?? 0) + 1 - last;
+      cost += 25 * Math.max(0, 3 - gap);
+    }
+    return cost;
+  };
+
+  const unmatched = fisherYatesShuffle(activePlayers);
+  const teams: [Player, Player][] = [];
+  while (unmatched.length >= 2) {
+    const p = unmatched.shift()!;
+    let bestIdx = 0;
+    let bestCost = Infinity;
+    for (let i = 0; i < unmatched.length; i++) {
+      const cost = pairCost(p, unmatched[i]);
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestIdx = i;
+      }
+    }
+    teams.push([p, unmatched.splice(bestIdx, 1)[0]]);
+  }
+
+  // Greedy matching strands pairs: taking the fresh partner in front of you
+  // can leave the last two players as a repeat that a different arrangement
+  // avoids. Swap members between teams while any swap lowers the cost.
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        const [a, b] = teams[i];
+        const [c, d] = teams[j];
+        const current = pairCost(a, b) + pairCost(c, d);
+        const acbd = pairCost(a, c) + pairCost(b, d);
+        const adbc = pairCost(a, d) + pairCost(b, c);
+        if (acbd < current && acbd <= adbc) {
+          teams[i] = [a, c];
+          teams[j] = [b, d];
+          improved = true;
+        } else if (adbc < current) {
+          teams[i] = [a, d];
+          teams[j] = [b, c];
+          improved = true;
+        }
+      }
+    }
+  }
+
+  const courts: CourtAssignment[] = [];
+  const remaining = [...teams];
+  while (courts.length < numCourts && remaining.length >= 2) {
+    const team1 = remaining.shift()!;
+    let bestIdx = 0;
+    let best: CourtAssignment | null = null;
+    let bestScore = Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const court: CourtAssignment = {
+        courtNumber: courts.length + 1,
+        team1,
+        team2: remaining[i],
+        ratingDiff: courtRatingDiff(team1, remaining[i]),
+      };
+      const score = scoreCourt(court, history);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIdx = i;
+        best = court;
+      }
+    }
+    remaining.splice(bestIdx, 1);
+    courts.push(best!);
+  }
+  return courts.length === numCourts ? courts : null;
 }
 
 export function findBestAssignment(
@@ -397,6 +541,23 @@ export function findBestAssignment(
       bestScore = score;
       bestCourts = courts;
       bestExtras = extras;
+    }
+  }
+
+  // --- Fresh-team iterations: teams first, courts second ---
+  // Only when the pool divides cleanly into full courts; a round with a short
+  // court draws it before this solver runs. Fewer iterations than the other
+  // strategies because the 2-opt repair makes each one converge on its own.
+  if (shortSize === 0 && activePlayers.length === fullCourts * 4) {
+    for (let i = 0; i < 150; i++) {
+      const courts = buildFreshTeamCourts(activePlayers, fullCourts, history);
+      if (!courts) continue;
+      const score = scoreAssignment(courts, history, allPlayers);
+      if (score < bestScore) {
+        bestScore = score;
+        bestCourts = courts;
+        bestExtras = [];
+      }
     }
   }
 

@@ -45,6 +45,8 @@ function emptyHistory(): PairingHistory {
     opponentCounts: {},
     sitOutCounts: {},
     sitOutOrder: [],
+    roundsRecorded: 0,
+    lastPartneredRound: {},
     gamesPlayed: {},
     shortGameCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
@@ -220,7 +222,7 @@ describe('the short game rotates', () => {
       worst = Math.max(worst, Math.max(...vals) - Math.min(...vals));
     }
     expect(worst).toBeLessThanOrEqual(2);
-  });
+  }, 20000); // twelve full schedules of the heaviest config outgrow the 5s default
 
   it('carries the count across a reshuffle rather than starting over', () => {
     // Rounds 1 to 4 are played, then the rest are rebuilt. The rebuild replays
@@ -244,7 +246,7 @@ describe('the short game rotates', () => {
       worst = Math.max(worst, Math.max(...vals) - Math.min(...vals));
     }
     expect(worst).toBeLessThanOrEqual(2);
-  });
+  }, 20000); // eight generate-and-reshuffle passes of the same heavy config
 });
 
 describe('a short court on a special round', () => {

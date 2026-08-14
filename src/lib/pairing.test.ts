@@ -64,18 +64,20 @@ describe('generateSchedule', () => {
     }
   });
 
-  // The 0.5 cap is what the solver aims for, not something it can always reach:
-  // over 36000 courts it went past 0.5 on 0.044% of them, never beyond 0.75 and
-  // never twice in one schedule. Asserting a hard 0.5 therefore failed about one
-  // run in a hundred with nothing wrong. Both halves are checked, because a bare
-  // "nothing above 0.75" would still pass if every court drifted to 0.75.
-  it('keeps courts within the 0.5 rating cap, give or take the odd one', () => {
+  // The 0.5 gap is a target the solver trades away deliberately: partner
+  // variety outranks it now, so a court goes past 0.5 when staying under it
+  // would mean repeating a partnership. Measured over 300 schedules (7200
+  // courts): 2.3% of courts land past 0.5, 0.4% past 0.75, the worst single
+  // court was 1.25, and the worst schedule still kept 87.5% of its courts on
+  // target. Both halves are checked, because a bare max would still pass if
+  // every court drifted wide.
+  it('keeps courts near the 0.5 rating target, trading it only for variety', () => {
     const s = generateSchedule(makePlayers(12), 3, 8);
     const diffs = s.rounds.flatMap((r) => r.courts.map((c) => c.ratingDiff));
     const withinCap = diffs.filter((d) => d <= 0.5 + 1e-9).length;
 
-    expect(Math.max(...diffs)).toBeLessThanOrEqual(0.75 + 1e-9);
-    expect(withinCap / diffs.length).toBeGreaterThanOrEqual(0.9);
+    expect(Math.max(...diffs)).toBeLessThanOrEqual(1.5 + 1e-9);
+    expect(withinCap / diffs.length).toBeGreaterThanOrEqual(0.8);
   });
 });
 
@@ -116,16 +118,16 @@ describe('regenerateRemaining', () => {
     expect(spread).toBeLessThanOrEqual(1);
   });
 
-  // The bound is 3 rather than 2 because the pairing tie-breaks are random: over
-  // 2000 runs this lands on 2 about 95% of the time and on 3 the rest, never
-  // higher. Asserting 2 failed roughly one run in twenty without a bug to show
-  // for it. Three still catches the regression that matters — variety breaking
-  // down gives 4 and up.
+  // Measured over 300 runs after the variety overhaul: no pair partnered more
+  // than twice, and a quarter of runs had nobody partner twice at all. The
+  // bound used to be 3 because the old solver reached it one run in twenty;
+  // the fresh-team matching took that tail away, so 2 is now safe to assert
+  // and 3 would hide a regression.
   it('does not over-repeat partners after regeneration', () => {
     const removed = players[7];
     const remaining = players.filter((p) => p.id !== removed.id);
     const regen = regenerateRemaining(remaining, 3, original.rounds, [1, 2, 3, 4]);
-    expect(partnerRepeats(regen)).toBeLessThanOrEqual(3);
+    expect(partnerRepeats(regen)).toBeLessThanOrEqual(2);
   });
 
   it('keeps an ARBITRARY (out-of-order) completed set verbatim', () => {
@@ -314,10 +316,10 @@ describe('extendSchedule', () => {
   /**
    * Every assertion below runs over a fresh base schedule each time, because a
    * schedule is built with a shuffle in it and one lucky eight-round start would
-   * prove nothing. The bounds are measured, not hoped for: over sixty runs the
-   * extension held a sit-out spread of exactly 1 and at most 3 partner repeats,
-   * while bolting two independently generated rounds on the end drifted to a
-   * spread of 2 and 4 repeats.
+   * prove nothing. The bounds are measured, not hoped for: after the variety
+   * overhaul, three hundred runs of the level-rated extension reused zero
+   * pairings every single time, while bolting two independently generated
+   * rounds on the end drifted to a spread of 2 and 4 repeats.
    */
   const RUNS = 15;
 
@@ -371,8 +373,10 @@ describe('extendSchedule', () => {
     //
     // Everybody is rated the same on purpose. This is a question about partner
     // history, and a spread of ratings would have the balancer answering it
-    // instead. Level, three hundred runs never went above one repeat, while two
-    // rounds generated in ignorance of the first two averaged 2.2 and reached 6.
+    // instead. Level, three hundred runs of the fresh-team matcher reused zero
+    // pairings every time; the bound stays at one to give the random tie-breaks
+    // room, and rounds generated in ignorance of the first two still average
+    // 2.2 reused and reach 6, which is what this is here to catch.
     const level = Array.from({ length: 12 }, (_, i) => ({
       id: `p${i}`, name: `P${i}`, rating: 4,
       gender: (i % 2 === 0 ? 'M' : 'F') as Player['gender'], rosterIds: ['r1'],
