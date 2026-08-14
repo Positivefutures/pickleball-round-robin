@@ -84,12 +84,41 @@ body {
   padding-right: 0.25rem;
 }
 
+/* A swap, said where the eye already is.
+   Two names change over on a grid of names, and on a phone at arm's length it
+   is very easy to miss which two. So both places take a strong edge and let it
+   fade back over two seconds, which says what happened and leaves nothing
+   behind afterwards to be misread as a state.
+
+   Only a `from` keyframe. The 100% is implied from whatever the element would
+   look like without the animation, so the fade always ends on that place's own
+   resting line and nothing here has to know what colour that is — blue on one
+   side of a court, orange on the other, the round's own line on a sit-out. The
+   colour to start from is handed in per place as --seat-swapped-from.
+
+   A CSS animation outranks both the class and the inline style it is drawn
+   over, which is what makes that work in all three cases. */
+@keyframes seat-swapped {
+  from {
+    border-color: var(--seat-swapped-from);
+  }
+}
+.seat-swapped {
+  animation: seat-swapped 2s ease-out;
+}
+
 /* The Actions sheet is the one thing in the app that moves. Somebody who has
    asked their system not to animate gets it where it is going without the
    travel, rather than not at all. */
 @media (prefers-reduced-motion: reduce) {
   .sheet-panel {
     transition: none !important;
+  }
+
+  /* And no fading edge. There is nothing behind this one to arrive at: the
+     swap has already happened and the schedule below is showing it. */
+  .seat-swapped {
+    animation: none;
   }
 }
 

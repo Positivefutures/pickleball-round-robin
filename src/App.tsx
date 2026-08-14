@@ -44,7 +44,7 @@ import { TourSheet } from './components/tour/TourSheet';
 import { TutorialOverlay } from './components/tour/TutorialOverlay';
 import {
   OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, TOUR_ROUNDS_START,
-  TOUR_ROUNDS_TARGET, armOpener, completeTour, dismissComplete, getTourView,
+  TOUR_ROUNDS_TARGET, armOpener, backCard, completeTour, dismissComplete, getTourView,
   nextCard, resumeTour, startTour, subscribeTour, tourStartSelection,
 } from './lib/tour';
 import { InstallBanner } from './components/layout/InstallBanner';
@@ -62,6 +62,7 @@ import { RosterPage } from './components/roster/RosterPage';
 import { GroupPicker } from './components/roster/GroupPicker';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
+import type { ActionsEntry } from './components/schedule/ActionsSheet';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
@@ -123,6 +124,20 @@ function App() {
   const [pendingLeave, setPendingLeave] = useState<'setup' | 'roster' | null>(null);
   // Change Groups, opened from the group name in the banner.
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  // Manage Groups. It is drawn by RosterPage and opened by the Manage button on
+  // that page, but the state is held up here: the panel that closes the tour
+  // offers the same button, and it sits above every page.
+  const [showManageGroups, setShowManageGroups] = useState(false);
+  /**
+   * The Actions sheet: which view is open, and a count that changes on every
+   * opening so a sheet mid-flash is replaced rather than reused.
+   *
+   * Drawn by SchedulePage, held here, because the tour is the only thing that
+   * needs all three of opening it, moving a card when it opens, and shutting it
+   * again — and the tour is App's.
+   */
+  const [actionsSheet, setActionsSheet] =
+    useState<{ view: ActionsEntry; opened: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showDefaultRating, setShowDefaultRating] = useState(false);
@@ -498,6 +513,31 @@ function App() {
     }
     nextCard();
   }, [tour, setNumCourts, setNumRounds]);
+
+  /**
+   * Back, plus whatever this card has to put back the way it found it.
+   *
+   * Only the last one has anything: it is drawn over the Actions sheet, and the
+   * card behind it is the card that says to press Actions. Leaving the sheet up
+   * would show that instruction over the panel the button already opened.
+   */
+  const handleTourBack = useCallback(() => {
+    if (tour?.id === 'new-round-robin') setActionsSheet(null);
+    backCard();
+  }, [tour]);
+
+  /**
+   * The Actions sheet opening, from the button or from a return trip through My
+   * Account.
+   *
+   * The tour's Actions card moves on from in here rather than by listening for
+   * the press, which means a press that did not open the sheet cannot advance
+   * the card either.
+   */
+  const handleOpenActions = useCallback((view: ActionsEntry) => {
+    setActionsSheet((prev) => ({ view, opened: (prev?.opened ?? 0) + 1 }));
+    if (tour?.id === 'actions') nextCard();
+  }, [tour]);
 
   // Setup's Generate: a brand new schedule, starting the session over.
   const handleGenerate = useCallback(() => {
@@ -1100,6 +1140,8 @@ function App() {
               // offering a Next of its own, so the press has to move it.
               if (tour?.id === 'players') nextCard();
             }}
+            manageOpen={showManageGroups}
+            onManageOpenChange={setShowManageGroups}
             defaultRating={defaultRating}
           />
         )}
@@ -1148,9 +1190,9 @@ function App() {
             onUnsavedWorkChange={setScheduleHasWork}
             showSwapHint={!swapHintDismissed && !tour}
             hideSeatEdit={!!tour}
-            onActionsOpened={() => {
-              if (tour?.id === 'actions') nextCard();
-            }}
+            actionsSheet={actionsSheet}
+            onOpenActions={handleOpenActions}
+            onCloseActions={() => setActionsSheet(null)}
             confirmNewSession={tour?.id !== 'new-round-robin'}
             onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
@@ -1309,13 +1351,38 @@ function App() {
           <p>Let&rsquo;s create your first round robin!</p>
         </TourSheet>
       )}
-      {tour && <TutorialOverlay view={tour} onNext={handleTourNext} />}
+      {tour && (
+        <TutorialOverlay view={tour} onNext={handleTourNext} onBack={handleTourBack} />
+      )}
       {tourView.phase === 'complete' && (
         <TourSheet title="Tutorial Complete!" buttonLabel="Done" onPress={dismissComplete}>
           <p>
             You&rsquo;re ready to create your first group, add players, and create your
             own round robins.
           </p>
+          {/* The one thing the tour never showed them, offered rather than
+              described: the sentence says where the button is on the page they
+              are about to be standing on, and the button beside it is the same
+              button, so they can take either. */}
+          <div className="flex items-center justify-between gap-4 text-left">
+            <p>
+              {/* Held on one line. It is the name of the panel they are being
+                  sent to, and bold type broken across two lines reads as two
+                  things rather than one. */}
+              Click <strong>Manage</strong> under{' '}
+              <strong className="whitespace-nowrap">My Groups</strong> to add groups.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                dismissComplete();
+                setShowManageGroups(true);
+              }}
+              className="flex shrink-0 items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
+            >
+              Manage
+            </button>
+          </div>
           <p>Have fun playing pickleball! And thanks for being an organizer.</p>
         </TourSheet>
       )}

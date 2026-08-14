@@ -21,6 +21,13 @@ export const ROUND_FILL = '#7CAED0';
 export const ROUND_EDGE = '#2B76A9';
 
 /**
+ * The same line, several steps down, worn for two seconds by a sit-out chip
+ * somebody has just been swapped into. The courts do this in their own two
+ * colours; out here there is only the round's line to darken.
+ */
+export const ROUND_EDGE_SWAPPED = '#0E3E5D';
+
+/**
  * What a round says about itself: ROUND 3, COURT 1, COMPLETED.
  *
  * All three are the same size because they are the same kind of thing, and a

@@ -38,6 +38,14 @@ interface Props {
    * instruction is to press one more player.
    */
   hideSeatEdit?: boolean;
+  /**
+   * The players who have just changed places in this round, if any. Their seats
+   * take a strong edge and fade it back over two seconds. Absent on every round
+   * but the one the swap was made in.
+   */
+  swappedIds?: string[];
+  /** Which swap those ids belong to. See SwapFlash in SchedulePage. */
+  swapSeq?: number;
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -85,6 +93,8 @@ export function RoundCard({
   onEditScore,
   tourRound,
   hideSeatEdit,
+  swappedIds,
+  swapSeq,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
@@ -189,6 +199,8 @@ export function RoundCard({
                   courtIdx={courtIdx}
                   tourCourt={tourRound ? courtIdx : undefined}
                   hideSeatEdit={hideSeatEdit}
+                  swappedIds={swappedIds}
+                  swapSeq={swapSeq}
                   selectedSlot={selectedSlot}
                   onPlayerTap={onPlayerTap}
                   allPlayers={allPlayers}
@@ -208,6 +220,8 @@ export function RoundCard({
           <SitOutList
             players={round.sitOuts}
             roundIdx={roundIdx}
+            swappedIds={swappedIds}
+            swapSeq={swapSeq}
             selectedSlot={selectedSlot}
             onPlayerTap={onPlayerTap}
             onOpenPlayerMenu={onOpenPlayerMenu}

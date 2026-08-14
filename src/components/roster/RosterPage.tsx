@@ -41,6 +41,16 @@ interface Props {
   onAddPlayersToRosters: (playerIds: string[], rosterIds: string[]) => void;
   onDeletePlayer: (id: string) => void;
   onContinue: () => void;
+  /**
+   * Whether Manage Groups is open.
+   *
+   * Held by App rather than here, because the panel that closes the first-run
+   * tour offers a Manage button of its own — it puts the host straight into the
+   * same dialog this page's Manage opens, and there is no way to reach a state
+   * that lives inside this page from up there.
+   */
+  manageOpen: boolean;
+  onManageOpenChange: (open: boolean) => void;
   /** Rating a new player starts with — set from Settings. */
   defaultRating: number;
 }
@@ -60,6 +70,8 @@ export function RosterPage({
   onAddPlayersToRosters,
   onDeletePlayer,
   onContinue,
+  manageOpen,
+  onManageOpenChange,
   defaultRating,
 }: Props) {
   // Dialog state is stamped with the roster it was opened under, so a roster
@@ -68,7 +80,6 @@ export function RosterPage({
   const [editing, setEditing] = useState<{ player: Player; rosterId: string } | null>(null);
   const [orphan, setOrphan] = useState<{ player: Player; rosterId: string } | null>(null);
   const [draftRosterIds, setDraftRosterIds] = useState<string[]>([]);
-  const [showManage, setShowManage] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
 
   // Selection is stamped with its group too, so switching groups clears it
@@ -105,7 +116,7 @@ export function RosterPage({
    * dialog left the host somewhere they had never been.
    */
   useScrollLock(
-    showManage || showPicker || showAddToGroup || !!editing || !!orphan || confirmDelete
+    manageOpen || showPicker || showAddToGroup || !!editing || !!orphan || confirmDelete
   );
 
   useEffect(() => {
@@ -265,7 +276,7 @@ export function RosterPage({
             <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
           <button
-            onClick={() => setShowManage(true)}
+            onClick={() => onManageOpenChange(true)}
             className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
           >
             Manage
@@ -408,7 +419,7 @@ export function RosterPage({
         />
       )}
 
-      {showManage && (
+      {manageOpen && (
         <ManageRostersModal
           rosters={rosters}
           players={allPlayers}
@@ -416,7 +427,7 @@ export function RosterPage({
           onRename={onRenameRoster}
           onDelete={onDeleteRoster}
           onDuplicate={onDuplicateRoster}
-          onClose={() => setShowManage(false)}
+          onClose={() => onManageOpenChange(false)}
         />
       )}
 

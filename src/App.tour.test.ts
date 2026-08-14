@@ -91,6 +91,19 @@ function overlay(): HTMLElement | null {
   return document.querySelector('[data-tutorial-overlay]');
 }
 
+/**
+ * Whether the tour is drawn but standing down behind one of the app's own
+ * panels. It is hidden rather than unmounted there, so its bubbles keep the
+ * heights they were measured at and it comes back in one piece.
+ */
+const overlayHidden = () => document.querySelector('[data-tour-hidden]') !== null;
+
+/** Skip tutorial, and then mean it. */
+function skipTheTour() {
+  clickButton(/^Skip tutorial$/);
+  clickButton(/^End Tutorial$/);
+}
+
 const openerShowing = () => body().includes('Quick Start Tutorial');
 const completeShowing = () => body().includes('Tutorial Complete!');
 
@@ -203,7 +216,7 @@ describe('who gets greeted', () => {
 
   it('never greets the same device twice', () => {
     begin();
-    clickButton(/^Skip$/);
+    skipTheTour();
     remount();
     waitForOpener();
     expect(openerShowing()).toBe(false);
@@ -214,7 +227,7 @@ describe('who gets greeted', () => {
     freshInstall();
     mount();
     waitForOpener();
-    expect(has(/^Skip$/)).toBe(false);
+    expect(has(/^Skip/)).toBe(false);
   });
 });
 
@@ -245,7 +258,7 @@ describe('the cards that hand over a real control', () => {
     begin();
     expect(has(/^Next$/)).toBe(false);
     expect(has(/^Back$/)).toBe(false);
-    expect(has(/^Skip$/)).toBe(true);
+    expect(has(/^Skip tutorial$/)).toBe(true);
 
     clickButton(/^Continue to Setup/);
     expect(cardNumber()).toBe(2);
@@ -384,10 +397,21 @@ describe('Back and Skip', () => {
     expect(has(/^Back$/)).toBe(false);
   });
 
-  it('offers no way back to before the schedule existed', () => {
+  it('walks back off the congratulations card to the tab it came from', () => {
+    // It used to refuse, on the grounds that the schedule had not existed when
+    // the card behind it was up. That is the wrong reading of Back: it undoes
+    // the step, not the work. The schedule stays built, and pressing Generate
+    // again builds another and comes straight back here.
     throughSetup();
     expect(cardNumber()).toBe(4);
-    expect(has(/^Back$/)).toBe(false);
+
+    clickButton(/^Back$/);
+    expect(cardNumber()).toBe(3);
+    expect(step()).toBe('setup');
+
+    clickButton(/^Generate Schedule/);
+    expect(cardNumber()).toBe(4);
+    expect(step()).toBe('schedule');
   });
 
   it('places the page again on a card it is walking back into', () => {
@@ -420,13 +444,85 @@ describe('Back and Skip', () => {
   it('ends the tour from any card, for good', () => {
     begin();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Skip$/);
+    skipTheTour();
 
     expect(overlay()).toBeNull();
     expect(stage()).toBe('done');
     remount();
     waitForOpener();
     expect(overlay()).toBeNull();
+  });
+
+  it('asks before it ends the tour, and takes no for an answer', () => {
+    // The pill is a small target at the foot of a screen full of things the
+    // card wants pressed, and there is no way back into a tour that has ended.
+    begin();
+    clickButton(/^Skip tutorial$/);
+
+    expect(body()).toContain('End the tutorial?');
+    expect(overlay()).not.toBeNull();
+    expect(stage()).toBe('running');
+
+    clickButton(/^Keep Going$/);
+    expect(body()).not.toContain('End the tutorial?');
+    expect(cardNumber()).toBe(1);
+    expect(stage()).toBe('running');
+  });
+});
+
+describe('the last card puts the sheet back', () => {
+  it('closes the Actions sheet on the way back out of it', () => {
+    // The last card is drawn over an open sheet. Back off it lands on the card
+    // that says to press Actions, and leaving the sheet up would show that
+    // instruction over the panel the button has already opened.
+    throughSetup();
+    clickButton(/^Next$/); // 4 -> 5
+    clickButton(/^Next$/); // 5 -> 6
+    clickButton(/^Next$/); // 6 -> 7
+    clickButton(/^Actions$/);
+    expect(cardNumber()).toBe(8);
+    expect(body()).toContain('Quick changes for this session');
+
+    clickButton(/^Back$/);
+    expect(cardNumber()).toBe(7);
+    expect(body()).not.toContain('Quick changes for this session');
+
+    // And the button still works second time round.
+    clickButton(/^Actions$/);
+    expect(cardNumber()).toBe(8);
+    expect(body()).toContain('Quick changes for this session');
+  });
+});
+
+describe('the closing panel', () => {
+  function toTheEnd() {
+    throughSetup();
+    clickButton(/^Next$/);
+    clickButton(/^Next$/);
+    clickButton(/^Next$/);
+    clickButton(/^Actions$/);
+    clickButton(/^New Round Robin$/);
+  }
+
+  it('points at Manage, and offers it', () => {
+    toTheEnd();
+    expect(completeShowing()).toBe(true);
+    expect(body()).toContain('under');
+    expect(body()).toContain('to add groups');
+  });
+
+  it('opens Manage Groups and shuts the panel behind it', () => {
+    // The one thing the tour never showed them. Pressing it has to do both
+    // halves: the tutorial is over, and the dialog its own Manage button opens
+    // is up, on the Players tab it just landed on.
+    toTheEnd();
+    const sheet = document.querySelector('[role="dialog"][aria-label="Tutorial Complete!"]')!;
+    clickButton(/^Manage$/, sheet);
+
+    expect(completeShowing()).toBe(false);
+    expect(body()).toContain('Manage Groups');
+    expect(step()).toBe('roster');
+    expect(stage()).toBe('done');
   });
 });
 
@@ -476,14 +572,14 @@ describe('what the overlay draws', () => {
     expect(body()).toContain('Step 1 of 8');
   });
 
-  it('keeps Skip out of the bubbles and at the foot of the screen', () => {
+  it('keeps Skip tutorial out of the bubbles and at the foot of the screen', () => {
     // In the corner of a bubble it read as one of that card's two buttons. It
     // is not: it is the way out of the whole tour, so it sits somewhere fixed
     // that no card owns, and every card has to be able to find it.
     begin();
     const skip = overlay()!.querySelector('[data-tour-skip]');
     expect(skip).not.toBeNull();
-    expect(text(skip!)).toBe('Skip');
+    expect(text(skip!)).toBe('Skip tutorial');
 
     const bubbles = [...overlay()!.querySelectorAll('div')].filter((d) =>
       /Click Continue to Setup/.test(text(d))
@@ -491,6 +587,7 @@ describe('what the overlay draws', () => {
     for (const b of bubbles) expect(b.contains(skip)).toBe(false);
 
     click(skip!);
+    clickButton(/^End Tutorial$/);
     expect(overlay()).toBeNull();
     expect(stage()).toBe('done');
   });
@@ -509,21 +606,43 @@ describe('what the overlay draws', () => {
   it('stands down while one of the app’s own panels is open, and comes back', () => {
     // It cannot get out of the way with a z-index: `.app-panel` carries z-10,
     // so every panel inside it stacks within that one context and the overlay
-    // outside comes out over the lot however low it sets itself. So it draws
-    // nothing at all instead, and takes none of the clicks.
+    // outside comes out over the lot however low it sets itself. So it hides
+    // instead, and takes none of the clicks.
+    //
+    // No frame() anywhere in here, and that is the assertion. It used to find
+    // the open panel by polling the DOM once a frame, which meant the panel
+    // opened and the page painted with the tour still drawn over it, and the
+    // frame after that the tour vanished — a flash of the wrong thing at both
+    // ends. Hidden and shown in the same commit as the panel, there is no frame
+    // in between to paint.
     begin();
-    expect(overlay()).not.toBeNull();
+    expect(overlayHidden()).toBe(false);
 
     click(document.querySelector('[data-tutorial="group-name"]')!);
-    expect(document.querySelector('[data-tour-suspends]')).not.toBeNull();
-    frame();
-    expect(overlay()).toBeNull();
+    expect(overlayHidden()).toBe(true);
 
     clickButton(/^Close$/);
-    expect(document.querySelector('[data-tour-suspends]')).toBeNull();
-    frame();
-    expect(overlay()).not.toBeNull();
+    expect(overlayHidden()).toBe(false);
     expect(cardNumber()).toBe(1);
+  });
+
+  it('stays mounted while it stands down, so it comes back measured', () => {
+    // Hidden, not unmounted. An unmounted bubble is an unmeasured one: the ref
+    // is dropped, the height is forgotten, and the tour comes back with nothing
+    // sized and lays itself out again in front of the host — the same flicker
+    // at the other end of the same trip. So the element that goes away has to
+    // be the element that comes back, and that is what is checked: identity,
+    // not presence.
+    begin();
+    const before = overlay();
+    expect(before).not.toBeNull();
+
+    click(document.querySelector('[data-tutorial="group-name"]')!);
+    expect(overlay()).toBe(before);
+
+    clickButton(/^Close$/);
+    expect(overlay()).toBe(before);
+    expect(body()).toContain('Click Continue to Setup');
   });
 });
 

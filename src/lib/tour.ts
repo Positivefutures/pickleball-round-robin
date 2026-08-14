@@ -235,10 +235,10 @@ export const TOUR_STEPS: TourStep[] = [
         prefer: 'above',
       },
     ],
-    // Back would mean returning to a Setup tab that has already been left
-    // behind, and to a state before the schedule they are being congratulated
-    // on existed.
-    noBack: true,
+    // Back goes to the Setup tab this card was reached from, with the schedule
+    // still built behind it. Pressing Generate again simply builds another one
+    // and comes back here, which is what every other card's Back does: undo the
+    // step, not the work.
     // The head of the page, where the Actions button leaves a bubble's worth of
     // room above the first round. Anywhere else and the bubble is pushed down
     // onto the rounds it is meant to be sitting above.

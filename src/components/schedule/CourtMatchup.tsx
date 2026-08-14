@@ -24,6 +24,10 @@ interface Props {
   showGender?: boolean;
   /** Hides the pencil on a selected seat. The tour's swap card sets it. */
   hideSeatEdit?: boolean;
+  /** Players who have just changed places in this round. See RoundCard. */
+  swappedIds?: string[];
+  /** Which swap those ids belong to, so a second one restarts the fade. */
+  swapSeq?: number;
   /** Opens the box for renaming this court. Absent on a round that cannot be edited. */
   onEditNumber?: () => void;
   /** Whether this session keeps score. Off, and the board is not drawn at all. */
@@ -60,6 +64,13 @@ interface TeamStyles {
   borderClass: string;
   hoverClass: string;
   selectedBgClass: string;
+  /**
+   * The edge a place wears for a moment after somebody has just been swapped
+   * into it, before it fades back to `borderClass`. Each side's own colour
+   * taken several steps down, so the mark reads as that place lighting up
+   * rather than as a colour arriving from somewhere else.
+   */
+  swappedBorder: string;
 }
 
 function PlayerButton({
@@ -77,6 +88,7 @@ function PlayerButton({
   styles,
   showGender,
   hideSeatEdit,
+  swapped,
 }: {
   player: Player;
   playerIdx: number;
@@ -92,8 +104,10 @@ function PlayerButton({
   styles: TeamStyles;
   showGender: boolean;
   hideSeatEdit: boolean;
+  /** Whether this place has just been swapped into. See index.css. */
+  swapped: boolean;
 }) {
-  const { bgClass, borderClass, hoverClass, selectedBgClass } = styles;
+  const { bgClass, borderClass, hoverClass, selectedBgClass, swappedBorder } = styles;
   // Locked players cannot be tapped for swap; completed rounds are frozen entirely
   const interactive = !locked && !readOnly;
   const displayName = getDisplayName(player, allPlayers);
@@ -104,7 +118,15 @@ function PlayerButton({
       onClick={() =>
         interactive && onPlayerTap({ kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx })
       }
+      // The animation reads the colour to start from off the element, so this
+      // is the only thing either side has to say about it. A CSS animation
+      // outranks the class the place is resting on and outranks an inline
+      // colour too, which is what lets the fade end wherever the place would
+      // have been anyway without either of them naming it.
+      style={swapped ? ({ '--seat-swapped-from': swappedBorder } as React.CSSProperties) : undefined}
       className={`relative w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
+        swapped ? 'seat-swapped ' : ''
+      }${
         locked
           ? `${bgClass} border-2 border-black`
           : selected
@@ -191,6 +213,8 @@ function TeamColumn({
   courtNumber,
   showGender,
   hideSeatEdit,
+  swappedIds,
+  swapSeq,
 }: {
   team: Player[];
   teamKey: 'team1' | 'team2';
@@ -213,7 +237,22 @@ function TeamColumn({
   courtNumber: number;
   showGender: boolean;
   hideSeatEdit: boolean;
+  swappedIds?: string[];
+  swapSeq?: number;
 }) {
+  /**
+   * The React key of a place, carrying which swap it is marked by.
+   *
+   * A key that changes remounts the button, and a remounted element runs its
+   * animation from the start. That is the whole point: two swaps of the same
+   * person inside two seconds would otherwise show one fade, half of it already
+   * spent, and the second swap would look like it had not registered.
+   */
+  const seatKey = (player: Player) =>
+    swappedIds?.includes(player.id) ? `${player.id}:${swapSeq}` : player.id;
+
+  const isSwapped = (player: Player) => !!swappedIds?.includes(player.id);
+
   function isSelected(playerIdx: number) {
     return (
       selectedSlot?.kind === 'court' &&
@@ -237,7 +276,8 @@ function TeamColumn({
     <div className="min-w-0 flex-1 flex flex-col items-center gap-1">
       {team[0] && (
         <PlayerButton
-          key={team[0].id}
+          key={seatKey(team[0])}
+          swapped={isSwapped(team[0])}
           player={team[0]}
           playerIdx={0}
           teamKey={teamKey}
@@ -271,7 +311,8 @@ function TeamColumn({
 
       {team[1] && (
         <PlayerButton
-          key={team[1].id}
+          key={seatKey(team[1])}
+          swapped={isSwapped(team[1])}
           player={team[1]}
           playerIdx={1}
           teamKey={teamKey}
@@ -308,6 +349,7 @@ const TEAM1_STYLES: TeamStyles = {
   borderClass: 'border-blue-200',
   hoverClass: 'hover:bg-blue-100',
   selectedBgClass: 'bg-blue-200',
+  swappedBorder: '#1d4ed8', // blue-700, against a resting blue-200
 };
 
 const TEAM2_STYLES: TeamStyles = {
@@ -315,9 +357,10 @@ const TEAM2_STYLES: TeamStyles = {
   borderClass: 'border-orange-200',
   hoverClass: 'hover:bg-orange-100',
   selectedBgClass: 'bg-orange-200',
+  swappedBorder: '#c2410c', // orange-700, against a resting orange-200
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, hideSeatEdit = false, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -431,6 +474,8 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           courtNumber={court.courtNumber}
           showGender={showGender}
           hideSeatEdit={hideSeatEdit}
+          swappedIds={swappedIds}
+          swapSeq={swapSeq}
         />
 
         {/* Sits in the gap between the two columns, centred against the taller one */}
@@ -453,6 +498,8 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           courtNumber={court.courtNumber}
           showGender={showGender}
           hideSeatEdit={hideSeatEdit}
+          swappedIds={swappedIds}
+          swapSeq={swapSeq}
         />
       </div>
     </div>

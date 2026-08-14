@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { MAX_COURT_NUMBER, parseCourtNumber } from '../../lib/courtNumbers';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { useSuspendsTour } from '../../lib/tourSuspend';
 import { ScorePanel } from './Scoreboard';
 import { Keypad } from './Keypad';
 import { CourtIcon } from '../icons';
@@ -39,6 +40,10 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
 
   useScrollLock(true);
 
+  // The tour's court number card hands this button over, and the tour has to
+  // get out of its own way to let the box be used. See lib/tourSuspend.
+  useSuspendsTour();
+
   function pressDigit(digit: string) {
     const next = ((fresh ? '' : text) + digit).replace(/^0+(?=\d)/, '').slice(0, MAX_DIGITS);
     setFresh(false);
@@ -58,13 +63,8 @@ export function CourtNumberDialog({ courtNumber, roundNumber, onDone, onCancel }
 
   return (
     // Up at the top rather than centred, as the score box is, so the two open
-    // in the same place. data-tour-suspends because the tour's court number
-    // card hands this button over, and the tour has to get out of its own way
-    // to let it be used — see TutorialOverlay.
-    <div
-      data-tour-suspends
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-6"
-    >
+    // in the same place.
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-6">
       <form
         onSubmit={handleSubmit}
         role="dialog"

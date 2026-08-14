@@ -95,10 +95,24 @@ describe('the deck', () => {
     expect(handed).toEqual(['players', 'select-players', 'actions', 'new-round-robin']);
   });
 
-  it('refuses Back only where there is nowhere honest to go', () => {
-    // The first card, and the one the host lands on with a schedule they built
-    // in between — there is no walking back to before it existed.
-    expect(TOUR_STEPS.filter((s) => s.noBack).map((s) => s.id)).toEqual(['players', 'congrats']);
+  it('refuses Back only on the card there is nothing behind', () => {
+    // The first one, and only the first one. Every other card can be walked out
+    // of, the congratulations card included: Back off that goes to the Setup
+    // tab it was reached from with the schedule still built behind it, and
+    // pressing Generate again simply builds another and comes back.
+    expect(TOUR_STEPS.filter((s) => s.noBack).map((s) => s.id)).toEqual(['players']);
+  });
+
+  it('offers Back on the congratulations card', () => {
+    // Called out on its own because it is the card that lost its noBack, and a
+    // deck this file only ever counts would not notice it coming back.
+    startTour();
+    for (let i = 0; i < 3; i++) nextCard();
+    expect(getTourView().card!.id).toBe('congrats');
+    expect(getTourView().card!.canBack).toBe(true);
+
+    backCard();
+    expect(getTourView().card!.id).toBe('select-players');
   });
 
   it('keeps the live step tab undimmed on every single card', () => {

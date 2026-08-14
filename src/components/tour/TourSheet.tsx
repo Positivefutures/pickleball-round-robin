@@ -49,8 +49,16 @@ export function TourSheet({
   return (
     <div className="no-print fixed inset-0 z-50 flex flex-col justify-end">
       {/* The page stays visible underneath, quietened rather than hidden. It is
-          the thing being introduced. */}
-      <div className="absolute inset-0" style={{ backgroundColor: DIM }} />
+          the thing being introduced.
+
+          It fades in over the same 300ms the sheet takes to arrive, the way the
+          Actions sheet's does. Switched on in one step it darkened the whole
+          screen a beat before there was anything on it to read, which looked
+          like the app blinking rather than like a panel opening. */}
+      <div
+        className="absolute inset-0 transition-opacity duration-300 ease-out"
+        style={{ backgroundColor: DIM, opacity: up ? 1 : 0 }}
+      />
 
       <div
         role="dialog"
@@ -82,7 +90,12 @@ export function TourSheet({
             {title}
           </h1>
 
-          <div className="mt-3 space-y-3 text-lg leading-relaxed text-[#3A4353]">{children}</div>
+          {/* Full width, so a line that wants to be a row — a sentence on the
+              left and the button it is about on the right — has the room to be
+              one. Centred text is still centred inside it. */}
+          <div className="mt-3 w-full space-y-3 text-lg leading-relaxed text-[#3A4353]">
+            {children}
+          </div>
 
           <button
             type="button"

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Region, TourView } from '../../lib/tour';
-import { backCard, noteScrolled, skipTour } from '../../lib/tour';
+import { noteScrolled, skipTour } from '../../lib/tour';
+import { subscribeSuspend, tourSuspended } from '../../lib/tourSuspend';
 import {
   DIM,
   EDGE,
@@ -48,31 +49,11 @@ function regionRect(region: Region): Rect | null {
 }
 
 /**
- * Whether one of the app's own panels has taken the screen.
- *
- * The tour cannot get out of its way with a z-index. It is mounted outside
- * `.app-panel`, which it has to be — that element takes a transform when the
- * settings drawer slides, and a transformed ancestor becomes the containing
- * block for its fixed children, which would carry the spotlight off screen with
- * it. But `.app-panel` also carries `z-10`, so every panel inside it, however
- * high it sets its own z-index, is stacked inside that one context and the
- * overlay sitting outside at z-40 comes out over the lot.
- *
- * So it stands down instead. Two cards hand over a control that opens a panel —
- * the group name on card 1, the court number on card 5 — and while either is up
- * the tour draws nothing at all and takes none of the clicks. It is back the
- * frame after the panel closes, on the same card.
- */
-function panelOpen(): boolean {
-  return document.querySelector('[data-tour-suspends]') !== null;
-}
-
-/**
  * What the tour draws.
  *
  * The screen darkened everywhere except the card's boxes, an orange ring on the
  * ones being pointed at, a bubble beside each with the step's own Back and Next
- * in it, Skip in the same corner of the screen throughout, and clicks stopped
+ * in it, Skip tutorial at the foot of the screen throughout, and clicks stopped
  * everywhere the card has not left something alive. Every number comes out of
  * tourGeometry.ts; this file measures, calls it, and turns the answers into divs.
  *
@@ -86,9 +67,27 @@ function panelOpen(): boolean {
  * whole app, because the body is pinned with position:fixed and a second lock
  * taken over the first reads the scroll offset as zero.
  */
-export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () => void }) {
+export function TutorialOverlay({
+  view,
+  onNext,
+  onBack,
+}: {
+  view: TourView;
+  onNext: () => void;
+  // Both come from App, not from the store directly. A card may have something
+  // of the app's to set on the way through, and only App can set it.
+  onBack: () => void;
+}) {
   const bubbleEls = useRef<(HTMLDivElement | null)[]>([]);
-  const [suspended, setSuspended] = useState(panelOpen);
+  // Out of the way while one of the app's own panels is up. Subscribed rather
+  // than polled on the measure loop below, so the panel appearing and the tour
+  // disappearing are the same commit and no frame is painted between them. See
+  // lib/tourSuspend.
+  const suspended = useSyncExternalStore(subscribeSuspend, tourSuspended, tourSuspended);
+  // Whether Skip tutorial has been pressed and is waiting to be meant. It is a
+  // small target at the foot of a screen full of things the card wants pressed,
+  // and ending the tour by accident cannot be undone.
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const [regions, setRegions] = useState<(Rect | null)[]>(() => view.regions.map(regionRect));
   const [anchors, setAnchors] = useState<(Rect | null)[]>(() =>
     view.bubbles.map((b) => (b.at ? rectOf(b.at) : null))
@@ -112,10 +111,6 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
           return el ? toRect(el.getBoundingClientRect()) : null;
         });
         return sameRects(prev, next) ? prev : next;
-      });
-      setSuspended((prev) => {
-        const next = panelOpen();
-        return prev === next ? prev : next;
       });
       frame = requestAnimationFrame(tick);
     };
@@ -210,19 +205,21 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
     placed[1] = b;
   }
 
-  // Out of the way entirely while one of the app's own panels is up. Nothing
-  // drawn and nothing intercepted, so the panel behaves exactly as it does
-  // outside the tour. Below the hooks, never above them.
-  if (suspended) return null;
-
   return (
     // pointer-events-none, and not optional. Children paint above their parent,
     // so the shields below work either way — but over a hole the card has left
     // live there is no child, and a root that took its own pointer events would
     // be the hit target there and swallow the one click the card is waiting for.
+    //
+    // Hidden rather than unmounted while a panel is up. Nothing is drawn and
+    // nothing is hit — visibility:hidden takes both, and every child inherits
+    // it — but the bubbles keep their measured heights, so the tour comes back
+    // in one piece instead of laying itself out again in front of the host.
     <div
       className="no-print pointer-events-none fixed inset-0 z-40"
+      style={suspended ? { visibility: 'hidden' } : undefined}
       data-tutorial-overlay
+      data-tour-hidden={suspended ? '' : undefined}
     >
       {/* The screen minus the boxes, tiled so two boxes darken it exactly as
           much as one. Every tile swallows its clicks. */}
@@ -299,7 +296,7 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
                 {view.canBack ? (
                   <button
                     type="button"
-                    onClick={backCard}
+                    onClick={onBack}
                     className="font-semibold text-gray-500 underline underline-offset-2 transition-colors hover:text-gray-700"
                   >
                     Back
@@ -322,19 +319,58 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
         );
       })}
 
-      {/* Skip, in the same place on every card, at the foot of the screen the
-          band is kept clear of. In the corner of a bubble it read as one of
-          that card's two buttons; down here it is plainly about the tour
+      {/* Skip tutorial, in the same place on every card, at the foot of the
+          screen the band is kept clear of. In the corner of a bubble it read as
+          one of that card's two buttons; down here it is plainly about the tour
           rather than about the step, and no card has to find room for it. */}
       <button
         type="button"
-        onClick={skipTour}
+        onClick={() => setConfirmSkip(true)}
         data-tour-skip
         className="pointer-events-auto fixed left-1/2 -translate-x-1/2 rounded-md border border-brand-orange bg-brand-orange-light px-4 py-1 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-white"
         style={{ bottom: EDGE }}
       >
-        Skip
+        Skip tutorial
       </button>
+
+      {/* Asked, because the pill sits at the foot of a screen full of things
+          the card wants pressed and there is no way back into a tour that has
+          been ended. Last in the tree and over its own scrim, so the card
+          underneath is quiet and none of its live controls can be reached
+          while the question is open. */}
+      {confirmSkip && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="End the tutorial?"
+          className="pointer-events-auto fixed inset-0 flex items-center justify-center bg-black/40 px-4"
+        >
+          <div className="w-full max-w-sm rounded-lg border border-[#ddd] bg-white p-6 shadow-xl">
+            <p className="text-center text-xl font-extrabold text-[#051829]">
+              End the tutorial?
+            </p>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Nothing you have made is lost. You can carry on from here.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmSkip(false)}
+                className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+              >
+                Keep Going
+              </button>
+              <button
+                type="button"
+                onClick={skipTour}
+                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
+              >
+                End Tutorial
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

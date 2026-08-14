@@ -312,6 +312,142 @@ describe('the swap hint', () => {
 });
 
 /**
+ * The mark a swap leaves behind it.
+ *
+ * Two names change over on a grid of names, and on a phone held at arm's length
+ * it is very easy to miss which two. So both places take a strong edge for two
+ * seconds and let it fade back to the line they were resting on. Everything
+ * about the fade itself is CSS — see `seat-swapped` in index.css, and there is
+ * no layout in happy-dom to look at anyway. What is checkable here is which
+ * places wear it, for how long, and that a second swap is a second mark.
+ */
+describe('the mark a swap leaves', () => {
+  beforeEach(() => {
+    seed(9, 9, 2);
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  /** Which places are marked, by name, wherever they are on the page. */
+  function marked(scope: ParentNode = container): string[] {
+    return [...scope.querySelectorAll('.seat-swapped')]
+      .map((el) => NAMES.find((n) => text(el).startsWith(n)) ?? text(el))
+      .sort();
+  }
+
+  /** One place on Round 1, found by whoever is standing in it now. */
+  function seat(name: string, round = 1): HTMLElement {
+    const found = buttons(new RegExp(`^${name}`), roundCard(round))[0];
+    if (!found) throw new Error(`nobody called ${name} on round ${round}`);
+    return found;
+  }
+
+  function swap(a: string, b: string, round = 1) {
+    clickButton(new RegExp(`^${a}`), roundCard(round));
+    clickButton(new RegExp(`^${b}`), roundCard(round));
+  }
+
+  it('marks both places, and nothing in any other round', () => {
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    const a = first.courts[0].team1[0].name;
+    const b = first.courts[1].team1[0].name;
+    swap(a, b);
+
+    expect(marked(roundCard(1))).toEqual([a, b].sort());
+    // The same two people are in all eight rounds. Marking them everywhere
+    // would say the swap moved somebody for the whole afternoon.
+    expect(marked()).toHaveLength(2);
+  });
+
+  it('hands the place back after two seconds', () => {
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    swap(first.courts[0].team1[0].name, first.courts[1].team1[0].name);
+    expect(marked()).toHaveLength(2);
+
+    act(() => vi.advanceTimersByTime(2000));
+    expect(marked()).toHaveLength(0);
+  });
+
+  it('marks a sit-out who has just come on, and the player who went off', () => {
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    const out = first.sitOuts[0].name;
+    const on = first.courts[0].team1[0].name;
+    swap(out, on);
+
+    expect(marked(roundCard(1))).toEqual([on, out].sort());
+  });
+
+  it('marks the one place a move into a gap changes', () => {
+    // Nobody changed places with them — they walked into an empty court. It is
+    // the same gesture and worth the same mark, and the place they came from is
+    // a gap now with nothing on it to see.
+    seed(11, 11, 3);
+    mount();
+    generate();
+
+    const mover = storedSchedule().rounds[0].courts[0].team1[0].name;
+    click(buttons(/^EMPTY$/, roundCard(1))[0]);
+    clickButton(new RegExp(`^${mover}`), roundCard(1));
+
+    expect(marked(roundCard(1))).toEqual([mover]);
+  });
+
+  it('starts the fade over when the same two change back inside the window', () => {
+    // The class alone would not do it. The element is already wearing it, so
+    // the browser carries on with a fade that is most of the way through and
+    // the second swap looks like it did not register. The React key carries
+    // which swap marked the place, so a second one builds a new element and the
+    // animation runs from the top.
+    //
+    // Two on the same team on purpose: they change places inside one column, so
+    // React would otherwise reorder the two elements it already has and hand
+    // the same two back.
+    mount();
+    generate();
+
+    const team = storedSchedule().rounds[0].courts[0].team1;
+    const [one, two] = team.map((p) => p.name);
+
+    swap(one, two);
+    const wasMarked = seat(one);
+    expect(wasMarked.className).toContain('seat-swapped');
+
+    act(() => vi.advanceTimersByTime(500));
+    swap(one, two);
+
+    expect(seat(one)).not.toBe(wasMarked);
+    expect(seat(one).className).toContain('seat-swapped');
+  });
+
+  it('names the colour to fade from, per side of the court', () => {
+    // The animation reads it off the element and has no idea what colour a
+    // place rests on, which is what lets one keyframe serve a blue court, an
+    // orange one and a grey sit-out chip.
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    swap(first.courts[0].team1[0].name, first.courts[0].team2[0].name);
+
+    const froms = [...container.querySelectorAll('.seat-swapped')].map((el) =>
+      (el as HTMLElement).style.getPropertyValue('--seat-swapped-from')
+    );
+    expect(froms).toHaveLength(2);
+    expect(new Set(froms).size).toBe(2);
+    for (const from of froms) expect(from).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+});
+
+/**
  * The offer of an account, phase 2b of the accounts plan.
  *
  * Held back until phase 4 shipped, because until then its promise was not true:

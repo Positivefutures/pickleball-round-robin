@@ -2,7 +2,7 @@ import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
-import { PLAYER_NAME_TEXT, ROUND_EDGE } from './roundLook';
+import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_EDGE_SWAPPED } from './roundLook';
 
 interface Props {
   players: Player[];
@@ -12,6 +12,10 @@ interface Props {
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly?: boolean;
+  /** Players who have just changed places in this round. See RoundCard. */
+  swappedIds?: string[];
+  /** Which swap those ids belong to, so a second one restarts the fade. */
+  swapSeq?: number;
 }
 
 function SitOutBox({
@@ -23,6 +27,7 @@ function SitOutBox({
   onOpenPlayerMenu,
   allPlayers,
   readOnly,
+  swapped,
 }: {
   player: Player;
   roundIdx: number;
@@ -32,6 +37,8 @@ function SitOutBox({
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
+  /** Whether this chip has just been swapped into. See index.css. */
+  swapped: boolean;
 }) {
   const interactive = !readOnly;
 
@@ -42,8 +49,19 @@ function SitOutBox({
       // The resting edge is the round's own line, so a chip reads as belonging
       // to the card it sits on. Selected keeps its blue and its ring: that is a
       // state you have put it in, and it has to stay tellable from the rest.
-      style={selected ? undefined : { borderColor: ROUND_EDGE }}
+      //
+      // A swapped chip only names the colour to fade from. The animation
+      // outranks this inline edge for the two seconds it runs and then hands it
+      // straight back, which is why nothing here has to be undone afterwards.
+      style={
+        {
+          ...(selected ? undefined : { borderColor: ROUND_EDGE }),
+          ...(swapped ? { '--seat-swapped-from': ROUND_EDGE_SWAPPED } : undefined),
+        } as React.CSSProperties
+      }
       className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
+        swapped ? 'seat-swapped ' : ''
+      }${
         selected
           ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500'
           : 'bg-gray-100 hover:bg-gray-200'
@@ -71,6 +89,8 @@ export function SitOutList({
   onOpenPlayerMenu,
   allPlayers,
   readOnly = false,
+  swappedIds,
+  swapSeq,
 }: Props) {
   // Nobody sitting out is nothing to say. The row used to render empty to carry
   // an Add Player button; that button has gone back to the Actions sheet.
@@ -85,7 +105,13 @@ export function SitOutList({
       <div className="flex flex-wrap gap-2">
         {players.map((player, sitOutIdx) => (
           <SitOutBox
-            key={player.id}
+            // Carrying which swap marked it, so a second swap of the same
+            // person inside two seconds starts the fade again rather than
+            // joining one already half spent. See CourtMatchup.
+            key={
+              swappedIds?.includes(player.id) ? `${player.id}:${swapSeq}` : player.id
+            }
+            swapped={!!swappedIds?.includes(player.id)}
             player={player}
             roundIdx={roundIdx}
             sitOutIdx={sitOutIdx}

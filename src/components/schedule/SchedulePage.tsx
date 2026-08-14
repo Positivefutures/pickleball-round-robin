@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   Schedule, Player, LockedPair, Partnership, Round, CourtScore, Gender,
 } from '../../types';
@@ -45,6 +45,27 @@ export interface EmptySlot {
 }
 
 export type PlayerSlot = CourtSlot | SitOutSlot | EmptySlot;
+
+/**
+ * How long a place that has just changed hands stays marked.
+ *
+ * The same two seconds the CSS animation runs for, and it has to be: this is
+ * only how long the class stays on the element, and the fade itself is
+ * `seat-swapped` in index.css.
+ */
+const SWAP_FLASH_MS = 2000;
+
+/** Who moved in the last swap, and where. Cleared two seconds later. */
+interface SwapFlash {
+  roundIdx: number;
+  playerIds: string[];
+  /**
+   * Bumped on every swap. It ends up in the React key of a marked seat, so a
+   * second swap inside the two seconds restarts the fade instead of joining one
+   * already half over.
+   */
+  seq: number;
+}
 
 function sameSlot(a: PlayerSlot, b: PlayerSlot): boolean {
   if (a.kind !== b.kind || a.roundIdx !== b.roundIdx) return false;
@@ -94,12 +115,20 @@ interface Props {
    */
   hideSeatEdit?: boolean;
   /**
-   * Told when the Actions sheet is opened from the button, so the tour's
-   * Actions card can move on. It fires on the real press rather than the tour
-   * listening for one, which means a press that did not open the sheet cannot
-   * advance the card either.
+   * Which Actions view is open, or null while the sheet is shut, and a count
+   * that changes on every opening.
+   *
+   * Held by App rather than here, because App is the only place that knows
+   * about the first-run tour — and the tour opens this sheet, moves a card when
+   * it opens, and has to shut it again when the host walks back off the card
+   * that is drawn over it. The count keys the sheet, so opening it always gets
+   * a fresh one: it flashes a confirmation and closes itself, and a second tap
+   * during that flash should show the grid rather than the tail of the last
+   * thing done.
    */
-  onActionsOpened?: () => void;
+  actionsSheet: { view: ActionsEntry; opened: number } | null;
+  onOpenActions: (view: ActionsEntry) => void;
+  onCloseActions: () => void;
   /** Passed through: the tour's last card asks the question itself. */
   confirmNewSession?: boolean;
   /** Group members not in this session yet, offered by Add Player. */
@@ -162,7 +191,9 @@ export function SchedulePage({
   showSwapHint,
   onDismissSwapHint,
   hideSeatEdit,
-  onActionsOpened,
+  actionsSheet,
+  onOpenActions,
+  onCloseActions,
   confirmNewSession,
   addablePlayers,
   actions,
@@ -181,13 +212,6 @@ export function SchedulePage({
   // ever on screen.
   const [menuPlayer, setMenuPlayer] = useState<Player | null>(null);
   const [editCandidate, setEditCandidate] = useState<Player | null>(null);
-  // Which view the Actions sheet opens on, or null while it is closed. The
-  // counter keys the sheet, so opening it always gets a fresh one: it flashes a
-  // confirmation and closes itself, and a second tap during that flash should
-  // show the grid rather than the tail end of the last thing done.
-  const [actionsEntry, setActionsEntry] = useState<ActionsEntry | null>(null);
-  const [actionsOpened, setActionsOpened] = useState(0);
-
   // Which court is being renamed, by the round it was opened from.
   const [editingCourt, setEditingCourt] = useState<{ roundIdx: number; courtIdx: number } | null>(
     null
@@ -198,9 +222,26 @@ export function SchedulePage({
     null
   );
 
-  function openActions(entry: ActionsEntry) {
-    setActionsEntry(entry);
-    setActionsOpened((n) => n + 1);
+  /**
+   * Who just moved, so the two places they landed in can say so.
+   *
+   * A swap is two names changing over on a grid of names, and on a phone held at
+   * arm's length it is very easy to miss which two. So both places take a strong
+   * edge for a moment and let it fade back to the court's own line, which says
+   * what happened without leaving anything behind to be read as a state.
+   */
+  const [swapFlash, setSwapFlash] = useState<SwapFlash | null>(null);
+  const flashSeq = useRef(0);
+  const flashTimer = useRef<number | undefined>(undefined);
+  // Never into an unmounted page: leaving the schedule while a fade is running
+  // is the ordinary way out of it.
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  function markSwapped(roundIdx: number, playerIds: string[]) {
+    window.clearTimeout(flashTimer.current);
+    flashSeq.current += 1;
+    setSwapFlash({ roundIdx, playerIds, seq: flashSeq.current });
+    flashTimer.current = window.setTimeout(() => setSwapFlash(null), SWAP_FLASH_MS);
   }
 
   const hasPartnerships = partnerships.length > 0;
@@ -419,6 +460,10 @@ export function SchedulePage({
     });
 
     onUpdateSchedule({ rounds: newRounds });
+    // One name moved rather than two, but it is the same gesture and worth the
+    // same mark: the place they came from is a gap now, and the only thing on
+    // screen that says where they went is the seat they went into.
+    markSwapped(empty.roundIdx, [player.id]);
     setSelectedSlot(null);
   }
 
@@ -469,6 +514,19 @@ export function SchedulePage({
     // Both hold a player by this point — the empty places were dealt with above.
     const from = selectedSlot as CourtSlot | SitOutSlot;
     const to = slot as CourtSlot | SitOutSlot;
+
+    // Read off the round as it stands, before the swap builds a new one. These
+    // two are the pair that changed places, whichever way round they end up.
+    const before = schedule.rounds[slot.roundIdx];
+    const moved = [from, to]
+      .map((s) =>
+        s.kind === 'court'
+          ? before.courts[s.courtIdx][s.team][s.playerIdx]
+          : before.sitOuts[s.sitOutIdx]
+      )
+      .filter((p): p is Player => p !== undefined)
+      .map((p) => p.id);
+
     const newRounds = schedule.rounds.map((round, ri) => {
       if (ri !== slot.roundIdx) return round;
 
@@ -505,6 +563,7 @@ export function SchedulePage({
     });
 
     onUpdateSchedule({ rounds: newRounds });
+    markSwapped(slot.roundIdx, moved);
     setSelectedSlot(null);
   }
 
@@ -555,12 +614,7 @@ export function SchedulePage({
       {/* One button for everything the host might change mid-session. Going back
           is the Setup tab's job, and printing lives on the header's printer
           button. */}
-      <ActionsButton
-        onClick={() => {
-          openActions('menu');
-          onActionsOpened?.();
-        }}
-      />
+      <ActionsButton onClick={() => onOpenActions('menu')} />
 
       {/* Completed rounds are frozen, so once they all are there is nothing to
           swap and nothing to say. */}
@@ -590,6 +644,11 @@ export function SchedulePage({
             roundIdx={roundIdx}
             tourRound={round.roundNumber === 1}
             hideSeatEdit={hideSeatEdit}
+            // Only the round the swap happened in. The same person is in every
+            // round, and marking all of them would say the swap moved somebody
+            // for the whole afternoon.
+            swappedIds={swapFlash?.roundIdx === roundIdx ? swapFlash.playerIds : undefined}
+            swapSeq={swapFlash?.seq}
             selectedSlot={selectedSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}
@@ -620,12 +679,12 @@ export function SchedulePage({
 
       <PartnerSummary schedule={schedule} players={players} />
 
-      {actionsEntry && (
+      {actionsSheet && (
         <ActionsSheet
-          key={actionsOpened}
+          key={actionsSheet.opened}
           open
-          entry={actionsEntry}
-          onClose={() => setActionsEntry(null)}
+          entry={actionsSheet.view}
+          onClose={onCloseActions}
           schedule={schedule}
           completedRounds={completedRounds}
           players={players}
@@ -639,7 +698,7 @@ export function SchedulePage({
               ? // Back onto the card they left, not the grid. They went to make
                 // an account so they could share this session, and a signed-in
                 // host landing here has a code being made for them already.
-                () => onOpenAccount(() => openActions('share-live'))
+                () => onOpenAccount(() => onOpenActions('share-live'))
               : undefined
           }
         />

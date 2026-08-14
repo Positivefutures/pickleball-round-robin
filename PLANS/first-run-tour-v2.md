@@ -359,3 +359,82 @@ Verified: `tsc -b`, `eslint src`, 1260 tests, **16 sabotages** each turning the 
 red, and a real chromium driven through all eight cards at 390x844 and 375x667 with no
 bubble off screen, the Generate button provably clear of its bubble at both sizes, and
 COMPLETED provably outside card 5's box.
+
+---
+
+## Third round of testing, 2026-08-14
+
+Jeff on his phone again. Five changes to the tour, one to the app at large, and one
+report of flicker that turned out to be the interesting one.
+
+### The flicker
+
+Three places: opening My Groups from card 1, closing it again, and the Quick Start
+Tutorial sheet sliding up. Two different causes.
+
+**The tour stood down a frame late, twice per trip.** It found an open panel by running
+`document.querySelector('[data-tour-suspends]')` once a frame inside the measure loop and
+setting state from the result. A poll on `requestAnimationFrame` is by construction late:
+the panel mounts and paints, and only the frame after that does the poll notice. So the
+panel opened with the tour still drawn over it for a frame, and closing it left one frame
+of undimmed page before the tour came back. That is the flash.
+
+Replaced with `lib/tourSuspend.ts`, a counter with a `useSuspendsTour()` hook that
+`GroupPicker` and `CourtNumberDialog` call. It registers from a **layout** effect, so the
+panel appearing and the tour hiding are the same commit and there is no frame between
+them to paint. A counter and not a boolean because two of those panels can be open at
+once — Manage Groups opens Duplicate and Delete inside itself.
+
+The overlay is now **hidden rather than unmounted** while it stands down:
+`visibility: hidden`, which takes the paint and the hit testing together and which every
+child inherits. Unmounted, its bubbles lose their refs and their measured heights, and
+the tour came back and laid itself out again in front of the host — the same flicker at
+the other end of the same trip.
+
+**The sheet's scrim switched on in one step**, a beat before there was anything on it to
+read. It now fades over the same 300ms the sheet takes to arrive, which is what the
+Actions sheet already did.
+
+Measured, not reasoned about: `drive3.mjs` runs a per-frame recorder in the page and
+counts frames where nothing at all covers the page, and frames where the tour is still
+drawn over a panel that has opened. Both are zero. The negative control matters as much —
+patching the overlay to react a frame late puts one bare frame back, so the recorder is
+not blind.
+
+### The rest
+
+- **Skip tutorial**, not Skip, and it asks: "End the tutorial?" with Keep Going and End
+  Tutorial. It is a small target at the foot of a screen full of things the card wants
+  pressed, and there is no way back into a tour that has ended.
+- **Card 4 gets its Back**, which goes to the Setup tab it was reached from with the
+  schedule still built behind it. Back undoes the step, not the work.
+- **Back off card 8 shuts the Actions sheet.** That meant hoisting the sheet's open state
+  out of `SchedulePage` and into App, which is where it belonged anyway: App is the only
+  place that knows about the tour, and the tour opens the sheet, moves a card when it
+  opens, and now closes it. `onActionsOpened` went with it.
+- **The closing panel gains a line and a button**: "Click **Manage** under **My Groups**
+  to add groups", left justified, with the same Manage button the My Groups panel carries
+  on the right. Pressing it closes the tutorial and opens Manage Groups. That meant
+  lifting `showManage` out of `RosterPage` to App for the same reason.
+
+### A swap now says which two moved
+
+App-wide, not a tour thing. Two names change over on a grid of names and on a phone at
+arm's length it is very easy to miss which two, so both places take a strong edge and let
+it fade back over two seconds.
+
+One `@keyframes seat-swapped` with **only a `from`**, so the 100% is implied from whatever
+the place would look like without the animation. That is what lets one rule serve a blue
+court seat, an orange one and a grey sit-out chip: none of them has to tell the CSS what
+colour it rests on, only what colour to start from, handed in as `--seat-swapped-from`. A
+CSS animation outranks both the class and the inline style it is drawn over, which is what
+makes the sit-out chip work — its resting edge is an inline `borderColor`.
+
+A marked place carries the swap's sequence number in its React key, so a second swap
+inside the two seconds builds a new element and the fade runs from the top rather than
+joining one already half spent. Off under `prefers-reduced-motion`.
+
+Verified: `tsc -b`, `eslint src`, 1272 tests, **19 sabotages** each turning the suite red,
+and a real chromium driven end to end at 390x844 and 375x667 reporting no problems at
+either — including the border colour sampled just after a swap and again two seconds
+later, to prove the edge really fades rather than just being applied.
