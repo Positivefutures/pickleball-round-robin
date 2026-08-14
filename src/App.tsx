@@ -1363,8 +1363,13 @@ function App() {
           {/* The one thing the tour never showed them, offered rather than
               described: the sentence says where the button is on the page they
               are about to be standing on, and the button beside it is the same
-              button, so they can take either. */}
-          <div className="flex items-center justify-between gap-4 text-left">
+              button, so they can take either.
+
+              In the app's orange alert, the same box the Reshuffle warning
+              wears. It is the one line on this panel with something to do in
+              it, and between two paragraphs of well done it would otherwise
+              read as more of the same. */}
+          <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-3 text-left">
             <p>
               {/* Held on one line. It is the name of the panel they are being
                   sent to, and bold type broken across two lines reads as two
