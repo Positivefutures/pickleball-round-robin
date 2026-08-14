@@ -1,7 +1,13 @@
 import type { CourtAssignment, LockedPair, PairingHistory, Partnership, Player } from '../types';
 import { courtRatingDiff, fisherYatesShuffle } from '../utils/helpers';
 import { partnerKey } from './partnerships';
-import { getInteractionCount, getPartnerCount, scoreAssignment, scoreCourt } from './scoring';
+import {
+  getInteractionCount,
+  getPartnerCount,
+  partnerRepeatCost,
+  scoreAssignment,
+  scoreCourt,
+} from './scoring';
 
 /** What every court-filling routine hands back: the courts it built, and anyone left over. */
 export interface Assignment {
@@ -119,13 +125,7 @@ function shortGroupCost(
       }
     }
     const byRating = [...group].sort((a, b) => b.rating - a.rating);
-    const [p1, p2] = [byRating[1], byRating[2]];
-    const count = getPartnerCount(history, p1.id, p2.id);
-    const last = history.lastPartneredRound?.[partnerKey(p1.id, p2.id)];
-    const gap = last === undefined
-      ? Infinity
-      : (history.roundsRecorded ?? 0) + 1 - last;
-    return count * count * 40 + 25 * Math.max(0, 3 - gap);
+    return partnerRepeatCost(history, byRating[1].id, byRating[2].id);
   }
   if (group.length === 2) {
     return history.opponentCounts[group[0].id]?.[group[1].id] ?? 0;
@@ -399,17 +399,8 @@ function buildFreshTeamCourts(
   numCourts: number,
   history: PairingHistory
 ): CourtAssignment[] | null {
-  const pairCost = (p: Player, q: Player): number => {
-    const count = getPartnerCount(history, p.id, q.id);
-    if (count === 0) return 0;
-    let cost = count * count * 40;
-    const last = history.lastPartneredRound?.[partnerKey(p.id, q.id)];
-    if (last !== undefined) {
-      const gap = (history.roundsRecorded ?? 0) + 1 - last;
-      cost += 25 * Math.max(0, 3 - gap);
-    }
-    return cost;
-  };
+  const pairCost = (p: Player, q: Player): number =>
+    partnerRepeatCost(history, p.id, q.id);
 
   const unmatched = fisherYatesShuffle(activePlayers);
   const teams: [Player, Player][] = [];

@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   extendSchedule, generateSchedule, regenerateRemaining, effectiveCourtCount,
 } from './pairing';
-import { addToRemainingRounds } from './sitout';
+import { addToRemainingRounds, determineSitOuts } from './sitout';
 import { partnerKey } from './partnerships';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
-import type { Player, Schedule } from '../types';
+import type { PairingHistory, Player, Schedule } from '../types';
 
 function makePlayers(n: number): Player[] {
   const names = ['Ann','Bob','Cal','Dee','Eli','Fay','Gus','Hal','Ivy','Joe','Kim','Lou','Mia','Ned'];
@@ -406,4 +406,133 @@ describe('extendSchedule', () => {
     const before = generateSchedule(nine, 2, 8);
     expect(extendSchedule(nine, 2, before.rounds, 0).rounds).toBe(before.rounds);
   });
+});
+
+describe('sit-out fairness', () => {
+  function emptyHistory(players: Player[]): PairingHistory {
+    const history: PairingHistory = {
+      partnerCounts: {},
+      opponentCounts: {},
+      sitOutCounts: {},
+      sitOutOrder: [],
+      roundsRecorded: 0,
+      lastPartneredRound: {},
+      gamesPlayed: {},
+      shortGameCounts: {},
+      specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
+      teamMatchCounts: {},
+    };
+    for (const p of players) {
+      history.gamesPlayed[p.id] = 0;
+      history.sitOutCounts[p.id] = 0;
+    }
+    return history;
+  }
+
+  // `Math.random() - 0.5` inside a sort comparator is a biased shuffle, and it
+  // made whoever was first in the roster sit out round 1 nearly three times as
+  // often as anyone else. The fix draws one random key per player before the
+  // sort. Uniform selection over 2000 draws gives a chi-square around 12 on
+  // 12 degrees of freedom and stays under 40 all but one run in ten thousand;
+  // the biased comparator measured well over 200 here.
+  it('gives the first sit-out to anyone, not the top of the roster', () => {
+    const players = makePlayers(13);
+    const RUNS = 2000;
+    const counts = new Map(players.map((p) => [p.id, 0]));
+    for (let i = 0; i < RUNS; i++) {
+      const sitters = determineSitOuts(players, 3, emptyHistory(players));
+      expect(sitters).toHaveLength(1);
+      counts.set(sitters[0].id, (counts.get(sitters[0].id) ?? 0) + 1);
+    }
+    const expected = RUNS / players.length;
+    let chi = 0;
+    for (const c of counts.values()) chi += ((c - expected) ** 2) / expected;
+    expect(chi).toBeLessThan(40);
+  });
+
+  // Jeff's rule: if Joe sat round 1 and Jill round 2, then when the bench
+  // comes back around it is Joe again, then Jill. The order the first cycle
+  // happened to take is the order every later cycle takes. Deterministic, not
+  // probabilistic — measured at 100% over 20 runs before it was asserted.
+  it('repeats the sit-out cycle in the order the first cycle set', () => {
+    const players = makePlayers(13); // one sitter a round, cycle of 13
+    const s = generateSchedule(players, 3, 26);
+    const seq = s.rounds.map((r) => r.sitOuts.map((p) => p.id).sort().join('+'));
+    expect(seq.slice(13)).toEqual(seq.slice(0, 13));
+  }, 20000);
+
+  it('repeats the cycle for pairs of sitters too', () => {
+    const players = makePlayers(14); // two sitters a round, cycle of 7
+    const s = generateSchedule(players, 3, 14);
+    const seq = s.rounds.map((r) => r.sitOuts.map((p) => p.id).sort().join('+'));
+    expect(seq.slice(7)).toEqual(seq.slice(0, 7));
+  }, 20000);
+});
+
+describe('partner variety', () => {
+  /** How many times any team was a repeat of an earlier partnership. */
+  function repeatEvents(s: Schedule): number {
+    const m = new Map<string, number>();
+    let events = 0;
+    for (const r of s.rounds) {
+      for (const c of r.courts) {
+        for (const t of [c.team1, c.team2]) {
+          if (t.length !== 2) continue;
+          const k = [t[0].id, t[1].id].sort().join('+');
+          if ((m.get(k) ?? 0) > 0) events++;
+          m.set(k, (m.get(k) ?? 0) + 1);
+        }
+      }
+    }
+    return events;
+  }
+
+  /** Teams that were also a team in the round directly before. */
+  function backToBackRepeats(s: Schedule): number {
+    const lastRound = new Map<string, number>();
+    let hits = 0;
+    for (const r of s.rounds) {
+      for (const c of r.courts) {
+        for (const t of [c.team1, c.team2]) {
+          if (t.length !== 2) continue;
+          const k = [t[0].id, t[1].id].sort().join('+');
+          if (lastRound.get(k) === r.roundNumber - 1) hits++;
+          lastRound.set(k, r.roundNumber);
+        }
+      }
+    }
+    return hits;
+  }
+
+  // Twelve players over eight rounds use 48 of the 66 pairings available, so
+  // repeating one is a choice, not a necessity. Everybody is rated the same so
+  // the balancer cannot answer a partner-history question. Measured over 200
+  // schedules: 97.5% had no repeat at all and none had more than one pair
+  // repeat once, so a budget of two events across five runs has room to spare
+  // while the old solver, which averaged one or two repeats a schedule here,
+  // blows straight through it.
+  it('does not repeat a partnership while fresh ones remain', () => {
+    const level = makePlayers(12).map((p) => ({ ...p, rating: 3.5 }));
+    let events = 0;
+    for (let i = 0; i < 5; i++) {
+      events += repeatEvents(generateSchedule(level, 3, 8));
+    }
+    expect(events).toBeLessThanOrEqual(2);
+  }, 20000);
+
+  // The Mike-and-Jay bug: the same two people teamed up in rounds 8 and 9.
+  // Cumulative counts cannot see it — rounds 8 and 9 cost what rounds 1 and 9
+  // cost — so the scorer carries lastPartneredRound and fines the recent
+  // repeat. Fourteen rounds of twelve players is the regime that forces
+  // repeats (84 teams, 66 pairings), which makes it the regime where the
+  // recency memory earns its keep: with it, sixty measured schedules had zero
+  // back-to-back repeats; with the memory deleted, three in ten schedules had
+  // one or more. One across ten schedules leaves the random tie-breaks room.
+  it('never hands you the same partner two rounds running', () => {
+    let hits = 0;
+    for (let i = 0; i < 10; i++) {
+      hits += backToBackRepeats(generateSchedule(makePlayers(12), 3, 14));
+    }
+    expect(hits).toBeLessThanOrEqual(1);
+  }, 60000);
 });

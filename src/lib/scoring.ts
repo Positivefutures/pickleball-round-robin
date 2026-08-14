@@ -63,6 +63,29 @@ export function getInteractionCount(
     + getCount(history.opponentCounts, id1, id2);
 }
 
+/**
+ * What partnering these two again costs right now: the squared repeat penalty
+ * plus the recency fine when they were a team within the last two rounds.
+ * Zero for a pair that has never partnered. The court scorer, the fresh-team
+ * matcher and the short-court draw all price a pairing through here, so
+ * "how bad is a repeat" has exactly one answer.
+ */
+export function partnerRepeatCost(
+  history: PairingHistory,
+  id1: string,
+  id2: string
+): number {
+  const count = getCount(history.partnerCounts, id1, id2);
+  if (count === 0) return 0;
+  let cost = Math.pow(count, REPEAT_EXPONENT) * PARTNER_REPEAT_WEIGHT;
+  const last = history.lastPartneredRound?.[partnerKey(id1, id2)];
+  if (last !== undefined) {
+    const gap = (history.roundsRecorded ?? 0) + 1 - last;
+    cost += PARTNER_RECENCY_WEIGHT * Math.max(0, RECENCY_WINDOW - gap);
+  }
+  return cost;
+}
+
 function countUnmet(
   playerId: string,
   allPlayerIds: string[],
@@ -109,12 +132,7 @@ export function scoreCourt(
       if (count === 0) {
         partnerPenalty -= FRESH_PARTNER_BONUS;
       } else {
-        partnerPenalty += Math.pow(count, REPEAT_EXPONENT) * PARTNER_REPEAT_WEIGHT;
-        const last = history.lastPartneredRound?.[partnerKey(team[0].id, team[1].id)];
-        if (last !== undefined) {
-          const gap = (history.roundsRecorded ?? 0) + 1 - last;
-          partnerPenalty += PARTNER_RECENCY_WEIGHT * Math.max(0, RECENCY_WINDOW - gap);
-        }
+        partnerPenalty += partnerRepeatCost(history, team[0].id, team[1].id);
       }
     }
   }
