@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  BAR_H,
+  BUBBLE_MAX,
   DIM,
   EDGE,
   PAD,
@@ -17,7 +17,6 @@ import {
   bubbleWidth,
   dimTiles,
   endAt,
-  frameRects,
   minimalScroll,
   padRect,
   placeBubble,
@@ -175,28 +174,21 @@ describe('dimTiles', () => {
   });
 });
 
-describe('frameRects', () => {
-  it('leaves the live control uncovered and shields the rest of its hole', () => {
-    const hole: Rect = { top: 100, left: 20, width: 350, height: 200 };
-    const live: Rect = { top: 150, left: 200, width: 140, height: 44 };
-    const parts = frameRects(hole, live);
-
-    expect(parts.reduce((n, p) => n + area(p), 0)).toBe(area(hole) - area(live));
-    for (const p of parts) expect(overlaps(p, live)).toBe(false);
-  });
-
-  it('shields the lot when the control is not in there at all', () => {
-    const hole: Rect = { top: 100, left: 20, width: 100, height: 50 };
-    expect(frameRects(hole, { top: 400, left: 400, width: 10, height: 10 })).toEqual([hole]);
-  });
-});
-
 describe('placeBubble', () => {
   const size = { width: bubbleWidth(PHONE.width), height: 90 };
 
   it('is 21rem wide on a phone, with a margin each side', () => {
-    expect(bubbleWidth(390)).toBe(336);
+    expect(bubbleWidth(390)).toBe(BUBBLE_MAX);
     expect(bubbleWidth(320)).toBe(320 - EDGE * 2);
+  });
+
+  it('takes a card at its word when the card asks for something narrower', () => {
+    // The Players card's second bubble, which sits over the Add Players heading
+    // and the rating and gender columns at full width.
+    expect(bubbleWidth(390, 230)).toBe(230);
+    // But never wider than the standard, and never wider than the screen.
+    expect(bubbleWidth(390, 900)).toBe(BUBBLE_MAX);
+    expect(bubbleWidth(280, 260)).toBe(280 - EDGE * 2);
   });
 
   it('sits under what it points at when there is room', () => {
@@ -206,12 +198,12 @@ describe('placeBubble', () => {
   });
 
   it('goes above when the anchor is low on the screen', () => {
-    const p = placeBubble({ top: 640, left: 20, width: 200, height: 60 }, size, PHONE);
+    const p = placeBubble({ top: 790, left: 20, width: 200, height: 60 }, size, PHONE);
     expect(p.side).toBe('above');
-    expect(bottom(p)).toBeLessThanOrEqual(640 - 10);
+    expect(bottom(p)).toBeLessThanOrEqual(790 - 10);
   });
 
-  it('never lands under the button bar, wherever the anchor is', () => {
+  it('stays inside the band, wherever the anchor is', () => {
     const { bottom: bandBottom } = band(PHONE.height);
     for (let top = 0; top < PHONE.height; top += 17) {
       const p = placeBubble({ top, left: 20, width: 200, height: 44 }, size, PHONE);
@@ -307,10 +299,10 @@ describe('minimalScroll', () => {
   });
 
   it('scrolls down by exactly the overhang, and no further', () => {
-    const box: Rect = { top: 600, left: 0, width: 390, height: 200 };
+    const box: Rect = { top: 700, left: 0, width: 390, height: 200 };
     const by = minimalScroll(box, bandTop, bandBottom);
 
-    expect(by).toBe(800 - bandBottom);
+    expect(by).toBe(900 - bandBottom);
     expect(by).toBeGreaterThan(0);
     // Applying it puts the foot of the box exactly on the band's floor.
     expect(bottom({ ...box, top: box.top - by })).toBe(bandBottom);
@@ -332,11 +324,12 @@ describe('minimalScroll', () => {
 });
 
 describe('the shared constants', () => {
-  it('leaves a usable band above the button bar on a small phone', () => {
-    // iPhone SE. If the bar ever grows past this the cards stop fitting.
+  it('gives a bubble the whole screen less its margins', () => {
+    // iPhone SE. The buttons ride inside the bubbles now, so nothing along the
+    // foot is reserved and the tallest card still has room on the shortest phone.
     const small = band(667);
-    expect(small.bottom - small.top).toBeGreaterThan(400);
-    expect(BAR_H).toBeLessThan(150);
+    expect(small.top).toBe(EDGE);
+    expect(small.bottom).toBe(667 - EDGE);
   });
 
   it('dims less than the app dims behind a modal', () => {

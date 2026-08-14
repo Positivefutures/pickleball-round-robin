@@ -14,7 +14,7 @@ interface Props {
 /**
  * Leaving a schedule behind by one of the step tabs. Each door names itself in
  * the heading and in its buttons; the warning is the one in lib/steps, which
- * Start New Session in the Actions sheet says too.
+ * New Round Robin in the Actions sheet says too.
  */
 export function DiscardScheduleDialog({
   heading,

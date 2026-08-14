@@ -1,3 +1,5 @@
+import type { Player } from '../types';
+import { EXAMPLE_ROSTER } from './exampleGroup';
 import type { Step } from './steps';
 import type { Side } from './tourGeometry';
 import * as stores from './stores';
@@ -6,15 +8,18 @@ import type { TourStage } from './stores';
 /**
  * The first-run tour: what it says, where it points, and how far along it is.
  *
- * Eight cards in a list. The old tour, which was taken back out, made the host
- * perform every step themselves and worked out which card to show by watching
- * the stores for the result — clever, and it meant a host who tapped the wrong
- * thing could get stranded on a card that would not move. This one is a slide
- * deck with two holes in it: Back and Next go one card either way, and twice the
- * host is handed the real controls and asked to do the real thing.
+ * Eight cards in a list, and on every one of them the control being talked
+ * about still works. An earlier cut spotlit things and shielded them, handed
+ * the app over once in the middle, and went dormant until the host reached the
+ * Schedule tab on their own. Two things were wrong with that. Reading about a
+ * button teaches nobody where it is, and the dormant stretch read as the tour
+ * crashing — there was nothing on screen and no way to tell that was on purpose.
+ * So the deck runs straight through, and four of the eight cards move on only
+ * when the host does the real thing.
  *
  * There is no DOM in here and no React. The overlay subscribes and draws; App
- * moves the tab to wherever the card lives. All the maths is in tourGeometry.ts.
+ * moves the tab to wherever the card lives and owns every change to app state
+ * the tour makes. All the maths is in tourGeometry.ts.
  */
 
 /** One element in a highlighted region. */
@@ -29,7 +34,7 @@ export interface AnchorSpec {
   pad?: Partial<Record<Side, number>>;
 }
 
-/** One orange box: the anchors inside it joined into a single rect. */
+/** One box: the anchors inside it joined into a single rect. */
 export interface Region {
   anchors: AnchorSpec[];
   /**
@@ -38,6 +43,12 @@ export interface Region {
    * top of it.
    */
   endAt?: string;
+  /**
+   * A hole in the darkness with no ring drawn round it and no padding added.
+   * The live step tab wears this on every card: it should look exactly as it
+   * always looks, which is neither dimmed nor pointed at.
+   */
+  plain?: boolean;
 }
 
 export interface BubbleSpec {
@@ -45,156 +56,231 @@ export interface BubbleSpec {
   at?: string;
   text: string;
   prefer?: 'above' | 'below';
+  /**
+   * Narrower than the standard width, when something beside the bubble has to
+   * stay readable.
+   */
+  maxWidth?: number;
 }
 
+export type TourId =
+  | 'players'
+  | 'courts-rounds'
+  | 'select-players'
+  | 'congrats'
+  | 'court-numbers'
+  | 'swap'
+  | 'actions'
+  | 'new-round-robin';
+
 export interface TourStep {
-  id: string;
-  act: 1 | 2;
+  id: TourId;
   /** The tab this card belongs to. Moving the card moves the app. */
   tab: Step;
-  /** A line across the top of the screen, above everything. */
-  banner?: string;
   regions: Region[];
+  /**
+   * The `data-tutorial` names left clickable, so the host can do the real thing
+   * the card is describing. Everything else on the page swallows its clicks,
+   * including the rest of the box these sit inside.
+   *
+   * Kept beside the regions rather than on them, because the two are different
+   * questions about different rects: a box is drawn round the area worth
+   * looking at, and this is the control inside it worth pressing.
+   */
+  live?: string[];
   /** Never more than two: three pointers on a phone is a puzzle, not a lesson. */
   bubbles: BubbleSpec[];
   /**
-   * The one app control left clickable, by `data-tutorial` value. Everything
-   * else on the page swallows its clicks, including the rest of this control's
-   * own box. Tapping it does what Next does.
+   * No Next link. The card moves on when the host presses the real control it
+   * is pointing at, and there is no other way forward.
    */
-  live?: string;
-  /** Default 'Next'. */
-  nextLabel?: string;
+  hideNext?: boolean;
+  /** No Back link. */
+  noBack?: boolean;
   /** Bring this card's boxes into view first, by the smallest scroll that does. */
   scrollTo?: boolean;
 }
 
 /**
+ * The live step tab, undimmed on every card.
+ *
+ * Prepended in build() rather than written into all eight cards. It is the one
+ * piece of chrome that is true of the whole tour, and a card that forgot it
+ * would look like a bug rather than like a decision.
+ */
+const ACTIVE_TAB: Region = { anchors: [{ name: 'active-tab' }], plain: true };
+
+/**
  * The deck.
  *
- * Act 1 runs straight off the splash and ends by handing the app over: the host
- * picks the players and generates the schedule themselves, because that is the
- * thing they came to do and watching it happen teaches nobody anything. Act 2
- * wakes up when they land on the Schedule tab with a schedule they made, and
- * shows the three things there that cannot be guessed at.
- *
- * The copy says three courts and eight rounds because that is what a fresh
- * install opens on — see DEFAULT_COURTS. The tour sets nothing itself.
+ * Card 2 asks the host to change a number that starts on the wrong one, card 3
+ * asks them to finish a selection that starts part-made, and cards 5 to 8 leave
+ * the real controls alive. What they end up with at the end is a schedule they
+ * built, not one they watched being built.
  */
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'players',
-    act: 1,
     tab: 'roster',
-    regions: [{ anchors: [{ name: 'group-name' }] }, { anchors: [{ name: 'continue-setup' }] }],
+    regions: [
+      { anchors: [{ name: 'group-name' }] },
+      { anchors: [{ name: 'continue-setup' }] },
+    ],
+    // The group name still opens My Groups. There is one group on a fresh
+    // install, so the only thing to do in there is close it again.
+    live: ['group-name', 'continue-setup'],
     bubbles: [
       // Above, so the two bubbles sit either side of the gap between the two
       // rings instead of the first one covering the second. There is a whole
       // header's worth of room up there and nothing in it worth reading.
-      { at: 'group-name', text: 'Here is your sample group!', prefer: 'above' },
-      { at: 'continue-setup', text: 'Click here to setup your first round robin.' },
+      // The count is read off the roster rather than typed into the sentence.
+      // It is load-bearing: the next-but-one card asks them to press Select All
+      // and the group is sized so that fills three courts and still sits two
+      // people out, so a roster change that left this promise behind would be
+      // the easiest mistake here to make.
+      {
+        at: 'group-name',
+        text: `I’ve created a sample group for you with ${EXAMPLE_ROSTER.length} players`,
+        prefer: 'above',
+      },
+      // Narrow on purpose. At the full width it covers the Add Players heading
+      // and the rating and gender columns, which are the page this card is
+      // telling them they already have.
+      {
+        at: 'continue-setup',
+        text: 'Click here to setup your first round robin.',
+        maxWidth: 232,
+      },
     ],
-    live: 'continue-setup',
+    hideNext: true,
+    noBack: true,
   },
   {
     id: 'courts-rounds',
-    act: 1,
     tab: 'setup',
     regions: [{ anchors: [{ name: 'setup-title' }, { name: 'setup-steppers' }] }],
+    live: ['setup-steppers'],
     bubbles: [
       {
         at: 'setup-steppers',
-        text: 'Imagine you’ve booked 3 courts and are going to do 8 rounds of play.',
+        text: 'You’ve booked 3 courts so set “Number of Courts” to 3 and click “Next”',
       },
     ],
   },
   {
     id: 'select-players',
-    act: 1,
     tab: 'setup',
-    regions: [{ anchors: [{ name: 'select-players' }] }],
+    regions: [{ anchors: [{ name: 'select-players' }, { name: 'generate-schedule' }] }],
+    live: ['select-players', 'generate-schedule'],
     bubbles: [
-      { at: 'select-players', text: 'Select all the players and then click Generate Schedule.' },
+      // Above, and not negotiable. Generate Schedule sits directly under this
+      // panel, so a bubble placed below the anchor lands on the one button the
+      // card is telling them to press.
+      {
+        at: 'select-players',
+        text: 'Select all the players and then click Generate Schedule.',
+        prefer: 'above',
+      },
     ],
-    nextLabel: 'OK',
+    hideNext: true,
     scrollTo: true,
   },
   {
-    id: 'completed',
-    act: 2,
+    id: 'congrats',
     tab: 'schedule',
-    banner: 'Congratulations on making your first round robin!',
     regions: [{ anchors: [{ name: 'round-1' }, { name: 'court-1' }], endAt: 'court-1' }],
-    bubbles: [{ at: 'round-1-completed', text: 'Mark rounds as COMPLETED to collapse them.' }],
+    bubbles: [
+      {
+        at: 'round-1',
+        text: 'Congrats, you’ve just created your first round robin! Click “Next” and I’ll show you a few more things',
+        prefer: 'above',
+      },
+    ],
+    // Back would mean returning to a Setup tab that has already been left
+    // behind, and to a state before the schedule they are being congratulated
+    // on existed.
+    noBack: true,
     scrollTo: true,
   },
   {
     id: 'court-numbers',
-    act: 2,
     tab: 'schedule',
     regions: [{ anchors: [{ name: 'round-1' }, { name: 'court-1' }], endAt: 'court-1' }],
+    live: ['court-1-label'],
     bubbles: [{ at: 'court-1-label', text: 'Change court numbers here.' }],
     scrollTo: true,
   },
   {
     id: 'swap',
-    act: 2,
     tab: 'schedule',
     regions: [{ anchors: [{ name: 'court-1' }, { name: 'court-2' }] }],
-    bubbles: [{ at: 'court-1', text: 'Select one player and then another to swap them.' }],
-    scrollTo: true,
-  },
-  {
-    id: 'actions',
-    act: 2,
-    tab: 'schedule',
-    regions: [{ anchors: [{ name: 'actions-button', pad: { top: 24, left: 8, right: 8 } }] }],
+    live: ['court-1', 'court-2'],
     bubbles: [
       {
-        at: 'actions-button',
-        text: 'To start a new session, click Actions and then Start New Session.',
+        at: 'court-1',
+        text: 'Select one player and then another to swap them.',
+        prefer: 'above',
       },
     ],
     scrollTo: true,
   },
   {
-    id: 'finish',
-    act: 2,
+    id: 'actions',
     tab: 'schedule',
-    regions: [],
-    bubbles: [{ text: 'You’re all set! We hope you enjoy using the app.' }],
-    nextLabel: 'Done',
+    regions: [{ anchors: [{ name: 'actions-button', pad: { top: 24, left: 8, right: 8 } }] }],
+    live: ['actions-button'],
+    bubbles: [
+      {
+        at: 'actions-button',
+        text: 'Now, create a new round robin by clicking “Actions” and then “New Round Robin”',
+      },
+    ],
+    hideNext: true,
+    scrollTo: true,
+  },
+  {
+    id: 'new-round-robin',
+    tab: 'schedule',
+    regions: [{ anchors: [{ name: 'new-round-robin' }] }],
+    live: ['new-round-robin'],
+    bubbles: [{ at: 'new-round-robin', text: 'Now click “New Round Robin”.' }],
+    hideNext: true,
   },
 ];
 
-/** Where Act 2 starts, worked out rather than written down twice. */
-export const ACT2_FIRST = TOUR_STEPS.findIndex((s) => s.act === 2);
-
+/** Where the tour asks the host to imagine they have booked. */
+export const TOUR_COURTS_TARGET = 3;
 /**
- * The seat the swap card draws as already tapped, so the words have something
- * to describe. Court 1, first team, first place: the scheduler fills the short
- * court last, so the first court of the first round always has four people on
- * it whatever the roster.
- */
-export const TOUR_PREVIEW_SLOT = {
-  kind: 'court',
-  roundIdx: 0,
-  courtIdx: 0,
-  team: 'team1',
-  playerIdx: 0,
-} as const;
-
-/**
- * No Back on the first card of an act.
+ * And where it starts them, so there is something to change.
  *
- * Act 1's first card has the splash behind it, which is not somewhere to go
- * back to. Act 2's has a schedule the host made in between, and there is no
- * walking back to a state before it existed. Everywhere else Back is honest, so
- * the button is absent rather than disabled — a greyed one invites a tap that
- * does nothing and reads as broken.
+ * Below the target rather than above it: a host who overshoots and lands on 4
+ * still has a schedule that builds, where a host asked to come down from 4 with
+ * only ten players ticked would meet the minimum-players error instead.
  */
+export const TOUR_COURTS_START = 2;
+
+/**
+ * Who is ticked when the tour opens: everybody but four.
+ *
+ * The card asks them to press Select All, so some of the group has to be
+ * missing or there is nothing for that button to do. Four rather than one
+ * because one reads as an accident, and spread through the list rather than
+ * bunched at the end so it looks like people who could not make it.
+ *
+ * Sorted the way PlayerSelector sorts, which is the order they will be looking
+ * at. Sorting any other way here would put the gaps somewhere else on screen.
+ */
+export function tourStartSelection(players: Player[]): string[] {
+  const missing = new Set([2, 5, 8, 9]);
+  return [...players]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter((_, i) => !missing.has(i))
+    .map((p) => p.id);
+}
+
+/** No Back on a card that says so, and none on the first. */
 function canBack(i: number): boolean {
-  return i > 0 && TOUR_STEPS[i - 1].act === TOUR_STEPS[i].act;
+  return i > 0 && !TOUR_STEPS[i].noBack;
 }
 
 export interface TourView extends TourStep {
@@ -209,9 +295,22 @@ export interface TourView extends TourStep {
   scrolling: boolean;
 }
 
+/**
+ * What is on screen. Four states rather than a card and two booleans, because
+ * only ever one of them can be showing and a type that says so cannot be got
+ * wrong.
+ */
+export type TourPhase = 'off' | 'opener' | 'card' | 'complete';
+
+export interface TourSnapshot {
+  phase: TourPhase;
+  card: TourView | null;
+}
+
 // --------------------------------------------------------------- the state --
 
 const listeners = new Set<() => void>();
+let phase: TourPhase = 'off';
 let index = -1;
 let scrolling = false;
 
@@ -220,22 +319,33 @@ let scrolling = false;
  * changes. It must be the same object between changes: returning a fresh one
  * per call makes React re-render forever.
  */
-let view: TourView | null = null;
+let view: TourSnapshot = { phase: 'off', card: null };
 
 function build() {
-  const step = index < 0 ? undefined : TOUR_STEPS[index];
-  view = step
-    ? { ...step, index, count: TOUR_STEPS.length, canBack: canBack(index), scrolling }
-    : null;
+  const step = phase === 'card' && index >= 0 ? TOUR_STEPS[index] : undefined;
+  view = {
+    phase,
+    card: step
+      ? {
+          ...step,
+          regions: [ACTIVE_TAB, ...step.regions],
+          index,
+          count: TOUR_STEPS.length,
+          canBack: canBack(index),
+          scrolling,
+        }
+      : null,
+  };
 }
 
 function emit() {
   for (const listener of [...listeners]) listener();
 }
 
-function go(next: number) {
-  index = next;
-  scrolling = next >= 0 && !!TOUR_STEPS[next]?.scrollTo;
+function show(next: TourPhase, card = -1) {
+  phase = next;
+  index = card;
+  scrolling = card >= 0 && !!TOUR_STEPS[card]?.scrollTo;
   build();
   emit();
 }
@@ -247,7 +357,7 @@ export function subscribeTour(listener: () => void): () => void {
   };
 }
 
-export function getTourView(): TourView | null {
+export function getTourView(): TourSnapshot {
   return view;
 }
 
@@ -261,51 +371,52 @@ export function noteScrolled() {
 
 // ------------------------------------------------------------ the lifecycle --
 
-/** Continue on the splash. */
-export function startAct1() {
-  stores.tourStage.set('act1');
-  go(0);
+/**
+ * The greeting, a couple of seconds after a fresh install has opened.
+ *
+ * Late rather than first, which is the whole reason it is a sheet and not a
+ * splash screen. A full screen shown before the app has drawn asks somebody to
+ * agree to a tour of something they have never seen. Two seconds of the Players
+ * tab is long enough to work out that this is an app about players.
+ */
+export const OPENER_DELAY_MS = 2000;
+
+export function armOpener() {
+  if (phase !== 'off') return;
+  show('opener');
 }
 
-/** Landing on the Schedule tab with a schedule the host made. */
-export function startAct2() {
-  stores.tourStage.set('act2');
-  go(ACT2_FIRST);
+/** Continue on the opening sheet. */
+export function startTour() {
+  stores.tourStage.set('running');
+  show('card', 0);
 }
 
-function finish() {
+/** New Round Robin on the last card. */
+export function completeTour() {
   stores.tourStage.set('done');
-  // Card 2.3 has just taught this, at more length than the hint ever did.
+  // Card 6 has just taught this, at more length than the hint ever did.
   stores.swapHintDismissed.set(true);
-  go(-1);
+  show('complete');
+}
+
+/** Done on the closing sheet. */
+export function dismissComplete() {
+  show('off');
 }
 
 export function nextCard() {
-  if (index < 0) return;
-  const step = TOUR_STEPS[index];
-  const following = TOUR_STEPS[index + 1];
-
-  // The end of Act 1: the tour goes quiet and the host takes over. It wakes
-  // again when they reach a schedule of their own.
-  if (following && following.act !== step.act) {
-    stores.tourStage.set('await-schedule');
-    go(-1);
-    return;
-  }
-  if (!following) {
-    finish();
-    return;
-  }
-  go(index + 1);
+  if (phase !== 'card' || index < 0) return;
+  if (index + 1 < TOUR_STEPS.length) show('card', index + 1);
 }
 
 export function backCard() {
-  if (canBack(index)) go(index - 1);
+  if (phase === 'card' && canBack(index)) show('card', index - 1);
 }
 
 export function skipTour() {
   stores.tourStage.set('done');
-  go(-1);
+  show('off');
 }
 
 /**
@@ -313,29 +424,28 @@ export function skipTour() {
  *
  * The card number is deliberately not persisted — only the stage is, and the
  * card is worked back out from the stage and whichever tab the app reopened on.
- * That is why an interrupted Act 1 comes back on the card whose anchors are
+ * That is why an interrupted tour comes back on the card whose anchors are
  * actually on screen rather than wherever it had counted to: resuming into a
  * card that points at nothing is worse than losing a card.
  *
- * Act 2 always restarts at its first card, which is four short ones.
+ * A stage this build does not recognise is one of the old two-act values, left
+ * on a device that ran the earlier tour. Treated as finished.
  */
 export function resumeTour(stage: TourStage, tab: Step) {
-  if (stage === 'act1') {
-    go(tab === 'roster' ? 0 : tab === 'setup' ? 1 : -1);
+  if (stage !== 'running') {
+    show('off');
     return;
   }
-  if (stage === 'act2' && tab === 'schedule') {
-    go(ACT2_FIRST);
-    return;
-  }
-  go(-1);
+  const at = TOUR_STEPS.findIndex((s) => s.tab === tab);
+  show(at >= 0 ? 'card' : 'off', at);
 }
 
 export const __tourTesting = {
   reset() {
+    phase = 'off';
     index = -1;
     scrolling = false;
-    view = null;
+    view = { phase: 'off', card: null };
     listeners.clear();
   },
 };

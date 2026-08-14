@@ -373,7 +373,7 @@ function Actions() {
         puts the session on everyone's phone. It has a chapter of its own.
       </Item>
       <Item term="Reshuffle">rebuilds the rounds you haven't played yet.</Item>
-      <Item term="Start New Session">
+      <Item term="New Round Robin">
         clears the schedule but keeps the same crowd selected for the next one.
       </Item>
       <Item term="Add a Round">

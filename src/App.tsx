@@ -40,10 +40,12 @@ import { authStore } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
 import { InstallPanel } from './components/layout/InstallPanel';
-import { SplashScreen } from './components/tour/SplashScreen';
+import { TourSheet } from './components/tour/TourSheet';
 import { TutorialOverlay } from './components/tour/TutorialOverlay';
 import {
-  TOUR_PREVIEW_SLOT, getTourView, resumeTour, startAct1, startAct2, subscribeTour,
+  OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, armOpener, completeTour,
+  dismissComplete, getTourView, nextCard, resumeTour, startTour, subscribeTour,
+  tourStartSelection,
 } from './lib/tour';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { SignInBanner } from './components/layout/SignInBanner';
@@ -150,26 +152,8 @@ function App() {
   const [signInDismissed, setSignInDismissed] = useStoredValue(stores.signInDismissed);
   const [swapHintDismissed, setSwapHintDismissed] = useStoredValue(stores.swapHintDismissed);
 
-  const [tourStage] = useStoredValue(stores.tourStage);
-  const tour = useSyncExternalStore(subscribeTour, getTourView, getTourView);
-  /**
-   * Read once, in a lazy initialiser rather than an effect, so a brand new
-   * install never paints a frame of the app behind the greeting.
-   *
-   * Both halves matter. The stage alone would greet every existing user on
-   * their next launch; exampleMeta alone would greet them again after they
-   * finished. Together they mean "seeded by this install, and never greeted",
-   * which is the only device the splash is honest on — it promises a sample
-   * group, and only a seeded device has one.
-   */
-  const [showSplash, setShowSplash] = useState(
-    () => stores.tourStage.get() === 'none' && stores.exampleMeta.get() !== null
-  );
-
-  const handleSplashContinue = useCallback(() => {
-    setShowSplash(false);
-    startAct1();
-  }, []);
+  const tourView = useSyncExternalStore(subscribeTour, getTourView, getTourView);
+  const tour = tourView.card;
 
   // Not stored, unlike the install dismissal above. There is a new build behind
   // each of these rather than one standing offer, so forgetting the refusal is
@@ -218,7 +202,8 @@ function App() {
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
     !!feedbackKind || showDonate || showShare || showAccount || showInstall ||
-    showSplash || (!!tour && !tour.scrolling)
+    tourView.phase === 'opener' || tourView.phase === 'complete' ||
+    (!!tour && !tour.scrolling)
   );
 
   // Every step starts at the top. The button that moved you here is often the
@@ -250,13 +235,24 @@ function App() {
     if (tour.tab !== currentStep()) setStep(tour.tab);
   }, [tour, setStep]);
 
-  // Act 2 waits for a schedule the host made themselves. currentStep() refuses
-  // a stored 'schedule' with nothing under it, so being on that tab is proof
-  // one exists — including on a relaunch that opens straight onto it. It fires
-  // once because the first thing startAct2 does is move the stage on.
+  /**
+   * The greeting, a couple of seconds after a brand new install has opened.
+   *
+   * Both halves of the gate matter. The stage alone would greet every existing
+   * user on their next launch; exampleMeta alone would greet them again after
+   * they finished. Together they mean "seeded by this install, and never
+   * greeted", which is the only device the offer is honest on — it promises a
+   * sample group, and only a seeded device has one.
+   *
+   * Read straight off the stores rather than through state, and run once: this
+   * decides whether to start a timer, and re-running it on every render would
+   * start a new one each time.
+   */
   useEffect(() => {
-    if (tourStage === 'await-schedule' && step === 'schedule') startAct2();
-  }, [tourStage, step]);
+    if (stores.tourStage.get() !== 'none' || stores.exampleMeta.get() === null) return;
+    const timer = setTimeout(armOpener, OPENER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Reaching Setup once is what opens its tab, by whichever route.
   useEffect(() => {
@@ -398,7 +394,7 @@ function App() {
     setSelectedIds([]);
   }, [setSelectedIds]);
 
-  // keepSelection is used by "Start New Session": the same crowd usually plays
+  // keepSelection is used by "New Round Robin": the same crowd usually plays
   // each time, so the previously chosen players stay selected for the next one.
   // The body lives in groupSessions.ts, which needs the same thing to open a
   // group nobody has set up yet.
@@ -470,6 +466,34 @@ function App() {
     [setSpecialTypes]
   );
 
+  /**
+   * Everything the tour changes about the app, in one place.
+   *
+   * The tour asks the host to do two things that need something to be wrong
+   * first: put the courts up to three, and finish a half-made selection with
+   * Select All. So Continue sets the courts low and unticks four people. Both
+   * are ordinary app state afterwards — there is no tour mode, and whatever
+   * they end the tour with is what they carry on with.
+   */
+  const handleTourStart = useCallback(() => {
+    setNumCourts(TOUR_COURTS_START);
+    setSelectedIds(tourStartSelection(rosterPlayers));
+    startTour();
+  }, [rosterPlayers, setNumCourts, setSelectedIds]);
+
+  /**
+   * Next, plus whatever this particular card promised would happen.
+   *
+   * The courts card says "set Number of Courts to 3 and click Next", and the
+   * host may well have pressed the stepper the wrong way or not at all. Next
+   * makes the sentence true either way, so the schedule they build a card later
+   * is the three-court one the tour has been describing.
+   */
+  const handleTourNext = useCallback(() => {
+    if (tour?.id === 'courts-rounds') setNumCourts(TOUR_COURTS_TARGET);
+    nextCard();
+  }, [tour, setNumCourts]);
+
   // Setup's Generate: a brand new schedule, starting the session over.
   const handleGenerate = useCallback(() => {
     const attending = rosterPlayers.filter((p) => selectedIds.includes(p.id));
@@ -491,8 +515,12 @@ function App() {
     // already under way has a key to hand rather than minting one halfway.
     setSessionId(generateId());
     setStep('schedule');
+    // Here rather than on the button, so a press that did not build anything —
+    // too few ticked for the courts — leaves the card where it was, with the
+    // error underneath it saying why.
+    if (tour?.id === 'select-players') nextCard();
   }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
-      activeRosterId, setSchedule, setCompletedRounds, setRemovedIds,
+      activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds,
       setScheduleEdited, setScheduleRosterId, setSessionId, setStep]);
 
   const attendingPlayers = sessionPlayers.filter(
@@ -892,7 +920,10 @@ function App() {
   const handleStartNewSession = useCallback(() => {
     clearSession(true); // keep the selected players for the next session
     setStep('roster');
-  }, [clearSession, setStep]);
+    // The tour's last card ends here, on the Players tab, having just done the
+    // thing it was describing. The closing panel comes up over it.
+    if (tour?.id === 'new-round-robin') completeTour();
+  }, [clearSession, setStep, tour]);
 
   // Which tabs are doors. Schedule is never one: the only way onto it is
   // Generate, which builds a new schedule rather than returning to the old one.
@@ -932,7 +963,7 @@ function App() {
   // own, so a brand new install would otherwise meet its first card with a
   // coloured bar above it, pushing Continue to Setup down a page that is locked
   // and cannot be scrolled to reach it.
-  const worthKeeping = rosterPlayers.length >= 4 && !tour;
+  const worthKeeping = rosterPlayers.length >= 4 && tourView.phase === 'off';
   const offerInstall =
     !installed && !installDismissed && worthKeeping && installRoute({ canPrompt }) !== 'manual';
   const offerSignIn =
@@ -1058,7 +1089,12 @@ function App() {
             onUpdate={updatePlayer}
             onAddPlayersToRosters={addPlayersToRosters}
             onDeletePlayer={deletePlayer}
-            onContinue={() => setStep('setup')}
+            onContinue={() => {
+              setStep('setup');
+              // The tour's first card hands this button over rather than
+              // offering a Next of its own, so the press has to move it.
+              if (tour?.id === 'players') nextCard();
+            }}
             defaultRating={defaultRating}
           />
         )}
@@ -1106,7 +1142,11 @@ function App() {
             onEditPlayer={handleEditPlayer}
             onUnsavedWorkChange={setScheduleHasWork}
             showSwapHint={!swapHintDismissed && !tour}
-            previewSlot={tour?.id === 'swap' ? TOUR_PREVIEW_SLOT : null}
+            hideSeatEdit={!!tour}
+            onActionsOpened={() => {
+              if (tour?.id === 'actions') nextCard();
+            }}
+            confirmNewSession={tour?.id !== 'new-round-robin'}
             onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
             defaultRating={defaultRating}
@@ -1259,8 +1299,21 @@ function App() {
           element takes a transform when the drawer slides, and a transformed
           ancestor becomes the containing block for its fixed children, which
           would carry the spotlight off the screen with it. */}
-      {showSplash && <SplashScreen onContinue={handleSplashContinue} />}
-      {tour && <TutorialOverlay view={tour} />}
+      {tourView.phase === 'opener' && (
+        <TourSheet title="Quick Start Tutorial" buttonLabel="Continue" onPress={handleTourStart}>
+          <p>Let&rsquo;s create your first round robin!</p>
+        </TourSheet>
+      )}
+      {tour && <TutorialOverlay view={tour} onNext={handleTourNext} />}
+      {tourView.phase === 'complete' && (
+        <TourSheet title="Tutorial Complete!" buttonLabel="Done" onPress={dismissComplete}>
+          <p>
+            You&rsquo;re ready to create your first group, add players, and create your
+            own round robins.
+          </p>
+          <p>Have fun playing pickleball! And thanks for being an organizer.</p>
+        </TourSheet>
+      )}
 
       {/* Outside the sliding panel so a print started from the drawer is never
           caught mid-slide. */}

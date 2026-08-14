@@ -50,7 +50,13 @@ export function GroupPicker({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    // The first-run tour hands the group name over on its first card, so this
+    // can open while the tour is up. It cannot simply stack over it — see
+    // TutorialOverlay — so it says so, and the tour stands down until it closes.
+    <div
+      data-tour-suspends
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
       {/* As tall as the screen allows before anything scrolls, the same as
           Manage Groups. The list used to be held to 288px whatever the phone
           was, which is five groups, so a host with eight scrolled a short list

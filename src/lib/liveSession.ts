@@ -220,7 +220,7 @@ function stopTracking() {
 
 function onChange() {
   if (key === null) return;
-  // The session is over, however it ended: Start New Session, a group switch, a
+  // The session is over, however it ended: New Round Robin, a group switch, a
   // deleted group, or sync adopting an account copy. All four null the schedule,
   // which is why this is the only teardown in the file.
   if (stores.schedule.get() === null) {

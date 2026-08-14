@@ -22,6 +22,8 @@ interface Props {
   offFormat?: boolean;
   /** Whether this round's format is built out of who is a man and who a woman. */
   showGender?: boolean;
+  /** Hides the pencil on a selected seat. The tour's swap card sets it. */
+  hideSeatEdit?: boolean;
   /** Opens the box for renaming this court. Absent on a round that cannot be edited. */
   onEditNumber?: () => void;
   /** Whether this session keeps score. Off, and the board is not drawn at all. */
@@ -74,6 +76,7 @@ function PlayerButton({
   readOnly,
   styles,
   showGender,
+  hideSeatEdit,
 }: {
   player: Player;
   playerIdx: number;
@@ -88,6 +91,7 @@ function PlayerButton({
   readOnly: boolean;
   styles: TeamStyles;
   showGender: boolean;
+  hideSeatEdit: boolean;
 }) {
   const { bgClass, borderClass, hoverClass, selectedBgClass } = styles;
   // Locked players cannot be tapped for swap; completed rounds are frozen entirely
@@ -119,7 +123,7 @@ function PlayerButton({
       >
         {displayName}
       </span>
-      {selected && interactive ? (
+      {selected && interactive && !hideSeatEdit ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
         <span className="shrink-0 pl-2 text-gray-500">{player.rating.toFixed(1)}</span>
@@ -186,6 +190,7 @@ function TeamColumn({
   lockRow,
   courtNumber,
   showGender,
+  hideSeatEdit,
 }: {
   team: Player[];
   teamKey: 'team1' | 'team2';
@@ -207,6 +212,7 @@ function TeamColumn({
   lockRow: boolean;
   courtNumber: number;
   showGender: boolean;
+  hideSeatEdit: boolean;
 }) {
   function isSelected(playerIdx: number) {
     return (
@@ -245,6 +251,7 @@ function TeamColumn({
           readOnly={readOnly}
           styles={styles}
           showGender={showGender}
+          hideSeatEdit={hideSeatEdit}
         />
       )}
 
@@ -278,6 +285,7 @@ function TeamColumn({
           readOnly={readOnly}
           styles={styles}
           showGender={showGender}
+          hideSeatEdit={hideSeatEdit}
         />
       )}
 
@@ -309,7 +317,7 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, hideSeatEdit = false, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -422,6 +430,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           lockRow={lockRow}
           courtNumber={court.courtNumber}
           showGender={showGender}
+          hideSeatEdit={hideSeatEdit}
         />
 
         {/* Sits in the gap between the two columns, centred against the taller one */}
@@ -443,6 +452,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           lockRow={lockRow}
           courtNumber={court.courtNumber}
           showGender={showGender}
+          hideSeatEdit={hideSeatEdit}
         />
       </div>
     </div>

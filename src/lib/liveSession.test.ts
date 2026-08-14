@@ -11,7 +11,7 @@
  * past, and only a test that pokes a store can show that it does not.
  *
  * The second is a share that outlives its session. A link still answering after
- * Start New Session shows a room a schedule nobody is playing.
+ * New Round Robin shows a room a schedule nobody is playing.
  *
  * The third is a rating leaving the device, which nothing on screen would ever
  * reveal.
@@ -316,7 +316,7 @@ describe('keeping it up to date', () => {
 
 describe('when the session ends', () => {
   it('takes the share down, wherever the ending came from', async () => {
-    // Start New Session, a group switch, a deleted group and sync adopting an
+    // New Round Robin, a group switch, a deleted group and sync adopting an
     // account copy all null the schedule and none of them call this file. That
     // is the point of watching the store.
     await startSharing();

@@ -647,7 +647,7 @@ export function ShuffleIcon({ className }: { className?: string }) {
   );
 }
 
-/** A play triangle inside a rewind ring. `INBOX/replay.svg`. Start New Session. */
+/** A play triangle inside a rewind ring. `INBOX/replay.svg`. New Round Robin. */
 export function ReplayIcon({ className }: { className?: string }) {
   return (
     <Solid className={className} viewBox="0 0 512 512">

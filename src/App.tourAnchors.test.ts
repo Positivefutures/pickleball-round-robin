@@ -31,8 +31,8 @@ const NAMES = ['Ava', 'Ben', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy',
  * A group that is nobody's first install.
  *
  * pb-rosters is written before runMigrations, so the fresh-install branch never
- * fires, no exampleMeta is recorded, and the splash stays shut. What is being
- * tested here is the anchors, not the greeting.
+ * fires, no exampleMeta is recorded, and the greeting stays shut. What is being
+ * tested here is the anchors, not the tour.
  */
 function seed(courts = 3) {
   window.localStorage.clear();
@@ -120,6 +120,25 @@ describe('the Players tab anchors', () => {
   });
 });
 
+describe('the step tab anchor', () => {
+  it('names whichever tab is live, and only that one', () => {
+    // The tour punches this back out of its own darkness. Where you are is not
+    // a thing to be greyed out while somebody explains where you are.
+    seed();
+    mount();
+    expect(container.querySelectorAll('[data-tutorial="active-tab"]')).toHaveLength(1);
+    expect(text(need('active-tab'))).toContain('Players');
+
+    clickButton(/^Continue to Setup/);
+    expect(container.querySelectorAll('[data-tutorial="active-tab"]')).toHaveLength(1);
+    expect(text(need('active-tab'))).toContain('Setup');
+
+    clickButton(/^Generate Schedule/);
+    expect(container.querySelectorAll('[data-tutorial="active-tab"]')).toHaveLength(1);
+    expect(text(need('active-tab'))).toContain('Schedule');
+  });
+});
+
 describe('the Setup tab anchors', () => {
   it('names the heading and the row holding both steppers', () => {
     seed();
@@ -133,6 +152,23 @@ describe('the Setup tab anchors', () => {
     expect(text(steppers)).toContain('Number of Courts');
     expect(text(steppers)).toContain('Number of Rounds');
     expect(text(steppers)).not.toContain('Select Players');
+  });
+
+  it('names exactly one Generate button, though the row is drawn twice', () => {
+    // The button row sits above the player list and below it. Both are real
+    // buttons; only the lower one carries the anchor, or the tour would box
+    // whichever querySelector reached first and leave the other dark.
+    seed();
+    mount();
+    clickButton(/^Continue to Setup/);
+
+    const tagged = container.querySelectorAll('[data-tutorial="generate-schedule"]');
+    const all = [...container.querySelectorAll('button')].filter((b) =>
+      /^Generate Schedule/.test(text(b))
+    );
+    expect(all).toHaveLength(2);
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0]).toBe(all[1]);
   });
 
   it('keeps the Select Players anchor when the panel turns into the pairing view', () => {
@@ -157,7 +193,6 @@ describe('the Schedule tab anchors', () => {
 
     expect(text(need('actions-button'))).toContain('Actions');
     expect(text(need('round-1').querySelector('h3')!)).toBe('Round 1');
-    expect(text(need('round-1-completed'))).toContain('COMPLETED');
     expect(text(need('court-1-label'))).toBe('COURT 1');
     expect(text(need('court-1'))).toContain('COURT 1');
     expect(text(need('court-2'))).toContain('COURT 2');
@@ -202,5 +237,15 @@ describe('the Schedule tab anchors', () => {
     expect(anchor('court-1-label')).not.toBeNull();
     expect(text(need('court-1-label'))).toBe('COURT 1');
     expect(need('court-1-label').querySelector('button')).toBeNull();
+  });
+
+  it('names the New Round Robin card inside the Actions sheet', () => {
+    seed();
+    mount();
+    generate();
+    clickButton(/^Actions$/);
+
+    expect(text(need('new-round-robin'))).toBe('New Round Robin');
+    expect(container.querySelectorAll('[data-tutorial="new-round-robin"]')).toHaveLength(1);
   });
 });

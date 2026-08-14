@@ -15,7 +15,7 @@ export function stepLabel(step: Step): string {
  * What leaving a schedule costs, in one sentence.
  *
  * There are three doors out of a schedule: the Setup tab, the Players tab, and
- * Start New Session in the Actions sheet. Each names itself, and each says this,
+ * New Round Robin in the Actions sheet. Each names itself, and each says this,
  * so no route out can quietly undersell what it throws away.
  */
 export const DISCARD_WARNING =

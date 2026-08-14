@@ -304,7 +304,7 @@ describe('the swap hint', () => {
     expect(container.textContent).not.toContain(HINT);
 
     // And a brand new session, which is where it used to reappear.
-    action(/^Start New Session$/);
+    action(/^New Round Robin$/);
     clickButton(/^Yes, Start New$/, sheet());
     generate();
     expect(container.textContent).not.toContain(HINT);
@@ -1052,12 +1052,12 @@ describe('the step tabs', () => {
     expect(heading!.className).toContain('font-extrabold');
   });
 
-  it('leaves Start New Session asking, even with nothing to lose', () => {
+  it('leaves New Round Robin asking, even with nothing to lose', () => {
     mount();
     generate();
 
-    action(/^Start New Session$/);
-    expect(text(sheet())).toContain('Start a new session?');
+    action(/^New Round Robin$/);
+    expect(text(sheet())).toContain('New round robin?');
   });
 
   // Three doors out of a schedule, three headings, one warning. Pinned here so a
@@ -1082,7 +1082,7 @@ describe('the step tabs', () => {
     expect(said()).toBe(true);
     clickButton(/^Cancel$/);
 
-    action(/^Start New Session$/);
+    action(/^New Round Robin$/);
     expect(said()).toBe(true);
   });
 
@@ -1505,7 +1505,7 @@ describe('filling an empty place', () => {
 /**
  * The Actions sheet, which replaced the Reshuffle and New Session buttons.
  *
- * Reshuffle and Start New Session are covered above, through the same sheet.
+ * Reshuffle and New Round Robin are covered above, through the same sheet.
  * These are the seven things the schedule could not do before it existed.
  */
 describe('the Actions sheet', () => {
@@ -1532,7 +1532,7 @@ describe('the Actions sheet', () => {
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
       'Add a Player', 'Sub a Player', 'Add a Guest',
-      'Share Live Session', 'Reshuffle', 'Start New Session',
+      'New Round Robin', 'Reshuffle', 'Share Live Session',
       'Add a Round', 'Add a Court', 'Remove a Court',
     ]);
   });
@@ -1987,7 +1987,7 @@ describe('the Actions sheet', () => {
       clickButton(/^Add Guest$/, sheet());
       expect(storedGuests()).toHaveLength(1);
 
-      action(/^Start New Session$/);
+      action(/^New Round Robin$/);
       clickButton(/^Yes, Start New$/, sheet());
       expect(storedGuests()).toEqual([]);
     });
@@ -2166,7 +2166,7 @@ describe('keeping score', () => {
       generate();
       score(0, '11', '7');
 
-      action(/^Start New Session$/);
+      action(/^New Round Robin$/);
       clickButton(/^Yes, Start New$/, sheet());
 
       expect(storedSchedule()).toBeNull();

@@ -22,17 +22,11 @@ export type Side = 'top' | 'right' | 'bottom' | 'left';
 /** Breathing room between a spotlit element and the darkness around it. */
 export const PAD = 8;
 
-/**
- * How much of the bottom of the screen the Back/Next bar owns.
- *
- * Imported by both the bar and the placement below, so the keep-out band and
- * the thing it is keeping out of cannot drift apart. Change the bar's padding
- * and change this.
- */
-export const BAR_H = 108;
-
 /** Inset from the edge of the screen for anything the tour draws. */
 export const EDGE = 16;
+
+/** The widest a bubble is ever drawn, before its own cap or the screen. */
+export const BUBBLE_MAX = 336;
 
 /** Between a bubble and what it points at, and between two bubbles. */
 export const GAP = 10;
@@ -169,38 +163,23 @@ export function dimTiles(view: Rect, holes: Rect[]): Rect[] {
 }
 
 /**
- * The parts of `outer` that `inner` does not cover.
+ * The width a bubble gets: 21rem, or the screen less its margins, or whatever
+ * narrower width the card asked for.
  *
- * Used one level down from the darkness, on the single card where a real
- * control is left alive: the hole around Continue to Setup is shielded
- * everywhere except over the button itself, so a stray tap beside it inside the
- * same hole still goes nowhere.
+ * A card asks when something beside the bubble has to stay readable — the one on
+ * the Players tab sits over "Add Players" and the rating and gender columns at
+ * full width, and the point of that card is that they can see their group.
  */
-export function frameRects(outer: Rect, inner: Rect): Rect[] {
-  const hole = clipTo(outer, inner);
-  if (hole.width <= 0 || hole.height <= 0) return [outer];
-  const parts: Rect[] = [
-    { top: outer.top, left: outer.left, width: outer.width, height: hole.top - outer.top },
-    {
-      top: bottom(hole),
-      left: outer.left,
-      width: outer.width,
-      height: bottom(outer) - bottom(hole),
-    },
-    { top: hole.top, left: outer.left, width: hole.left - outer.left, height: hole.height },
-    {
-      top: hole.top,
-      left: right(hole),
-      width: right(outer) - right(hole),
-      height: hole.height,
-    },
-  ];
-  return parts.filter((p) => p.width > 0 && p.height > 0);
+export function bubbleWidth(viewWidth: number, max = BUBBLE_MAX): number {
+  return Math.min(max, BUBBLE_MAX, viewWidth - 2 * EDGE);
 }
 
-/** The width a bubble gets: 21rem, or the screen less its margins. */
-export function bubbleWidth(viewWidth: number): number {
-  return Math.min(336, viewWidth - 2 * EDGE);
+/** The screen a bubble is being placed on, and what it must stay clear of. */
+export interface View {
+  width: number;
+  height: number;
+  /** Nothing is placed above this. The foot of the step tabs. */
+  keepTop?: number;
 }
 
 export interface Placed extends Rect {
@@ -209,9 +188,21 @@ export interface Placed extends Rect {
   side: 'above' | 'below';
 }
 
-/** The vertical strip a bubble is allowed to occupy. */
-export function band(viewHeight: number): { top: number; bottom: number } {
-  return { top: EDGE, bottom: viewHeight - BAR_H - EDGE };
+/**
+ * The vertical strip a bubble is allowed to occupy.
+ *
+ * The whole screen less its margins, now that the buttons ride inside the
+ * bubbles instead of in a bar along the foot. That bar owned 108px of every
+ * card, and the two cards that point at the bottom of a long page were the ones
+ * paying for it.
+ *
+ * `keepTop` is the one thing still reserved: the step tabs. The tour goes to
+ * the trouble of leaving the live tab undimmed on every card, and a bubble
+ * parked across it undoes that — the card that boxes Round 1 has its box
+ * starting just below the tabs, so "above" lands right on them.
+ */
+export function band(viewHeight: number, keepTop = 0): { top: number; bottom: number } {
+  return { top: Math.max(EDGE, keepTop), bottom: viewHeight - EDGE };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -233,10 +224,10 @@ function clamp(n: number, lo: number, hi: number): number {
 export function placeBubble(
   anchor: Rect,
   size: { width: number; height: number },
-  view: { width: number; height: number },
+  view: View,
   prefer: 'above' | 'below' = 'below'
 ): Placed {
-  const { top: bandTop, bottom: bandBottom } = band(view.height);
+  const { top: bandTop, bottom: bandBottom } = band(view.height, view.keepTop);
   const roomBelow = bandBottom - bottom(anchor) - GAP;
   const roomAbove = anchor.top - GAP - bandTop;
 
@@ -282,14 +273,10 @@ function overlaps(a: Rect, b: Rect): boolean {
  * pointers are left to say which belongs to what — two readable bubbles in
  * roughly the right place beat one readable bubble and one off screen.
  */
-export function resolveBubbles(
-  a: Placed,
-  b: Placed,
-  view: { width: number; height: number }
-): [Placed, Placed] {
+export function resolveBubbles(a: Placed, b: Placed, view: View): [Placed, Placed] {
   if (!overlaps(a, b)) return [a, b];
 
-  const { top: bandTop, bottom: bandBottom } = band(view.height);
+  const { top: bandTop, bottom: bandBottom } = band(view.height, view.keepTop);
   const aIsUpper = a.top <= b.top;
   const upper = aIsUpper ? a : b;
   const lower = aIsUpper ? b : a;

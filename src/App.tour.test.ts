@@ -5,18 +5,19 @@
  *
  * happy-dom has no layout, so every rect is zero and nothing here can say a
  * word about where the tour draws — that is all in tourGeometry.test.ts, which
- * checks it as arithmetic. What this file is for is the other half: which card
- * is showing, what it says, what moves the app, and above all who never sees any
- * of it. A tour that appears in front of a host mid-season with real groups is
- * the worst thing this feature could do, and the guard against it is one
- * `&&` — so it gets a test of its own.
+ * checks it as arithmetic, and tour.test.ts, which checks the deck as data. What
+ * this file is for is the part only a running app can answer: that pressing the
+ * real controls moves the tour, that pressing them when they do not work does
+ * not, and above all who never sees any of it. A tour that appears in front of a
+ * host mid-season with real groups is the worst thing this feature could do, and
+ * the guard against it is one `&&` — so it gets a test of its own.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
-import { TOUR_STEPS, __tourTesting } from './lib/tour';
+import { OPENER_DELAY_MS, TOUR_STEPS, __tourTesting } from './lib/tour';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -29,7 +30,7 @@ function freshInstall() {
   runMigrations();
 }
 
-/** Somebody who already had the app before the tour existed. */
+/** Somebody who typed their own group in, so nothing was ever seeded for them. */
 function existingInstall() {
   window.localStorage.clear();
   window.localStorage.setItem('pb-rosters', JSON.stringify([{ id: 'g1', name: 'Tuesday Crew' }]));
@@ -69,10 +70,15 @@ function remount(between?: () => void) {
   mount();
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
   __tourTesting.reset();
+  vi.useRealTimers();
 });
 
 const text = (el: Element) => (el.textContent ?? '').trim();
@@ -82,10 +88,27 @@ function overlay(): HTMLElement | null {
   return document.querySelector('[data-tutorial-overlay]');
 }
 
-function splashShowing(): boolean {
-  // Only the first half of the headline: it is broken over two lines with a
-  // <br>, which contributes nothing to textContent, so the two run together.
-  return body().includes('Let’s jump');
+const openerShowing = () => body().includes('Quick Start Tutorial');
+const completeShowing = () => body().includes('Tutorial Complete!');
+
+/**
+ * Let the overlay's measure loop run once.
+ *
+ * It watches the DOM on requestAnimationFrame rather than from listeners,
+ * because the things it has to notice — a panel opening from a child's own
+ * state, a font swapping in, an image landing — report to nobody.
+ */
+function frame() {
+  act(() => {
+    vi.advanceTimersByTime(40);
+  });
+}
+
+/** Let the greeting's two seconds pass. */
+function waitForOpener() {
+  act(() => {
+    vi.advanceTimersByTime(OPENER_DELAY_MS);
+  });
 }
 
 function click(el: Element) {
@@ -115,292 +138,369 @@ function has(re: RegExp, scope: ParentNode = document.body): boolean {
 }
 
 const stored = (key: string) => window.localStorage.getItem(key);
-const stage = () => JSON.parse(stored('pb-tour-stage') ?? 'null');
+const read = (key: string, fallback: string) => JSON.parse(stored(key) ?? fallback);
+const stage = () => read('pb-tour-stage', 'null');
+const courts = () => read('pb-num-courts', 'null');
+const ticked = () => read('pb-selected-ids', '[]') as string[];
 /** Unwritten until something moves it, and the store's own default is roster. */
-const step = () => JSON.parse(stored('pb-step') ?? '"roster"');
+const step = () => read('pb-step', '"roster"');
 
-/** Off the splash and onto the first card. */
+/** Which card is up, by the counter it prints in its own bubble. */
+function cardNumber(): number | null {
+  const m = body().match(/Step (\d+) of (\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+/** Off the greeting and onto the first card. */
 function begin() {
+  freshInstall();
   mount();
+  waitForOpener();
   clickButton(/^Continue$/);
 }
 
-/** The whole of Act 1, ending with the app handed back. */
-function throughAct1() {
+/** Card 1 through to a schedule the host generated, standing on card 4. */
+function throughSetup() {
   begin();
+  clickButton(/^Continue to Setup/);
   clickButton(/^Next$/);
-  clickButton(/^Next$/);
-  clickButton(/^OK$/);
+  clickButton(/^Select All$/);
+  clickButton(/^Generate Schedule/);
 }
 
 describe('who gets greeted', () => {
-  it('greets a brand new install, and says what it put there', () => {
+  it('says nothing for the first two seconds, then offers the tour', () => {
+    // The whole reason it is a sheet and not a splash screen: the Players tab
+    // is on screen and readable before anything is asked of them.
     freshInstall();
     mount();
 
-    expect(splashShowing()).toBe(true);
-    expect(body()).toContain('sample group with 14 players');
-    expect(has(/^Continue$/)).toBe(true);
+    expect(openerShowing()).toBe(false);
+    expect(body()).toContain('Sample Group');
+
+    waitForOpener();
+    expect(openerShowing()).toBe(true);
+    expect(body()).toContain('Let’s create your first round robin!');
   });
 
-  it('never greets somebody who already had the app', () => {
-    // The whole guarantee, in one test. exampleMeta is written only by the
-    // fresh-install branch of runMigrations, so an existing user has none —
-    // and a stage flag on its own would greet every one of them on the next
-    // launch after this ships.
+  it('never greets a device that was not seeded with a Sample Group', () => {
+    // The beta tester's phone, and every existing user's. exampleMeta is
+    // written by the fresh-install branch of runMigrations and nowhere else, so
+    // a group somebody typed in themselves can never trip this.
     existingInstall();
-    mount();
-
     expect(stored('pb-example-meta')).toBeNull();
-    expect(splashShowing()).toBe(false);
-    expect(overlay()).toBeNull();
-    expect(body()).toContain('Tuesday Crew');
-  });
 
-  it('does not promise a guided tour at the bottom of the screen', () => {
-    // The mockup offered one. It was dropped deliberately, and the offer must
-    // not come back from the mockup without the thing behind it.
-    freshInstall();
     mount();
-    expect(body()).not.toContain('guided tour');
-    expect(has(/tutorial/i)).toBe(false);
+    waitForOpener();
+
+    expect(openerShowing()).toBe(false);
+    expect(overlay()).toBeNull();
   });
 
-  it('greets nobody twice', () => {
-    freshInstall();
+  it('never greets the same device twice', () => {
     begin();
     clickButton(/^Skip$/);
     remount();
-
-    expect(splashShowing()).toBe(false);
-    expect(overlay()).toBeNull();
-  });
-});
-
-describe('act one', () => {
-  it('opens on the Players card, pointing at the group and the way out', () => {
-    freshInstall();
-    begin();
-
-    expect(splashShowing()).toBe(false);
-    expect(overlay()).not.toBeNull();
-    expect(stage()).toBe('act1');
-    expect(body()).toContain('Here is your sample group!');
-    expect(body()).toContain('Click here to setup your first round robin.');
-    // No Back on the first card of an act: there is nowhere behind it.
-    expect(has(/^Back$/)).toBe(false);
-    expect(has(/^Skip$/)).toBe(true);
+    waitForOpener();
+    expect(openerShowing()).toBe(false);
   });
 
-  it('moves the tab when Next moves the card, and back again', () => {
-    freshInstall();
-    begin();
-    expect(step()).toBe('roster');
-
-    clickButton(/^Next$/);
-    expect(step()).toBe('setup');
-    expect(body()).toContain('Imagine you’ve booked 3 courts');
-    expect(has(/^Back$/)).toBe(true);
-
-    clickButton(/^Back$/);
-    expect(step()).toBe('roster');
-    expect(body()).toContain('Here is your sample group!');
-  });
-
-  it('lets the real Continue to Setup button move the card too', () => {
-    // The one live control on the whole card. Tapping it must do its own job
-    // and advance the tour, not fight an effect trying to drag the tab back.
-    freshInstall();
-    begin();
-    clickButton(/^Continue to Setup/, container);
-
-    expect(step()).toBe('setup');
-    expect(body()).toContain('Imagine you’ve booked 3 courts');
-  });
-
-  it('asks for every player, and hands the app over on OK', () => {
-    freshInstall();
-    begin();
-    clickButton(/^Next$/);
-    clickButton(/^Next$/);
-    expect(body()).toContain('Select all the players');
-    expect(has(/^OK$/)).toBe(true);
-
-    clickButton(/^OK$/);
-    expect(overlay()).toBeNull();
-    expect(stage()).toBe('await-schedule');
-    expect(step()).toBe('setup');
-  });
-
-  it('says three courts, which is what a fresh install actually opens on', () => {
-    // The copy is only true because the tour cannot run on a device that has
-    // ever set this. Assert the coupling rather than trusting it.
+  it('has no Skip on the greeting itself', () => {
+    // One button, because the tour behind it carries a Skip on every card.
     freshInstall();
     mount();
-    expect(stored('pb-num-courts')).toBeNull();
-    clickButton(/^Continue$/);
-    clickButton(/^Next$/);
-    expect(body()).toContain('3 courts');
-    expect(body()).toContain('8 rounds');
+    waitForOpener();
+    expect(has(/^Skip$/)).toBe(false);
   });
 });
 
-describe('the hand over', () => {
-  it('really does let go: the host selects and generates for themselves', () => {
-    freshInstall();
-    throughAct1();
-
-    clickButton(/^Select All$/, container);
-    clickButton(/^Generate Schedule/, container);
-
-    expect(step()).toBe('schedule');
-    expect(body()).toContain('Congratulations on making your first round robin!');
-    expect(stage()).toBe('act2');
-  });
-
-  it('waits as long as it takes, and stays out of the way meanwhile', () => {
-    freshInstall();
-    throughAct1();
-    remount();
-
-    expect(overlay()).toBeNull();
-    expect(splashShowing()).toBe(false);
-    expect(stage()).toBe('await-schedule');
-
-    clickButton(/^Select All$/, container);
-    clickButton(/^Generate Schedule/, container);
-    expect(body()).toContain('Congratulations on making your first round robin!');
-  });
-
-  it('comes back to the card whose anchors are on screen, not where it counted to', () => {
-    freshInstall();
+describe('what Continue sets up', () => {
+  it('starts the courts below the number the tour asks for', () => {
     begin();
-    clickButton(/^Next$/);
-    expect(step()).toBe('setup');
+    expect(courts()).toBe(2);
+  });
 
-    remount();
-    expect(body()).toContain('Imagine you’ve booked 3 courts');
-    expect(body()).not.toContain('Here is your sample group!');
+  it('leaves four of the fourteen unticked, so Select All has a job', () => {
+    begin();
+    expect(ticked()).toHaveLength(10);
+  });
+
+  it('lands on the first card with the tour running', () => {
+    begin();
+    expect(stage()).toBe('running');
+    expect(cardNumber()).toBe(1);
+    expect(body()).toContain('I’ve created a sample group for you with 14 players');
   });
 });
 
-describe('act two', () => {
-  function toAct2() {
-    freshInstall();
-    throughAct1();
-    clickButton(/^Select All$/, container);
-    clickButton(/^Generate Schedule/, container);
+describe('the cards that hand over a real control', () => {
+  it('gives the Players card no Next, and moves it on Continue to Setup', () => {
+    begin();
+    expect(has(/^Next$/)).toBe(false);
+    expect(has(/^Back$/)).toBe(false);
+    expect(has(/^Skip$/)).toBe(true);
+
+    clickButton(/^Continue to Setup/);
+    expect(cardNumber()).toBe(2);
+    expect(step()).toBe('setup');
+  });
+
+  it('gives the Select Players card no Next, and moves it on Generate', () => {
+    begin();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Next$/);
+    expect(cardNumber()).toBe(3);
+    expect(has(/^Next$/)).toBe(false);
+
+    clickButton(/^Select All$/);
+    clickButton(/^Generate Schedule/);
+    expect(cardNumber()).toBe(4);
+    expect(step()).toBe('schedule');
+  });
+
+  it('stays put when Generate could not build anything', () => {
+    // Deselect All is live on this card too, and pressing it leaves nobody to
+    // schedule. The button shows its error and builds nothing, and the tour
+    // must not walk on to a Schedule tab with no schedule under it.
+    begin();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Next$/);
+    clickButton(/^Deselect All$/);
+    clickButton(/^Generate Schedule/);
+
+    expect(cardNumber()).toBe(3);
+    expect(step()).toBe('setup');
+    expect(body()).toContain('Need at least');
+  });
+
+  it('builds a schedule even for a host who ignored Select All', () => {
+    // Ten of fourteen still fills three courts — the last one plays a 2v1
+    // rather than sending anybody home. The card asks for Select All because
+    // the full group is the better first schedule, not because ten would break.
+    begin();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Next$/);
+    clickButton(/^Generate Schedule/);
+
+    expect(cardNumber()).toBe(4);
+    expect(step()).toBe('schedule');
+  });
+
+  it('gives the Actions card no Next, and moves it when the sheet opens', () => {
+    throughSetup();
+    clickButton(/^Next$/); // 4 -> 5
+    clickButton(/^Next$/); // 5 -> 6
+    clickButton(/^Next$/); // 6 -> 7
+    expect(cardNumber()).toBe(7);
+    expect(has(/^Next$/)).toBe(false);
+
+    clickButton(/^Actions$/);
+    expect(cardNumber()).toBe(8);
+    expect(body()).toContain('Quick changes for this session');
+  });
+});
+
+describe('the courts card keeps its own promise', () => {
+  it('puts the courts on three whatever the host did with the stepper', () => {
+    // The card says "set Number of Courts to 3 and click Next". Next makes that
+    // sentence true, so the schedule a card later is the one being described.
+    begin();
+    clickButton(/^Continue to Setup/);
+    expect(courts()).toBe(2);
+    clickButton(/^Next$/);
+    expect(courts()).toBe(3);
+  });
+});
+
+describe('the last card', () => {
+  function toLastCard() {
+    throughSetup();
+    clickButton(/^Next$/);
+    clickButton(/^Next$/);
+    clickButton(/^Next$/);
+    clickButton(/^Actions$/);
   }
 
-  it('congratulates them, then names the three things on the page', () => {
-    toAct2();
-    expect(body()).toContain('Mark rounds as COMPLETED to collapse them.');
-    // Nothing behind this card but a schedule that did not exist before it.
-    expect(has(/^Back$/)).toBe(false);
+  it('asks no question before starting the new round robin', () => {
+    toLastCard();
+    clickButton(/^New Round Robin$/);
 
-    clickButton(/^Next$/);
-    expect(body()).toContain('Change court numbers here.');
-    expect(has(/^Back$/)).toBe(true);
-
-    clickButton(/^Next$/);
-    expect(body()).toContain('Select one player and then another to swap them.');
-    // One seat drawn as tapped, so the words have something to describe. It is
-    // a picture: the app's own prompt appears with it, and no swap is pending.
-    expect(body()).toContain('Tap another player to swap');
-    expect(container.querySelectorAll('.ring-blue-500').length).toBe(1);
-
-    clickButton(/^Next$/);
-    expect(body()).toContain('click Actions and then Start New Session');
+    // Straight there. No "New round robin?" panel in between, because the card
+    // has just told them to press it.
+    expect(body()).not.toContain('New round robin?');
+    expect(step()).toBe('roster');
   });
 
-  it('ends on Done, and lets go for good', () => {
-    toAct2();
-    for (let i = 0; i < 4; i++) clickButton(/^Next$/);
-    expect(body()).toContain('You’re all set!');
+  it('closes with a panel and not with nothing', () => {
+    toLastCard();
+    clickButton(/^New Round Robin$/);
 
-    clickButton(/^Done$/);
+    expect(completeShowing()).toBe(true);
+    expect(body()).toContain('thanks for being an organizer');
     expect(overlay()).toBeNull();
     expect(stage()).toBe('done');
-    // The swap card taught this at more length than the hint ever did.
-    expect(stored('pb-swap-hint-dismissed')).toBe('true');
-
-    remount();
-    expect(overlay()).toBeNull();
-    expect(splashShowing()).toBe(false);
   });
 
-  it('restarts its own act after a relaunch part way through', () => {
-    toAct2();
-    clickButton(/^Next$/);
-    expect(body()).toContain('Change court numbers here.');
+  it('leaves the app alone once Done is pressed', () => {
+    toLastCard();
+    clickButton(/^New Round Robin$/);
+    clickButton(/^Done$/);
+
+    expect(completeShowing()).toBe(false);
+    expect(overlay()).toBeNull();
+    expect(body()).toContain('Sample Group');
 
     remount();
-    expect(body()).toContain('Mark rounds as COMPLETED to collapse them.');
+    waitForOpener();
+    expect(openerShowing()).toBe(false);
+    expect(overlay()).toBeNull();
   });
 });
 
-describe('the deck itself', () => {
-  it('points at something that exists on every card', () => {
-    // A dropped or renamed data-tutorial attribute leaves the tour pointing at
-    // nothing, on a screen only brand new users ever see. This walks the deck
-    // and checks each card's anchors against the page the card lives on.
-    freshInstall();
+describe('Back and Skip', () => {
+  it('walks back from the third card to the first', () => {
     begin();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Next$/);
+    expect(cardNumber()).toBe(3);
 
-    const seen = new Set<string>();
-    for (let i = 0; i < TOUR_STEPS.length; i++) {
-      const card = TOUR_STEPS[i];
-      const wanted = [
-        ...card.regions.flatMap((r) => [...r.anchors.map((a) => a.name), ...(r.endAt ? [r.endAt] : [])]),
-        ...card.bubbles.flatMap((b) => (b.at ? [b.at] : [])),
-      ];
-      for (const name of wanted) {
-        expect(
-          document.querySelector(`[data-tutorial="${name}"]`),
-          `card ${card.id} points at "${name}", which is not on the ${card.tab} tab`
-        ).not.toBeNull();
-        seen.add(name);
-      }
+    clickButton(/^Back$/);
+    expect(cardNumber()).toBe(2);
+    clickButton(/^Back$/);
+    expect(cardNumber()).toBe(1);
+    expect(step()).toBe('roster');
+    expect(has(/^Back$/)).toBe(false);
+  });
 
-      if (card.id === 'select-players') {
-        // The hand-over card. Do what it asks, so the Schedule cards have a
-        // schedule to point at.
-        clickButton(/^OK$/);
-        clickButton(/^Select All$/, container);
-        clickButton(/^Generate Schedule/, container);
-      } else if (i < TOUR_STEPS.length - 1) {
-        clickButton(/^Next$/);
-      }
-    }
+  it('offers no way back to before the schedule existed', () => {
+    throughSetup();
+    expect(cardNumber()).toBe(4);
+    expect(has(/^Back$/)).toBe(false);
+  });
 
-    // Every anchor in the app is used by the deck, and every anchor the deck
-    // wants is in the app. A spare one is a rename half done.
-    const inApp = new Set(
-      [...document.querySelectorAll('[data-tutorial]')].map(
-        (el) => el.getAttribute('data-tutorial')!
-      )
+  it('ends the tour from any card, for good', () => {
+    begin();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Skip$/);
+
+    expect(overlay()).toBeNull();
+    expect(stage()).toBe('done');
+    remount();
+    waitForOpener();
+    expect(overlay()).toBeNull();
+  });
+});
+
+describe('a relaunch part way through', () => {
+  it('comes back on the card whose anchors are on the tab it reopened', () => {
+    begin();
+    clickButton(/^Continue to Setup/);
+    expect(cardNumber()).toBe(2);
+
+    remount();
+    expect(stage()).toBe('running');
+    expect(cardNumber()).toBe(2);
+  });
+});
+
+/**
+ * Three things happy-dom can only see as class names, guarded here anyway.
+ *
+ * They are all CSS-only properties with no layout to measure, and every one of
+ * them has already been the bug: the overlay's own root swallowing the click it
+ * was waiting for, the buttons landing in a bubble that is not the one being
+ * acted on, and the last card drawing underneath the sheet it is pointing into.
+ * A class-name assertion is a poor test. It is a much better test than nothing.
+ */
+describe('what the overlay draws', () => {
+  it('lets clicks through its own root', () => {
+    // Children paint above their parent, so the shields work either way. But
+    // over a hole the card has left live there is no child, and a root taking
+    // its own pointer events is the hit target there — which is exactly why
+    // Continue to Setup did nothing for a whole round of testing.
+    begin();
+    expect(overlay()!.className).toContain('pointer-events-none');
+  });
+
+  it('puts the step counter and Skip in the bubble being acted on', () => {
+    // Card 1 is the only one with two bubbles. The buttons cannot live in both,
+    // and the one that matters is the one beside the button they are being
+    // asked to press.
+    begin();
+    const bubbles = [...overlay()!.querySelectorAll('div')].filter((d) =>
+      /Click here to setup|created a sample group/.test(text(d))
     );
-    for (const name of inApp) expect(seen, `nothing points at "${name}"`).toContain(name);
+    const withControls = bubbles.filter((d) => /Step 1 of 8/.test(text(d)));
+
+    expect(withControls).not.toHaveLength(0);
+    for (const b of withControls) expect(text(b)).toContain('Click here to setup');
+    expect(body()).toContain('Step 1 of 8');
   });
 
-  it('has a live control only where a real button is the lesson', () => {
-    const live = TOUR_STEPS.filter((s) => s.live);
-    expect(live.map((s) => s.id)).toEqual(['players']);
+  it('rings what the card is about, and never the tab', () => {
+    // Card 1 boxes two things: the group name and Continue to Setup. The live
+    // step tab is a third hole in the darkness and must stay a plain one — a
+    // ring there is the tour pointing at where the host already is.
+    begin();
+    expect(overlay()!.querySelectorAll('[data-tour-ring]')).toHaveLength(2);
+
+    clickButton(/^Continue to Setup/);
+    expect(overlay()!.querySelectorAll('[data-tour-ring]')).toHaveLength(1);
   });
 
-  it('grows the Actions box enough to clear the icons hanging above it', () => {
-    // The four tiles sit at -top-[17px], outside the button's border box, so a
-    // ring drawn on the measurement alone cuts their heads off. Jeff asked for
-    // this one specifically; it is the only anchor in the deck that needs it.
-    const actions = TOUR_STEPS.find((s) => s.id === 'actions')!;
-    const anchor = actions.regions[0].anchors[0];
-    expect(anchor.name).toBe('actions-button');
-    expect(anchor.pad?.top ?? 0).toBeGreaterThan(17);
+  it('stands down while one of the app’s own panels is open, and comes back', () => {
+    // It cannot get out of the way with a z-index: `.app-panel` carries z-10,
+    // so every panel inside it stacks within that one context and the overlay
+    // outside comes out over the lot however low it sets itself. So it draws
+    // nothing at all instead, and takes none of the clicks.
+    begin();
+    expect(overlay()).not.toBeNull();
+
+    click(document.querySelector('[data-tutorial="group-name"]')!);
+    expect(document.querySelector('[data-tour-suspends]')).not.toBeNull();
+    frame();
+    expect(overlay()).toBeNull();
+
+    clickButton(/^Close$/);
+    expect(document.querySelector('[data-tour-suspends]')).toBeNull();
+    frame();
+    expect(overlay()).not.toBeNull();
+    expect(cardNumber()).toBe(1);
+  });
+});
+
+describe('what the tour suppresses while it is up', () => {
+  it('hides the pencil on a seat the host taps mid-tour', () => {
+    // The swap card leaves the seats live, so a tap really selects. A second
+    // control inside the seat they just tapped competes with the one thing the
+    // card is asking them to do, which is tap one more player.
+    throughSetup();
+    clickButton(/^Next$/);
+    clickButton(/^Next$/);
+    const seat = [...document.querySelectorAll('.round-card button')].find((b) =>
+      /^[A-Z][a-z]+ [A-Z]\./.test(text(b))
+    );
+    expect(seat).toBeDefined();
+    click(seat!);
+
+    // The tap landed — the seat really is selected, so the pencil had its
+    // chance to appear and was told not to. It carries its name on aria-label
+    // rather than in text, so `has` would never have seen it either way.
+    expect(document.querySelectorAll('[aria-selected="true"], .ring-blue-500').length
+      + [...document.querySelectorAll('.round-card button')].filter((b) =>
+        b.className.includes('ring-2')).length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('[aria-label^="Edit "]')).toHaveLength(0);
   });
 
-  it('never shows more than two bubbles at once', () => {
-    for (const card of TOUR_STEPS) {
-      expect(card.bubbles.length, `card ${card.id}`).toBeLessThanOrEqual(2);
-    }
+  it('keeps the swap hint off the schedule', () => {
+    // Card 6 teaches this at more length than the hint ever did, and a second
+    // box on the same screen saying the same thing is noise.
+    throughSetup();
+    expect(body()).not.toContain('Tap a player');
+  });
+
+  it('every card names a tab the app can actually be on', () => {
+    const tabs = new Set(TOUR_STEPS.map((s) => s.tab));
+    expect([...tabs].sort()).toEqual(['roster', 'schedule', 'setup']);
   });
 });

@@ -89,9 +89,9 @@ const CARDS: Card[] = [
   // No Edit Player Rating card. Tapping somebody on the schedule and pressing
   // the pencil edits their name, rating and gender in one panel, which is both
   // fewer taps and the place a host is already looking when they notice.
-  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, color: ORANGE },
+  { view: 'new-session', label: 'New Round Robin', Icon: ReplayIcon, color: ORANGE },
   { view: 'reshuffle', label: 'Reshuffle', Icon: ShuffleIcon, color: TEAL, filled: true },
-  { view: 'new-session', label: 'Start New Session', Icon: ReplayIcon, color: ORANGE },
+  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, color: ORANGE },
   { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, color: TEAL },
   { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, color: TEAL },
   { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, color: RED },
@@ -131,7 +131,7 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   // together at render time and set larger than the rest: on this panel the line
   // under the title is the question being asked, not a caption on it.
   reshuffle: { title: 'Reshuffle' },
-  'new-session': { title: 'Start a new session?' },
+  'new-session': { title: 'New round robin?' },
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
   'remove-court': { title: 'Remove a Court', sub: 'Which court is going?' },
@@ -231,6 +231,12 @@ interface Props {
    * them and a QR code.
    */
   onOpenAccount?: () => void;
+  /**
+   * Whether New Round Robin stops to ask. It always does, except on the tour's
+   * last card, where the question is already the thing being answered: the host
+   * has been told to press it and there is nothing of theirs to lose.
+   */
+  confirmNewSession?: boolean;
 }
 
 export function ActionsSheet({
@@ -245,6 +251,7 @@ export function ActionsSheet({
   defaultRating,
   actions,
   onOpenAccount,
+  confirmNewSession = true,
 }: Props) {
   const [view, setView] = useState<View>(entry);
   const [message, setMessage] = useState('');
@@ -338,6 +345,11 @@ export function ActionsSheet({
   }
 
   function openAction(card: Card) {
+    if (card.view === 'new-session' && !confirmNewSession) {
+      onClose();
+      actions.onStartNewSession();
+      return;
+    }
     if (card.view === 'add-sub') setSubOut(null);
     if (card.view === 'add-round') setExtraRounds(1);
     setView(card.view);
@@ -548,6 +560,10 @@ export function ActionsSheet({
                           disabled={reason !== null}
                           title={reason ?? undefined}
                           onClick={() => openAction(card)}
+                          // The tour's last card boxes this one and dims the rest.
+                          data-tutorial={
+                            card.view === 'new-session' ? 'new-round-robin' : undefined
+                          }
                           className={`flex flex-col items-center gap-2 rounded-lg border px-1.5 py-3
                                       shadow-sm transition-colors disabled:opacity-40 ${
                                         card.filled

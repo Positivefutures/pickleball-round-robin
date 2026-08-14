@@ -88,11 +88,20 @@ interface Props {
   showSwapHint: boolean;
   onDismissSwapHint: () => void;
   /**
-   * One seat drawn as though it had been tapped, for the first-run tour's swap
-   * card. A picture and not a selection: no handler reads it, so the first real
-   * tap replaces it outright and nothing here can turn it into a swap.
+   * Hides the pencil on a selected seat while the first-run tour is up. The
+   * card that teaches swapping leaves the seats live, and a second control
+   * inside the seat they have just tapped competes with the one instruction.
    */
-  previewSlot?: PlayerSlot | null;
+  hideSeatEdit?: boolean;
+  /**
+   * Told when the Actions sheet is opened from the button, so the tour's
+   * Actions card can move on. It fires on the real press rather than the tour
+   * listening for one, which means a press that did not open the sheet cannot
+   * advance the card either.
+   */
+  onActionsOpened?: () => void;
+  /** Passed through: the tour's last card asks the question itself. */
+  confirmNewSession?: boolean;
   /** Group members not in this session yet, offered by Add Player. */
   addablePlayers: Player[];
   /**
@@ -152,7 +161,9 @@ export function SchedulePage({
   onUnsavedWorkChange,
   showSwapHint,
   onDismissSwapHint,
-  previewSlot,
+  hideSeatEdit,
+  onActionsOpened,
+  confirmNewSession,
   addablePlayers,
   actions,
   defaultRating,
@@ -160,10 +171,6 @@ export function SchedulePage({
   onOpenAccount,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
-  // What gets drawn as selected. Only the two render sites below read this;
-  // every handler still reads selectedSlot, which is what keeps the tour's
-  // picture from ever becoming half of a real swap.
-  const shownSlot = selectedSlot ?? previewSlot ?? null;
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
   // Couples the host has broken for a specific round (partnerKeys by round index).
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
@@ -548,7 +555,12 @@ export function SchedulePage({
       {/* One button for everything the host might change mid-session. Going back
           is the Setup tab's job, and printing lives on the header's printer
           button. */}
-      <ActionsButton onClick={() => openActions('menu')} />
+      <ActionsButton
+        onClick={() => {
+          openActions('menu');
+          onActionsOpened?.();
+        }}
+      />
 
       {/* Completed rounds are frozen, so once they all are there is nothing to
           swap and nothing to say. */}
@@ -577,7 +589,8 @@ export function SchedulePage({
             round={round}
             roundIdx={roundIdx}
             tourRound={round.roundNumber === 1}
-            selectedSlot={shownSlot}
+            hideSeatEdit={hideSeatEdit}
+            selectedSlot={selectedSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}
             locks={roundLocks}
@@ -592,7 +605,7 @@ export function SchedulePage({
             scoringEnabled={scoringEnabled}
             onEditScore={(courtIdx) => setScoringCourt({ roundIdx, courtIdx })}
           />
-          {shownSlot?.roundIdx === roundIdx && (
+          {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
               Tap another player to swap, or tap the pencil for more
             </p>
@@ -620,6 +633,7 @@ export function SchedulePage({
           numCourts={numCourts}
           defaultRating={defaultRating}
           actions={sheetActions}
+          confirmNewSession={confirmNewSession}
           onOpenAccount={
             onOpenAccount
               ? // Back onto the card they left, not the grid. They went to make

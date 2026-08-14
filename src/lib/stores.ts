@@ -200,17 +200,18 @@ export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMet
 
 /**
  * How far the first-run tour has got. Beside exampleMeta because the two gate
- * each other: the splash needs this to be 'none' *and* that to be non-null.
+ * each other: the opening sheet needs this to be 'none' *and* that to be
+ * non-null.
  *
- * 'none' is a device nobody has greeted yet. Continue on the splash moves it to
- * 'act1'; the OK at the end of the guided part parks it at 'await-schedule'
- * while the host builds a schedule themselves; landing on the Schedule tab
- * wakes it to 'act2'; and it ends at 'done', from the last card, from Skip, and
- * from nowhere else.
+ * Three words, and the middle one covers the whole run. 'none' is a device
+ * nobody has greeted yet; Continue on the sheet moves it to 'running'; and it
+ * ends at 'done', from the last card, from Skip, and from nowhere else.
  *
- * One key rather than a seen flag and a done flag, because the two waiting
- * states have to be told apart anyway, and two booleans that must not disagree
- * are worse than one word that cannot.
+ * An earlier cut of the tour had two acts with a dormant stretch between them,
+ * and stored 'act1', 'await-schedule' and 'act2' to tell those apart. Those
+ * values can still be on a device that ran it. `resumeTour` treats anything it
+ * does not recognise as 'done', which is the safe way to be wrong: worst case
+ * somebody who saw most of a tour is not shown it again.
  *
  * Which card is showing is deliberately not in here. A relaunch re-derives it
  * from the stage and the tab, so a tour interrupted on the Setup tab comes back
@@ -221,8 +222,8 @@ export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMet
  * with `?tour=1`, or run
  *   localStorage.removeItem('pb-tour-stage'); location.reload();
  * Neither invents an exampleMeta, so a device that was never seeded with a
- * Sample Group still will not show it — which is honest, because the splash
+ * Sample Group still will not show it — which is honest, because the sheet
  * promises a sample group.
  */
-export type TourStage = 'none' | 'act1' | 'await-schedule' | 'act2' | 'done';
+export type TourStage = 'none' | 'running' | 'done';
 export const tourStage = createStoredValue<TourStage>('pb-tour-stage', 'none');

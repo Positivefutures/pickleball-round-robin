@@ -68,6 +68,10 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
               disabled={!isReady}
               onClick={() => onNavigate(step.key)}
               aria-current={isActive ? 'step' : undefined}
+              // The tour dims the page around whatever it is pointing at, and
+              // punches this one back out. Where you are is not a thing to be
+              // greyed out while somebody explains where you are.
+              data-tutorial={isActive ? 'active-tab' : undefined}
               // `relative` anchors the mark below. No `whitespace-nowrap`: a tab
               // that cannot fit its label must wrap rather than push the page
               // wider than the phone and clip everything else with it.

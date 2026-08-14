@@ -119,7 +119,15 @@ export function SetupPage({
   // Needs at least two selected players before pairing is meaningful.
   const canPair = selectedIds.length >= 2;
 
-  const buttonRow = (
+  /**
+   * The row is drawn twice, above the player list and below it, so a long list
+   * never leaves Generate off the bottom of the screen. Only one of them may
+   * carry the tour's anchor — two elements with the same `data-tutorial` and the
+   * overlay would box whichever it found first. The lower one wins: the tour
+   * asks them to finish choosing and then press it, so that is where they will
+   * be looking.
+   */
+  const makeButtonRow = (tourAnchor = false) => (
     <div>
       <div className="flex justify-between">
         <button
@@ -140,6 +148,7 @@ export function SetupPage({
         </button>
         <button
           onClick={handleGenerate}
+          data-tutorial={tourAnchor ? 'generate-schedule' : undefined}
           className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
         >
           Generate Schedule &rarr;
@@ -188,7 +197,7 @@ export function SetupPage({
         </div>
       </div>
 
-      {buttonRow}
+      {makeButtonRow()}
 
       {mode === 'select' && pairs.length > 0 && (
         <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
@@ -241,7 +250,7 @@ export function SetupPage({
         )}
       </div>
 
-      {buttonRow}
+      {makeButtonRow(true)}
 
       {specialTypesOpen && (
         <SpecialTypesPanel

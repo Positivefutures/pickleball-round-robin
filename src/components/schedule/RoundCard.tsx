@@ -31,6 +31,13 @@ interface Props {
    * anchors — every round draws the same, and nothing here reads it otherwise.
    */
   tourRound?: boolean;
+  /**
+   * Hides the pencil on a selected seat while the tour is up. The card that
+   * teaches swapping leaves the seats live, and the pencil sitting inside the
+   * one they have just tapped is a second thing to press on a card whose whole
+   * instruction is to press one more player.
+   */
+  hideSeatEdit?: boolean;
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -77,6 +84,7 @@ export function RoundCard({
   scoringEnabled,
   onEditScore,
   tourRound,
+  hideSeatEdit,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
@@ -128,7 +136,6 @@ export function RoundCard({
             one dark thing on the card and look like a mistake. The tooltip is
             what actually says why it will not move. */}
         <label
-          data-tutorial={tourRound ? 'round-1-completed' : undefined}
           className={`flex items-center gap-2 ${ROUND_HEADING_TEXT} font-bold select-none no-print ${
             isComplete && !canUncomplete
               ? 'text-white/70 cursor-default'
@@ -181,6 +188,7 @@ export function RoundCard({
                   roundIdx={roundIdx}
                   courtIdx={courtIdx}
                   tourCourt={tourRound ? courtIdx : undefined}
+                  hideSeatEdit={hideSeatEdit}
                   selectedSlot={selectedSlot}
                   onPlayerTap={onPlayerTap}
                   allPlayers={allPlayers}

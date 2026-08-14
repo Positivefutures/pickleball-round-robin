@@ -73,7 +73,7 @@ function live(): GroupSession {
 /**
  * Empties the session out of the live slot.
  *
- * keepSelection is Start New Session: the same crowd usually plays again, so the
+ * keepSelection is New Round Robin: the same crowd usually plays again, so the
  * ticked players and their couples stay for the next one. Everything else goes
  * whichever way the session ended.
  *
