@@ -28,6 +28,12 @@ interface Props {
   showScore?: boolean;
   /** Opens the box for writing the score down. */
   onEditScore?: () => void;
+  /**
+   * This court's index, but only on the round the first-run tour points at.
+   * The first two courts name themselves for the tour's anchors; every other
+   * court is handed undefined and draws exactly as it always did.
+   */
+  tourCourt?: number;
 }
 
 function LockIcon({ locked }: { locked: boolean }) {
@@ -303,7 +309,7 @@ const TEAM2_STYLES: TeamStyles = {
   selectedBgClass: 'bg-orange-200',
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, onEditNumber, showScore = false, onEditScore }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -327,7 +333,11 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
   return (
     // The same line as the card it sits on, so a court reads as a panel laid on
     // the round rather than as a box that happens to be near it.
-    <div className="border-2 rounded-lg p-4 bg-white" style={{ borderColor: ROUND_EDGE }}>
+    <div
+      data-tutorial={tourCourt === 0 ? 'court-1' : tourCourt === 1 ? 'court-2' : undefined}
+      className="border-2 rounded-lg p-4 bg-white"
+      style={{ borderColor: ROUND_EDGE }}
+    >
       {/* The heading and the balance badge each take half of what is left, so
           the board between them lands on the middle of the card and its colon
           sits directly over the Vs. below. Not justify-between: that centres the
@@ -339,7 +349,13 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
               a button, because the number is the host's to set: a centre gives
               out courts 7, 8 and 9, and the app cannot know that. The dotted
               underline is the only hint that it opens something. */}
-          <h4 className={`whitespace-nowrap font-bold text-gray-700 ${ROUND_HEADING_TEXT}`}>
+          {/* The tour's anchor is the heading, not the button inside it: a
+              completed round has no button, and the tour still has to be able
+              to point here. */}
+          <h4
+            data-tutorial={tourCourt === 0 ? 'court-1-label' : undefined}
+            className={`whitespace-nowrap font-bold text-gray-700 ${ROUND_HEADING_TEXT}`}
+          >
             {canEdit ? (
               <button
                 type="button"

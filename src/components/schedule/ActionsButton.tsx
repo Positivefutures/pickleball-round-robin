@@ -45,6 +45,9 @@ export function ActionsButton({ onClick }: { onClick: () => void }) {
           type="button"
           onClick={onClick}
           aria-haspopup="dialog"
+          // The tour boxes this. Its tiles hang above the border box, so the
+          // step table grows the box upward rather than trusting the rect.
+          data-tutorial="actions-button"
           className="relative flex h-[72px] w-[125px] flex-col items-center justify-end rounded-2xl
                      pb-2.5 text-white shadow-[0_4px_10px_rgba(0,0,0,0.18)] ring-2 ring-white
                      transition-transform active:scale-95"

@@ -25,6 +25,12 @@ interface Props {
   scoringEnabled: boolean;
   /** Opens the box for writing down a court's score. */
   onEditScore: (courtIdx: number) => void;
+  /**
+   * Whether this is the round the first-run tour points at, which is Round 1.
+   * All it does is let the first two courts name themselves for the tour's
+   * anchors — every round draws the same, and nothing here reads it otherwise.
+   */
+  tourRound?: boolean;
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -70,6 +76,7 @@ export function RoundCard({
   onEditCourtNumber,
   scoringEnabled,
   onEditScore,
+  tourRound,
 }: Props) {
   // A completed round collapses by default and can only be viewed, not edited.
   const showBody = !isComplete || isExpanded;
@@ -121,6 +128,7 @@ export function RoundCard({
             one dark thing on the card and look like a mistake. The tooltip is
             what actually says why it will not move. */}
         <label
+          data-tutorial={tourRound ? 'round-1-completed' : undefined}
           className={`flex items-center gap-2 ${ROUND_HEADING_TEXT} font-bold select-none no-print ${
             isComplete && !canUncomplete
               ? 'text-white/70 cursor-default'
@@ -172,6 +180,7 @@ export function RoundCard({
                   court={court}
                   roundIdx={roundIdx}
                   courtIdx={courtIdx}
+                  tourCourt={tourRound ? courtIdx : undefined}
                   selectedSlot={selectedSlot}
                   onPlayerTap={onPlayerTap}
                   allPlayers={allPlayers}

@@ -168,7 +168,12 @@ export function SetupPage({
           className="pointer-events-none absolute right-1.5 top-1.5 w-[23.3%] max-w-[101px] select-none"
         />
         <div className="relative">
-          <h2 className="text-[1.35rem] font-extrabold text-[#051829] mb-4">Setup Round Robin</h2>
+          <h2
+            data-tutorial="setup-title"
+            className="text-[1.35rem] font-extrabold text-[#051829] mb-4"
+          >
+            Setup Round Robin
+          </h2>
           <SessionConfig
             numCourts={numCourts}
             numRounds={numRounds}
@@ -210,7 +215,13 @@ export function SetupPage({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      {/* The tour anchors on the panel, not on PlayerSelector inside it: this
+          wrapper survives the swap to PartnerPairing, and it is the right rect
+          anyway — the card points at the whole area, not at the heading. */}
+      <div
+        data-tutorial="select-players"
+        className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6"
+      >
         {mode === 'select' ? (
           <PlayerSelector
             players={selectablePlayers}

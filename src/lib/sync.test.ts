@@ -694,7 +694,7 @@ describe('signing in on a device still holding only the example group', () => {
     expect(syncStatusStore.get().state).not.toBe('choice');
     expect(stores.rosters.get().map((r) => r.name)).toEqual(['Sample Group']);
     expect(rowsFor('rosters').map((r) => r.name)).toContain('Sample Group');
-    expect(rowsFor('players')).toHaveLength(24);
+    expect(rowsFor('players')).toHaveLength(14);
   });
 
   it('does not ask a device that was signed into somebody else, having nothing of theirs', async () => {

@@ -716,13 +716,13 @@ describe('steps 1 and 2 — all-groups export, then import on a clean device', (
     const idOf = (n: string) => rosters.find((r: { name: string }) => r.name === n).id;
     expect(avas[0].rosterIds).toContain(idOf('Tuesday'));
     expect(avas[0].rosterIds).toContain(idOf('Thursday'));
-    // A clean install opens with the 24 sample players; the import lands
+    // A clean install opens with the 14 sample players; the import lands
     // beside them, never merged into them.
     const imported = players.filter((p: { rosterIds: string[] }) =>
       p.rosterIds.some((id) => id === idOf('Tuesday') || id === idOf('Thursday'))
     );
     expect(imported).toHaveLength(3);
-    expect(players).toHaveLength(27);
+    expect(players).toHaveLength(17);
   });
 
   /**

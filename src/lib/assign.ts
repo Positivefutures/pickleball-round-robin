@@ -37,6 +37,20 @@ export function effectiveCourtCount(numPlayers: number, numCourts: number): numb
   return planCourtSizes(numPlayers, numCourts).length;
 }
 
+/** Doubles. Two a side, and the whole app is built on it. */
+export const SEATS_PER_COURT = 4;
+
+/**
+ * What a session opens on before anybody has said otherwise, and the initial
+ * value behind stores.numCourts.
+ *
+ * Named rather than left as a 3 in the store, because two other things are
+ * written against it: the Sample Group is sized so Select All on this many
+ * courts still sits somebody out, and the first-run tour says "three courts"
+ * out loud. Change this and both of those are wrong.
+ */
+export const DEFAULT_COURTS = 3;
+
 /**
  * The smallest roster that can put a game on every court asked for. Two short of
  * a full set still works — the last court plays singles — but three short would
@@ -47,7 +61,7 @@ export function effectiveCourtCount(numPlayers: number, numCourts: number): numb
  * nobody wants.
  */
 export function minPlayersForCourts(numCourts: number): number {
-  return Math.max(4, numCourts * 4 - 2);
+  return Math.max(SEATS_PER_COURT, numCourts * SEATS_PER_COURT - 2);
 }
 
 /**

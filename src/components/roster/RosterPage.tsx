@@ -253,6 +253,7 @@ export function RosterPage({
             type="button"
             onClick={() => setShowPicker(true)}
             aria-haspopup="dialog"
+            data-tutorial="group-name"
             className="flex-1 min-w-[160px] min-h-12 flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-left hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           >
             <span
@@ -284,6 +285,7 @@ export function RosterPage({
         <div className="flex flex-col items-end gap-1">
           <button
             onClick={onContinue}
+            data-tutorial="continue-setup"
             disabled={players.length < 4}
             className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >

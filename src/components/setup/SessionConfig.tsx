@@ -128,7 +128,10 @@ export function SessionConfig({
       {/* Bottom-aligned, so the two rows of keys stay level with each other when
           one label wraps and the other does not. In large text on a phone,
           "Number of Rounds" takes two lines and "Number of Courts" takes one. */}
-      <div className="flex items-end gap-4">
+      {/* The tour boxes this row with the heading above it. It holds the two
+          steppers and nothing else, which is what makes the box land on the
+          courts and rounds rather than on half the panel. */}
+      <div data-tutorial="setup-steppers" className="flex items-end gap-4">
         <Stepper
           label="Number of Courts"
           value={numCourts}

@@ -15,7 +15,7 @@ beforeEach(() => localStorage.clear());
 describe('runMigrations — rosters', () => {
   // The literal, not the constant — this pins what a first-time user actually
   // sees, which asserting against the imported constant would not.
-  it('drops a first-time user into "Sample Group" with 24 sample players', () => {
+  it('drops a first-time user into "Sample Group" with 14 sample players', () => {
     runMigrations();
     const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
     expect(rosters).toHaveLength(1);
@@ -23,11 +23,11 @@ describe('runMigrations — rosters', () => {
     expect(read<string>(KEYS.activeRoster)).toBe(rosters[0].id);
 
     const players = read<Player[]>(KEYS.players);
-    expect(players).toHaveLength(24);
-    expect(players.filter((p) => p.gender === 'M')).toHaveLength(12);
-    expect(players.filter((p) => p.gender === 'F')).toHaveLength(12);
+    expect(players).toHaveLength(14);
+    expect(players.filter((p) => p.gender === 'M')).toHaveLength(7);
+    expect(players.filter((p) => p.gender === 'F')).toHaveLength(7);
     expect(players.every((p) => p.rating >= 3.0 && p.rating <= 4.5)).toBe(true);
-    // A spread of levels, not one number 24 times over.
+    // A spread of levels, not one number 14 times over.
     expect(new Set(players.map((p) => p.rating)).size).toBeGreaterThanOrEqual(5);
     // First name and last initial, the way a host would type them.
     expect(players.every((p) => /^[A-Z][a-z]+ [A-Z]\.$/.test(p.name))).toBe(true);
@@ -50,7 +50,7 @@ describe('runMigrations — rosters', () => {
 
   it('gives a legacy player pool a plain group, never the example one', () => {
     // Players from before groups existed, with no roster list yet. Burying
-    // them under 24 strangers would be worse than no seed at all.
+    // them under 14 strangers would be worse than no seed at all.
     seed({ [KEYS.players]: [{ id: 'a', name: 'Jeff B', rating: 4.0, gender: 'M' }] });
     runMigrations();
     const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
@@ -66,7 +66,7 @@ describe('runMigrations — rosters', () => {
     const snapshot = JSON.stringify(localStorage);
     runMigrations();
     expect(JSON.stringify(localStorage)).toBe(snapshot);
-    expect(read<Player[]>(KEYS.players)).toHaveLength(24);
+    expect(read<Player[]>(KEYS.players)).toHaveLength(14);
   });
 
   it('never renames a group an existing user already has', () => {

@@ -3,6 +3,7 @@ import type { Step } from './steps';
 import type { GroupSession } from './groupSessions';
 import type { ExampleMeta } from './exampleGroup';
 import { createStoredValue } from './store';
+import { DEFAULT_COURTS } from './assign';
 import { KEYS, EMPTY_GROUP_NAME } from './migrations';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 
@@ -49,7 +50,7 @@ export const largeText = createStoredValue<boolean>('pb-large-text', false);
 // stop overwriting each other. A group nobody has set up yet inherits whatever
 // is here, which is the last thing the host used.
 
-export const numCourts = createStoredValue('pb-num-courts', 3);
+export const numCourts = createStoredValue('pb-num-courts', DEFAULT_COURTS);
 export const numRounds = createStoredValue('pb-num-rounds', 8);
 
 /**

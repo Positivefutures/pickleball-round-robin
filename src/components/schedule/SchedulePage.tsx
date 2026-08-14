@@ -558,10 +558,14 @@ export function SchedulePage({
           ...manualLocks.filter((lp) => !seen.has(`${lp.courtIdx}-${lp.team}`)),
         ];
         return (
-        <div key={round.roundNumber}>
+        // The tour's anchor goes on the round the host calls Round 1, keyed on
+        // its number rather than on where it lands in the list: a completed
+        // round floats to the top, and the tour must not follow it there.
+        <div key={round.roundNumber} data-tutorial={round.roundNumber === 1 ? 'round-1' : undefined}>
           <RoundCard
             round={round}
             roundIdx={roundIdx}
+            tourRound={round.roundNumber === 1}
             selectedSlot={selectedSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}

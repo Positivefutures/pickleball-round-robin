@@ -4,11 +4,19 @@ import type { Gender, Player } from '../types';
  * The practice group a fresh install opens with: something to try before
  * there is anything to type.
  *
- * Twenty-four people is enough for every feature to demonstrate itself: six
- * full courts, sit-outs when there are fewer, and an even split of men and
- * women so gendered and mixed rounds have something to chew on. The ratings
- * run 3.0 to 4.5 in the same one-decimal steps the rating control uses, so
- * editing a sample player never lands on a value the stepper cannot reach.
+ * Fourteen people, which is the number the first-run tour asks for by name: it
+ * says Select All, and fourteen on the default three courts fills twelve seats
+ * and sits two out. So the very first schedule anybody sees has a sit-out list
+ * on it, which is the part of this app that is hardest to guess at.
+ *
+ * Seven men and seven women, so gendered and mixed rounds have something to
+ * chew on. The two ratings ladders mirror each other and run 3.0 to 4.5 in the
+ * same one-decimal steps the rating control uses, so editing a sample player
+ * never lands on a value the stepper cannot reach.
+ *
+ * It was twenty-four before the tour existed. Devices seeded then keep their
+ * twenty-four; only new seeds are fourteen, and exampleMeta records what was
+ * actually written rather than assuming a count.
  *
  * The names are deliberately plain — first name and last initial, the way a
  * host would actually type them.
@@ -36,28 +44,18 @@ export interface ExampleMeta {
 
 export const EXAMPLE_ROSTER: { name: string; rating: number; gender: Gender }[] = [
   { name: 'Ben T.', rating: 3.0, gender: 'M' },
-  { name: 'Tom A.', rating: 3.1, gender: 'M' },
   { name: 'Carlos R.', rating: 3.2, gender: 'M' },
-  { name: 'Nate W.', rating: 3.3, gender: 'M' },
   { name: 'David K.', rating: 3.5, gender: 'M' },
-  { name: 'Eric S.', rating: 3.5, gender: 'M' },
   { name: 'Frank O.', rating: 3.6, gender: 'M' },
   { name: 'Greg H.', rating: 3.8, gender: 'M' },
-  { name: 'James L.', rating: 4.0, gender: 'M' },
   { name: 'Kevin B.', rating: 4.0, gender: 'M' },
-  { name: 'Mike D.', rating: 4.2, gender: 'M' },
   { name: 'Paul G.', rating: 4.5, gender: 'M' },
   { name: 'Amy C.', rating: 3.0, gender: 'F' },
-  { name: 'Tina H.', rating: 3.1, gender: 'F' },
   { name: 'Beth R.', rating: 3.2, gender: 'F' },
-  { name: 'Nancy E.', rating: 3.3, gender: 'F' },
   { name: 'Carol M.', rating: 3.5, gender: 'F' },
-  { name: 'Diane P.', rating: 3.5, gender: 'F' },
   { name: 'Emma J.', rating: 3.6, gender: 'F' },
   { name: 'Karen S.', rating: 3.8, gender: 'F' },
   { name: 'Grace F.', rating: 4.0, gender: 'F' },
-  { name: 'Maria G.', rating: 4.0, gender: 'F' },
-  { name: 'Linda V.', rating: 4.2, gender: 'F' },
   { name: 'Sarah M.', rating: 4.5, gender: 'F' },
 ];
 
