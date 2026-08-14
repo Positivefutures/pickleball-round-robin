@@ -156,8 +156,11 @@ describe('the Setup tab anchors', () => {
 
   it('names exactly one Generate button, though the row is drawn twice', () => {
     // The button row sits above the player list and below it. Both are real
-    // buttons; only the lower one carries the anchor, or the tour would box
-    // whichever querySelector reached first and leave the other dark.
+    // buttons; only the upper one carries the anchor, or the tour would box
+    // whichever querySelector reached first and leave the other dark. Upper
+    // because a group of fourteen is taller than a phone: the tour scrolls the
+    // panel's head to the top of the screen, which puts the lower row well past
+    // the bottom of it.
     seed();
     mount();
     clickButton(/^Continue to Setup/);
@@ -168,7 +171,7 @@ describe('the Setup tab anchors', () => {
     );
     expect(all).toHaveLength(2);
     expect(tagged).toHaveLength(1);
-    expect(tagged[0]).toBe(all[1]);
+    expect(tagged[0]).toBe(all[0]);
   });
 
   it('keeps the Select Players anchor when the panel turns into the pairing view', () => {

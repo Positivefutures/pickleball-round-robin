@@ -13,6 +13,8 @@ import * as stores from './stores';
 import {
   TOUR_COURTS_START,
   TOUR_COURTS_TARGET,
+  TOUR_ROUNDS_START,
+  TOUR_ROUNDS_TARGET,
   TOUR_STEPS,
   __tourTesting,
   backCard,
@@ -135,9 +137,75 @@ describe('the deck', () => {
     expect(EXAMPLE_ROSTER).toHaveLength(14);
   });
 
-  it('asks for a court count the tour can actually reach', () => {
+  it('asks for numbers the tour can actually reach', () => {
+    // Both steppers start below what the card asks for, or one of the two
+    // things it tells them to do is already done.
     expect(TOUR_COURTS_START).toBeLessThan(TOUR_COURTS_TARGET);
+    expect(TOUR_ROUNDS_START).toBeLessThan(TOUR_ROUNDS_TARGET);
     expect(TOUR_STEPS[1].bubbles[0].text).toContain(String(TOUR_COURTS_TARGET));
+    expect(TOUR_STEPS[1].bubbles[0].text).toContain(String(TOUR_ROUNDS_TARGET));
+  });
+
+  it('boxes the Generate button on its own, away from Set Partners', () => {
+    // Two boxes rather than one union. The button shares its row with Set
+    // Partners, and a box round the row would offer a control the tour has
+    // nothing to say about as part of the lesson.
+    const card = TOUR_STEPS[2];
+    expect(card.id).toBe('select-players');
+    expect(card.regions.map((r) => r.anchors.map((a) => a.name))).toEqual([
+      ['select-players'],
+      ['generate-schedule'],
+    ]);
+    expect(card.live).toContain('generate-schedule');
+  });
+
+  it('holds that card’s bubble to the left margin, clear of the button', () => {
+    // The only thing keeping it off Generate Schedule. The panel it points at
+    // fills the screen, so there is no room above the button row to drop the
+    // bubble into and nothing below it but more panel: it has to go sideways.
+    // And the width is taken off the button rather than chosen, because the
+    // room beside a 208px button is 148px on a 390 phone and 133 on a 375.
+    const [bubble] = TOUR_STEPS[2].bubbles;
+    expect(bubble.align).toBe('left');
+    expect(bubble.clearOf).toBe('generate-schedule');
+    expect(bubble.prefer).toBe('above');
+  });
+
+  it('draws nothing at all on the congratulations card', () => {
+    // No ring, because there is nothing to do. A box round the schedule would
+    // read as an instruction rather than as well done.
+    const card = TOUR_STEPS[3];
+    expect(card.id).toBe('congrats');
+    expect(card.regions).toEqual([]);
+    expect(card.scroll).toBe('top');
+
+    startTour();
+    for (let i = 0; i < 3; i++) nextCard();
+    // Only the tab, which is plain and so takes no ring.
+    const regions = getTourView().card!.regions;
+    expect(regions).toHaveLength(1);
+    expect(regions[0].plain).toBe(true);
+  });
+
+  it('keeps COMPLETED out of the court numbers card', () => {
+    // The tick that freezes a round lives in the round header. Box the round
+    // and it comes inside the lit area on a card about renaming a court.
+    const card = TOUR_STEPS[4];
+    expect(card.id).toBe('court-numbers');
+    expect(card.regions.flatMap((r) => r.anchors.map((a) => a.name))).toEqual(['court-1']);
+  });
+
+  it('places the page on every card, forwards or backwards', () => {
+    // Back walks into a card the page was scrolled away from just as readily as
+    // Next does. A card that does not place itself shows a bubble with none of
+    // its controls under it, which reads as the tour having broken.
+    for (const step of TOUR_STEPS) {
+      const scroll = step.scroll ?? 'regions';
+      // The last card draws over a sheet fixed to the screen, with the page
+      // behind it already still.
+      if (step.id === 'new-round-robin') expect(scroll).toBe('none');
+      else expect(scroll, step.id).not.toBe('none');
+    }
   });
 });
 

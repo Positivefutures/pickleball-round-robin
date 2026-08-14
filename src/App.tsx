@@ -43,9 +43,9 @@ import { InstallPanel } from './components/layout/InstallPanel';
 import { TourSheet } from './components/tour/TourSheet';
 import { TutorialOverlay } from './components/tour/TutorialOverlay';
 import {
-  OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, armOpener, completeTour,
-  dismissComplete, getTourView, nextCard, resumeTour, startTour, subscribeTour,
-  tourStartSelection,
+  OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, TOUR_ROUNDS_START,
+  TOUR_ROUNDS_TARGET, armOpener, completeTour, dismissComplete, getTourView,
+  nextCard, resumeTour, startTour, subscribeTour, tourStartSelection,
 } from './lib/tour';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { SignInBanner } from './components/layout/SignInBanner';
@@ -470,29 +470,34 @@ function App() {
    * Everything the tour changes about the app, in one place.
    *
    * The tour asks the host to do two things that need something to be wrong
-   * first: put the courts up to three, and finish a half-made selection with
-   * Select All. So Continue sets the courts low and unticks four people. Both
-   * are ordinary app state afterwards — there is no tour mode, and whatever
-   * they end the tour with is what they carry on with.
+   * first: put the courts and rounds up to three and ten, and finish a half-made
+   * selection with Select All. So Continue sets both numbers below the ask and
+   * unticks four people. All of it is ordinary app state afterwards — there is
+   * no tour mode, and whatever they end the tour with is what they carry on
+   * with.
    */
   const handleTourStart = useCallback(() => {
     setNumCourts(TOUR_COURTS_START);
+    setNumRounds(TOUR_ROUNDS_START);
     setSelectedIds(tourStartSelection(rosterPlayers));
     startTour();
-  }, [rosterPlayers, setNumCourts, setSelectedIds]);
+  }, [rosterPlayers, setNumCourts, setNumRounds, setSelectedIds]);
 
   /**
    * Next, plus whatever this particular card promised would happen.
    *
-   * The courts card says "set Number of Courts to 3 and click Next", and the
-   * host may well have pressed the stepper the wrong way or not at all. Next
+   * The courts card says "set the Number of Courts to 3 and Rounds to 10", and
+   * the host may well have pressed a stepper the wrong way or not at all. Next
    * makes the sentence true either way, so the schedule they build a card later
-   * is the three-court one the tour has been describing.
+   * is the one the tour has been describing.
    */
   const handleTourNext = useCallback(() => {
-    if (tour?.id === 'courts-rounds') setNumCourts(TOUR_COURTS_TARGET);
+    if (tour?.id === 'courts-rounds') {
+      setNumCourts(TOUR_COURTS_TARGET);
+      setNumRounds(TOUR_ROUNDS_TARGET);
+    }
     nextCard();
-  }, [tour, setNumCourts]);
+  }, [tour, setNumCourts, setNumRounds]);
 
   // Setup's Generate: a brand new schedule, starting the session over.
   const handleGenerate = useCallback(() => {

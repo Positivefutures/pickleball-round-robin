@@ -302,3 +302,60 @@ actually reached.
 Verified: `tsc -b`, `eslint src`, 1249 tests, 15 sabotages each turning the suite
 red, and a real chromium driven through all eight cards at 390x844 and 375x667 with
 no bubble off screen and every live control reachable.
+
+---
+
+## Second round of testing, 2026-08-14
+
+Jeff ran the whole thing on his phone and called steps 6, 7, 8 and the closing sheet
+perfect. Everything below is what he asked for after that, plus the one bug he found.
+
+**Global.** The greeting comes up after **one** second, not two. **Skip left the
+bubbles** — it now sits in a fixed pill at the foot of the screen, `bg-brand-orange-light`
+inside a `border-brand-orange` with grey text, and `band()` reserves `FOOT` (40px) so
+no bubble is ever placed under it. In the corner of a bubble it read as one of that
+card's two buttons; it is neither, and it belongs somewhere no card owns. **Back is
+left-justified** and Next right, on a `justify-between` row that keeps that shape with
+only one of them in it.
+
+**The copy.** Card 1's second bubble: "Click Continue to Setup to configure your round
+robin." Card 2: "Set the Number of Courts to 3 and Rounds to 10." Card 4: "Congrats!
+You've just created your first round robin. Click "Next" and I'll show you a few more
+things."
+
+**Rounds joined the courts card.** `TOUR_ROUNDS_START` is 8 (the app's own default) and
+`TOUR_ROUNDS_TARGET` is 10, seeded and forced exactly as the courts already were, so
+Next makes the card's sentence true whichever way the host pushed the steppers.
+
+**Card 3 was rebuilt round the upper Generate button.** The anchor moved from the lower
+button row to the upper one — with fourteen players the panel fills the screen, so the
+lower row is a long way past the bottom of it. The card now draws **two** boxes, the
+panel and that one button, rather than one box round the whole row: the row also holds
+Set Partners, and boxing it would offer a control the tour has nothing to say about.
+Everything else, the lower row included, stays dark and dead.
+
+The bubble is `align: 'left'` and its width is **derived, not chosen**: a new
+`clearOf: 'generate-schedule'` makes `bubbleWidth` stop short of that button's measured
+left edge. The button is the same 208px on every phone, so the room beside it is not —
+148px on a 390 and 133 on a 375. A constant that cleared it on one would sit on it on
+the other, which is the single thing this card must not do. Floored at `BUBBLE_MIN`.
+
+**Card 4 draws nothing.** No boxes at all, the whole page dark but for the bubble, and
+`scroll: 'top'` so the Actions button leaves a bubble's worth of room above Round 1.
+The live step tab is still a plain hole, per the standing instruction that the tab looks
+normal on every card from 4 on — so "the entire page is darkened" is true of everything
+but that tab. **The bubble still overlaps the tab strip by about 26px**, as recorded
+above: the alternative is covering the rounds panel, which Jeff ruled out explicitly.
+
+**Card 5 boxes Court 1 alone**, not the round it sits in, which keeps COMPLETED outside
+the lit area on a card about renaming a court.
+
+**The Back bug.** Cards 1, 2 and 8 never placed the page at all, so Back into one of
+them showed a bubble with its controls off the top of the screen. `scrollTo?: boolean`
+became `scroll?: 'regions' | 'top' | 'none'`, defaulting to `regions`, and every card
+now places itself on every arrival — the overlay's once-per-card memory is gone with it.
+
+Verified: `tsc -b`, `eslint src`, 1260 tests, **16 sabotages** each turning the suite
+red, and a real chromium driven through all eight cards at 390x844 and 375x667 with no
+bubble off screen, the Generate button provably clear of its bubble at both sizes, and
+COMPLETED provably outside card 5's box.

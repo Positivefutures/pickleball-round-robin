@@ -17,7 +17,10 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
-import { OPENER_DELAY_MS, TOUR_STEPS, __tourTesting } from './lib/tour';
+import {
+  OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, TOUR_ROUNDS_START,
+  TOUR_ROUNDS_TARGET, TOUR_STEPS, __tourTesting,
+} from './lib/tour';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -104,7 +107,7 @@ function frame() {
   });
 }
 
-/** Let the greeting's two seconds pass. */
+/** Let the greeting's beat pass. */
 function waitForOpener() {
   act(() => {
     vi.advanceTimersByTime(OPENER_DELAY_MS);
@@ -141,6 +144,7 @@ const stored = (key: string) => window.localStorage.getItem(key);
 const read = (key: string, fallback: string) => JSON.parse(stored(key) ?? fallback);
 const stage = () => read('pb-tour-stage', 'null');
 const courts = () => read('pb-num-courts', 'null');
+const rounds = () => read('pb-num-rounds', 'null');
 const ticked = () => read('pb-selected-ids', '[]') as string[];
 /** Unwritten until something moves it, and the store's own default is roster. */
 const step = () => read('pb-step', '"roster"');
@@ -169,7 +173,7 @@ function throughSetup() {
 }
 
 describe('who gets greeted', () => {
-  it('says nothing for the first two seconds, then offers the tour', () => {
+  it('says nothing for the first second, then offers the tour', () => {
     // The whole reason it is a sheet and not a splash screen: the Players tab
     // is on screen and readable before anything is asked of them.
     freshInstall();
@@ -215,9 +219,12 @@ describe('who gets greeted', () => {
 });
 
 describe('what Continue sets up', () => {
-  it('starts the courts below the number the tour asks for', () => {
+  it('starts both steppers below the numbers the tour asks for', () => {
     begin();
-    expect(courts()).toBe(2);
+    expect(courts()).toBe(TOUR_COURTS_START);
+    expect(rounds()).toBe(TOUR_ROUNDS_START);
+    expect(TOUR_COURTS_START).toBeLessThan(TOUR_COURTS_TARGET);
+    expect(TOUR_ROUNDS_START).toBeLessThan(TOUR_ROUNDS_TARGET);
   });
 
   it('leaves four of the fourteen unticked, so Select All has a job', () => {
@@ -301,14 +308,19 @@ describe('the cards that hand over a real control', () => {
 });
 
 describe('the courts card keeps its own promise', () => {
-  it('puts the courts on three whatever the host did with the stepper', () => {
-    // The card says "set Number of Courts to 3 and click Next". Next makes that
-    // sentence true, so the schedule a card later is the one being described.
+  it('sets both numbers whatever the host did with the steppers', () => {
+    // The card says "set the Number of Courts to 3 and Rounds to 10". Next
+    // makes that sentence true either way, so the schedule a card later is the
+    // one being described. Both numbers, not just the one that changes the
+    // shape of the page.
     begin();
     clickButton(/^Continue to Setup/);
-    expect(courts()).toBe(2);
+    expect(courts()).toBe(TOUR_COURTS_START);
+    expect(rounds()).toBe(TOUR_ROUNDS_START);
+
     clickButton(/^Next$/);
-    expect(courts()).toBe(3);
+    expect(courts()).toBe(TOUR_COURTS_TARGET);
+    expect(rounds()).toBe(TOUR_ROUNDS_TARGET);
   });
 });
 
@@ -378,6 +390,33 @@ describe('Back and Skip', () => {
     expect(has(/^Back$/)).toBe(false);
   });
 
+  it('places the page again on a card it is walking back into', () => {
+    // The bug this replaces: the overlay remembered which cards it had already
+    // scrolled for and skipped the ones it had seen. Forwards that is harmless.
+    // Backwards it is not — the card being returned to was left behind by the
+    // card after it scrolling somewhere else, so Back showed a bubble with none
+    // of its controls anywhere near the screen.
+    //
+    // happy-dom reports every rect as zero, so the smallest-scroll cards ask for
+    // nothing measurable. The congratulations card is the one that goes to a
+    // fixed place, which makes its arrival observable — and it has to be matched
+    // on the exact call, because releasing the scroll lock calls scrollTo too.
+    throughSetup();
+    frame();
+    expect(cardNumber()).toBe(4);
+    clickButton(/^Next$/);
+    frame();
+    expect(cardNumber()).toBe(5);
+
+    const scrollTo = vi.spyOn(window, 'scrollTo');
+    clickButton(/^Back$/);
+    frame();
+
+    expect(cardNumber()).toBe(4);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    scrollTo.mockRestore();
+  });
+
   it('ends the tour from any card, for good', () => {
     begin();
     clickButton(/^Continue to Setup/);
@@ -422,19 +461,38 @@ describe('what the overlay draws', () => {
     expect(overlay()!.className).toContain('pointer-events-none');
   });
 
-  it('puts the step counter and Skip in the bubble being acted on', () => {
-    // Card 1 is the only one with two bubbles. The buttons cannot live in both,
+  it('puts the step counter in the bubble being acted on', () => {
+    // Card 1 is the only one with two bubbles. The counter cannot live in both,
     // and the one that matters is the one beside the button they are being
     // asked to press.
     begin();
     const bubbles = [...overlay()!.querySelectorAll('div')].filter((d) =>
-      /Click here to setup|created a sample group/.test(text(d))
+      /Click Continue to Setup|created a sample group/.test(text(d))
     );
     const withControls = bubbles.filter((d) => /Step 1 of 8/.test(text(d)));
 
     expect(withControls).not.toHaveLength(0);
-    for (const b of withControls) expect(text(b)).toContain('Click here to setup');
+    for (const b of withControls) expect(text(b)).toContain('Click Continue to Setup');
     expect(body()).toContain('Step 1 of 8');
+  });
+
+  it('keeps Skip out of the bubbles and at the foot of the screen', () => {
+    // In the corner of a bubble it read as one of that card's two buttons. It
+    // is not: it is the way out of the whole tour, so it sits somewhere fixed
+    // that no card owns, and every card has to be able to find it.
+    begin();
+    const skip = overlay()!.querySelector('[data-tour-skip]');
+    expect(skip).not.toBeNull();
+    expect(text(skip!)).toBe('Skip');
+
+    const bubbles = [...overlay()!.querySelectorAll('div')].filter((d) =>
+      /Click Continue to Setup/.test(text(d))
+    );
+    for (const b of bubbles) expect(b.contains(skip)).toBe(false);
+
+    click(skip!);
+    expect(overlay()).toBeNull();
+    expect(stage()).toBe('done');
   });
 
   it('rings what the card is about, and never the tab', () => {

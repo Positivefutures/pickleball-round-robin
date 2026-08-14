@@ -61,7 +61,30 @@ export interface BubbleSpec {
    * stay readable.
    */
   maxWidth?: number;
+  /**
+   * Pinned to the left margin instead of centred under its anchor. With a
+   * narrow width that is what keeps a bubble out of the way of a control lying
+   * beside it rather than under it.
+   */
+  align?: 'left';
+  /**
+   * Stop short of this anchor's left edge, however wide that leaves the bubble.
+   * Only meaningful with `align: 'left'`, and only for a control the card has
+   * left alive beside the bubble rather than under it.
+   */
+  clearOf?: string;
 }
+
+/**
+ * Where the page goes as a card opens.
+ *
+ * `regions` brings the card's own boxes into view by the smallest scroll that
+ * does it. `top` goes to the head of the page, for the card with no boxes at
+ * all — there is nothing to aim at, and its bubble needs the room above the
+ * first round that only the top of the page has. `none` leaves the page alone,
+ * for the card that draws over an open sheet.
+ */
+export type TourScroll = 'regions' | 'top' | 'none';
 
 export type TourId =
   | 'players'
@@ -97,8 +120,13 @@ export interface TourStep {
   hideNext?: boolean;
   /** No Back link. */
   noBack?: boolean;
-  /** Bring this card's boxes into view first, by the smallest scroll that does. */
-  scrollTo?: boolean;
+  /**
+   * Where the page goes as this card opens. Every card places itself, and it
+   * has to: Back walks into a card the page was scrolled away from just as
+   * readily as Next does, and a card whose controls are above the top of the
+   * screen reads as the tour having broken.
+   */
+  scroll?: TourScroll;
 }
 
 /**
@@ -148,7 +176,7 @@ export const TOUR_STEPS: TourStep[] = [
       // telling them they already have.
       {
         at: 'continue-setup',
-        text: 'Click here to setup your first round robin.',
+        text: 'Click Continue to Setup to configure your round robin.',
         maxWidth: 232,
       },
     ],
@@ -163,36 +191,47 @@ export const TOUR_STEPS: TourStep[] = [
     bubbles: [
       {
         at: 'setup-steppers',
-        text: 'You’ve booked 3 courts so set “Number of Courts” to 3 and click “Next”',
+        text: 'Set the Number of Courts to 3 and Rounds to 10.',
       },
     ],
   },
   {
     id: 'select-players',
     tab: 'setup',
-    regions: [{ anchors: [{ name: 'select-players' }, { name: 'generate-schedule' }] }],
+    // Two boxes, not one. The upper Generate Schedule is what the card ends on,
+    // and the row it sits in also holds Set Partners — boxing the row would
+    // offer that button as part of the lesson, and the tour has nothing to say
+    // about partners. So the box is drawn round the one button, and the rest of
+    // the row stays dark and dead, the lower copy of it included.
+    regions: [{ anchors: [{ name: 'select-players' }] }, { anchors: [{ name: 'generate-schedule' }] }],
     live: ['select-players', 'generate-schedule'],
     bubbles: [
-      // Above, and not negotiable. Generate Schedule sits directly under this
-      // panel, so a bubble placed below the anchor lands on the one button the
-      // card is telling them to press.
+      // Above the player panel, which puts it level with the button row, and
+      // then held to the left margin at whatever width stops short of Generate
+      // Schedule. Getting out of its way sideways is the only thing that works:
+      // the panel fills the screen, so there is no room above the row to drop
+      // into and nothing below it but more of the panel.
       {
         at: 'select-players',
         text: 'Select all the players and then click Generate Schedule.',
         prefer: 'above',
+        align: 'left',
+        clearOf: 'generate-schedule',
       },
     ],
     hideNext: true,
-    scrollTo: true,
   },
   {
     id: 'congrats',
     tab: 'schedule',
-    regions: [{ anchors: [{ name: 'round-1' }, { name: 'court-1' }], endAt: 'court-1' }],
+    // Nothing boxed. This card is not pointing at anything — it is saying well
+    // done — and a ring drawn round the schedule would be read as an
+    // instruction to do something to it.
+    regions: [],
     bubbles: [
       {
         at: 'round-1',
-        text: 'Congrats, you’ve just created your first round robin! Click “Next” and I’ll show you a few more things',
+        text: 'Congrats! You’ve just created your first round robin. Click “Next” and I’ll show you a few more things.',
         prefer: 'above',
       },
     ],
@@ -200,15 +239,21 @@ export const TOUR_STEPS: TourStep[] = [
     // behind, and to a state before the schedule they are being congratulated
     // on existed.
     noBack: true,
-    scrollTo: true,
+    // The head of the page, where the Actions button leaves a bubble's worth of
+    // room above the first round. Anywhere else and the bubble is pushed down
+    // onto the rounds it is meant to be sitting above.
+    scroll: 'top',
   },
   {
     id: 'court-numbers',
     tab: 'schedule',
-    regions: [{ anchors: [{ name: 'round-1' }, { name: 'court-1' }], endAt: 'court-1' }],
+    // The court panel alone, not the round it sits in. The round's header
+    // carries COMPLETED, and a box that reached up to include it would put a
+    // tick that freezes the round inside the lit area on a card about renaming
+    // a court.
+    regions: [{ anchors: [{ name: 'court-1' }] }],
     live: ['court-1-label'],
     bubbles: [{ at: 'court-1-label', text: 'Change court numbers here.' }],
-    scrollTo: true,
   },
   {
     id: 'swap',
@@ -222,7 +267,6 @@ export const TOUR_STEPS: TourStep[] = [
         prefer: 'above',
       },
     ],
-    scrollTo: true,
   },
   {
     id: 'actions',
@@ -236,7 +280,6 @@ export const TOUR_STEPS: TourStep[] = [
       },
     ],
     hideNext: true,
-    scrollTo: true,
   },
   {
     id: 'new-round-robin',
@@ -245,6 +288,8 @@ export const TOUR_STEPS: TourStep[] = [
     live: ['new-round-robin'],
     bubbles: [{ at: 'new-round-robin', text: 'Now click “New Round Robin”.' }],
     hideNext: true,
+    // The sheet is fixed to the screen and the page behind it is already still.
+    scroll: 'none',
   },
 ];
 
@@ -258,6 +303,10 @@ export const TOUR_COURTS_TARGET = 3;
  * only ten players ticked would meet the minimum-players error instead.
  */
 export const TOUR_COURTS_START = 2;
+
+/** And the same for rounds: eight is the app's own default, ten is the ask. */
+export const TOUR_ROUNDS_TARGET = 10;
+export const TOUR_ROUNDS_START = 8;
 
 /**
  * Who is ticked when the tour opens: everybody but four.
@@ -345,7 +394,7 @@ function emit() {
 function show(next: TourPhase, card = -1) {
   phase = next;
   index = card;
-  scrolling = card >= 0 && !!TOUR_STEPS[card]?.scrollTo;
+  scrolling = card >= 0 && (TOUR_STEPS[card]?.scroll ?? 'regions') !== 'none';
   build();
   emit();
 }
@@ -372,14 +421,15 @@ export function noteScrolled() {
 // ------------------------------------------------------------ the lifecycle --
 
 /**
- * The greeting, a couple of seconds after a fresh install has opened.
+ * The greeting, a second after a fresh install has opened.
  *
  * Late rather than first, which is the whole reason it is a sheet and not a
  * splash screen. A full screen shown before the app has drawn asks somebody to
- * agree to a tour of something they have never seen. Two seconds of the Players
- * tab is long enough to work out that this is an app about players.
+ * agree to a tour of something they have never seen. A beat on the Players tab
+ * is long enough to work out that this is an app about players, and short
+ * enough that nobody has started reaching for anything.
  */
-export const OPENER_DELAY_MS = 2000;
+export const OPENER_DELAY_MS = 1000;
 
 export function armOpener() {
   if (phase !== 'off') return;

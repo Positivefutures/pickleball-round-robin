@@ -10,8 +10,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   BUBBLE_MAX,
+  BUBBLE_MIN,
   DIM,
   EDGE,
+  FOOT,
+  GAP,
   PAD,
   band,
   bubbleWidth,
@@ -191,6 +194,24 @@ describe('placeBubble', () => {
     expect(bubbleWidth(280, 260)).toBe(280 - EDGE * 2);
   });
 
+  it('stops short of a control it has been told to clear', () => {
+    // The Select Players card, whose bubble sits level with Generate Schedule.
+    // The button is the same 208px on every phone, so the room beside it is
+    // not: a constant that cleared it on a 390 would sit on it on a 375.
+    expect(bubbleWidth(390, 232, 174)).toBe(174 - EDGE - GAP);
+    expect(bubbleWidth(375, 232, 159)).toBe(159 - EDGE - GAP);
+    // Both leave a real gap rather than touching.
+    expect(EDGE + bubbleWidth(375, 232, 159)).toBeLessThan(159);
+  });
+
+  it('will not squeeze a bubble past reading', () => {
+    // A screen narrow enough for the arithmetic to ask for 40px means the card
+    // is wrong, and a 40px bubble would hide that rather than show it.
+    expect(bubbleWidth(390, 232, 60)).toBe(BUBBLE_MIN);
+    // And the floor never pushes it back over the screen.
+    expect(bubbleWidth(140, 232, 60)).toBeLessThanOrEqual(140 - 2 * EDGE);
+  });
+
   it('sits under what it points at when there is room', () => {
     const p = placeBubble({ top: 120, left: 20, width: 200, height: 40 }, size, PHONE);
     expect(p.side).toBe('below');
@@ -234,6 +255,27 @@ describe('placeBubble', () => {
     expect(pointerOnScreen).toBeLessThanOrEqual(right(anchor));
     expect(p.pointerX).toBeGreaterThanOrEqual(18);
     expect(p.pointerX).toBeLessThanOrEqual(size.width - 18);
+  });
+
+  it('pins a left-aligned bubble to the margin, whatever it points at', () => {
+    // The Select Players card. Its anchor is the full-width panel, so centring
+    // would put a narrow bubble in the middle of the row above it — which is
+    // where the Generate Schedule button it is telling them to press lives.
+    const narrow = { width: bubbleWidth(PHONE.width, 168), height: 160 };
+    const panel: Rect = { top: 240, left: 12, width: 366, height: 900 };
+    const p = placeBubble(panel, narrow, PHONE, 'above', 'left');
+
+    expect(p.left).toBe(EDGE);
+    expect(right(p)).toBe(EDGE + 168);
+    // And a control at the right of the same row is genuinely clear of it.
+    expect(right(p)).toBeLessThan(190);
+  });
+
+  it('keeps a left-aligned bubble pointing at its anchor', () => {
+    const narrow = { width: bubbleWidth(PHONE.width, 168), height: 160 };
+    const p = placeBubble({ top: 240, left: 12, width: 366, height: 900 }, narrow, PHONE, 'above', 'left');
+    expect(p.pointerX).toBeGreaterThanOrEqual(18);
+    expect(p.pointerX).toBeLessThanOrEqual(narrow.width - 18);
   });
 });
 
@@ -324,12 +366,14 @@ describe('minimalScroll', () => {
 });
 
 describe('the shared constants', () => {
-  it('gives a bubble the whole screen less its margins', () => {
-    // iPhone SE. The buttons ride inside the bubbles now, so nothing along the
-    // foot is reserved and the tallest card still has room on the shortest phone.
+  it('keeps a bubble off the Skip button at the foot', () => {
+    // iPhone SE. Back and Next ride inside the bubbles, so the only thing
+    // reserved along the foot is the strip Skip sits in — a fortieth of the
+    // screen rather than the sixth the old button bar took.
     const small = band(667);
     expect(small.top).toBe(EDGE);
-    expect(small.bottom).toBe(667 - EDGE);
+    expect(small.bottom).toBe(667 - EDGE - FOOT);
+    expect(FOOT).toBeGreaterThan(EDGE);
   });
 
   it('dims less than the app dims behind a modal', () => {

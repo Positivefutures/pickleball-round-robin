@@ -32,6 +32,17 @@ export const BUBBLE_MAX = 336;
 export const GAP = 10;
 
 /**
+ * Room kept clear along the foot of the screen for the Skip button.
+ *
+ * Skip used to ride in the corner of the bubble, where it sat beside the step
+ * count and read as one of the card's two buttons. It is neither: it is the way
+ * out of the whole tour, and it belongs somewhere fixed that no card owns. The
+ * price is a strip along the bottom that nothing else may be placed in. The old
+ * Back/Next bar cost 108px; this costs 40.
+ */
+export const FOOT = 40;
+
+/**
  * How dark the screen goes outside the spotlight.
  *
  * Lighter than the app's own modal scrim, which is `bg-black/40`, and
@@ -162,6 +173,9 @@ export function dimTiles(view: Rect, holes: Rect[]): Rect[] {
   return tiles;
 }
 
+/** Narrow enough to be a nuisance; anything under this is not worth reading. */
+export const BUBBLE_MIN = 120;
+
 /**
  * The width a bubble gets: 21rem, or the screen less its margins, or whatever
  * narrower width the card asked for.
@@ -169,9 +183,20 @@ export function dimTiles(view: Rect, holes: Rect[]): Rect[] {
  * A card asks when something beside the bubble has to stay readable — the one on
  * the Players tab sits over "Add Players" and the rating and gender columns at
  * full width, and the point of that card is that they can see their group.
+ *
+ * `stopBefore` is the left edge of something the bubble must not reach, and it
+ * is a measurement rather than a number somebody chose. The Select Players card
+ * sits level with Generate Schedule, and the room left over is whatever the
+ * screen and that button's own width leave: 148px on a 390 phone and 133 on a
+ * 375 one. Picking a constant that suited one of those would quietly cover the
+ * button on the other, which is the whole thing this card must not do.
  */
-export function bubbleWidth(viewWidth: number, max = BUBBLE_MAX): number {
-  return Math.min(max, BUBBLE_MAX, viewWidth - 2 * EDGE);
+export function bubbleWidth(viewWidth: number, max = BUBBLE_MAX, stopBefore?: number): number {
+  const wide = Math.min(max, BUBBLE_MAX, viewWidth - 2 * EDGE);
+  if (stopBefore === undefined) return wide;
+  // Floored, because a bubble squeezed to nothing helps nobody. If it ever
+  // comes to that the card is wrong, not the arithmetic.
+  return Math.min(wide, Math.max(BUBBLE_MIN, stopBefore - EDGE - GAP));
 }
 
 /** The screen a bubble is being placed on, and what it must stay clear of. */
@@ -191,18 +216,16 @@ export interface Placed extends Rect {
 /**
  * The vertical strip a bubble is allowed to occupy.
  *
- * The whole screen less its margins, now that the buttons ride inside the
- * bubbles instead of in a bar along the foot. That bar owned 108px of every
- * card, and the two cards that point at the bottom of a long page were the ones
- * paying for it.
+ * The whole screen less its margins and the strip along the foot that Skip
+ * sits in. The old Back/Next bar owned 108px of every card, and the two cards
+ * that point at the bottom of a long page were the ones paying for it.
  *
- * `keepTop` is the one thing still reserved: the step tabs. The tour goes to
- * the trouble of leaving the live tab undimmed on every card, and a bubble
- * parked across it undoes that — the card that boxes Round 1 has its box
- * starting just below the tabs, so "above" lands right on them.
+ * `keepTop` is the other thing reservable: the step tabs. The tour goes to the
+ * trouble of leaving the live tab undimmed on every card, and a bubble parked
+ * across it undoes that.
  */
 export function band(viewHeight: number, keepTop = 0): { top: number; bottom: number } {
-  return { top: Math.max(EDGE, keepTop), bottom: viewHeight - EDGE };
+  return { top: Math.max(EDGE, keepTop), bottom: viewHeight - EDGE - FOOT };
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -220,12 +243,18 @@ function clamp(n: number, lo: number, hi: number): number {
  * screen a bubble is 336px wide and almost every anchor is off centre, so the
  * bubble has usually been pushed sideways to fit; a pointer drawn at its middle
  * would then be aiming at nothing.
+ *
+ * `align: 'left'` gives up on centring and pins the bubble to the left margin.
+ * It is for the card whose anchor is a full-width panel with a live button
+ * beside the bubble rather than under it: centred, a narrow bubble lands in the
+ * middle of the row and covers exactly the thing it must not.
  */
 export function placeBubble(
   anchor: Rect,
   size: { width: number; height: number },
   view: View,
-  prefer: 'above' | 'below' = 'below'
+  prefer: 'above' | 'below' = 'below',
+  align?: 'left'
 ): Placed {
   const { top: bandTop, bottom: bandBottom } = band(view.height, view.keepTop);
   const roomBelow = bandBottom - bottom(anchor) - GAP;
@@ -242,11 +271,14 @@ export function placeBubble(
         ? 'above'
         : 'below';
 
-  const left = clamp(
-    anchor.left + anchor.width / 2 - size.width / 2,
-    EDGE,
-    Math.max(EDGE, view.width - EDGE - size.width)
-  );
+  const left =
+    align === 'left'
+      ? EDGE
+      : clamp(
+          anchor.left + anchor.width / 2 - size.width / 2,
+          EDGE,
+          Math.max(EDGE, view.width - EDGE - size.width)
+        );
   const wantTop = side === 'below' ? bottom(anchor) + GAP : anchor.top - GAP - size.height;
   const top = clamp(wantTop, bandTop, Math.max(bandTop, bandBottom - size.height));
 

@@ -3,6 +3,7 @@ import type { Region, TourView } from '../../lib/tour';
 import { backCard, noteScrolled, skipTour } from '../../lib/tour';
 import {
   DIM,
+  EDGE,
   band,
   bubbleWidth,
   dimTiles,
@@ -70,10 +71,10 @@ function panelOpen(): boolean {
  * What the tour draws.
  *
  * The screen darkened everywhere except the card's boxes, an orange ring on the
- * ones being pointed at, a bubble beside each with the step's own buttons in it,
- * and clicks stopped everywhere the card has not left something alive. Every
- * number comes out of tourGeometry.ts; this file measures, calls it, and turns
- * the answers into divs.
+ * ones being pointed at, a bubble beside each with the step's own Back and Next
+ * in it, Skip in the same corner of the screen throughout, and clicks stopped
+ * everywhere the card has not left something alive. Every number comes out of
+ * tourGeometry.ts; this file measures, calls it, and turns the answers into divs.
  *
  * Geometry is re-read on a requestAnimationFrame loop rather than from scroll
  * and resize listeners. A card watches up to four anchors, the page moves for
@@ -122,33 +123,37 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
     return () => cancelAnimationFrame(frame);
   }, [view]);
 
-  // Bring this card's boxes into view, by the smallest scroll that does it, on
-  // the one frame before App takes the lock. A pinned body cannot be scrolled.
-  const scrolledFor = useRef(-1);
+  // Put the page where this card needs it, on the one frame before App takes
+  // the lock. A pinned body cannot be scrolled.
+  //
+  // Every arrival at a card scrolls, not just the first. Cards are walked
+  // backwards as well as forwards, and a card returned to by Back is being
+  // returned to from a page the card after it scrolled somewhere else — so
+  // remembering which cards had already been placed left Back showing a bubble
+  // with none of its controls under it.
   useEffect(() => {
     if (!view.scrolling) return;
-    if (scrolledFor.current === view.index) {
-      noteScrolled();
-      return;
-    }
     const frame = requestAnimationFrame(() => {
-      const boxes = view.regions
-        .filter((r) => !r.plain)
-        .map(regionRect)
-        .filter((r): r is Rect => r !== null);
-      const whole = unionRect(boxes);
-      if (whole) {
-        const { top, bottom } = band(window.innerHeight);
-        const by = minimalScroll(whole, top, bottom);
-        // Never smooth: it would settle over three hundred milliseconds with
-        // the measure loop chasing it and the lock waiting behind.
-        if (by !== 0) window.scrollBy({ top: by, behavior: 'auto' });
+      if (view.scroll === 'top') {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      } else {
+        const boxes = view.regions
+          .filter((r) => !r.plain)
+          .map(regionRect)
+          .filter((r): r is Rect => r !== null);
+        const whole = unionRect(boxes);
+        if (whole) {
+          const { top, bottom } = band(window.innerHeight);
+          const by = minimalScroll(whole, top, bottom);
+          // Never smooth: it would settle over three hundred milliseconds with
+          // the measure loop chasing it and the lock waiting behind.
+          if (by !== 0) window.scrollBy({ top: by, behavior: 'auto' });
+        }
       }
-      scrolledFor.current = view.index;
       noteScrolled();
     });
     return () => cancelAnimationFrame(frame);
-  }, [view.scrolling, view.index, view.regions]);
+  }, [view.scrolling, view.index, view.regions, view.scroll]);
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -171,12 +176,21 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
   });
   const shields = holes.flatMap((hole) => dimTiles(hole, liveRects));
 
+  // The left edge of something a bubble has been told to stop short of, read
+  // live like the live rects above. Zero-width means it has not laid out yet,
+  // and capping a bubble on that would squeeze it to the floor for a frame.
+  const stopBefore = (name?: string): number | undefined => {
+    if (!name) return undefined;
+    const r = rectOf(name);
+    return r && r.width > 0 ? r.left : undefined;
+  };
+
   // Placement runs on whatever has been measured. A bubble with no size yet is
   // drawn off screen for one frame rather than in the wrong place.
   const placed: (Placed | null)[] = view.bubbles.map((b, i) => {
     const size = sizes[i];
     if (!size) return null;
-    const width = bubbleWidth(vw, b.maxWidth);
+    const width = bubbleWidth(vw, b.maxWidth, stopBefore(b.clearOf));
     const at = anchors[i];
     if (!at) {
       return {
@@ -188,7 +202,7 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
         side: 'below' as const,
       };
     }
-    return placeBubble(at, { width, height: size.height }, screen, b.prefer);
+    return placeBubble(at, { width, height: size.height }, screen, b.prefer, b.align);
   });
   if (placed.length === 2 && placed[0] && placed[1]) {
     const [a, b] = resolveBubbles(placed[0], placed[1], screen);
@@ -267,29 +281,22 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
             )}
 
             {controls && (
-              <div className="mb-1.5 flex items-center justify-between gap-3 text-[1.125rem] leading-none text-gray-400">
-                <span>
-                  Step {view.index + 1} of {view.count}
-                </span>
-                {/* Quiet on purpose. It is the way out for somebody who already
-                    knows the app, and it must never look like the thing to tap. */}
-                <button
-                  type="button"
-                  onClick={skipTour}
-                  className="font-medium underline underline-offset-2 transition-colors hover:text-gray-600"
-                >
-                  Skip
-                </button>
+              <div className="mb-1.5 text-[1.125rem] leading-none text-gray-400">
+                Step {view.index + 1} of {view.count}
               </div>
             )}
 
             {bubble.text}
 
             {controls && (view.canBack || !view.hideNext) && (
-              <div className="mt-2 flex items-center justify-end gap-5">
+              // Back at the left margin, Next at the right, and the row keeps
+              // that shape with only one of them in it: they are opposite
+              // directions, and a Next that slides left when Back disappears
+              // moves the one button that is always in the same place.
+              <div className="mt-2 flex items-center justify-between gap-5">
                 {/* Absent, not disabled, where there is nowhere to go back to.
                     A greyed button invites a tap that does nothing. */}
-                {view.canBack && (
+                {view.canBack ? (
                   <button
                     type="button"
                     onClick={backCard}
@@ -297,6 +304,8 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
                   >
                     Back
                   </button>
+                ) : (
+                  <span />
                 )}
                 {!view.hideNext && (
                   <button
@@ -312,6 +321,20 @@ export function TutorialOverlay({ view, onNext }: { view: TourView; onNext: () =
           </div>
         );
       })}
+
+      {/* Skip, in the same place on every card, at the foot of the screen the
+          band is kept clear of. In the corner of a bubble it read as one of
+          that card's two buttons; down here it is plainly about the tour
+          rather than about the step, and no card has to find room for it. */}
+      <button
+        type="button"
+        onClick={skipTour}
+        data-tour-skip
+        className="pointer-events-auto fixed left-1/2 -translate-x-1/2 rounded-md border border-brand-orange bg-brand-orange-light px-4 py-1 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-white"
+        style={{ bottom: EDGE }}
+      >
+        Skip
+      </button>
     </div>
   );
 }
