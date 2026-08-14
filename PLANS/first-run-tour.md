@@ -268,3 +268,39 @@ Each stage leaves the app shippable.
 6. **Polish.** `PLANS/first-run-tour.md`, the screenshot pass, the real-browser drive.
 
 `APP_VERSION` bumps in the deploy commit only, and only when Jeff says to deploy.
+
+---
+
+## As built
+
+Where the finished thing differs from the plan above, and why.
+
+- **The splash uses `logo.png`, not `icon-512.png`.** The home-screen icon is painted onto
+  an opaque white square, which on cream reads as a white tile with a bird in it. `logo.png`
+  is the same robin carrying its alpha, sharper at 913px, and a sixth the size. `corner-dots.png`
+  has no alpha either, so it is drawn with `mix-blend-multiply`: white takes the paper's
+  colour and only the dots survive.
+- **Ten anchors, not nine.** `round-1-completed` was added on the COMPLETED label so that
+  card's bubble points at COMPLETED rather than at the corner of the round panel. `tourRound`
+  was already threaded, so it cost nothing.
+- **Regions gained `endAt`.** A plain union of Round 1 and Court 1 is just Round 1's panel,
+  which runs on past Court 1 to the other courts and the sit-outs — most of a phone screen.
+  `endAt` cuts the box off at the foot of a named part.
+- **`DEFAULT_COURTS` and `SEATS_PER_COURT` are named in `lib/assign.ts`.** The roster size,
+  the tour's copy and the store's initial value were three things written against one number.
+- **The Players card puts its first bubble above its anchor.** Both below, and the "Here is
+  your sample group!" bubble covered the Continue to Setup ring — the other thing the same
+  card is pointing at.
+- **`?tour=1`** clears `pb-tour-stage` in `main.tsx`. It does not invent an `exampleMeta`, so
+  a device that never had a Sample Group still will not see the splash.
+
+### Verified
+
+`tsc`, `eslint src` and 1217 tests clean. Twelve sabotages run one at a time, all red, each
+caught by the test that claims to guard it. The whole tour driven in a real chromium at
+390×844 and 375×667: every card screenshotted, no ring or bubble off screen at either size,
+no page errors.
+
+The one thing to know about the local harness: `serve -s` answers unknown paths with
+index.html, so `/_vercel/insights/script.js` parses as HTML and throws `Unexpected token '<'`.
+That path exists only on Vercel; the live site is clean. Not a fault in the app.

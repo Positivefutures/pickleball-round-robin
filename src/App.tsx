@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import {
+  useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore,
+} from 'react';
 import type { Gender, Player, Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
@@ -38,6 +40,11 @@ import { authStore } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
 import { InstallPanel } from './components/layout/InstallPanel';
+import { SplashScreen } from './components/tour/SplashScreen';
+import { TutorialOverlay } from './components/tour/TutorialOverlay';
+import {
+  TOUR_PREVIEW_SLOT, getTourView, resumeTour, startAct1, startAct2, subscribeTour,
+} from './lib/tour';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { SignInBanner } from './components/layout/SignInBanner';
 import { UpdateBanner } from './components/layout/UpdateBanner';
@@ -143,6 +150,27 @@ function App() {
   const [signInDismissed, setSignInDismissed] = useStoredValue(stores.signInDismissed);
   const [swapHintDismissed, setSwapHintDismissed] = useStoredValue(stores.swapHintDismissed);
 
+  const [tourStage] = useStoredValue(stores.tourStage);
+  const tour = useSyncExternalStore(subscribeTour, getTourView, getTourView);
+  /**
+   * Read once, in a lazy initialiser rather than an effect, so a brand new
+   * install never paints a frame of the app behind the greeting.
+   *
+   * Both halves matter. The stage alone would greet every existing user on
+   * their next launch; exampleMeta alone would greet them again after they
+   * finished. Together they mean "seeded by this install, and never greeted",
+   * which is the only device the splash is honest on — it promises a sample
+   * group, and only a seeded device has one.
+   */
+  const [showSplash, setShowSplash] = useState(
+    () => stores.tourStage.get() === 'none' && stores.exampleMeta.get() !== null
+  );
+
+  const handleSplashContinue = useCallback(() => {
+    setShowSplash(false);
+    startAct1();
+  }, []);
+
   // Not stored, unlike the install dismissal above. There is a new build behind
   // each of these rather than one standing offer, so forgetting the refusal is
   // the right behaviour: the next deploy is entitled to ask again.
@@ -184,9 +212,13 @@ function App() {
 
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
+  // One aggregate, never a second useScrollLock elsewhere: the body is pinned
+  // with position:fixed, so a lock taken while another is held reads the scroll
+  // offset as zero and releases the page to the top.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
-    !!feedbackKind || showDonate || showShare || showAccount || showInstall
+    !!feedbackKind || showDonate || showShare || showAccount || showInstall ||
+    showSplash || (!!tour && !tour.scrolling)
   );
 
   // Every step starts at the top. The button that moved you here is often the
@@ -196,6 +228,35 @@ function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [step]);
+
+  // Before first paint, so a tour interrupted by a relaunch is either back on
+  // screen or gone, never flashing on a frame late.
+  useLayoutEffect(() => {
+    resumeTour(stores.tourStage.get(), currentStep());
+  }, []);
+
+  // The card and the tab travel together, which is how Next on the Players card
+  // does the same thing as Continue to Setup. Driven off the card moving and
+  // never off the tab: that one live button moves the tab itself, and an effect
+  // watching the tab would haul it straight back.
+  const tourCard = useRef(-1);
+  useEffect(() => {
+    if (!tour) {
+      tourCard.current = -1;
+      return;
+    }
+    if (tour.index === tourCard.current) return;
+    tourCard.current = tour.index;
+    if (tour.tab !== currentStep()) setStep(tour.tab);
+  }, [tour, setStep]);
+
+  // Act 2 waits for a schedule the host made themselves. currentStep() refuses
+  // a stored 'schedule' with nothing under it, so being on that tab is proof
+  // one exists — including on a relaunch that opens straight onto it. It fires
+  // once because the first thing startAct2 does is move the stage on.
+  useEffect(() => {
+    if (tourStage === 'await-schedule' && step === 'schedule') startAct2();
+  }, [tourStage, step]);
 
   // Reaching Setup once is what opens its tab, by whichever route.
   useEffect(() => {
@@ -866,7 +927,12 @@ function App() {
   // Both banners wait for a roster worth keeping. Four players is a group
   // somebody has typed in by hand, and the first point at which losing it would
   // actually cost them an evening.
-  const worthKeeping = rosterPlayers.length >= 4;
+  //
+  // Neither is offered during the tour. The Sample Group clears the bar on its
+  // own, so a brand new install would otherwise meet its first card with a
+  // coloured bar above it, pushing Continue to Setup down a page that is locked
+  // and cannot be scrolled to reach it.
+  const worthKeeping = rosterPlayers.length >= 4 && !tour;
   const offerInstall =
     !installed && !installDismissed && worthKeeping && installRoute({ canPrompt }) !== 'manual';
   const offerSignIn =
@@ -1039,7 +1105,8 @@ function App() {
             onRemovePlayer={handleRemovePlayer}
             onEditPlayer={handleEditPlayer}
             onUnsavedWorkChange={setScheduleHasWork}
-            showSwapHint={!swapHintDismissed}
+            showSwapHint={!swapHintDismissed && !tour}
+            previewSlot={tour?.id === 'swap' ? TOUR_PREVIEW_SLOT : null}
             onDismissSwapHint={() => setSwapHintDismissed(true)}
             addablePlayers={addablePlayers}
             defaultRating={defaultRating}
@@ -1186,6 +1253,14 @@ function App() {
           onClose={() => setShowDefaultRating(false)}
         />
       )}
+
+      {/* Last of the overlays, after every panel, so the tour paints above
+          anything already open. Outside `.app-panel` for a harder reason: that
+          element takes a transform when the drawer slides, and a transformed
+          ancestor becomes the containing block for its fixed children, which
+          would carry the spotlight off the screen with it. */}
+      {showSplash && <SplashScreen onContinue={handleSplashContinue} />}
+      {tour && <TutorialOverlay view={tour} />}
 
       {/* Outside the sliding panel so a print started from the drawer is never
           caught mid-slide. */}

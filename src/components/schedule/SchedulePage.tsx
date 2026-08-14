@@ -87,6 +87,12 @@ interface Props {
   /** False once the host has closed the swap hint, which is remembered for good. */
   showSwapHint: boolean;
   onDismissSwapHint: () => void;
+  /**
+   * One seat drawn as though it had been tapped, for the first-run tour's swap
+   * card. A picture and not a selection: no handler reads it, so the first real
+   * tap replaces it outright and nothing here can turn it into a swap.
+   */
+  previewSlot?: PlayerSlot | null;
   /** Group members not in this session yet, offered by Add Player. */
   addablePlayers: Player[];
   /**
@@ -146,6 +152,7 @@ export function SchedulePage({
   onUnsavedWorkChange,
   showSwapHint,
   onDismissSwapHint,
+  previewSlot,
   addablePlayers,
   actions,
   defaultRating,
@@ -153,6 +160,10 @@ export function SchedulePage({
   onOpenAccount,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
+  // What gets drawn as selected. Only the two render sites below read this;
+  // every handler still reads selectedSlot, which is what keeps the tour's
+  // picture from ever becoming half of a real swap.
+  const shownSlot = selectedSlot ?? previewSlot ?? null;
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
   // Couples the host has broken for a specific round (partnerKeys by round index).
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
@@ -566,7 +577,7 @@ export function SchedulePage({
             round={round}
             roundIdx={roundIdx}
             tourRound={round.roundNumber === 1}
-            selectedSlot={selectedSlot}
+            selectedSlot={shownSlot}
             onPlayerTap={handlePlayerTap}
             allPlayers={players}
             locks={roundLocks}
@@ -581,7 +592,7 @@ export function SchedulePage({
             scoringEnabled={scoringEnabled}
             onEditScore={(courtIdx) => setScoringCourt({ roundIdx, courtIdx })}
           />
-          {selectedSlot?.roundIdx === roundIdx && (
+          {shownSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
               Tap another player to swap, or tap the pencil for more
             </p>

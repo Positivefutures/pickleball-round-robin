@@ -96,6 +96,18 @@ export function unionRect(rects: Rect[]): Rect | null {
   };
 }
 
+/**
+ * The union, cut off at the foot of one of its parts.
+ *
+ * For the card that boxes Round 1 from its heading down to below Court 1. The
+ * round's panel runs on past Court 1 to the other courts and the sit-out list,
+ * and taking the plain union would box the lot — on a phone that is most of the
+ * page, which is not a highlight.
+ */
+export function endAt(union: Rect, last: Rect): Rect {
+  return { ...union, height: Math.max(0, bottom(last) - union.top) };
+}
+
 /** Whether `c` sits entirely inside `h`. */
 function contains(h: Rect, c: Rect): boolean {
   return c.left >= h.left && c.top >= h.top && right(c) <= right(h) && bottom(c) <= bottom(h);

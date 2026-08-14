@@ -197,3 +197,32 @@ export const swapHintDismissed = createStoredValue('pb-swap-hint-dismissed', fal
  * device's seed, not the person's data.
  */
 export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMeta, null);
+
+/**
+ * How far the first-run tour has got. Beside exampleMeta because the two gate
+ * each other: the splash needs this to be 'none' *and* that to be non-null.
+ *
+ * 'none' is a device nobody has greeted yet. Continue on the splash moves it to
+ * 'act1'; the OK at the end of the guided part parks it at 'await-schedule'
+ * while the host builds a schedule themselves; landing on the Schedule tab
+ * wakes it to 'act2'; and it ends at 'done', from the last card, from Skip, and
+ * from nowhere else.
+ *
+ * One key rather than a seen flag and a done flag, because the two waiting
+ * states have to be told apart anyway, and two booleans that must not disagree
+ * are worse than one word that cannot.
+ *
+ * Which card is showing is deliberately not in here. A relaunch re-derives it
+ * from the stage and the tab, so a tour interrupted on the Setup tab comes back
+ * on the Setup tab rather than wherever it was counted to.
+ *
+ * Device rather than person, like the dismissals above it: a new phone is a new
+ * first run. To see it again on a device that has already had it, open the app
+ * with `?tour=1`, or run
+ *   localStorage.removeItem('pb-tour-stage'); location.reload();
+ * Neither invents an exampleMeta, so a device that was never seeded with a
+ * Sample Group still will not show it — which is honest, because the splash
+ * promises a sample group.
+ */
+export type TourStage = 'none' | 'act1' | 'await-schedule' | 'act2' | 'done';
+export const tourStage = createStoredValue<TourStage>('pb-tour-stage', 'none');

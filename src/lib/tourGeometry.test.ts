@@ -16,6 +16,7 @@ import {
   band,
   bubbleWidth,
   dimTiles,
+  endAt,
   frameRects,
   minimalScroll,
   padRect,
@@ -91,6 +92,30 @@ describe('unionRect', () => {
 
     expect(joined.top).toBe(400 - PAD - 24);
     expect(bottom(joined)).toBe(550 + PAD);
+  });
+});
+
+describe('endAt', () => {
+  it('cuts the box off at the foot of one of its parts', () => {
+    // The Schedule card boxes Round 1 from its heading down to below Court 1.
+    // Round 1's own panel runs on past that to the other courts and the
+    // sit-outs, and boxing the lot would be most of the page.
+    const round: Rect = { top: 400, left: 8, width: 374, height: 900 };
+    const court: Rect = { top: 470, left: 20, width: 350, height: 230 };
+    const box = endAt(unionRect([round, court])!, court);
+
+    expect(box.top).toBe(400);
+    expect(box.left).toBe(8);
+    expect(box.width).toBe(374);
+    expect(bottom(box)).toBe(700);
+  });
+
+  it('never goes negative when the parts are the wrong way round', () => {
+    const box = endAt(
+      { top: 400, left: 0, width: 100, height: 500 },
+      { top: 100, left: 0, width: 100, height: 50 }
+    );
+    expect(box.height).toBe(0);
   });
 });
 

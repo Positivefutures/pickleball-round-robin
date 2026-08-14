@@ -34,6 +34,15 @@ const sharedKey = sharedKeyFromUrl()
 // asked for. The viewer reads no stored value at all, so there is nothing here
 // for it to migrate.
 if (!sharedKey) {
+  // `?tour=1` puts the first-run greeting back, so it can be seen on a real
+  // phone without clearing the app and losing the groups on it. Deliberately
+  // undiscoverable, and deliberately not enough on its own: the splash also
+  // wants an exampleMeta, so a device that never had a Sample Group still will
+  // not show it. See stores.tourStage.
+  if (new URLSearchParams(window.location.search).get('tour') === '1') {
+    window.localStorage.removeItem('pb-tour-stage')
+  }
+
   try {
     runMigrations()
   } catch (error) {
