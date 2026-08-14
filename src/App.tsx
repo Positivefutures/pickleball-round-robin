@@ -14,6 +14,7 @@ import { carryCourtNumbers } from './lib/courtNumbers';
 import { generateId } from './utils/helpers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
+import { PLAIN_ROBIN, openedSettings } from './lib/robins';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
   toAllGroupsFileName,
@@ -139,6 +140,13 @@ function App() {
   const [actionsSheet, setActionsSheet] =
     useState<{ view: ActionsEntry; opened: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /**
+   * The picture at the head of the settings drawer, settled on the way in and
+   * left alone until the next way in. The drawer is always mounted and takes
+   * 300ms to slide away, so anything that changed this on close would change the
+   * bird in front of somebody watching it go.
+   */
+  const [settingsRobin, setSettingsRobin] = useState(PLAIN_ROBIN);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showDefaultRating, setShowDefaultRating] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
@@ -291,6 +299,22 @@ function App() {
   // appeared on browsers without one, which is almost nobody.
   function handleShare() {
     setShowShare(true);
+  }
+
+  /**
+   * The one way in and out of the settings drawer.
+   *
+   * The way in also counts the visit and settles which robin is at the top of
+   * it. Only the way in: closing must not count, or the joke would come round
+   * twice as fast as the number in robins.ts says.
+   */
+  function handleToggleSettings() {
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return;
+    }
+    setSettingsRobin(openedSettings());
+    setSettingsOpen(true);
   }
 
   /**
@@ -1023,6 +1047,7 @@ function App() {
     >
       <SettingsPanel
         open={settingsOpen}
+        robin={settingsRobin}
         onShare={handleShare}
         onOpenAccount={() => openAccount()}
         showAccountItem={ACCOUNTS_ENABLED && isSupabaseConfigured()}
@@ -1067,7 +1092,7 @@ function App() {
         // My Groups panel a little way down the page, so it needs no chevron.
         onTitleClick={step === 'roster' ? undefined : () => setShowGroupPicker(true)}
         settingsOpen={settingsOpen}
-        onToggleSettings={() => setSettingsOpen((v) => !v)}
+        onToggleSettings={handleToggleSettings}
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? handlePrint : undefined}
       />

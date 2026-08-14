@@ -190,6 +190,19 @@ export const signInDismissed = createStoredValue('pb-signin-dismissed', false);
 export const swapHintDismissed = createStoredValue('pb-swap-hint-dismissed', false);
 
 /**
+ * How many times the settings drawer has been opened on this device, and which
+ * of the twelve dressed-up robins it last put at the top. See robins.ts, which
+ * owns the rules these two feed; nothing else reads them.
+ *
+ * Device rather than person, like the dismissals above: this is a running joke
+ * about one phone, and a new phone is welcome to start its own.
+ */
+export const settingsOpens = createStoredValue('pb-settings-opens', 0);
+
+/** -1 on a device that has not shown one yet. */
+export const lastRobin = createStoredValue('pb-settings-robin', -1);
+
+/**
  * What the fresh-install seed created, or null on a device that was never
  * seeded (updated installs, live-share viewers). Written by runMigrations(),
  * read by sync to recognise a device holding nothing anybody made, and cleared

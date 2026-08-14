@@ -206,6 +206,64 @@ export function roundTypeOf(round: Round): RoundType | null {
  * mark those courts, and `updateSpecialMissCounts` puts the players on them
  * first in the queue next time.
  */
+/** "3 men and 1 woman", leaving out whichever side is nobody. */
+function countOfPeople(men: number, women: number): string {
+  const parts: string[] = [];
+  if (men > 0) parts.push(men === 1 ? '1 man' : `${men} men`);
+  if (women > 0) parts.push(women === 1 ? '1 woman' : `${women} women`);
+  return parts.join(' and ');
+}
+
+/**
+ * Why this court is not playing the round's format, in a line the host can read
+ * off the card. Null when there is nothing to explain.
+ *
+ * A gendered or mixed round fills the courts the roster can fill and plays the
+ * rest as an ordinary game, and without a word about it that looks like the
+ * setting was ignored. It never was: four men or four women make a gendered
+ * court and two of each make a mixed one, and a roster almost never divides
+ * into those exactly.
+ *
+ * Everything here is read off the round as it stands now rather than out of the
+ * scheduler that built it. That is deliberate twice over. A saved session holds
+ * no record of what the scheduler was thinking, so a reload would have nothing
+ * to say; and a host who swaps two players by hand changes the answer, so a
+ * remembered reason would start lying the moment they did.
+ *
+ * Equal Skill never lands here. Every court in a skill round is a rating band by
+ * construction, so there is no such thing as one that missed.
+ */
+export function courtMissReason(
+  round: Round,
+  type: RoundType,
+  court: CourtAssignment
+): string | null {
+  if (type === 'skill' || courtMatchesType(court, type)) return null;
+
+  const made = round.courts.filter((c) => courtMatchesType(c, type));
+  // Everyone the format could not use: the other courts like this one, and the
+  // people sitting the round out, who were passed over for the same reason.
+  const spare = [
+    ...round.courts
+      .filter((c) => !courtMatchesType(c, type))
+      .flatMap((c) => [...c.team1, ...c.team2]),
+    ...round.sitOuts,
+  ];
+  const men = spare.filter((p) => p.gender === 'M').length;
+  const women = spare.filter((p) => p.gender === 'F').length;
+
+  const needs =
+    type === 'gendered'
+      ? 'A gendered game needs four men or four women.'
+      : 'A mixed game needs two men and two women.';
+
+  // With none of the format made at all, there is nothing for these players to
+  // be left over from, and the count is simply what the round has.
+  return made.length > 0
+    ? `${needs} The ${countOfPeople(men, women)} left over cannot make one.`
+    : `${needs} This round has ${countOfPeople(men, women)}.`;
+}
+
 export function courtMatchesType(court: CourtAssignment, type: RoundType): boolean {
   const teams = [court.team1, court.team2];
   // A court the roster could not fill plays an ordinary game whatever the round

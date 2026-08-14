@@ -244,6 +244,27 @@ export function SchedulePage({
     flashTimer.current = window.setTimeout(() => setSwapFlash(null), SWAP_FLASH_MS);
   }
 
+  /**
+   * The standings, and the two ways between them and the top of the page.
+   *
+   * Smooth unless the phone has asked for less movement. `scrollIntoView` and
+   * `scrollTo` both take a behaviour and neither consults that setting on its
+   * own, unlike the CSS property, so it is asked here.
+   */
+  const standingsRef = useRef<HTMLDivElement>(null);
+
+  function scrollBehavior(): ScrollBehavior {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
+
+  function scrollToStandings() {
+    standingsRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+  }
+
   const hasPartnerships = partnerships.length > 0;
   const completedSet = new Set(completedRounds);
 
@@ -663,6 +684,7 @@ export function SchedulePage({
             onEditCourtNumber={(courtIdx) => setEditingCourt({ roundIdx, courtIdx })}
             scoringEnabled={scoringEnabled}
             onEditScore={(courtIdx) => setScoringCourt({ roundIdx, courtIdx })}
+            onViewStandings={scoringEnabled ? scrollToStandings : undefined}
           />
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
@@ -675,7 +697,14 @@ export function SchedulePage({
 
       {/* Above the matrix on purpose. The standings are what the room asks for;
           the partner matrix is a diagnostic. */}
-      {scoringEnabled && <StandingsPanel schedule={schedule} players={players} />}
+      {scoringEnabled && (
+        <StandingsPanel
+          schedule={schedule}
+          players={players}
+          panelRef={standingsRef}
+          onBackToTop={scrollToTop}
+        />
+      )}
 
       <PartnerSummary schedule={schedule} players={players} />
 

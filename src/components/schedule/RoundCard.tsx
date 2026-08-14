@@ -2,8 +2,9 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
-import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
+import { ROUND_TYPE_META, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
 import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from './roundLook';
+import { ChevronDownIcon } from '../icons';
 
 interface Props {
   round: Round;
@@ -25,6 +26,11 @@ interface Props {
   scoringEnabled: boolean;
   /** Opens the box for writing down a court's score. */
   onEditScore: (courtIdx: number) => void;
+  /**
+   * Scrolls the page down to the standings. Absent when there are none, which
+   * is any session that does not keep score.
+   */
+  onViewStandings?: () => void;
   /**
    * Whether this is the round the first-run tour points at, which is Round 1.
    * All it does is let the first two courts name themselves for the tour's
@@ -91,6 +97,7 @@ export function RoundCard({
   onEditCourtNumber,
   scoringEnabled,
   onEditScore,
+  onViewStandings,
   tourRound,
   hideSeatEdit,
   swappedIds,
@@ -188,31 +195,40 @@ export function RoundCard({
                 team1: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team1'),
                 team2: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team2'),
               };
+              // Why this court is not playing the round's format, when it is
+              // not. On the card rather than on the court panel: the panel is
+              // where the score goes, and the note this replaces used to end up
+              // underneath it.
+              const missReason = roundType && courtMissReason(round, roundType, court);
               return (
-                <CourtMatchup
-                  // Keyed by position, not by number: two courts in a round may
-                  // now carry the same one while the host is part way through
-                  // renaming them.
-                  key={courtIdx}
-                  court={court}
-                  roundIdx={roundIdx}
-                  courtIdx={courtIdx}
-                  tourCourt={tourRound ? courtIdx : undefined}
-                  hideSeatEdit={hideSeatEdit}
-                  swappedIds={swappedIds}
-                  swapSeq={swapSeq}
-                  selectedSlot={selectedSlot}
-                  onPlayerTap={onPlayerTap}
-                  allPlayers={allPlayers}
-                  lockedTeams={lockedTeams}
-                  onToggleLock={onToggleLock}
-                  onOpenPlayerMenu={onOpenPlayerMenu}
-                  readOnly={isComplete}
-                  showGender={showGender}
-                  onEditNumber={() => onEditCourtNumber(courtIdx)}
-                showScore={scoringEnabled}
-                onEditScore={() => onEditScore(courtIdx)}
-                />
+                // Keyed by position, not by number: two courts in a round may
+                // now carry the same one while the host is part way through
+                // renaming them.
+                <div key={courtIdx}>
+                  {missReason && (
+                    <p className="mb-1.5 text-sm font-medium text-white no-print">{missReason}</p>
+                  )}
+                  <CourtMatchup
+                    court={court}
+                    roundIdx={roundIdx}
+                    courtIdx={courtIdx}
+                    tourCourt={tourRound ? courtIdx : undefined}
+                    hideSeatEdit={hideSeatEdit}
+                    swappedIds={swappedIds}
+                    swapSeq={swapSeq}
+                    selectedSlot={selectedSlot}
+                    onPlayerTap={onPlayerTap}
+                    allPlayers={allPlayers}
+                    lockedTeams={lockedTeams}
+                    onToggleLock={onToggleLock}
+                    onOpenPlayerMenu={onOpenPlayerMenu}
+                    readOnly={isComplete}
+                    showGender={showGender}
+                    onEditNumber={() => onEditCourtNumber(courtIdx)}
+                    showScore={scoringEnabled}
+                    onEditScore={() => onEditScore(courtIdx)}
+                  />
+                </div>
               );
             })}
           </div>
@@ -228,6 +244,26 @@ export function RoundCard({
             readOnly={isComplete}
           />
         </>
+      )}
+
+      {/* The way down to the table this round feeds. A long session is several
+          screens of rounds and the standings are under all of them.
+
+          Only on a round showing its courts. A completed one collapses to a
+          single bar, and hanging a link off the bottom of each of those would
+          double the height of the stack at the top of the page, for a link that
+          is a scroll away from there anyway. */}
+      {showBody && onViewStandings && (
+        <div className="mt-3 flex justify-end no-print">
+          <button
+            type="button"
+            onClick={onViewStandings}
+            className="flex items-center gap-1 text-base font-medium text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+          >
+            View Standings
+            <ChevronDownIcon className="h-4 w-4" />
+          </button>
+        </div>
       )}
     </div>
   );

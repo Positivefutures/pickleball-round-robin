@@ -1032,10 +1032,54 @@ describe('Special Game Types', () => {
 
       // The sheet has the width for it and no scoreboard to put it under.
       expect(printedRound(1).match(/\(normal game\)/g)).toHaveLength(1);
-      // The court panel does not, so it says nothing at all — there really is
-      // an off-format court on this round, which is what makes this an
-      // assertion rather than a round with nothing to say.
+      // The court panel does not, so nothing is written on it. The card above
+      // it carries the explanation instead.
       expect(text(roundCard(1))).not.toContain('Normal game');
+    });
+
+    it('says on the card why the leftover court is not a gendered game', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Special Game Types$/);
+      sayYes('gendered');
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      // Six men and six women on three courts: one men's court, one women's,
+      // and two of each left over.
+      const round1 = storedSchedule().rounds[0];
+      expect(round1.courts.filter((c) => genderCount(c) > 1)).toHaveLength(1);
+
+      expect(text(roundCard(1))).toContain(
+        'A gendered game needs four men or four women. The 2 men and 2 women left over cannot make one.'
+      );
+      // One line, above the one court that missed, not over every court.
+      expect(text(roundCard(1)).match(/A gendered game needs/g)).toHaveLength(1);
+    });
+
+    it('says nothing on a round where every court is in format', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Special Game Types$/);
+      sayYes('mixed'); // six of each gender fills all three mixed courts
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      expect(storedSchedule().rounds[0].roundType).toBe('mixed');
+      expect(text(roundCard(1))).not.toContain('A mixed game needs');
+    });
+
+    it('says nothing on an ordinary round, which is not trying to be a format', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Special Game Types$/);
+      sayYes('gendered');
+      clickButton(/^Done$/);
+      clickButton(/^Generate Schedule/);
+
+      // Gendered every two rounds, so round 2 is an ordinary one.
+      expect(storedSchedule().rounds[1].roundType).toBeUndefined();
+      expect(text(roundCard(2))).not.toContain('A gendered game needs');
     });
 
     it('says nothing on paper either when every court is in format', () => {
@@ -3193,6 +3237,63 @@ describe('the settings drawer', () => {
     // panel lands back where it was left.
     expect(slidAside()).toBe(true);
   });
+
+  /**
+   * The robin at the top of it, which puts a costume on once in a while.
+   *
+   * Which costume is robins.test.ts's business. What matters up here is how
+   * often, and that a visit is counted once.
+   */
+  describe('the robin at the top of it', () => {
+    const robin = () =>
+      container.querySelector('[aria-label="Settings"] img')!.getAttribute('src');
+
+    const COSTUME = /^\/robins\/[a-z]+\.webp$/;
+
+    function visit() {
+      clickLabel('Open settings');
+      clickLabel('Close settings');
+    }
+
+    it('opens on the app icon five times, and dresses up on the sixth', () => {
+      mount();
+      for (let n = 1; n <= 5; n++) {
+        clickLabel('Open settings');
+        expect(robin(), `open ${n}`).toBe('/icon-192.png');
+        clickLabel('Close settings');
+      }
+
+      clickLabel('Open settings');
+      expect(robin()).toMatch(COSTUME);
+    });
+
+    it('counts a visit on the way in and not on the way out', () => {
+      mount();
+      // Three visits, six button presses. Counting the way out as well would
+      // have reached the sixth open by now.
+      visit();
+      visit();
+      visit();
+
+      expect(window.localStorage.getItem('pb-settings-opens')).toBe('3');
+      clickLabel('Open settings');
+      expect(robin()).toBe('/icon-192.png');
+    });
+
+    it('leaves the costume on while the drawer slides away', () => {
+      // The drawer is always mounted and takes 300ms to go. Anything that put
+      // the icon back on the way out would change the bird in front of somebody
+      // watching it leave.
+      mount();
+      for (let n = 1; n <= 5; n++) visit();
+      clickLabel('Open settings');
+      const worn = robin();
+      expect(worn).toMatch(COSTUME);
+
+      clickLabel('Close settings');
+      expect(robin()).toBe(worn);
+    });
+  });
 });
 
 /**
@@ -3486,5 +3587,174 @@ describe('the player panel on a court', () => {
     expect(text(panel)).toContain(`Rating: ${first.rating.toFixed(1)}`);
     expect(text(panel)).not.toContain('rated');
     expect(text(panel)).not.toMatch(/\b(Man|Woman)\b/);
+  });
+});
+
+/**
+ * The two ways between a round and the table it feeds.
+ *
+ * A session of eight rounds is several screens tall and the standings are under
+ * all of them, so each round card offers the way down and the table offers the
+ * way back up.
+ */
+describe('the way between a round and the standings', () => {
+  /** Every element scrollIntoView was called on, in order. */
+  function watchScroll(): Element[] {
+    const seen: Element[] = [];
+    vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (
+      this: Element
+    ) {
+      seen.push(this);
+    });
+    return seen;
+  }
+
+  it('offers View Standings on a round that keeps score', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+
+    expect(buttons(/^View Standings$/, roundCard(1))).toHaveLength(1);
+  });
+
+  it('offers none at all when the session keeps no score', () => {
+    // There would be nothing at the bottom of the page to scroll to.
+    seed(9, 9, 2, false);
+    mount();
+    generate();
+
+    expect(buttons(/^View Standings$/)).toHaveLength(0);
+    expect(buttons(/^Back to Top$/)).toHaveLength(0);
+  });
+
+  it('scrolls the standings themselves into view, not something near them', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    const seen = watchScroll();
+
+    clickButton(/^View Standings$/, roundCard(1));
+
+    expect(seen).toHaveLength(1);
+    expect(text(seen[0].querySelector('h3')!)).toBe('Standings');
+  });
+
+  it('offers the way back to the top from the table', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    clickButton(/^Back to Top$/);
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+  });
+
+  it('goes straight there for anybody who has asked for less movement', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    // Neither scrollIntoView nor scrollTo consults this setting on its own,
+    // unlike the CSS property, so the page has to ask.
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    clickButton(/^Back to Top$/);
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+  });
+
+  it('leaves the link off a round that has been put away', () => {
+    // A completed round collapses to a single bar, and a stack of them at the
+    // top of the page would double in height for a link that is a scroll away.
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+
+    expect(buttons(/^View Standings$/, roundCard(1))).toHaveLength(0);
+    expect(buttons(/^View Standings$/, roundCard(2))).toHaveLength(1);
+  });
+});
+
+/**
+ * The notice that says tonight is partner play.
+ *
+ * It used to live inside the pairing list, which meant Done Pairing — the one
+ * button anybody presses right after making the last couple — took it away.
+ */
+describe('the partner play notice', () => {
+  beforeEach(() => seed(8, 8, 2));
+
+  function pair(one: string, two: string) {
+    clickButton(new RegExp(`^${one}`));
+    clickButton(new RegExp(`^${two}`));
+  }
+
+  /** Pairs everybody up, and comes back out of the mode. */
+  function pairEveryone() {
+    clickButton(/^Set Partners$/);
+    pair('Ava', 'Ben');
+    pair('Cara', 'Dan');
+    pair('Eve', 'Finn');
+    pair('Gus', 'Hana');
+  }
+
+  it('appears as soon as the last couple is made', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    expect(container.textContent).not.toContain('Partner play:');
+
+    pairEveryone();
+
+    expect(container.textContent).toContain('Partner play: 4 teams');
+  });
+
+  it('stays up after Done Pairing', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    pairEveryone();
+    clickButton(/^Done Pairing$/);
+
+    expect(container.textContent).toContain('Partner play: 4 teams');
+  });
+
+  it('says it louder than the sentence under it', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    pairEveryone();
+    clickButton(/^Done Pairing$/);
+
+    const title = [...container.querySelectorAll('p')].find((p) =>
+      text(p).startsWith('Partner play:')
+    )!;
+    expect(title.className).toContain('text-lg');
+  });
+
+  it('warns about the one person left out, on both sides of Done Pairing', () => {
+    // Partner play tolerates exactly one odd person, and they play nothing.
+    // That warning travels with the notice: it is the same situation.
+    seed(9, 9, 2);
+    mount();
+    clickButton(/^Continue to Setup/);
+    pairEveryone(); // eight of the nine, leaving Ivy
+
+    expect(container.textContent).toContain('Partner play: 4 teams');
+    expect(container.textContent).toContain('Ivy');
+    expect(container.textContent).toContain('will sit out every round');
+
+    clickButton(/^Done Pairing$/);
+
+    expect(container.textContent).toContain('will sit out every round');
+  });
+
+  it('goes away again when the couples are broken up', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    pairEveryone();
+    clickButton(/^Done Pairing$/);
+    clickButton(/^Unlink All$/);
+
+    expect(container.textContent).not.toContain('Partner play:');
   });
 });

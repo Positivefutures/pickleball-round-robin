@@ -4,6 +4,13 @@ import { PersonIcon, ShareIcon } from '../icons';
 
 interface Props {
   open: boolean;
+  /**
+   * The picture at the top. Nearly always the app icon, and once in a while one
+   * of the robins in fancy dress — see robins.ts, which picks it. Handed in
+   * rather than chosen here so it is settled before the drawer slides open and
+   * cannot change under somebody who is reading it.
+   */
+  robin: string;
   onShare: () => void;
   onOpenAccount: () => void;
   /** Hidden when there are no Supabase env vars, so there is never a dead button. */
@@ -161,6 +168,7 @@ function SettingsItem({
  */
 export function SettingsPanel({
   open,
+  robin,
   onShare,
   onOpenAccount,
   showAccountItem,
@@ -188,9 +196,11 @@ export function SettingsPanel({
       }`}
     >
       <div className="border-b border-white/20 pb-3">
-        {/* The 192px icon scaled down, so it stays crisp on a retina screen */}
+        {/* The 192px icon scaled down, so it stays crisp on a retina screen.
+            The costumes are drawn at the same size and carry their own rounded
+            corners, which land within a pixel of the rounded-lg below. */}
         <img
-          src="/icon-192.png"
+          src={robin}
           alt=""
           width={192}
           height={192}

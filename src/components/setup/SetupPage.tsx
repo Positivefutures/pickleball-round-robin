@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Player, Partnership, RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
 import { PlayerSelector } from './PlayerSelector';
 import { PartnerPairing } from './PartnerPairing';
+import { PartnerPlayNotice } from './PartnerPlayNotice';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
 import { SpecialTypesPanel } from './SpecialTypesPanel';
@@ -198,6 +199,10 @@ export function SetupPage({
       </div>
 
       {makeButtonRow(true)}
+
+      {/* Above both the pair list and the player list, and drawn in both modes.
+          What kind of evening this is going to be outranks either of them. */}
+      <PartnerPlayNotice players={selectedPlayers} partnerships={partnerships} />
 
       {mode === 'select' && pairs.length > 0 && (
         <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { CourtAssignment, Gender, Player, RoundType, SpecialGameTypes } from '../types';
+import type {
+  CourtAssignment, Gender, Player, Round, RoundType, SpecialGameTypes,
+} from '../types';
 import {
-  DEFAULT_SPECIAL_TYPES, ROUND_TYPES, courtMatchesType, moveType, normalizeSpecialTypes,
-  orderedTypes, planRoundTypes, roundTypeOf, specialSummary,
+  DEFAULT_SPECIAL_TYPES, ROUND_TYPES, courtMatchesType, courtMissReason, moveType,
+  normalizeSpecialTypes, orderedTypes, planRoundTypes, roundTypeOf, specialSummary,
 } from './roundTypes';
 
 function config(
@@ -262,5 +264,98 @@ describe('courtMatchesType', () => {
       ratingDiff: 0,
     };
     expect(courtMatchesType(short, 'mixed')).toBe(false);
+  });
+});
+
+describe('courtMissReason', () => {
+  const player = (gender: Gender): Player =>
+    ({ id: `${gender}${Math.random()}`, name: 'P', rating: 4, gender, rosterIds: ['r1'] });
+
+  const court = (...genders: Gender[]): CourtAssignment => ({
+    courtNumber: 1,
+    team1: genders.slice(0, 2).map(player),
+    team2: genders.slice(2).map(player),
+    ratingDiff: 0,
+  });
+
+  const round = (courts: CourtAssignment[], sitOuts: Gender[] = []): Round => ({
+    roundNumber: 1,
+    courts,
+    sitOuts: sitOuts.map(player),
+  });
+
+  it('says nothing about a court that is playing the format', () => {
+    const mens = court('M', 'M', 'M', 'M');
+    expect(courtMissReason(round([mens]), 'gendered', mens)).toBeNull();
+  });
+
+  it('says nothing about a skill round, where every court is a band', () => {
+    const any = court('M', 'F', 'M', 'F');
+    expect(courtMissReason(round([any]), 'skill', any)).toBeNull();
+  });
+
+  it('counts the leftovers of a gendered round, court and bench together', () => {
+    // Seven men and seven women on three courts: one men's court, one women's,
+    // and the three of each left over cannot make a third.
+    const mens = court('M', 'M', 'M', 'M');
+    const womens = court('F', 'F', 'F', 'F');
+    const spare = court('M', 'F', 'M', 'F');
+    const r = round([mens, womens, spare], ['M', 'F']);
+    expect(courtMissReason(r, 'gendered', spare)).toBe(
+      'A gendered game needs four men or four women. The 3 men and 3 women left over cannot make one.'
+    );
+  });
+
+  it('counts the leftovers of a mixed round the same way', () => {
+    const m1 = court('M', 'F', 'F', 'M');
+    const m2 = court('F', 'M', 'M', 'F');
+    const spare = court('M', 'M', 'M', 'F');
+    const r = round([m1, m2, spare], ['M', 'M']);
+    expect(courtMissReason(r, 'mixed', spare)).toBe(
+      'A mixed game needs two men and two women. The 5 men and 1 woman left over cannot make one.'
+    );
+  });
+
+  it('speaks of one man and one woman, not of 1 men', () => {
+    const mixed = court('M', 'F', 'F', 'M');
+    const spare = court('M', 'F');
+    const r = round([mixed, spare]);
+    expect(courtMissReason(r, 'mixed', spare)).toContain('The 1 man and 1 woman left over');
+  });
+
+  it('leaves out a gender nobody is', () => {
+    // A gendered round that ran out of men part way through a court.
+    const womens = court('F', 'F', 'F', 'F');
+    const spare = court('M', 'M', 'M');
+    const r = round([womens, spare]);
+    expect(courtMissReason(r, 'gendered', spare)).toBe(
+      'A gendered game needs four men or four women. The 3 men left over cannot make one.'
+    );
+  });
+
+  it('does not call the whole round leftovers when the format never happened', () => {
+    // Nine men and one woman: no mixed court is possible at all, so there is
+    // nothing for these players to be left over from.
+    const a = court('M', 'M', 'M', 'M');
+    const b = court('M', 'M', 'M', 'F');
+    const r = round([a, b], ['M', 'M']);
+    expect(courtMissReason(r, 'mixed', a)).toBe(
+      'A mixed game needs two men and two women. This round has 9 men and 1 woman.'
+    );
+  });
+
+  it('reads the round as it stands, so a swap changes the answer', () => {
+    // No memory of what the scheduler was thinking: a saved session has none,
+    // and a host who moves two players by hand would make it wrong.
+    const before = court('M', 'M', 'M', 'M');
+    const spare = court('M', 'F', 'M', 'F');
+    expect(courtMissReason(round([before, spare], ['F', 'F']), 'gendered', spare)).toContain(
+      '2 men and 4 women left over'
+    );
+    // The same round with one of the sit-outs swapped onto the leftover court.
+    const swapped = court('M', 'F', 'F', 'F');
+    expect(courtMissReason(round([before, swapped], ['F', 'M']), 'gendered', swapped)).toContain(
+      '2 men and 4 women left over'
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { RefObject } from 'react';
 import type { Schedule, Player } from '../../types';
 import type { StandingsRow } from '../../lib/standings';
 import { standings, hasAnyScore } from '../../lib/standings';
@@ -52,7 +53,22 @@ function valueOf(row: StandingsRow, key: SortKey): string | number {
  * Screen only, like the rest of the schedule page. The printed sheet is read out
  * before the games.
  */
-export function StandingsPanel({ schedule, players }: { schedule: Schedule; players: Player[] }) {
+export function StandingsPanel({
+  schedule,
+  players,
+  panelRef,
+  onBackToTop,
+}: {
+  schedule: Schedule;
+  players: Player[];
+  /** Where View Standings on a round card scrolls to. */
+  panelRef?: RefObject<HTMLDivElement | null>;
+  /**
+   * Back to the top of the page. Optional because the live view draws this same
+   * table on a page of its own, and nobody has asked for the link there.
+   */
+  onBackToTop?: () => void;
+}) {
   const rows = standings(schedule, players);
   const scored = hasAnyScore(schedule);
   const [sort, setSort] = useState<{ key: SortKey; dir: Direction } | null>(null);
@@ -79,8 +95,28 @@ export function StandingsPanel({ schedule, players }: { schedule: Schedule; play
   const sortedColumn = sort && COLUMNS.find((c) => c.key === sort.key);
 
   return (
-    <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
-      <h3 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Standings</h3>
+    <div
+      ref={panelRef}
+      // Scrolled to from every round card above, so it needs a little air over
+      // its heading once it lands rather than sitting against the top edge.
+      className="scroll-mt-4 bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6"
+    >
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <h3 className="text-[1.35rem] font-extrabold text-[#222]">Standings</h3>
+        {/* The way back. Unlike View Standings on the rounds, this is not tied
+            to scoring: the panel only exists when scoring is on, so by the time
+            anybody can read this the question has been answered. */}
+        {onBackToTop && (
+          <button
+            type="button"
+            onClick={onBackToTop}
+            className="flex shrink-0 items-center gap-1 text-sm font-medium text-brand-teal transition-colors hover:text-brand-teal-dark no-print"
+          >
+            Back to Top
+            <ChevronDownIcon className="h-4 w-4 rotate-180" />
+          </button>
+        )}
+      </div>
 
       {!scored ? (
         <p className="text-sm text-gray-500">
