@@ -1003,8 +1003,10 @@ describe('Special Game Types', () => {
 
   // 12 players, six of each gender, on 3 courts. Four men fill one court and
   // four women another; the two men and two women left over cannot make a
-  // gendered court, so they play an ordinary game on court 3. Both the schedule
-  // and the printout have to say so, or the round looks like it went wrong.
+  // gendered court, so they play an ordinary game on court 3. The printout says
+  // so, or the round looks like it went wrong. The screen does not: its header
+  // row already carries the court's name, the scoreboard and the balance badge,
+  // and on a phone the board sat on top of the mark.
   describe('a court the format cannot fill', () => {
     beforeEach(() => seed(12, 12, 3));
 
@@ -1015,7 +1017,7 @@ describe('Special Game Types', () => {
       return text(card);
     }
 
-    it('marks the leftover court on a gendered round, on screen and on paper', () => {
+    it('marks the leftover court on paper and leaves the screen alone', () => {
       mount();
       clickButton(/^Continue to Setup/);
       clickButton(/^Special Game Types$/);
@@ -1028,14 +1030,15 @@ describe('Special Game Types', () => {
       expect(round1.courts).toHaveLength(3);
       expect(round1.courts.filter((c) => genderCount(c) === 1)).toHaveLength(2);
 
-      const marks = [...roundCard(1).querySelectorAll('span')].filter(
-        (s) => text(s) === 'Normal game'
-      );
-      expect(marks).toHaveLength(1);
+      // The sheet has the width for it and no scoreboard to put it under.
       expect(printedRound(1).match(/\(normal game\)/g)).toHaveLength(1);
+      // The court panel does not, so it says nothing at all — there really is
+      // an off-format court on this round, which is what makes this an
+      // assertion rather than a round with nothing to say.
+      expect(text(roundCard(1))).not.toContain('Normal game');
     });
 
-    it('says nothing when every court is in format', () => {
+    it('says nothing on paper either when every court is in format', () => {
       mount();
       clickButton(/^Continue to Setup/);
       clickButton(/^Special Game Types$/);
@@ -1044,7 +1047,6 @@ describe('Special Game Types', () => {
       clickButton(/^Generate Schedule/);
 
       expect(storedSchedule().rounds[0].roundType).toBe('mixed');
-      expect(text(roundCard(1))).not.toContain('Normal game');
       expect(printedRound(1)).not.toContain('normal game');
     });
 

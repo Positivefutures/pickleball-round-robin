@@ -18,8 +18,6 @@ interface Props {
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
   onOpenPlayerMenu: (player: Player) => void;
   readOnly?: boolean;
-  /** A court on a special round that the roster could not fill in that format. */
-  offFormat?: boolean;
   /** Whether this round's format is built out of who is a man and who a woman. */
   showGender?: boolean;
   /** Hides the pencil on a selected seat. The tour's swap card sets it. */
@@ -360,7 +358,7 @@ const TEAM2_STYLES: TeamStyles = {
   swappedBorder: '#c2410c', // orange-700, against a resting orange-200
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, offFormat = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -421,14 +419,11 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
               label
             )}
           </h4>
-          {offFormat && (
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600"
-              title="There were not enough players left to fill this court in the round's format, so it plays an ordinary game."
-            >
-              Normal game
-            </span>
-          )}
+          {/* No "Normal game" mark here any more. The header row holds the
+              court's name, the scoreboard and the balance badge, and on a phone
+              there is not width for a fourth thing — the board sat over it. The
+              printed sheet and the PDF still say it, where there is room and no
+              board to say it under. */}
         </div>
 
         {/* On the header line, between the court's name and its balance, because

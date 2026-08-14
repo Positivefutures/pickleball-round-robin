@@ -782,9 +782,10 @@ function App() {
    * Name, rating and gender together, from the edit button on a place.
    *
    * Changing somebody's gender on a Gendered or Mixed round does not rebuild it.
-   * The round says what it was built as, and the court quietly picks up the
-   * "Normal game" mark if it no longer fits the format — which is the truth, and
-   * better than moving four people because one of them was typed in wrong.
+   * The round says what it was built as, and the printed sheet quietly picks up
+   * the "(normal game)" note if that court no longer fits the format — which is
+   * the truth, and better than moving four people because one of them was typed
+   * in wrong.
    */
   const handleEditPlayer = useCallback(
     (playerId: string, name: string, rating: number, gender: Gender) =>

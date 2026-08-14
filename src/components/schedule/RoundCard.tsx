@@ -2,7 +2,7 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
-import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
+import { ROUND_TYPE_META, roundTypeOf } from '../../lib/roundTypes';
 import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from './roundLook';
 
 interface Props {
@@ -208,7 +208,6 @@ export function RoundCard({
                   onToggleLock={onToggleLock}
                   onOpenPlayerMenu={onOpenPlayerMenu}
                   readOnly={isComplete}
-                  offFormat={!!roundType && !courtMatchesType(court, roundType)}
                   showGender={showGender}
                   onEditNumber={() => onEditCourtNumber(courtIdx)}
                 showScore={scoringEnabled}

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { EXAMPLE_ROSTER, buildExamplePlayers } from './exampleGroup';
+import {
+  EXAMPLE_RATING_CEILING, EXAMPLE_RATING_FLOOR, EXAMPLE_ROSTER, buildExamplePlayers,
+} from './exampleGroup';
 import { DEFAULT_COURTS, SEATS_PER_COURT } from './assign';
 import { MIN_RATING, MAX_RATING } from './rating';
 
@@ -33,6 +35,29 @@ describe('the example roster', () => {
       // player must sit on a value it can reach and display unchanged.
       expect(Math.round(p.rating * 10) / 10).toBe(p.rating);
     }
+  });
+
+  it('holds the whole group inside one narrow band of standard', () => {
+    // Nobody puts a 3.0 on a court with a 4.0. A club night is people of
+    // roughly one standard, and a sample group spread over a wider range than
+    // that teaches the wrong thing about what the app is for.
+    for (const p of EXAMPLE_ROSTER) {
+      expect(p.rating, p.name).toBeGreaterThanOrEqual(EXAMPLE_RATING_FLOOR);
+      expect(p.rating, p.name).toBeLessThanOrEqual(EXAMPLE_RATING_CEILING);
+    }
+    // And it really does use the whole band, or the constants say nothing.
+    const ratings = EXAMPLE_ROSTER.map((p) => p.rating);
+    expect(Math.min(...ratings)).toBe(EXAMPLE_RATING_FLOOR);
+    expect(Math.max(...ratings)).toBe(EXAMPLE_RATING_CEILING);
+  });
+
+  it('gives the men and the women the same ladder', () => {
+    // Both formats built out of gender draw one side against the other, and a
+    // heavier ladder on one of them would put every gendered round out of
+    // balance before the scheduler had a say in it.
+    const by = (g: 'M' | 'F') =>
+      EXAMPLE_ROSTER.filter((p) => p.gender === g).map((p) => p.rating).sort();
+    expect(by('M')).toEqual(by('F'));
   });
 });
 

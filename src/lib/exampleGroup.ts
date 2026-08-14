@@ -10,9 +10,18 @@ import type { Gender, Player } from '../types';
  * on it, which is the part of this app that is hardest to guess at.
  *
  * Seven men and seven women, so gendered and mixed rounds have something to
- * chew on. The two ratings ladders mirror each other and run 3.0 to 4.5 in the
- * same one-decimal steps the rating control uses, so editing a sample player
- * never lands on a value the stepper cannot reach.
+ * chew on. The two ratings ladders mirror each other and run 3.7 to 4.3, one
+ * tenth apart, which is seven values for seven people on each side.
+ *
+ * That narrow band is the point. It used to run 3.0 to 4.5, and nobody puts a
+ * 3.0 on a court with a 4.0 — a club night is people of roughly one standard,
+ * and a sample group that says otherwise is teaching the wrong thing about what
+ * this app is for. It is also the range in which the balance badge means
+ * anything: over a spread that wide every court reads as lopsided however the
+ * scheduler arranges it.
+ *
+ * One tenth apart because that is the step the rating control moves in, so
+ * editing a sample player never lands on a value the stepper cannot reach.
  *
  * It was twenty-four before the tour existed. Devices seeded then keep their
  * twenty-four; only new seeds are fourteen, and exampleMeta records what was
@@ -42,21 +51,25 @@ export interface ExampleMeta {
   playerIds: string[];
 }
 
+/** The band the whole group sits in, and the only place those two numbers live. */
+export const EXAMPLE_RATING_FLOOR = 3.7;
+export const EXAMPLE_RATING_CEILING = 4.3;
+
 export const EXAMPLE_ROSTER: { name: string; rating: number; gender: Gender }[] = [
-  { name: 'Ben T.', rating: 3.0, gender: 'M' },
-  { name: 'Carlos R.', rating: 3.2, gender: 'M' },
-  { name: 'David K.', rating: 3.5, gender: 'M' },
-  { name: 'Frank O.', rating: 3.6, gender: 'M' },
-  { name: 'Greg H.', rating: 3.8, gender: 'M' },
-  { name: 'Kevin B.', rating: 4.0, gender: 'M' },
-  { name: 'Paul G.', rating: 4.5, gender: 'M' },
-  { name: 'Amy C.', rating: 3.0, gender: 'F' },
-  { name: 'Beth R.', rating: 3.2, gender: 'F' },
-  { name: 'Carol M.', rating: 3.5, gender: 'F' },
-  { name: 'Emma J.', rating: 3.6, gender: 'F' },
-  { name: 'Karen S.', rating: 3.8, gender: 'F' },
-  { name: 'Grace F.', rating: 4.0, gender: 'F' },
-  { name: 'Sarah M.', rating: 4.5, gender: 'F' },
+  { name: 'Ben T.', rating: 3.7, gender: 'M' },
+  { name: 'Carlos R.', rating: 3.8, gender: 'M' },
+  { name: 'David K.', rating: 3.9, gender: 'M' },
+  { name: 'Frank O.', rating: 4.0, gender: 'M' },
+  { name: 'Greg H.', rating: 4.1, gender: 'M' },
+  { name: 'Kevin B.', rating: 4.2, gender: 'M' },
+  { name: 'Paul G.', rating: 4.3, gender: 'M' },
+  { name: 'Amy C.', rating: 3.7, gender: 'F' },
+  { name: 'Beth R.', rating: 3.8, gender: 'F' },
+  { name: 'Carol M.', rating: 3.9, gender: 'F' },
+  { name: 'Emma J.', rating: 4.0, gender: 'F' },
+  { name: 'Karen S.', rating: 4.1, gender: 'F' },
+  { name: 'Grace F.', rating: 4.2, gender: 'F' },
+  { name: 'Sarah M.', rating: 4.3, gender: 'F' },
 ];
 
 /**
