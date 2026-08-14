@@ -3,6 +3,7 @@ import { PlayerForm } from '../roster/PlayerForm';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PencilIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 /**
  * Correcting what the app has written down about somebody, from the schedule.
@@ -40,7 +41,7 @@ export function EditPlayerDialog({
         aria-modal="true"
         aria-label={`Edit ${player.name}`}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`w-full max-w-sm ${panelCard} bg-white p-6`}
       >
         <div className="mb-4">
           <PanelHeading icon={PencilIcon} title="Edit Player" />

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 import { PanelGlyph } from '../PanelGlyph';
 import { TwoArrowsIcon } from '../icons';
+import { panelCard } from '../panelStyles';
 
 /** Stands in for a roster id in the export picker: every group in one file. */
 export const ALL_GROUPS = '__all__';
@@ -72,7 +73,7 @@ export function ImportExportPanel({
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`mx-4 max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain ${panelCard} bg-white p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         <PanelGlyph icon={TwoArrowsIcon} />

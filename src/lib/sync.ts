@@ -3,7 +3,7 @@ import type { Player, Roster, SpecialGameTypes } from '../types';
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore, initAuth } from './auth';
 import { EMPTY_GROUP_NAME } from './migrations';
-import { EXAMPLE_GROUP_NAME } from './exampleGroup';
+import { EXAMPLE_GROUP_NAME, LEGACY_EXAMPLE_GROUP_NAME } from './exampleGroup';
 import {
   drop,
   enqueue,
@@ -762,7 +762,8 @@ function untouchedExampleInstall(): boolean {
     return (
       rosters.length === 1 &&
       rosters[0].id === meta.rosterId &&
-      rosters[0].name === EXAMPLE_GROUP_NAME &&
+      (rosters[0].name === EXAMPLE_GROUP_NAME ||
+        rosters[0].name === LEGACY_EXAMPLE_GROUP_NAME) &&
       players.every((p) => seeded.has(p.id))
     );
   }

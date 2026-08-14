@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { installRoute, isIos } from '../../lib/install';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   canPrompt: boolean;
@@ -168,7 +169,7 @@ export function InstallPanel({ canPrompt, onInstall, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`mx-4 max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain ${panelCard} bg-white p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         <AppIconTile />

@@ -4,6 +4,7 @@ import { CheckIcon } from '../icons';
 import { GroupSolidIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
 import { liveStatusStore } from '../../lib/liveSession';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   groups: Roster[];
@@ -54,7 +55,7 @@ export function GroupPicker({
           Manage Groups. The list used to be held to 288px whatever the phone
           was, which is five groups, so a host with eight scrolled a short list
           inside a short box with empty screen underneath it. */}
-      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full max-h-[92vh] flex flex-col">
+      <div className={`bg-white ${panelCard} p-6 mx-4 max-w-md w-full max-h-[92vh] flex flex-col`}>
         {/* The same heading as the panel it was opened from. */}
         <div className="mb-4">
           <PanelHeading icon={GroupSolidIcon} title={heading} />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { APP_URL } from '../../lib/appInfo';
 import { canShare, shareApp } from '../../lib/share';
 import { CopyIcon, GreenHeartIcon, PaddleIcon, ShareIcon, StarIcon } from '../icons';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   onClose: () => void;
@@ -42,7 +43,7 @@ export function SharePanel({ onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-[#FEFEFE] p-6 shadow-lg"
+        className={`mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain ${panelCard} bg-[#FEFEFE] p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Ships opaque — PNG colour type 2, no alpha — with #FEFEFE baked in,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Roster } from '../../types';
 import { GroupSolidIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   playerCount: number;
@@ -41,7 +42,7 @@ export function AddToGroupDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+      <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
         <PanelHeading
           icon={GroupSolidIcon}
           title={`Add ${playerCount} player${playerCount === 1 ? '' : 's'} to…`}

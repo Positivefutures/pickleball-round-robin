@@ -1,6 +1,7 @@
 import type { Player } from '../../types';
 import { WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   player: Player;
@@ -28,7 +29,7 @@ export function RemovePlayerDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+      <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
         {tooFewPlayers ? (
           <>
             <PanelHeading icon={WarningIcon} title={`Can’t remove ${player.name}`} />

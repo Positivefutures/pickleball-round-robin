@@ -8,6 +8,7 @@ import { formatTeam } from '../../utils/helpers';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { ScoreboardIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 /** Nobody wins a pickleball game by three figures. */
 const MAX_DIGITS = 2;
@@ -128,7 +129,7 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`Court ${court.courtNumber} score`}
-        className="mx-4 max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`mx-4 max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain ${panelCard} bg-white p-6`}
       >
         <div className="mb-4">
           <PanelHeading icon={ScoreboardIcon} title={`Court ${court.courtNumber} Score`} />

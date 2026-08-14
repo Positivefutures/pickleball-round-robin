@@ -536,7 +536,7 @@ describe('signing in on a device still holding only the example group', () => {
   }
 
   /** Puts the device in the state a fresh install leaves it in. */
-  function fresh(players = seededPlayers(), rosters = [{ id: 'g1', name: 'Example Group' }]) {
+  function fresh(players = seededPlayers(), rosters = [{ id: 'g1', name: 'Sample Group' }]) {
     // Set rather than seeded through storage: these stores are module-level and
     // a live subscription from an earlier test keeps their cache.
     stores.rosters.set(rosters);
@@ -563,7 +563,7 @@ describe('signing in on a device still holding only the example group', () => {
     expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
     expect(names(stores.players.get())).toEqual(['Ava']);
     // The whole point: no sample crowd left behind next to their real groups.
-    expect(stores.rosters.get().map((r) => r.name)).not.toContain('Example Group');
+    expect(stores.rosters.get().map((r) => r.name)).not.toContain('Sample Group');
     expect(stores.activeRosterId.get()).toBe('sg');
     // The seed record goes with it, so this branch can never match again.
     expect(stores.exampleMeta.get()).toBeNull();
@@ -622,9 +622,23 @@ describe('signing in on a device still holding only the example group', () => {
     expect(syncStatusStore.get().state).toBe('choice');
   });
 
+  it('takes it silently on a device seeded under the old name', async () => {
+    // It was called Example Group before the rename. A device seeded then and
+    // signing in now holds exactly what the seed wrote, and must not be asked.
+    fresh(seededPlayers(), [{ id: 'g1', name: 'Example Group' }]);
+    accountHasGroups();
+
+    startSync();
+    signIn(ME);
+    await settle();
+
+    expect(syncStatusStore.get().state).not.toBe('choice');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Thursday']);
+  });
+
   it('still asks when there is a second group', async () => {
     fresh(seededPlayers(), [
-      { id: 'g1', name: 'Example Group' },
+      { id: 'g1', name: 'Sample Group' },
       { id: 'g2', name: 'Sunday' }
     ]);
     accountHasGroups();
@@ -678,8 +692,8 @@ describe('signing in on a device still holding only the example group', () => {
     await settle();
 
     expect(syncStatusStore.get().state).not.toBe('choice');
-    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Example Group']);
-    expect(rowsFor('rosters').map((r) => r.name)).toContain('Example Group');
+    expect(stores.rosters.get().map((r) => r.name)).toEqual(['Sample Group']);
+    expect(rowsFor('rosters').map((r) => r.name)).toContain('Sample Group');
     expect(rowsFor('players')).toHaveLength(24);
   });
 

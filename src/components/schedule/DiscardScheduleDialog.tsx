@@ -1,6 +1,7 @@
 import { DISCARD_WARNING } from '../../lib/steps';
 import { WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   heading: string;
@@ -24,7 +25,7 @@ export function DiscardScheduleDialog({
 }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+      <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
         {/* It was a line of body copy in the middle of the box, which read as
             the first half of the warning under it rather than as the question
             being asked. */}

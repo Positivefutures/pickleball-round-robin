@@ -10,6 +10,7 @@ import {
 } from '../icons';
 import { PanelGlyph } from '../PanelGlyph';
 import { Toggle } from '../Toggle';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   specialTypes: SpecialGameTypes;
@@ -75,7 +76,7 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain ${panelCard} bg-white p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* On its side. Everywhere else in the app a court is drawn end on,

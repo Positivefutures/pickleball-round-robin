@@ -13,7 +13,15 @@ import type { Gender, Player } from '../types';
  * The names are deliberately plain — first name and last initial, the way a
  * host would actually type them.
  */
-export const EXAMPLE_GROUP_NAME = 'Example Group';
+export const EXAMPLE_GROUP_NAME = 'Sample Group';
+
+/**
+ * What the seed called it before the rename to Sample Group. Devices seeded
+ * then still hold a group under the old name, and sync has to keep recognising
+ * it — see untouchedExampleInstall() in sync.ts, which would otherwise start
+ * asking those hosts a merge question about players nobody made.
+ */
+export const LEGACY_EXAMPLE_GROUP_NAME = 'Example Group';
 
 /**
  * What the fresh-install seed wrote, recorded so sync can recognise a device

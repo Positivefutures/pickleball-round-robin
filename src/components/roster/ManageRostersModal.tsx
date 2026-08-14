@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 import { CopyIcon, GroupSolidIcon, PencilIcon, TrashIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   rosters: Roster[];
@@ -112,7 +113,7 @@ export function ManageRostersModal({
   const shell = (children: React.ReactNode, width: string) => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
-        className={`bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 w-full ${width} max-h-[92vh] overflow-y-auto overscroll-contain`}
+        className={`bg-white ${panelCard} p-6 mx-4 w-full ${width} max-h-[92vh] overflow-y-auto overscroll-contain`}
       >
         {children}
       </div>

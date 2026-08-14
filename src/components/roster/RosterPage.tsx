@@ -8,6 +8,7 @@ import { GroupPicker } from './GroupPicker';
 import { Toggle } from '../Toggle';
 import { PanelHeading } from '../PanelGlyph';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { panelCard } from '../panelStyles';
 import {
   AddPlayerSolidIcon,
   ChevronDownIcon,
@@ -308,7 +309,7 @@ export function RosterPage({
           two fixed overlays would double-dim the page and trap clicks. */}
       {editingPlayer && !orphanCandidate && !confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-md w-full max-h-[92vh] overflow-y-auto overscroll-contain">
+          <div className={`bg-white ${panelCard} p-6 mx-4 max-w-md w-full max-h-[92vh] overflow-y-auto overscroll-contain`}>
             <div className="mb-4">
               <PanelHeading icon={PencilIcon} title="Edit Player" />
             </div>
@@ -328,7 +329,7 @@ export function RosterPage({
 
       {editingPlayer && confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
             <PanelHeading
               icon={TrashIcon}
               title={`Delete ${editingPlayer.name} from every group?`}
@@ -356,7 +357,7 @@ export function RosterPage({
 
       {orphanCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg border-[3px] border-[#444] shadow-lg p-6 mx-4 max-w-sm w-full">
+          <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
             <PanelHeading
               icon={TrashIcon}
               title={`Delete ${orphanCandidate.name} permanently?`}

@@ -15,11 +15,11 @@ beforeEach(() => localStorage.clear());
 describe('runMigrations — rosters', () => {
   // The literal, not the constant — this pins what a first-time user actually
   // sees, which asserting against the imported constant would not.
-  it('drops a first-time user into "Example Group" with 24 sample players', () => {
+  it('drops a first-time user into "Sample Group" with 24 sample players', () => {
     runMigrations();
     const rosters = read<{ id: string; name: string }[]>(KEYS.rosters);
     expect(rosters).toHaveLength(1);
-    expect(rosters[0].name).toBe('Example Group');
+    expect(rosters[0].name).toBe('Sample Group');
     expect(read<string>(KEYS.activeRoster)).toBe(rosters[0].id);
 
     const players = read<Player[]>(KEYS.players);

@@ -12,6 +12,7 @@ import { authStore } from '../../lib/auth';
 import { PanelGlyph } from '../PanelGlyph';
 import { FIELD_LABEL } from '../formLook';
 import { BugIcon, SendMailIcon } from '../icons';
+import { panelCard } from '../panelStyles';
 
 interface Props {
   kind: FeedbackKind;
@@ -95,7 +96,7 @@ export function FeedbackPanel({ kind, context, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain ${panelCard} bg-white p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         <PanelGlyph icon={copy.Icon} />

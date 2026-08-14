@@ -3,6 +3,7 @@ import { describeCrash, reportCrash, type CrashReport } from '../../lib/monitori
 import { buildBody, buildSubject, mailtoUrl, type FeedbackContext } from '../../lib/feedback';
 import { APP_VERSION, FEEDBACK_EMAIL } from '../../lib/appInfo';
 import * as stores from '../../lib/stores';
+import { panelCard } from '../panelStyles';
 
 /**
  * The last thing standing when a render throws.
@@ -102,7 +103,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-800 p-4">
-        <div className="w-full max-w-md rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg">
+        <div className={`w-full max-w-md ${panelCard} bg-white p-6`}>
           <h1 className="text-center text-[1.35rem] font-extrabold text-[#222]">
             Something went wrong
           </h1>

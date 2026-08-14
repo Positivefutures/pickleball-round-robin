@@ -19,6 +19,7 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Player, Roster } from '../../types';
 import { RosterPage } from './RosterPage';
+import { panelCard } from '../panelStyles';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -122,6 +123,14 @@ function open(): HTMLElement {
   return dialog();
 }
 
+/** Whether anything inside `root` wears the shared panel card. */
+function drawnInPanelCard(root: HTMLElement): boolean {
+  const wanted = panelCard.split(' ');
+  return [...root.querySelectorAll('*')].some((el) =>
+    wanted.every((c) => el.classList.contains(c))
+  );
+}
+
 /** The row for one group inside the picker. */
 function row(name: string): HTMLElement {
   const found = [...dialog().querySelectorAll('button')].find((b) => text(b).startsWith(name));
@@ -164,8 +173,10 @@ describe('the picker', () => {
     const heading = open_.querySelector('h2');
     expect(heading).not.toBeNull();
     expect(text(heading!)).toBe('My Groups');
-    // The card every other dialog in the app is drawn in.
-    expect(open_.querySelector('.border-\\[\\#444\\]')).not.toBeNull();
+    // The card every other dialog in the app is drawn in. Read off panelCard
+    // rather than spelled out, so restyling the card once cannot leave this one
+    // dialog behind with the test still green.
+    expect(drawnInPanelCard(open_)).toBe(true);
   });
 
   it('lists every group, with the size of each', () => {

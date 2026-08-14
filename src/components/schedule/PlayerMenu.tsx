@@ -3,6 +3,7 @@ import { PencilIcon } from '../icons';
 import { TrashIcon } from './icons';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PanelHeading } from '../PanelGlyph';
+import { panelCard } from '../panelStyles';
 
 /**
  * What can be done to one player, mid-session.
@@ -42,7 +43,7 @@ export function PlayerMenu({
         aria-label={`Options for ${player.name}`}
         // Stops a tap inside the panel from reaching the backdrop behind it.
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-lg border-[3px] border-[#444] bg-white p-6 shadow-lg"
+        className={`w-full max-w-sm ${panelCard} bg-white p-6`}
       >
         <PanelHeading icon={PencilIcon} title={player.name} />
         <p className="mt-1 mb-4 text-center text-sm text-gray-600">

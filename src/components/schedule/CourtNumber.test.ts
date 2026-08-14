@@ -17,6 +17,7 @@ import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Player, Round, Schedule } from '../../types';
 import { SchedulePage } from './SchedulePage';
+import { panelCard } from '../panelStyles';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -130,6 +131,17 @@ function dialog(): HTMLElement {
   return found as HTMLElement;
 }
 
+/**
+ * Whether anything inside `root` wears the shared panel card. Any element, not
+ * just a div: this one is a form, because the keypad submits.
+ */
+function drawnInPanelCard(root: HTMLElement): boolean {
+  const wanted = panelCard.split(' ');
+  return [...root.querySelectorAll('*')].some((el) =>
+    wanted.every((c) => el.classList.contains(c))
+  );
+}
+
 /** What the box is showing, which is the panel and not a text box. */
 function shown(): string {
   return text(dialog().querySelector('[role="status"]')!);
@@ -174,8 +186,10 @@ describe('the court heading', () => {
     render();
     click(courtButton(1, 'COURT 1'));
     expect(text(dialog().querySelector('h2')!)).toBe('Court Number');
-    // Drawn in the same card as every other dialog in the app.
-    expect(dialog().querySelector('.border-\\[\\#444\\]')).not.toBeNull();
+    // Drawn in the same card as every other dialog in the app. Read off
+    // panelCard rather than spelled out, so restyling the card once cannot
+    // leave this one dialog behind with the test still green.
+    expect(drawnInPanelCard(dialog())).toBe(true);
   });
 
   it('cannot be tapped on a round that has been played', () => {
