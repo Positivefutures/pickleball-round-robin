@@ -1370,7 +1370,10 @@ function App() {
               it, and between two paragraphs of well done it would otherwise
               read as more of the same. */}
           <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-3 text-left">
-            <p>
+            {/* A size down from the paragraphs either side of it. The button
+                takes 85px out of the width, and at the panel's own size the
+                sentence ran to three lines with one word alone on the last. */}
+            <p className="text-base">
               {/* Held on one line. It is the name of the panel they are being
                   sent to, and bold type broken across two lines reads as two
                   things rather than one. */}
@@ -1388,7 +1391,14 @@ function App() {
               Manage
             </button>
           </div>
-          <p>Have fun playing pickleball! And thanks for being an organizer.</p>
+          {/* One paragraph, two lines. They are a single sign-off and belong in
+              the same block, but each is its own thought and reads better with
+              the break. */}
+          <p>
+            Have fun playing pickleball!
+            <br />
+            And thanks for being an organizer.
+          </p>
         </TourSheet>
       )}
 
