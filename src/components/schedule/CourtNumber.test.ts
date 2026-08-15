@@ -101,10 +101,10 @@ function click(el: Element) {
 
 /**
  * One round's card, found by its heading rather than its position on screen.
- * A completed round adds "(completed)" to that heading.
+ * The heading is the number alone whether or not the round is completed.
  */
 function card(roundNumber: number): HTMLElement {
-  const heading = new RegExp(`^Round ${roundNumber}( \\(completed\\))?$`);
+  const heading = new RegExp(`^Round ${roundNumber}$`);
   const found = [...container.querySelectorAll('.round-card')].find((c) =>
     heading.test(text(c.querySelector('h3')!))
   );

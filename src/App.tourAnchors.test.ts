@@ -224,8 +224,9 @@ describe('the Schedule tab anchors', () => {
     markComplete(2);
 
     const cards = [...container.querySelectorAll('.round-card')];
-    // Completed, so its heading says so beside the number.
-    expect(text(cards[0].querySelector('h3')!)).toBe('Round 2 (completed)');
+    // Round 2 is the one that floated up. Its heading is only ever the number,
+    // completed or not, which is what makes this an honest check of the order.
+    expect(text(cards[0].querySelector('h3')!)).toBe('Round 2');
     expect(text(need('round-1').querySelector('h3')!)).toBe('Round 1');
   });
 

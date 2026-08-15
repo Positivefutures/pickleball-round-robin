@@ -111,12 +111,11 @@ function clickButton(re: RegExp, scope: ParentNode = container) {
 }
 
 /**
- * The round card whose heading reads "Round N", with or without the
- * "(completed)" a finished round carries. Anchored at both ends rather than
- * matched on a prefix, so Round 1 cannot answer for Round 10.
+ * The round card whose heading reads "Round N". Anchored at both ends rather
+ * than matched on a prefix, so Round 1 cannot answer for Round 10.
  */
 function roundCard(n: number): HTMLElement {
-  const heading = new RegExp(`^Round ${n}( \\(completed\\))?$`);
+  const heading = new RegExp(`^Round ${n}$`);
   const card = [...container.querySelectorAll('.round-card')].find((c) =>
     heading.test(text(c.querySelector('h3') ?? c))
   );

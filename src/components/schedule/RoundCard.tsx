@@ -154,12 +154,11 @@ export function RoundCard({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
+            {/* Just the number. The heading used to carry "(completed)" beside
+                it, which said a third time what the ticked COMPLETED box and
+                the View/Hide button already say. Jeff's call on 2026-08-15. */}
             <h3 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
               Round {round.roundNumber}
-              {/* Inside the heading, so it stays with the number when the row
-                  wraps. Not bold and not capitals: it is a state the round is
-                  in, not part of its name. */}
-              {isComplete && <span className="font-normal normal-case"> (completed)</span>}
             </h3>
             {/* A completed round also carries View/Hide, which leaves no room
                 for the badge alongside — it drops to its own line instead. */}
