@@ -44,12 +44,12 @@ const round = (n: number, courts: CourtAssignment[]): Round => ({
 let root: Root;
 let container: HTMLElement;
 
-function render(schedule: Schedule, players: Player[]): HTMLElement {
+function render(schedule: Schedule, players: Player[], readOnly = false): HTMLElement {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
-    root.render(createElement(StandingsPanel, { schedule, players }));
+    root.render(createElement(StandingsPanel, { schedule, players, readOnly }));
   });
   return container;
 }
@@ -89,6 +89,16 @@ describe('before anything has been scored', () => {
     const el = render({ rounds: [round(1, [court(['Ava', 'Ben'], ['Cara', 'Dan'])])] }, four);
     expect(el.textContent).toContain('No scores yet');
     expect(el.querySelector('table')).toBeNull();
+  });
+
+  it('does not send somebody watching to a scoreboard they cannot tap', () => {
+    const el = render(
+      { rounds: [round(1, [court(['Ava', 'Ben'], ['Cara', 'Dan'])])] },
+      four,
+      true
+    );
+    expect(el.textContent).toContain('No scores have been entered yet.');
+    expect(el.textContent).not.toContain('Tap the scoreboard');
   });
 });
 

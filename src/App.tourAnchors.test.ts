@@ -93,10 +93,11 @@ function clickButton(re: RegExp, scope: ParentNode = container) {
   click(found);
 }
 
-/** The round card whose heading reads "Round N". */
+/** The round card whose heading reads "Round N", completed or not. */
 function roundCard(n: number): HTMLElement {
-  const card = [...container.querySelectorAll('.round-card')].find(
-    (c) => text(c.querySelector('h3') ?? c) === `Round ${n}`
+  const heading = new RegExp(`^Round ${n}( \\(completed\\))?$`);
+  const card = [...container.querySelectorAll('.round-card')].find((c) =>
+    heading.test(text(c.querySelector('h3') ?? c))
   );
   if (!card) throw new Error(`no card for Round ${n}`);
   return card as HTMLElement;
@@ -223,7 +224,8 @@ describe('the Schedule tab anchors', () => {
     markComplete(2);
 
     const cards = [...container.querySelectorAll('.round-card')];
-    expect(text(cards[0].querySelector('h3')!)).toBe('Round 2');
+    // Completed, so its heading says so beside the number.
+    expect(text(cards[0].querySelector('h3')!)).toBe('Round 2 (completed)');
     expect(text(need('round-1').querySelector('h3')!)).toBe('Round 1');
   });
 

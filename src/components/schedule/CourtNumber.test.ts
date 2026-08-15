@@ -99,10 +99,14 @@ function click(el: Element) {
   });
 }
 
-/** One round's card, found by its heading rather than its position on screen. */
+/**
+ * One round's card, found by its heading rather than its position on screen.
+ * A completed round adds "(completed)" to that heading.
+ */
 function card(roundNumber: number): HTMLElement {
-  const found = [...container.querySelectorAll('.round-card')].find(
-    (c) => text(c.querySelector('h3')!) === `Round ${roundNumber}`
+  const heading = new RegExp(`^Round ${roundNumber}( \\(completed\\))?$`);
+  const found = [...container.querySelectorAll('.round-card')].find((c) =>
+    heading.test(text(c.querySelector('h3')!))
   );
   if (!found) throw new Error(`round ${roundNumber} is not on the page`);
   return found as HTMLElement;

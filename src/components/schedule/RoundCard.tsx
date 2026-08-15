@@ -130,6 +130,10 @@ export function RoundCard({
           <div className="flex items-center gap-2">
             <h3 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
               Round {round.roundNumber}
+              {/* Inside the heading, so it stays with the number when the row
+                  wraps. Not bold and not capitals: it is a state the round is
+                  in, not part of its name. */}
+              {isComplete && <span className="font-normal normal-case"> (completed)</span>}
             </h3>
             {/* A completed round also carries View/Hide, which leaves no room
                 for the badge alongside — it drops to its own line instead. */}
@@ -259,7 +263,9 @@ export function RoundCard({
           <button
             type="button"
             onClick={onViewStandings}
-            className="flex items-center gap-1 text-base font-medium text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+            // Set against SITTING OUT on the same card: both 1rem, and now both
+            // bold, which is the difference that was left between them.
+            className="flex items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
           >
             View Standings
             <ChevronDownIcon className="h-4 w-4" />

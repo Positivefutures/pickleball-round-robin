@@ -216,8 +216,10 @@ function Session({
                 }
                 className="text-white transition-colors hover:text-white/75"
               >
+                {/* Twice the size it opened at. The glyph is solid rather than
+                    drawn in a stroke, so scaling it is what makes it heavier. */}
                 <ChevronDownIcon
-                  className={`h-[21px] w-[21px] transition-transform ${expanded ? '' : '-rotate-90'}`}
+                  className={`h-[42px] w-[42px] transition-transform ${expanded ? '' : '-rotate-90'}`}
                 />
               </button>
             </div>
@@ -268,7 +270,8 @@ function Session({
                           block: 'start',
                         })
                       }
-                      className="flex items-center gap-1 text-base font-medium text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+                      // Set against SITTING OUT above it, as on the host's card.
+                      className="flex items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
                     >
                       View Standings
                       <ChevronDownIcon className="h-4 w-4" />
@@ -286,15 +289,16 @@ function Session({
           schedule={snapshot.schedule}
           players={snapshot.players}
           panelRef={standingsRef}
+          readOnly
           onBackToTop={() => window.scrollTo({ top: 0, behavior: scrollBehavior() })}
         />
       )}
 
       {/* A live view that has quietly stopped updating is worse than one that
           says when it last managed to. */}
-      <p className="pt-2 text-center text-xs text-gray-500">
+      <p className="pt-2 text-center text-base text-gray-500">
         {seenAt
-          ? `Updated ${seenAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+          ? `Last Updated ${seenAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
           : 'Updating'}
       </p>
       <p className="text-center">

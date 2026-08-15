@@ -28,6 +28,20 @@ export const ROUND_EDGE = '#2B76A9';
 export const ROUND_EDGE_SWAPPED = '#0E3E5D';
 
 /**
+ * The line around a player's box, one colour per side.
+ *
+ * Tailwind's blue-200 and orange-200 with every channel taken down a fifth,
+ * which is Jeff's "20% darker" on 2026-08-15. The fills stay where they are: it
+ * is the edge that had to hold, and darkening the box behind the name would
+ * start to fight the name.
+ *
+ * Written as whole class names rather than built from a hex, because Tailwind
+ * only generates a utility it can see spelled out in a file.
+ */
+export const TEAM1_EDGE = 'border-[#99afcb]';
+export const TEAM2_EDGE = 'border-[#cbac88]';
+
+/**
  * What a round says about itself: ROUND 3, COURT 1, COMPLETED.
  *
  * All three are the same size because they are the same kind of thing, and a

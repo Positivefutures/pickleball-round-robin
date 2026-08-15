@@ -1,7 +1,13 @@
 import type { CourtAssignment } from '../../types';
 import { ScoreColon, ScorePanel } from '../schedule/Scoreboard';
 import { toneFor } from '../schedule/scoreTone';
-import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_HEADING_TEXT } from '../schedule/roundLook';
+import {
+  PLAYER_NAME_TEXT,
+  ROUND_EDGE,
+  ROUND_HEADING_TEXT,
+  TEAM1_EDGE,
+  TEAM2_EDGE,
+} from '../schedule/roundLook';
 
 interface Props {
   court: CourtAssignment;
@@ -44,9 +50,9 @@ export function LiveCourt({ court, showScore }: Props) {
       </div>
 
       <div className="flex items-start gap-2">
-        <Side players={court.team1} tint="bg-blue-50 border-blue-200" />
+        <Side players={court.team1} tint={`bg-blue-50 ${TEAM1_EDGE}`} />
         <span className="self-center shrink-0 text-xs font-medium text-gray-400">Vs.</span>
-        <Side players={court.team2} tint="bg-orange-50 border-orange-200" />
+        <Side players={court.team2} tint={`bg-orange-50 ${TEAM2_EDGE}`} />
       </div>
     </div>
   );

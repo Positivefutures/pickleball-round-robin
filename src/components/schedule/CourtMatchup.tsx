@@ -5,7 +5,13 @@ import { BalanceIndicator } from './BalanceIndicator';
 import { EditPlayerButton } from './EditPlayerButton';
 import { GenderMark } from './GenderMark';
 import { Scoreboard } from './Scoreboard';
-import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_HEADING_TEXT } from './roundLook';
+import {
+  PLAYER_NAME_TEXT,
+  ROUND_EDGE,
+  ROUND_HEADING_TEXT,
+  TEAM1_EDGE,
+  TEAM2_EDGE,
+} from './roundLook';
 
 interface Props {
   court: CourtAssignment;
@@ -344,18 +350,18 @@ function TeamColumn({
 
 const TEAM1_STYLES: TeamStyles = {
   bgClass: 'bg-blue-50',
-  borderClass: 'border-blue-200',
+  borderClass: TEAM1_EDGE,
   hoverClass: 'hover:bg-blue-100',
   selectedBgClass: 'bg-blue-200',
-  swappedBorder: '#1d4ed8', // blue-700, against a resting blue-200
+  swappedBorder: '#1d4ed8', // blue-700, against the darkened blue edge at rest
 };
 
 const TEAM2_STYLES: TeamStyles = {
   bgClass: 'bg-orange-50',
-  borderClass: 'border-orange-200',
+  borderClass: TEAM2_EDGE,
   hoverClass: 'hover:bg-orange-100',
   selectedBgClass: 'bg-orange-200',
-  swappedBorder: '#c2410c', // orange-700, against a resting orange-200
+  swappedBorder: '#c2410c', // orange-700, against the darkened orange edge at rest
 };
 
 export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {

@@ -243,7 +243,7 @@ describe('watching a session', () => {
     // admits how old it is.
     answer = shared();
     await open();
-    expect(text()).toMatch(/Updated \d/);
+    expect(text()).toMatch(/Last Updated \d/);
   });
 
   it('marks itself live, so nobody wonders whether it is a screenshot', async () => {

@@ -4,6 +4,7 @@ import type { Schedule, Player } from '../../types';
 import type { StandingsRow } from '../../lib/standings';
 import { standings, hasAnyScore } from '../../lib/standings';
 import { ChevronDownIcon } from '../icons';
+import { PLAYER_NAME_TEXT } from './roundLook';
 
 /** Which column the table is being read down. */
 type SortKey = 'name' | 'wins' | 'losses' | 'differential' | 'pointsFor';
@@ -58,11 +59,18 @@ export function StandingsPanel({
   players,
   panelRef,
   onBackToTop,
+  readOnly = false,
 }: {
   schedule: Schedule;
   players: Player[];
   /** Where View Standings on a round card scrolls to. */
   panelRef?: RefObject<HTMLDivElement | null>;
+  /**
+   * Set on the live view. Nobody watching can write a score, so the empty
+   * table says so in its own words rather than pointing at a scoreboard they
+   * cannot tap, and says it large enough to read across a court.
+   */
+  readOnly?: boolean;
   /**
    * Back to the top of the page — the next round on the host's page, the
    * banner on the live view. Both pass it; only the tests leave it off.
@@ -119,9 +127,13 @@ export function StandingsPanel({
       </div>
 
       {!scored ? (
-        <p className="text-sm text-gray-500">
-          No scores yet. Tap the scoreboard on any court to write one down.
-        </p>
+        readOnly ? (
+          <p className={`${PLAYER_NAME_TEXT} text-gray-600`}>No scores have been entered yet.</p>
+        ) : (
+          <p className="text-sm text-gray-500">
+            No scores yet. Tap the scoreboard on any court to write one down.
+          </p>
+        )
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
