@@ -11,6 +11,7 @@ import {
 } from '../schedule/roundLook';
 import { ChevronDownIcon } from '../icons';
 import { LiveCourt } from './LiveCourt';
+import { MakeYourOwn } from './MakeYourOwn';
 
 /**
  * Somebody else's session, read-only.
@@ -306,11 +307,7 @@ function Session({
           ? `Last Updated ${seenAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
           : 'Updating'}
       </p>
-      <p className="text-center">
-        <a href={APP_URL} className={HOME_LINK}>
-          Make your own round robin
-        </a>
-      </p>
+      <MakeYourOwn />
     </>
   );
 }

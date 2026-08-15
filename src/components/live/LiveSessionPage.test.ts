@@ -219,7 +219,9 @@ describe('watching a session', () => {
     // wants to know which court they are on next.
     answer = shared();
     await open();
-    const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent);
+    // The rounds' own headings. The panel at the foot of the page carries one
+    // too, and it is not a round.
+    const headings = [...container.querySelectorAll('section h2')].map((h) => h.textContent);
     expect(headings).toEqual(['Round 1', 'Round 2']);
   });
 
@@ -244,6 +246,19 @@ describe('watching a session', () => {
     answer = shared();
     await open();
     expect(text()).toMatch(/Last Updated \d/);
+  });
+
+  it('offers the app itself at the foot of somebody else session', async () => {
+    // The one thing this page is selling, and the only reason it is free to
+    // watch. Both the words and the button go to the app.
+    answer = shared();
+    await open();
+    expect(text()).toContain('Make your own round robin');
+    expect(text()).toContain('Balanced matchups in seconds.');
+    const open_ = [...container.querySelectorAll('a')].find(
+      (a) => a.textContent === 'Open Round Robin Generator'
+    );
+    expect(open_?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
   });
 
   it('names the app in the banner, and that name is the way to it', async () => {
