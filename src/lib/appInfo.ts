@@ -2,9 +2,13 @@
  * Shown in the footer and attached to every bug report, so it must be bumped
  * with each deploy — a stale version sends you looking at the wrong code.
  *
- * Scheme: two numbers, no patch. Steps of ten for a batch of features
- * (1.40 → 1.50), and the odd number in between for a smaller change (1.51).
- * Nothing parses this string, so the shape is free to change.
+ * Scheme: two numbers, no patch, moving one hundredth at a time. 3.20 → 3.21,
+ * whether the deploy carries one fix or a page rebuilt from scratch. Jeff's
+ * call on 2026-08-15, after 3.20 → 3.30 went out for an afternoon's work: the
+ * number is a build counter, not a measure of how much shipped.
+ *
+ * The second digit is a milestone and moves only when he says so. Nothing
+ * parses this string, so the shape is free to change.
  */
 export const APP_VERSION = '3.30';
 
