@@ -191,7 +191,10 @@ export function SettingsPanel({
       // over it, so anything that moves the panel even slightly shows a stripe
       // of the drawer. Hiding it waits out the 300ms slide, or it would vanish
       // in front of the panel that is still on its way back.
-      className={`no-print fixed inset-y-0 right-0 z-0 w-4/5 overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white transition-[visibility] duration-0 ${
+      // A column, so the block at the foot can be pushed to the bottom of the
+      // screen and stay there. On a short screen the menu fills the drawer, the
+      // auto margin goes to nothing and the whole thing scrolls as before.
+      className={`no-print fixed inset-y-0 right-0 z-0 flex w-4/5 flex-col overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white transition-[visibility] duration-0 ${
         open ? 'visible delay-0' : 'invisible delay-300'
       }`}
     >
@@ -210,7 +213,10 @@ export function SettingsPanel({
           Pickleball Round Robin Generator
         </h2>
       </div>
-      <nav className="mt-3 space-y-1">
+      {/* The gap above the footer rides here rather than on the footer itself.
+          The footer's own top margin is auto, and an auto margin that has been
+          eaten by a full screen leaves nothing behind. */}
+      <nav className="mt-3 mb-6 space-y-1">
         {/* First, and the one item that goes away for good once it is done.
             It is the thing a new host should do before anything else, and it
             was sitting below an account they may never make. */}
@@ -258,42 +264,51 @@ export function SettingsPanel({
         <SettingsItem icon={<BugIcon />} label="Report a Bug" onClick={onOpenBug} />
       </nav>
 
-      <p className="mt-6 border-t border-white/20 pt-4 text-sm text-white/70">
-        Contact the creator:{' '}
-        <a
-          href={`mailto:${FEEDBACK_EMAIL}`}
-          className="break-all underline decoration-white/40 underline-offset-2 hover:text-white"
-        >
-          {FEEDBACK_EMAIL}
-        </a>
-      </p>
+      {/* Everything from the rule down sits at the foot of the screen. The menu
+          ends where it ends, and the small print is where small print goes.
+          `mt-auto` takes whatever room is left over, so on a tall screen the
+          gap is above this block rather than below it. */}
+      <div className="mt-auto border-t border-white/20 pt-4">
+        <p className="text-sm text-white/70">
+          Contact the creator:{' '}
+          {/* Kept whole. It used to break wherever the line ran out, which put
+              "m" on a line of its own under jeff@pbroundrobin.co and read like
+              two addresses. Now the whole address moves down together. */}
+          <a
+            href={`mailto:${FEEDBACK_EMAIL}`}
+            className="whitespace-nowrap underline decoration-white/40 underline-offset-2 hover:text-white"
+          >
+            {FEEDBACK_EMAIL}
+          </a>
+        </p>
 
-      {/* Links rather than menu items. They belong down here with the contact
-          address, not up there with the things people came to do. target=_blank
-          because leaving the app would drop whatever session is on screen. */}
-      <p className="mt-3 text-sm text-white/70">
-        <a
-          href={PRIVACY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline decoration-white/40 underline-offset-2 hover:text-white"
-        >
-          Privacy Policy
-        </a>
-        <span className="mx-2">&middot;</span>
-        <a
-          href={TERMS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline decoration-white/40 underline-offset-2 hover:text-white"
-        >
-          Terms of Service
-        </a>
-      </p>
+        {/* Links rather than menu items. They belong down here with the contact
+            address, not up there with the things people came to do. target=_blank
+            because leaving the app would drop whatever session is on screen. */}
+        <p className="mt-3 text-sm text-white/70">
+          <a
+            href={PRIVACY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-white/40 underline-offset-2 hover:text-white"
+          >
+            Privacy Policy
+          </a>
+          <span className="mx-2">&middot;</span>
+          <a
+            href={TERMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-white/40 underline-offset-2 hover:text-white"
+          >
+            Terms of Service
+          </a>
+        </p>
 
-      {/* Under the links, as it is at the foot of the app. Dimmer than either:
-          it is a notice, not something to read. */}
-      <p className="mt-3 text-xs text-white/50">{COPYRIGHT}</p>
+        {/* Under the links, as it is at the foot of the app. Dimmer than either:
+            it is a notice, not something to read. */}
+        <p className="mt-3 text-xs text-white/50">{COPYRIGHT}</p>
+      </div>
     </div>
   );
 }

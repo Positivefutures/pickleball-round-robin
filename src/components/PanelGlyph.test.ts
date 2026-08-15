@@ -383,3 +383,76 @@ describe('the settings drawer', () => {
     expect(items[0]).toBe('Share App');
   });
 });
+
+/**
+ * The small print at the foot of the drawer.
+ *
+ * These read class names, which is normally a poor way to test anything. There
+ * is no layout engine here to ask instead: happy-dom returns zero for every
+ * measurement, so a test that asked where the copyright had landed would pass
+ * whatever the drawer did. The classes are the layout, so the classes are what
+ * is guarded, and each is tied below to the thing it stops happening.
+ */
+describe('the foot of the settings drawer', () => {
+  function openDrawer(): HTMLElement {
+    return mount(
+      createElement(SettingsPanel, {
+        open: true,
+        robin: '/icon.png',
+        onShare: noop,
+        onOpenAccount: noop,
+        showAccountItem: true,
+        signedIn: true,
+        onOpenInstall: noop,
+        showInstallItem: false,
+        onToggleLargeText: noop,
+        onOpenDefaultRating: noop,
+        onOpenImportExport: noop,
+        onOpenInstructions: noop,
+        onOpenDonate: noop,
+        onOpenFeature: noop,
+        onOpenBug: noop,
+      })
+    );
+  }
+
+  it('keeps the whole email address on one line', () => {
+    // It used to break wherever the line ran out, which left "m" alone under
+    // jeff@pbroundrobin.co and read as two addresses rather than one. Whole or
+    // wrapped entire, never split: break-all is the class that split it.
+    openDrawer();
+    const link = container.querySelector('a[href^="mailto:"]')!;
+    const classes = link.className.split(/\s+/);
+    expect(classes).toContain('whitespace-nowrap');
+    expect(classes).not.toContain('break-all');
+    expect(classes).not.toContain('break-words');
+  });
+
+  it('sits at the bottom of the screen, under whatever room is left', () => {
+    // Two halves of one behaviour, so they are checked together: a column that
+    // fills the screen, and a last block whose top margin eats the slack. Drop
+    // either and the small print floats back up under the menu.
+    const drawer = openDrawer().querySelector('[aria-label="Settings"]')!;
+    expect(drawer.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['flex', 'flex-col'])
+    );
+
+    const copyright = [...drawer.querySelectorAll('p')].at(-1)!;
+    const footer = copyright.parentElement!;
+    expect(footer.className.split(/\s+/)).toContain('mt-auto');
+    // The last thing in the drawer, or there is something below it to push
+    // down and the auto margin is measuring the wrong gap.
+    expect(drawer.lastElementChild).toBe(footer);
+    // All three pieces of small print moved together, rather than the
+    // copyright being pushed down on its own away from the links above it.
+    expect(footer.querySelectorAll('p')).toHaveLength(3);
+  });
+
+  it('leaves a gap above the small print that a full menu cannot eat', () => {
+    // On a short phone the menu fills the drawer, the auto margin goes to
+    // nothing, and a gap that lived on the footer would go with it. It lives
+    // on the menu instead, where it is always paid.
+    const nav = openDrawer().querySelector('nav')!;
+    expect(nav.className.split(/\s+/)).toContain('mb-6');
+  });
+});
