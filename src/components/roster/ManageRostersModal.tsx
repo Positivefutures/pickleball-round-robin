@@ -327,9 +327,15 @@ export function ManageRostersModal({
             </div>
           ) : (
             <div key={r.id} className="flex items-center gap-2">
-              <span className="flex-1 text-gray-800">
+              {/* The name is bold, the count beside it is not. The count is
+                  how many players are in the group, not part of what it is
+                  called, and bolding both makes the row read as one long
+                  label. */}
+              <span className="flex-1 font-bold text-gray-800">
                 {r.name}
-                <span className="text-gray-400 text-sm ml-2">({countFor(r.id)})</span>
+                <span className="text-gray-400 text-sm font-normal ml-2">
+                  ({countFor(r.id)})
+                </span>
               </span>
               {/* White on a border, as the pencil on the schedule is. The row is
                   a name and one way in, and a tinted button would read as the

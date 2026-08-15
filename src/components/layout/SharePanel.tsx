@@ -74,7 +74,7 @@ export function SharePanel({ onClose }: Props) {
         </p>
 
         {/* select-all: one tap or click selects the whole address */}
-        <p className="mt-4 select-all break-all rounded-md border border-[#D8DEE4] bg-[#F8F9FB] px-3 py-2.5 font-medium text-[#3D495A]">
+        <p className="mt-4 select-all break-all rounded-md border border-panel-edge bg-[#F8F9FB] px-3 py-2.5 font-medium text-[#3D495A]">
           {APP_URL}
         </p>
 
@@ -104,7 +104,7 @@ export function SharePanel({ onClose }: Props) {
           onClick={handleCopy}
           className={`mt-3 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors ${
             hasSheet
-              ? 'border border-[#D8DEE4] bg-white text-[#3D495A] hover:bg-[#F1F3F6]'
+              ? 'border border-panel-edge bg-white text-[#3D495A] hover:bg-[#F1F3F6]'
               : 'bg-[#018D31] text-white hover:bg-[#017129]'
           }`}
         >
@@ -122,7 +122,7 @@ export function SharePanel({ onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full rounded-lg border border-[#D8DEE4] bg-[#F8F9FB] px-4 py-2.5 font-medium text-[#3D495A] transition-colors hover:bg-[#EDF0F4]"
+          className="mt-3 w-full rounded-lg border border-panel-edge bg-[#F8F9FB] px-4 py-2.5 font-medium text-[#3D495A] transition-colors hover:bg-[#EDF0F4]"
         >
           Close
         </button>

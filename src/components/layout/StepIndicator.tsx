@@ -59,7 +59,7 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
 
   return (
     <nav
-      className="flex items-stretch p-0.5 rounded-2xl border border-[#ddd] no-print"
+      className="flex items-stretch p-0.5 rounded-2xl border border-panel-edge no-print"
       style={{ backgroundColor: TRACK }}
     >
       {steps.map((step, i) => {

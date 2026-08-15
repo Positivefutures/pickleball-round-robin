@@ -243,7 +243,7 @@ export function RosterPage({
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      <div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
         {/* A heading now rather than a label. It labelled the select that used
             to sit below, and there is no form control left for it to point at.
             Sized to match "Add Player" further down the page. */}
@@ -310,7 +310,7 @@ export function RosterPage({
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      <div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
         <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
           Add Player
           <AddPlayerSolidIcon className="w-[26px] h-[26px] text-[#60697c]" />
@@ -436,14 +436,14 @@ export function RosterPage({
           empty *group* keeps them: Show All Players is how you find out that the
           people you are missing are sitting in the group next door. */}
       {allPlayers.length === 0 ? (
-        <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 py-12 text-center">
+        <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 py-12 text-center">
           <p className="text-xl font-medium text-gray-400">Add your first player!</p>
           <p className="mt-2 text-sm text-gray-400">
             You&rsquo;ll need at least 4 to build a schedule.
           </p>
         </div>
       ) : (
-        <div className="roster-panel bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
           {/* Two columns, not two rows. The heading and the button under it are
               one column so the button follows the words it belongs to; the
               switch is the other. Stacked as rows, the switch is the taller of

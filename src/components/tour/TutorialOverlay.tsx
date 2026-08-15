@@ -345,7 +345,7 @@ export function TutorialOverlay({
           aria-label="End the tutorial?"
           className="pointer-events-auto fixed inset-0 flex items-center justify-center bg-black/40 px-4"
         >
-          <div className="w-full max-w-sm rounded-lg border border-[#ddd] bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-lg border border-panel-edge bg-white p-6 shadow-xl">
             <p className="text-center text-xl font-extrabold text-[#051829]">
               End the tutorial?
             </p>

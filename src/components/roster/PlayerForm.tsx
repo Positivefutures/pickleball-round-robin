@@ -101,12 +101,12 @@ export function PlayerForm({
 
   const actions = (
     <>
-      <button
-        type="submit"
-        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
-      >
-        {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
-      </button>
+      {/* Cancel first, so Update sits to its right. Every dialog in the app
+          that puts the two on one line does it this way round — the court
+          number, the score, and adding to a group — and this form was the
+          exception. Only the edit case shows both: adding a player has no
+          Cancel to sit beside. Order on the page only, and Enter still presses
+          the submit button wherever it is drawn. */}
       {editingPlayer && onCancelEdit && (
         <button
           type="button"
@@ -121,6 +121,12 @@ export function PlayerForm({
           Cancel
         </button>
       )}
+      <button
+        type="submit"
+        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
+      >
+        {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
+      </button>
       {/* Pushed to the far end of the row, away from the two buttons a thumb is
           aiming for. It only opens a warning; nothing goes on this press. */}
       {onDelete && (

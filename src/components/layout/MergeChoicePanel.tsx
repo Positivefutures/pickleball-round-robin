@@ -90,7 +90,7 @@ export function MergeChoicePanel({
       </p>
       <p className="mt-2 text-center text-[#69727F]">Nothing moves until you choose.</p>
 
-      <div className="mt-5 divide-y divide-[#E4E8EE] rounded-xl border border-[#D8DEE4] bg-[#F8F9FB]">
+      <div className="mt-5 divide-y divide-[#E4E8EE] rounded-xl border border-panel-edge bg-[#F8F9FB]">
         <Side where="On your account" counts={account} />
         <Side where="On this device" counts={device} />
       </div>

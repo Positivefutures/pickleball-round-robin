@@ -91,7 +91,7 @@ function SyncNote({ report }: { report: SyncReport | null }) {
 
   // off, starting, saving
   return (
-    <p className={`${note} border-[#D8DEE4] bg-[#F8F9FB] text-[#495668]`}>
+    <p className={`${note} border-panel-edge bg-[#F8F9FB] text-[#495668]`}>
       {sync.state === 'saving' ? 'Saving to your account...' : 'Checking your account...'}
     </p>
   );

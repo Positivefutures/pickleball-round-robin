@@ -31,6 +31,31 @@
   --color-brand-teal: #007d88;
   --color-brand-teal-dark: #006770;
   --color-brand-teal-light: #e8f7f8;
+
+  /**
+   * The line around a panel, and around the rows inside the Actions sheet.
+   *
+   * Not a brand colour, but here for the same reason they are: it was written
+   * out twenty six times across thirteen files, as #ddd in the page panels,
+   * #D8DEE4 in the sheet's lists and #E7E8EA on its nine tiles — three greys
+   * close enough to look like one and far enough apart to be three.
+   * `border-panel-edge` is now the only way to draw it, so they cannot drift
+   * again.
+   *
+   * Both were three quarters of the way from the background to white and did
+   * almost no work: a white panel on a #F9FAFB page, edged in something 1.36:1
+   * against the panel it was meant to be separating. This is that grey taken
+   * down a quarter, which lands at 2.43:1 — an edge somebody can actually see.
+   * Jeff's call on 2026-08-15.
+   *
+   * The coolest of the three survived. It is the grey the account and share
+   * panels are already built from, alongside #3D495A text and #F8F9FB fills;
+   * the neutral #ddd belonged to nothing.
+   *
+   * Steppers, tab pills and the rules inside a panel keep their own greys. They
+   * are not panel edges and were never part of the complaint.
+   */
+  --color-panel-edge: #a2a7ab;
 }
 
 /* No rubber banding, and no pull to refresh.

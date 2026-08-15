@@ -57,7 +57,7 @@ export function PlayerMenu({
           <button
             type="button"
             onClick={onEdit}
-            className={`${row} border-[#D8DEE4] bg-white text-gray-800 hover:bg-[#F1F3F6]`}
+            className={`${row} border-panel-edge bg-white text-gray-800 hover:bg-[#F1F3F6]`}
           >
             <PencilIcon className="h-5 w-5 text-gray-600" />
             Edit Player

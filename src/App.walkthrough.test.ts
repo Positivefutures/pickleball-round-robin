@@ -2457,7 +2457,7 @@ describe('the Actions sheet', () => {
 
       action(/^Sub a Player$/);
       clickButton(new RegExp(`^${going}`), sheet());
-      clickButton(/^Someone new$/, sheet());
+      clickButton(/^Someone New$/, sheet());
 
       // The form says what it is about to do, which is not what it says when
       // it is reached from Add a Player.
@@ -2536,7 +2536,7 @@ describe('the Actions sheet', () => {
 
       clickButton(/^Actions$/);
       clickButton(/^Add a Player$/, sheet());
-      clickButton(/^Someone new$/, sheet());
+      clickButton(/^Someone New$/, sheet());
       typeInto(nameBox(), 'Nia');
       clickButton(/^Add to Group and Session$/, sheet());
 

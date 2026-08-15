@@ -176,7 +176,7 @@ export function SetupPage({
   return (
     <div className="space-y-6">
       {/* No back button: the Players tab above the page is the way back. */}
-      <div className="relative overflow-hidden bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+      <div className="relative overflow-hidden bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
         {/* Decoration, held in the corner the mockup puts it in. A third of the
             panel is the share it has there, so it keeps that share on a phone
             rather than swallowing the corner; 144px is its own size and it never
@@ -217,7 +217,7 @@ export function SetupPage({
       <PartnerPlayNotice players={selectedPlayers} partnerships={partnerships} />
 
       {mode === 'select' && pairs.length > 0 && (
-        <div className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6">
+        <div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
           <div className="mb-3">
             {/* Heading and link on one line, the same shape as Select Players
                 below. The sentence sits under both, where it has the width. */}
@@ -246,7 +246,7 @@ export function SetupPage({
           anyway — the card points at the whole area, not at the heading. */}
       <div
         data-tutorial="select-players"
-        className="bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6"
+        className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6"
       >
         {mode === 'select' ? (
           <PlayerSelector

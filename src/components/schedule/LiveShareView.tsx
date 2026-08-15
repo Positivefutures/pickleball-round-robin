@@ -34,7 +34,7 @@ import { useStoredValue } from '../../hooks/useStoredValue';
 const PRIMARY =
   'w-full rounded-lg bg-[#018D31] px-4 py-3 font-bold text-white transition-colors hover:bg-[#017129] disabled:opacity-40 disabled:hover:bg-[#018D31]';
 const SECONDARY =
-  'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
+  'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
 /**
  * The three things you can do with a live link, side by side and built like the
  * cards on the Actions sheet: the glyph large, the label under it, the whole
@@ -44,7 +44,7 @@ const SECONDARY =
  */
 const TILE =
   'flex flex-1 basis-0 flex-col items-center gap-1.5 rounded-lg border px-1 py-3 shadow-sm transition-colors';
-const TILE_QUIET = `${TILE} border-[#D8DEE4] bg-white text-[#3D495A] hover:bg-[#F1F3F6]`;
+const TILE_QUIET = `${TILE} border-panel-edge bg-white text-[#3D495A] hover:bg-[#F1F3F6]`;
 const TILE_STOP = `${TILE} border-[#F0C3C3] bg-[#FDF2F2] text-[#B42121] hover:bg-[#FBE6E6]`;
 const TILE_LABEL = 'text-center text-sm font-bold leading-tight';
 const QUIET_TEXT = '#636A77';
@@ -207,7 +207,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
       </p>
 
       {/* select-all: one tap selects the whole address. */}
-      <p className="select-all break-all rounded-md border border-[#D8DEE4] bg-[#F8F9FB] px-3 py-2.5 text-sm font-medium text-[#3D495A]">
+      <p className="select-all break-all rounded-md border border-panel-edge bg-[#F8F9FB] px-3 py-2.5 text-sm font-medium text-[#3D495A]">
         {url}
       </p>
 

@@ -169,7 +169,7 @@ const SECONDARY =
 const DESTRUCTIVE =
   'w-full px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium';
 const ROW =
-  'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 text-left transition-colors hover:bg-[#F1F3F6]';
+  'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left transition-colors hover:bg-[#F1F3F6]';
 /**
  * Somebody who is not in the group yet, offered at the foot of a list of people
  * who are. In the lead colour throughout — border, glyph and label — on the pale
@@ -592,7 +592,7 @@ export function ActionsSheet({
                                       shadow-sm transition-colors disabled:opacity-40 ${
                                         card.filled
                                           ? 'border-transparent hover:brightness-90'
-                                          : 'border-[#E7E8EA] bg-white hover:bg-[#F8F9FB] disabled:hover:bg-white'
+                                          : 'border-panel-edge bg-white hover:bg-[#F8F9FB] disabled:hover:bg-white'
                                       }`}
                           style={card.filled ? { backgroundColor: card.color } : undefined}
                         >
@@ -643,7 +643,7 @@ export function ActionsSheet({
                       onClick={() => setView('new-player')}
                     >
                       <AddPlayerSolidIcon className="h-6 w-6" />
-                      Someone new
+                      Someone New
                     </button>
                     {addablePlayers.length === 0 && (
                       <p className="pt-2 text-sm" style={{ color: QUIET_TEXT }}>
@@ -714,7 +714,7 @@ export function ActionsSheet({
                       onClick={() => setView('new-player')}
                     >
                       <AddPlayerSolidIcon className="h-6 w-6" />
-                      Someone new
+                      Someone New
                     </button>
                   </div>
                 )}

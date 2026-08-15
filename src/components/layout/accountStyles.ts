@@ -32,7 +32,7 @@ export const blurb = 'mt-2 text-center text-lg leading-snug text-[#495668]';
 export const label = 'mb-1.5 block text-sm font-bold text-[#1F293D]';
 
 export const field =
-  'w-full rounded-lg border border-[#D8DEE4] bg-white px-3.5 py-3 text-lg text-[#1F293D] ' +
+  'w-full rounded-lg border border-panel-edge bg-white px-3.5 py-3 text-lg text-[#1F293D] ' +
   'placeholder:text-[#7F8497] focus:border-[#3D7E34] focus:outline-none focus:ring-2 focus:ring-[#3D7E34]/30';
 
 export const primary =
@@ -40,7 +40,7 @@ export const primary =
   'hover:bg-[#336B2B] disabled:cursor-not-allowed disabled:bg-[#AFC9AA]';
 
 export const secondary =
-  'w-full rounded-lg border border-[#D8DEE4] bg-[#F7F7F8] px-4 py-3 text-lg font-medium ' +
+  'w-full rounded-lg border border-panel-edge bg-[#F7F7F8] px-4 py-3 text-lg font-medium ' +
   'text-[#3A4353] transition-colors hover:bg-[#EDF0F4] disabled:cursor-not-allowed disabled:opacity-60';
 
 /**
@@ -50,7 +50,7 @@ export const secondary =
  * slabs — the complaint that started this rebuild.
  */
 export const row =
-  'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 ' +
+  'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 ' +
   'text-left transition-colors hover:bg-[#F1F3F6] disabled:cursor-not-allowed disabled:opacity-60';
 
 export const rowTitle = 'block font-bold text-[#1F293D]';

@@ -121,6 +121,20 @@ describe('the list of groups', () => {
     expect(text(container)).toContain('Tuesday Crew');
     expect(text(container)).toContain('(2)');
   });
+
+  it('sets the name in bold and leaves the count beside it plain', () => {
+    // The row is two things, not one label: what the group is called, and how
+    // many are in it. Bolding both makes it read as a single long name.
+    // Classes rather than measurements — happy-dom has no type to weigh.
+    render();
+    const row = [...container.querySelectorAll('span')].find(
+      (s) => s.textContent?.startsWith('Tuesday Crew')
+    )!;
+    expect(row.className.split(/\s+/)).toContain('font-bold');
+    const count = row.querySelector('span')!;
+    expect(text(count)).toBe('(2)');
+    expect(count.className.split(/\s+/)).toContain('font-normal');
+  });
 });
 
 describe('opening a group for editing', () => {

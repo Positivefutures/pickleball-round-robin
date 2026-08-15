@@ -332,7 +332,7 @@ function Notice({
   retrying?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-[#ddd] bg-white px-4 py-8 text-center shadow">
+    <div className="rounded-lg border border-panel-edge bg-white px-4 py-8 text-center shadow">
       <p className="text-lg font-bold text-[#222]">{title}</p>
       {body && <p className="mt-1 text-sm text-gray-600">{body}</p>}
       {onRetry && (

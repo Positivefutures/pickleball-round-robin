@@ -107,7 +107,7 @@ export function StandingsPanel({
       ref={panelRef}
       // Scrolled to from every round card above, so it needs a little air over
       // its heading once it lands rather than sitting against the top edge.
-      className="scroll-mt-4 bg-white rounded-lg shadow border border-[#ddd] px-3 pt-[1.125rem] pb-6"
+      className="scroll-mt-4 bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6"
     >
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h3 className="text-[1.35rem] font-extrabold text-[#222]">Standings</h3>
