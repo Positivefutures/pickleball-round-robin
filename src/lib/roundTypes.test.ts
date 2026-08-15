@@ -33,36 +33,44 @@ describe('planRoundTypes', () => {
     expect(planRoundTypes(DEFAULT_SPECIAL_TYPES, 5)).toEqual([null, null, null, null, null]);
   });
 
-  it('starts a lone type on round 1 and repeats every N', () => {
-    expect(shape(config({ mixed: 3 }), 8)).toBe('M — — M — — M —');
+  it('starts a lone type on round N and repeats every N', () => {
+    expect(shape(config({ mixed: 3 }), 8)).toBe('— — M — — M — —');
   });
 
   it('fills every round when the only type is set to every round', () => {
     expect(shape(config({ skill: 1 }), 4)).toBe('S S S S');
   });
 
-  // Round 1 was unreachable before: with two types on, the shortest gap either
-  // could have was 2, and the first round of a type was not due until round N.
-  it('always opens the session on a game type', () => {
+  /**
+   * "Every 4 rounds" means the fourth one.
+   *
+   * It used to mean rounds 1 and 5, so every session opened on a special game
+   * whatever the setting said. Asking for a gendered round every four rounds is
+   * asking for the fourth, and a session that opens on one has waited for
+   * nothing.
+   */
+  it('waits its frequency out before the first one', () => {
     for (let frequency = 1; frequency <= 8; frequency++) {
-      expect(shape(config({ gendered: frequency, mixed: frequency }), 8)[0]).not.toBe('—');
-      expect(shape(config({ gendered: frequency }), 8)[0]).toBe('G');
+      const plan = planRoundTypes(config({ gendered: frequency }), 16);
+      expect(plan.indexOf('gendered')).toBe(frequency - 1);
     }
   });
 
-  it('still fits a type into a session shorter than its frequency', () => {
-    expect(shape(config({ gendered: 4 }), 3)).toBe('G — —');
+  it('gives none at all to a session shorter than the frequency', () => {
+    // The honest answer, and the cost of the rule above. Setup says so rather
+    // than quietly playing one in round 1.
+    expect(shape(config({ gendered: 4 }), 3)).toBe('— — —');
   });
 
-  // On the clash at round 2 the rarer gendered round wins, and mixed slides to
-  // the next round and counts on from there rather than being skipped.
+  // Both fall due on round 4. The rarer gendered round wins it, and mixed
+  // slides to round 5 and counts on from there rather than being skipped.
   it('bumps the loser of a clash to the next round', () => {
-    expect(shape(config({ gendered: 4, mixed: 2 }), 8)).toBe('G M — M G M — M');
+    expect(shape(config({ gendered: 4, mixed: 2 }), 8)).toBe('— M — G M — M G');
   });
 
   it('lets two types at the same frequency take turns rather than starving one', () => {
     expect(shape(config({ gendered: 1, mixed: 1 }), 8)).toBe('G M G M G M G M');
-    expect(shape(config({ gendered: 2, mixed: 2 }), 8)).toBe('G M G M G M G M');
+    expect(shape(config({ gendered: 2, mixed: 2 }), 8)).toBe('— G M G M G M G');
     expect(shape(config({ gendered: 1, mixed: 1, skill: 1 }), 6)).toBe('G M S G M S');
   });
 
@@ -99,14 +107,14 @@ describe('planRoundTypes', () => {
 
   it("follows the host's order when two types are set the same", () => {
     expect(shape(config({ gendered: 2, mixed: 2 }, ['mixed', 'gendered', 'skill']), 6))
-      .toBe('M G M G M G');
+      .toBe('— M G M G M');
   });
 
   it("leaves the rarer type first even when the host puts another above it", () => {
     // Rarity has to outrank the host's order, or a frequent type placed on top
     // would keep bumping a rare one until it never played.
     expect(shape(config({ gendered: 4, mixed: 2 }, ['mixed', 'gendered', 'skill']), 8))
-      .toBe('G M — M G M — M');
+      .toBe('— M — G M — M G');
   });
 });
 
@@ -162,18 +170,18 @@ describe('moveType', () => {
       .toEqual(['gendered', 'mixed', 'skill']);
   });
 
-  it('changes which type opens the session', () => {
+  it('changes which type takes the round they both fall due on', () => {
     const cfg = config({ gendered: 2, mixed: 2 });
-    expect(shape(cfg, 2)).toBe('G M');
-    expect(shape(moveType(cfg, 'mixed', -1), 2)).toBe('M G');
+    expect(shape(cfg, 3)).toBe('— G M');
+    expect(shape(moveType(cfg, 'mixed', -1), 3)).toBe('— M G');
   });
 });
 
 describe('specialSummary', () => {
   it('reads back what is switched on, with the rounds it lands on', () => {
     expect(specialSummary(config({ gendered: 4, mixed: 2 }), 8)).toEqual([
-      { type: 'gendered', headline: 'Gendered every 4 rounds', rounds: [1, 5] },
-      { type: 'mixed', headline: 'Mixed every 2 rounds', rounds: [2, 4, 6, 8] },
+      { type: 'gendered', headline: 'Gendered every 4 rounds', rounds: [4, 8] },
+      { type: 'mixed', headline: 'Mixed every 2 rounds', rounds: [2, 5, 7] },
     ]);
   });
 
@@ -182,12 +190,13 @@ describe('specialSummary', () => {
   });
 
   it('reports no rounds for a type the session never reaches', () => {
-    // Mixed takes round 1 as the rarer type, and gendered is not due again
-    // within two rounds.
+    // Eight rounds apart in a session of four: it never comes round at all,
+    // and the panel has to be able to say so.
+    expect(specialSummary(config({ skill: 8 }), 4)[0].rounds).toEqual([]);
+
     const summary = specialSummary(config({ gendered: 1, mixed: 8 }), 2);
-    expect(summary.find((s) => s.type === 'mixed')?.rounds).toEqual([1]);
-    expect(summary.find((s) => s.type === 'gendered')?.rounds).toEqual([2]);
-    expect(specialSummary(config({ skill: 8 }), 4)[0].rounds).toEqual([1]);
+    expect(summary.find((s) => s.type === 'gendered')?.rounds).toEqual([1, 2]);
+    expect(summary.find((s) => s.type === 'mixed')?.rounds).toEqual([]);
   });
 
   it('agrees with the plan exactly', () => {

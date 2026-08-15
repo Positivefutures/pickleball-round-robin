@@ -120,6 +120,32 @@ export function RoundCard({
     </span>
   );
 
+  /**
+   * The way down to the table this round feeds. A long session is several
+   * screens of rounds and the standings are under all of them.
+   *
+   * Only on a round showing its courts. A completed one collapses to a single
+   * bar, and hanging a link off each of those would double the height of the
+   * stack at the top of the page, for a link that is a scroll away from there
+   * anyway.
+   *
+   * Built here rather than inline because it has two homes: the far end of the
+   * SITTING OUT line, and its own row on a round where nobody is sitting out.
+   */
+  const standingsLink =
+    showBody && onViewStandings ? (
+      <button
+        type="button"
+        onClick={onViewStandings}
+        // Set against SITTING OUT beside it: both 1rem, and both bold, which is
+        // what lets them share a line without one shouting over the other.
+        className="no-print flex shrink-0 items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+      >
+        View Standings
+        <ChevronDownIcon className="h-4 w-4" />
+      </button>
+    ) : null;
+
   return (
     <div
       className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
@@ -247,30 +273,14 @@ export function RoundCard({
             onOpenPlayerMenu={onOpenPlayerMenu}
             allPlayers={allPlayers}
             readOnly={isComplete}
+            action={standingsLink}
           />
+          {/* Nobody sitting out, so there is no line for it to share. It keeps
+              the place it has always had. */}
+          {round.sitOuts.length === 0 && standingsLink && (
+            <div className="mt-3 flex justify-end">{standingsLink}</div>
+          )}
         </>
-      )}
-
-      {/* The way down to the table this round feeds. A long session is several
-          screens of rounds and the standings are under all of them.
-
-          Only on a round showing its courts. A completed one collapses to a
-          single bar, and hanging a link off the bottom of each of those would
-          double the height of the stack at the top of the page, for a link that
-          is a scroll away from there anyway. */}
-      {showBody && onViewStandings && (
-        <div className="mt-3 flex justify-end no-print">
-          <button
-            type="button"
-            onClick={onViewStandings}
-            // Set against SITTING OUT on the same card: both 1rem, and now both
-            // bold, which is the difference that was left between them.
-            className="flex items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
-          >
-            View Standings
-            <ChevronDownIcon className="h-4 w-4" />
-          </button>
-        </div>
       )}
     </div>
   );

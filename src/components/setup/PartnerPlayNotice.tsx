@@ -39,8 +39,9 @@ export function PartnerPlayNotice({
           Partner play: {partnerPlay.teams.length} teams
         </p>
         <p className="mt-0.5 text-sm text-[#3730a3]">
-          Pairs stay together all session. Each team meets all the others before
-          any rematch.
+          Partners stay together all session except for{' '}
+          <strong className="font-bold">Special Game Type</strong> rounds like a{' '}
+          <strong className="font-bold">Gendered</strong> round.
         </p>
       </div>
 

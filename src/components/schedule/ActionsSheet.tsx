@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { Gender, Player, Round, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { isScored } from '../../lib/standings';
-import { DISCARD_WARNING } from '../../lib/steps';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PlayerForm } from '../roster/PlayerForm';
 import {
@@ -143,7 +142,7 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   // together at render time and set larger than the rest: on this panel the line
   // under the title is the question being asked, not a caption on it.
   reshuffle: { title: 'Reshuffle' },
-  'new-session': { title: 'New round robin?' },
+  'new-session': { title: 'New Round Robin?' },
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
   'remove-court': { title: 'Remove a Court', sub: 'Which court is going?' },
@@ -795,12 +794,25 @@ export function ActionsSheet({
 
                 {view === 'new-session' && (
                   <div className={CONFIRM}>
-                    {/* The same sentence the step tabs say. See lib/steps. */}
-                    <p className="text-gray-700">{DISCARD_WARNING}</p>
-                    <p className="text-sm" style={{ color: QUIET_TEXT }}>
-                      The same crowd stays selected, ready for the next one.
+                    <p className="text-gray-700">
+                      This will discard the current schedule including any scores
+                      you&rsquo;ve entered.
                     </p>
-                    <div className={CONFIRM_FOOT}>
+                    <p className="text-sm" style={{ color: QUIET_TEXT }}>
+                      The same set of players are selected again; however, you can
+                      change them.
+                    </p>
+                    {/* One line, Cancel on the left. The pair reads as a choice
+                        rather than as a button with an afterthought under it,
+                        and the way out is where a way out belongs. */}
+                    <div className={`${CONFIRM_FOOT} flex gap-3 space-y-0`}>
+                      <button
+                        type="button"
+                        className={SECONDARY}
+                        onClick={() => setView('menu')}
+                      >
+                        Cancel
+                      </button>
                       <button
                         type="button"
                         className={DESTRUCTIVE}
@@ -810,9 +822,6 @@ export function ActionsSheet({
                         }}
                       >
                         Yes, Start New
-                      </button>
-                      <button type="button" className={SECONDARY} onClick={() => setView('menu')}>
-                        Cancel
                       </button>
                     </div>
                   </div>

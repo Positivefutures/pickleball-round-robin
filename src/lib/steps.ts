@@ -12,11 +12,16 @@ export function stepLabel(step: Step): string {
 }
 
 /**
- * What leaving a schedule costs, in one sentence.
+ * What replacing a schedule costs, in one sentence.
  *
- * There are three doors out of a schedule: the Setup tab, the Players tab, and
- * New Round Robin in the Actions sheet. Each names itself, and each says this,
- * so no route out can quietly undersell what it throws away.
+ * It used to be said by three doors — the Setup tab, the Players tab and New
+ * Round Robin. The tabs no longer take anything away, so this is down to
+ * Generate, which is the one thing that writes over a schedule.
+ *
+ * New Round Robin says its own version, in Jeff's words on 2026-08-15. The two
+ * differ on purpose: this one is about a rebuild, where the swaps and the ticks
+ * are what somebody would miss, and that one is about clearing the afternoon,
+ * where it is the scores.
  */
 export const DISCARD_WARNING =
   "This will discard the current schedule including any swaps you've made " +

@@ -111,24 +111,35 @@ export function moveType(
 /**
  * Works out which type, if any, each round is played in.
  *
- * Every switched-on type wants round 1, then another every `frequency` rounds.
- * When two fall due on the same round the rarer one — the bigger frequency —
- * takes it, because it has fewer chances to happen at all. The one that lost
- * slides to the very next round and counts from there, so it still gets its
- * share rather than being skipped. Rounds nobody claims are ordinary round
- * robin.
+ * "Every N rounds" means the Nth round, then every N after it: every 4 is
+ * rounds 4 and 8, not 1 and 5. When two fall due on the same round the rarer
+ * one — the bigger frequency — takes it, because it has fewer chances to happen
+ * at all. The one that lost slides to the very next round and counts from
+ * there, so it still gets its share rather than being skipped. Rounds nobody
+ * claims are ordinary round robin.
  *
  * Gendered every 4 with mixed every 2 gives:
- * gendered, mixed, normal, mixed, gendered, mixed, normal, mixed.
+ * normal, mixed, normal, gendered, normal, mixed, normal, gendered.
  */
 export function planRoundTypes(
   cfg: SpecialGameTypes,
   numRounds: number
 ): (RoundType | null)[] {
   const active = enabledTypes(cfg);
-  // Everything is due in round 1, so a session always opens on a game type and
-  // a short session still gets one. "Every 4 rounds" means 1, 5, 9 — not 4, 8.
-  const nextDue = new Map(active.map((t) => [t, 1]));
+  /**
+   * Each type falls due after it has waited its frequency out, so "every 4
+   * rounds" first lands on round 4.
+   *
+   * It used to be due in round 1, which made every session open on a special
+   * game and read as "one now, then every 4". Jeff's call on 2026-08-15: asking
+   * for a gendered round every four rounds is asking for the fourth one, and a
+   * session that opens on one has not waited for anything.
+   *
+   * The cost is that a session shorter than the frequency gets none at all,
+   * which is the honest answer — Setup says so, in as many words, rather than
+   * quietly playing one in round 1.
+   */
+  const nextDue = new Map(active.map((t) => [t, cfg[t].frequency]));
   const played = new Map(active.map((t) => [t, 0]));
   const plan: (RoundType | null)[] = [];
 

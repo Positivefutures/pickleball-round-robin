@@ -1014,13 +1014,14 @@ describe('Special Game Types', () => {
     expect(container.textContent).toContain('Special Game Types');
 
     clickButton(/^Generate Schedule/);
-    expect(text(roundCard(1))).toContain('Mixed Round');
-    expect(text(roundCard(2))).not.toContain('Mixed Round');
-    expect(storedSchedule().rounds[0].roundType).toBe('mixed');
-    expect(storedSchedule().rounds[1].roundType).toBeUndefined();
+    // Every 2 rounds means the second one. Round 1 waits.
+    expect(text(roundCard(2))).toContain('Mixed Round');
+    expect(text(roundCard(1))).not.toContain('Mixed Round');
+    expect(storedSchedule().rounds[1].roundType).toBe('mixed');
+    expect(storedSchedule().rounds[0].roundType).toBeUndefined();
   });
 
-  it('gives round 1 to a type when two are switched on', () => {
+  it('gives the first special round to a type when two are switched on', () => {
     mount();
     clickButton(/^Continue to Setup/);
     clickButton(/^Special Game Types$/);
@@ -1028,19 +1029,20 @@ describe('Special Game Types', () => {
     sayYes('mixed');
     clickButton(/^Done$/);
 
-    // Both keep their own frequency, and they take turns from round 1.
+    // Both keep their own frequency, and they take turns once they fall due.
     expect(container.textContent).toContain('Gendered every 2 rounds');
     expect(container.textContent).toContain('Mixed every 2 rounds');
 
     clickButton(/^Generate Schedule/);
     const types = storedSchedule().rounds.map((r) => r.roundType);
-    expect(types[0]).toBe('gendered');
-    expect(types[1]).toBe('mixed');
+    expect(types[0]).toBeUndefined();
+    expect(types[1]).toBe('gendered');
+    expect(types[2]).toBe('mixed');
     expect(types.filter((t) => t === 'gendered').length).toBeGreaterThan(0);
     expect(types.filter((t) => t === 'mixed').length).toBeGreaterThan(0);
   });
 
-  it('lets the host reorder the types, changing which opens the session', () => {
+  it('lets the host reorder the types, changing which takes the first one', () => {
     mount();
     clickButton(/^Continue to Setup/);
     clickButton(/^Special Game Types$/);
@@ -1051,8 +1053,8 @@ describe('Special Game Types', () => {
 
     clickButton(/^Generate Schedule/);
     const types = storedSchedule().rounds.map((r) => r.roundType);
-    expect(types[0]).toBe('mixed');
-    expect(types[1]).toBe('gendered');
+    expect(types[1]).toBe('mixed');
+    expect(types[2]).toBe('gendered');
   });
 
   // 12 players, six of each gender, on 3 courts. Four men fill one court and
@@ -1079,16 +1081,17 @@ describe('Special Game Types', () => {
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
 
-      const round1 = storedSchedule().rounds[0];
-      expect(round1.roundType).toBe('gendered');
-      expect(round1.courts).toHaveLength(3);
-      expect(round1.courts.filter((c) => genderCount(c) === 1)).toHaveLength(2);
+      // Gendered every 2 rounds, so the second one is the gendered one.
+      const gendered = storedSchedule().rounds[1];
+      expect(gendered.roundType).toBe('gendered');
+      expect(gendered.courts).toHaveLength(3);
+      expect(gendered.courts.filter((c) => genderCount(c) === 1)).toHaveLength(2);
 
       // The sheet has the width for it and no scoreboard to put it under.
-      expect(printedRound(1).match(/\(normal game\)/g)).toHaveLength(1);
+      expect(printedRound(2).match(/\(normal game\)/g)).toHaveLength(1);
       // The court panel does not, so nothing is written on it. The card above
       // it carries the explanation instead.
-      expect(text(roundCard(1))).not.toContain('Normal game');
+      expect(text(roundCard(2))).not.toContain('Normal game');
     });
 
     it('says on the card why the leftover court is not a gendered game', () => {
@@ -1101,17 +1104,17 @@ describe('Special Game Types', () => {
 
       // Six men and six women on three courts: one men's court, one women's,
       // and two of each left over.
-      const round1 = storedSchedule().rounds[0];
-      expect(round1.courts.filter((c) => genderCount(c) > 1)).toHaveLength(1);
+      const gendered = storedSchedule().rounds[1];
+      expect(gendered.courts.filter((c) => genderCount(c) > 1)).toHaveLength(1);
 
-      expect(text(roundCard(1))).toContain(
+      expect(text(roundCard(2))).toContain(
         'A gendered game needs four men or four women. The 2 men and 2 women left over cannot make one.'
       );
       // One line, under the one court that missed, not under every court.
-      expect(text(roundCard(1)).match(/A gendered game needs/g)).toHaveLength(1);
+      expect(text(roundCard(2)).match(/A gendered game needs/g)).toHaveLength(1);
 
       // And under it rather than over it: the names first, the reason second.
-      const note = [...roundCard(1).querySelectorAll('p')].find((p) =>
+      const note = [...roundCard(2).querySelectorAll('p')].find((p) =>
         (p.textContent ?? '').startsWith('A gendered game needs')
       );
       if (!note) throw new Error('no reason on the card');
@@ -1127,8 +1130,8 @@ describe('Special Game Types', () => {
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
 
-      expect(storedSchedule().rounds[0].roundType).toBe('mixed');
-      expect(text(roundCard(1))).not.toContain('A mixed game needs');
+      expect(storedSchedule().rounds[1].roundType).toBe('mixed');
+      expect(text(roundCard(2))).not.toContain('A mixed game needs');
     });
 
     it('says nothing on an ordinary round, which is not trying to be a format', () => {
@@ -1139,9 +1142,9 @@ describe('Special Game Types', () => {
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
 
-      // Gendered every two rounds, so round 2 is an ordinary one.
-      expect(storedSchedule().rounds[1].roundType).toBeUndefined();
-      expect(text(roundCard(2))).not.toContain('A gendered game needs');
+      // Gendered every two rounds, so round 1 is an ordinary one.
+      expect(storedSchedule().rounds[0].roundType).toBeUndefined();
+      expect(text(roundCard(1))).not.toContain('A gendered game needs');
     });
 
     it('says nothing on paper either when every court is in format', () => {
@@ -1152,8 +1155,8 @@ describe('Special Game Types', () => {
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
 
-      expect(storedSchedule().rounds[0].roundType).toBe('mixed');
-      expect(printedRound(1)).not.toContain('normal game');
+      expect(storedSchedule().rounds[1].roundType).toBe('mixed');
+      expect(printedRound(2)).not.toContain('normal game');
     });
 
     it('marks who is on a court, and leaves the bench alone', () => {
@@ -1168,17 +1171,17 @@ describe('Special Game Types', () => {
       clickButton(/^Done$/);
       clickButton(/^Generate Schedule/);
 
-      expect(storedSchedule().rounds[0].roundType).toBe('gendered');
-      const benched = storedSchedule().rounds[0].sitOuts;
+      expect(storedSchedule().rounds[1].roundType).toBe('gendered');
+      const benched = storedSchedule().rounds[1].sitOuts;
       expect(benched).toHaveLength(1);
 
       const marked = (name: string) =>
-        [...roundCard(1).querySelectorAll('span[title]')].some((s) =>
+        [...roundCard(2).querySelectorAll('span[title]')].some((s) =>
           (s.getAttribute('title') ?? '').startsWith(`${name} is a `)
         );
 
       // Everybody on a court carries one; the one on the bench does not.
-      for (const p of storedSchedule().rounds[0].courts.flatMap((c) => [...c.team1, ...c.team2])) {
+      for (const p of storedSchedule().rounds[1].courts.flatMap((c) => [...c.team1, ...c.team2])) {
         expect(marked(p.name), `${p.name} is playing`).toBe(true);
       }
       expect(marked(benched[0].name), `${benched[0].name} is sitting out`).toBe(false);
@@ -1355,7 +1358,13 @@ describe('the step tabs', () => {
     generate();
 
     action(/^New Round Robin$/);
-    expect(text(sheet())).toContain('New round robin?');
+    expect(text(sheet())).toContain('New Round Robin?');
+    expect(text(sheet())).toContain(
+      'This will discard the current schedule including any scores you\u2019ve entered.'
+    );
+    expect(text(sheet())).toContain(
+      'The same set of players are selected again; however, you can change them.'
+    );
   });
 
   describe('and what the Players tab does to the schedule', () => {
@@ -1537,27 +1546,33 @@ describe('the step tabs', () => {
     expect(container.textContent).toContain('Actions');
   });
 
-  // Two doors still warn about the same loss in the same words. Pinned so a
-  // future edit to one cannot quietly leave the other saying less.
-  it('warns in the same words whichever door is taken', () => {
-    const said = () =>
-      text(container).includes(
-        "This will discard the current schedule including any swaps you've made " +
-          "and rounds you've marked complete."
-      );
-
+  /**
+   * Both doors out of a schedule say what it costs, and they no longer say it
+   * in the same words.
+   *
+   * Generate is a rebuild, so what somebody would miss is the swaps and the
+   * ticks. New Round Robin clears the afternoon, so what they would miss is the
+   * scores. Pinned as a pair so an edit to one cannot quietly leave the other
+   * promising something it does not do.
+   */
+  it('says what each door costs, in its own words', () => {
     mount();
     generate();
     markComplete(1);
 
     click(setupTab());
     clickButton(/^Generate Schedule/);
-    expect(said()).toBe(true);
+    expect(text(container)).toContain(
+      "This will discard the current schedule including any swaps you've made " +
+        "and rounds you've marked complete."
+    );
     clickButton(/^Cancel$/);
 
     click(scheduleTab());
     action(/^New Round Robin$/);
-    expect(said()).toBe(true);
+    expect(text(sheet())).toContain(
+      'This will discard the current schedule including any scores you\u2019ve entered.'
+    );
   });
 
   // The tabs are now the only way back, so nothing else would notice a stray

@@ -214,13 +214,13 @@ describe('Set Partners against a special game type', () => {
       ...DEFAULT_SPECIAL_TYPES,
       gendered: { enabled: true, frequency: 2 },
     };
-    // Every 2 rounds counts from round 1, so gendered lands on 1 and 3 and the
-    // ordinary rounds either side of it are 2 and 4.
+    // Every 2 rounds means the second one, so gendered lands on 2 and 4 and the
+    // ordinary rounds either side of it are 1 and 3.
     const s = generateSchedule(roster(8, 8), 4, 4, specials, couple(0, 8));
-    expect(s.rounds[0].roundType).toBe('gendered');
-    expect(s.rounds[1].roundType).toBeUndefined();
-    expect(together(s.rounds[1], 'p0', 'p8')).toBe(true);
-    expect(s.rounds[3].roundType).toBeUndefined();
-    expect(together(s.rounds[3], 'p0', 'p8')).toBe(true);
+    expect(s.rounds[1].roundType).toBe('gendered');
+    expect(s.rounds[0].roundType).toBeUndefined();
+    expect(together(s.rounds[0], 'p0', 'p8')).toBe(true);
+    expect(s.rounds[2].roundType).toBeUndefined();
+    expect(together(s.rounds[2], 'p0', 'p8')).toBe(true);
   });
 });

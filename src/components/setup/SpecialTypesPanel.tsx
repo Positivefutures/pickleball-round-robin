@@ -155,8 +155,9 @@ export function SpecialTypesPanel({ specialTypes, onChange, onMove, onClose }: P
 
         <div className="mt-6 space-y-2 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
           <p>
-            Every type you switch on starts at round 1. When two of them want the same round, the
-            rarer one goes first and your order settles a tie.
+            Every 4 rounds means round 4, then round 8. A type never plays before it has
+            waited its turn out, so a session shorter than that gets none. When two of them
+            want the same round, the rarer one goes first and your order settles a tie.
           </p>
           <p>
             Special game types come first. A pair from Set Partners is split for that round only if

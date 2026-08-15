@@ -244,30 +244,12 @@ function Session({
                   ))}
                 </div>
 
-                {round.sitOuts.length > 0 && (
-                  <div className="mt-4">
-                    <p className="mb-2 font-bold text-white">SITTING OUT</p>
-                    <div className="flex flex-wrap gap-2">
-                      {round.sitOuts.map((player) => (
-                        <span
-                          key={player.id}
-                          className="inline-flex items-center rounded-md border bg-gray-100 px-3 py-2"
-                          style={{ borderColor: ROUND_EDGE }}
-                        >
-                          <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
-                            {player.name}
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* The way down to the table this round feeds, the same link the
-                    host's rounds carry. Only while the round is open, and only
-                    when there is a table under all of this to go to. */}
-                {snapshot.scoringEnabled && (
-                  <div className="mt-3 flex justify-end">
+                {/* The way down to the table this round feeds, the same link
+                    the host's rounds carry and in the same place: the far end
+                    of the SITTING OUT line, or its own row on a round where
+                    nobody is sitting out. Only when there is a table to go to. */}
+                {(() => {
+                  const link = snapshot.scoringEnabled ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -276,14 +258,40 @@ function Session({
                           block: 'start',
                         })
                       }
-                      // Set against SITTING OUT above it, as on the host's card.
-                      className="flex items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+                      // Set against SITTING OUT beside it, as on the host's card.
+                      className="flex shrink-0 items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
                     >
                       View Standings
                       <ChevronDownIcon className="h-4 w-4" />
                     </button>
-                  </div>
-                )}
+                  ) : null;
+
+                  if (round.sitOuts.length === 0) {
+                    return link && <div className="mt-3 flex justify-end">{link}</div>;
+                  }
+
+                  return (
+                    <div className="mt-4">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="font-bold text-white">SITTING OUT</p>
+                        {link}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {round.sitOuts.map((player) => (
+                          <span
+                            key={player.id}
+                            className="inline-flex items-center rounded-md border bg-gray-100 px-3 py-2"
+                            style={{ borderColor: ROUND_EDGE }}
+                          >
+                            <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
+                              {player.name}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             )}
           </section>

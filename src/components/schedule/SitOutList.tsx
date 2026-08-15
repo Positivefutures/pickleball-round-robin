@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
@@ -18,6 +19,17 @@ interface Props {
   swappedIds?: string[];
   /** Which swap those ids belong to, so a second one restarts the fade. */
   swapSeq?: number;
+  /**
+   * Something to sit on the far end of the SITTING OUT line — View Standings,
+   * on both the host's card and the live view.
+   *
+   * It rides here rather than under the chips because the two are the same size
+   * and weight and were a hand's width apart down the card, which read as two
+   * separate things rather than as a heading and the way on from it. The caller
+   * still owns what happens when there is nobody sitting out and so no line for
+   * it to sit on.
+   */
+  action?: ReactNode;
 }
 
 function SitOutBox({
@@ -98,6 +110,7 @@ export function SitOutList({
   readOnly = false,
   swappedIds,
   swapSeq,
+  action,
 }: Props) {
   // Nobody sitting out is nothing to say. The row used to render empty to carry
   // an Add Player button; that button has gone back to the Actions sheet.
@@ -108,7 +121,10 @@ export function SitOutList({
       {/* Set to match COURT # on the panels beside it: no size class on either,
           so both inherit 1rem and both grow together in large text. White, like
           everything else printed straight onto the round's card. */}
-      <p className="mb-2 font-bold text-white">SITTING OUT</p>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="font-bold text-white">SITTING OUT</p>
+        {action}
+      </div>
       <div className="flex flex-wrap gap-2">
         {players.map((player, sitOutIdx) => (
           <SitOutBox
