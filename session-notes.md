@@ -705,7 +705,7 @@ when it went live at 1.60.1, so there should be real numbers to look at now.
 
 ---
 
-## Current State — 2026-08-08
+## Snapshot — 2026-08-08 (superseded, kept for its open questions)
 
 **`1.9.1` is live at https://app.pbroundrobin.com**, commit `d22390d`, verified
 against the live host: the footer reads v1.9.1, the app renders, a signed-out
@@ -763,3 +763,136 @@ scratch Supabase project (Tier B, item 4).
   exercise of that path was the seed race, and Phase 4 removed the race.
 - The three new panels have **no automated coverage**. Nothing in the 260 tests
   mounts them; the eight-state render harness is a throwaway, not a test.
+
+---
+
+## 2026-08-14 — The scheduler audit: fairness overhauled, measured, documented
+
+Six commits, deployed as **3.20** (from 3.11) and verified against the live
+bundle: it carries "3.20" and the new `sitOutOrder` code. The approved plan is
+`PLANS/round-robin-algorithm-audit.md`.
+
+| Commit | What |
+|---|---|
+| `8fdf979` | MEASURE=1 quality harness, baseline recorded in its header |
+| `5ee6a00` | Unbiased first sit-out draw, and a cycle that repeats its order |
+| `41405da` | Partner variety outranks the balance cap; fresh-team matcher |
+| `6a789a4` | Eight pinned tests, each sabotage-proved; `partnerRepeatCost` unified |
+| `4af5109` | Docs: in-app copy, `docs/how-the-scheduler-thinks.md`, PRODUCT-CONTEXT §4 |
+| `0a5f90f` | Version to 3.20 and ship |
+
+### What the audit found (instrumented runs, thousands of schedules)
+
+Jeff's repeat-partner report (Mike and Jay teamed in rounds 8 and 9) had three
+causes. The history stored counts but never *when*, so a back-to-back repeat
+cost the same as one nine rounds apart, and 100% of consecutive repeats
+happened while never-partnered pairs were available. The group-of-four builder
+merged partner and opponent counts into one number, so it could not tell a past
+teammate from a past opponent. And the 0.5 rating cap carried a 200x penalty
+that outranked a first repeat about 20:1 — 44% of repeats were the solver
+buying a balanced court with a repeated partnership. Separately, the
+`Math.random() - 0.5` sort comparator made the first roster entry sit out
+round 1 about 3x too often, and the sit-out rotation re-randomised each cycle.
+
+### What changed
+
+- **Priorities confirmed by Jeff, in order:** fair sit-outs, partner variety,
+  opponent variety, even games, special-type fairness, and (new, lowest)
+  courts leaning all-gendered or 2:2 over 3:1, with 3 men + 1 woman worst.
+  Variety beats the 0.5 cap by explicit decision.
+- **Sit-outs:** pre-assigned random keys replace the biased comparator
+  (chi-square 335 → 9). A new `sitOutOrder` in `PairingHistory` records who
+  first sat when; the sort prefers that order once games-played ties are
+  settled, so cycle two repeats cycle one exactly (measured 100%, was 9%).
+- **One cost function.** `pickBestSplit` had its own weight set (exp 1.5,
+  partner 8) quietly disagreeing with `scoreAssignment` (exp 2.0, partner 10).
+  Both now go through `scoreCourt`, and `partnerRepeatCost` is the single
+  price of a repeat, used by the scorer, the matcher and the short-court draw.
+- **New weights:** repeat 40 (was 10), fresh-team bonus 15, recency fine 25-50
+  inside a two-round window, cap overage 150/point past 0.5 (was a 200 wall),
+  gender shape 8/4. The greedy builder counts partnering double.
+- **A third search strategy.** `buildFreshTeamCourts` matches players straight
+  off the never-partnered graph with a 2-opt repair, then pairs teams into
+  courts. Repeats now sit at the structural floor: level ratings measure 153
+  against a mathematical minimum of 150; 16 players over 8 rounds is perfect.
+- **The 2v1 pair side** joins the variety accounting through the rotation
+  tie-break (back-to-back repeats there went 37 → ~5 per 25 schedules).
+
+### The measured price, stated plainly
+
+Variety winning costs balance: ~2.3% of courts in an 8-round session go past
+the 0.5 target (was 0.044%), max seen 1.25 there, p95 0.75-1.0 in long
+sessions. Gender shape cannot approach zero: the novelty bonus (25) outranks
+the shape fine (8) *by design* — meeting everyone is priority 3, shape is
+priority 6 — so roughly one court a round is 3:1 early on, improving late.
+Also parity maths: with an odd number of men on full courts, exactly one 3:1
+court is forced. Both trade-offs are in the docs, so they can be explained
+rather than defended.
+
+### Worth remembering
+
+- **Generation is ~2x slower** (40-60ms per round on this Mac) from the extra
+  strategy and bookkeeping. The heavy shortCourts rotation tests outgrew
+  vitest's 5s default — a "failing" probabilistic test can be a **timeout**,
+  not a bound. Those tests now carry explicit timeouts.
+- **Vitest hides console output from passing tests.** The harness writes to
+  the file named by `MEASURE_OUT`; measuring anything means a file.
+- **A guard can be delivered redundantly** (the scorer weight and the matcher
+  both avoid repeats), so a sabotage must target the regime that leans on the
+  one mechanism: the back-to-back guard only reddens at 14 rounds of 12
+  players, where repeats are forced and recency is what spreads them.
+- **`sitOutCounts` is write-only dead state** — the rotation runs off
+  `gamesPlayed`, the order off `sitOutOrder`. Documented in the type; wiring
+  it into a decision would change latecomer behaviour.
+- The old cap test comment ("0.044% past 0.5") described the old regime; the
+  cap test now asserts max 1.5 / 80% within, and partner repeats after
+  regeneration tightened 3 → 2, both re-measured over 300 runs.
+- The robin mascot SVG test flaked once mid-session (unrelated, passed on
+  rerun); nobody chased it.
+
+### Gotchas still true
+
+- `npm run lint` unusable; `npx eslint src`. Deploys are a push to `main`;
+  status via the Vercel MCP connector. `APP_VERSION` moves with every deploy.
+- Pairing tests are probabilistic: measure with the MEASURE=1 harness first.
+
+---
+
+## Current State — 2026-08-14
+
+**`3.20` is live at https://app.pbroundrobin.com**, commit `0a5f90f`, verified
+against the live bundle (carries "3.20" and `sitOutOrder`). Suite is **1330
+tests passing across 71 files** (3 skipped: the MEASURE-gated harness).
+`tsc -b`, `npx eslint src` and the full suite all pass.
+
+### Completed this session
+
+The full round robin algorithm audit Jeff asked for: three defects found and
+fixed (repeat partners, biased first sitter, non-repeating sit-out cycle), the
+priority order rebuilt so variety outranks the balance cap, a lowest-priority
+gender-shape preference added, everything measured before and after with a
+permanent harness, eight new sabotage-proved tests, and user documentation in
+three places. Deployed as 3.20.
+
+### In progress
+
+Nothing mid-edit. Tracked tree clean apart from this notes update; the INBOX
+leftovers from earlier sessions remain untracked.
+
+### Immediate next step
+
+Jeff should read `docs/how-the-scheduler-thinks.md` with his editor's eye — it
+is the piece written for users and the most likely to need his red pen. After
+that, the launch checklist remains the work queue (first unticked box in
+launch-checklist.md, per the standing memory).
+
+### Open questions and pending decisions
+
+- The docs copy is unreviewed by Jeff (in-app "How the schedule thinks",
+  the new doc, PRODUCT-CONTEXT §4).
+- Generation speed on old phones: ~40-60ms/round on an M-series Mac suggests
+  1-2s for a long session on a slow phone. Nobody has complained; worth an ear.
+- The two-couples path (`findBestAssignmentWithPartners`) got no matcher of
+  its own: ~5 avoidable repeats per 8-round schedule remain there, and ~20% of
+  its courts run past 0.5 (couples constrain everything). Accepted for now.
+- All older open questions in the 2026-08-08 snapshot above still stand.
