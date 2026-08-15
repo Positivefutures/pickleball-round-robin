@@ -246,6 +246,16 @@ describe('watching a session', () => {
     expect(text()).toMatch(/Last Updated \d/);
   });
 
+  it('names the app in the banner, and that name is the way to it', async () => {
+    // Somebody here scanned a code at a court. The banner is the only thing on
+    // the page that says what they are looking at.
+    answer = shared();
+    await open();
+    const title = container.querySelector('h1 a');
+    expect(title?.textContent).toBe('Pickleball Round Robin Generator');
+    expect(title?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+  });
+
   it('marks itself live, so nobody wonders whether it is a screenshot', async () => {
     answer = shared();
     await open();

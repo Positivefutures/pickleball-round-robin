@@ -61,6 +61,14 @@ interface HeaderProps {
    * where the title is the app's own name and leads nowhere.
    */
   onTitleClick?: () => void;
+  /**
+   * Makes the title a link instead. The live view sends a visitor to the app
+   * itself, which is a real address rather than something that happens inside
+   * this page — so it is an anchor, and can be opened in a new tab, copied, or
+   * read out as the link it is. No chevron: on this banner that mark means
+   * "pick another group".
+   */
+  titleHref?: string;
   /** Omitted on steps with nothing worth printing, which hides the button. */
   onPrint?: () => void;
   /**
@@ -75,6 +83,7 @@ export function Header({
   settingsOpen = false,
   onToggleSettings,
   onTitleClick,
+  titleHref,
   onPrint,
   corner,
 }: HeaderProps) {
@@ -134,7 +143,11 @@ export function Header({
           className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
           style={{ color: NAVY }}
         >
-          {onTitleClick ? (
+          {titleHref ? (
+            <a href={titleHref} className="hover:opacity-70 transition-opacity">
+              {title}
+            </a>
+          ) : onTitleClick ? (
             /* The whole name is the target, which on a phone is the only tap
                area big enough to be worth having. The chevron runs on from the
                last word rather than sitting in a corner of its own, so a name

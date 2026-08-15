@@ -9,6 +9,7 @@ import {
 } from '../../lib/liveSession';
 import { canShare, sessionPayload, shareLink } from '../../lib/share';
 import * as stores from '../../lib/stores';
+import { useStoredValue } from '../../hooks/useStoredValue';
 
 /**
  * Sharing the session being run right now, from inside the Actions sheet.
@@ -47,6 +48,9 @@ interface Props {
 
 export function LiveShareView({ onCreateAccount }: Props) {
   const status = useSyncExternalStore(liveStatusStore.subscribe, liveStatusStore.get);
+  // What the card promises has to be what the link opens on. A session with
+  // scoring off shares a schedule and nothing else.
+  const [scoring] = useStoredValue(stores.scoringEnabled);
   const [copied, setCopied] = useState(false);
   const [hasSheet] = useState(canShare);
   // Set by Stop Sharing, and never cleared except by asking again. Without it
@@ -199,7 +203,9 @@ export function LiveShareView({ onCreateAccount }: Props) {
           the publisher is doing. It is what somebody would want to know before
           they hold the code up, so it cannot be the line an error replaces. */}
       <p className="text-sm" style={{ color: QUIET_TEXT }}>
-        Names, courts and scores are shared. Player ratings are not.
+        {scoring
+          ? 'Names, courts and scores are shared. Player ratings are not.'
+          : 'Names and courts are shared. Player ratings are not.'}
       </p>
 
       {status.state === 'problem' ? (
@@ -208,8 +214,8 @@ export function LiveShareView({ onCreateAccount }: Props) {
         <p className="text-sm font-medium text-red-700">{status.message}</p>
       ) : (
         <p className="text-sm" style={{ color: QUIET_TEXT }}>
-          Scores appear on their phones as you write them down. The link stops
-          working after 24 hours.
+          {scoring && 'Scores appear on their phones as you write them down. '}
+          The link stops working after 24 hours.
         </p>
       )}
 

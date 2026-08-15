@@ -95,7 +95,12 @@ export function LiveSessionPage({ shareKey }: Props) {
       {/* The app's own banner, with the LIVE pill standing where its buttons
           do. No drawer here, so no button to open one. */}
       <Header
-        title="Pickleball Round Robin"
+        // The app's full name here rather than on the host's banner, where the
+        // group's name takes its place. Somebody watching arrived by scanning a
+        // code and may have no idea what they are looking at, so the title says
+        // what it is and goes there.
+        title="Pickleball Round Robin Generator"
+        titleHref={APP_URL}
         corner={
           result?.state === 'ok' ? (
             <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#149A30] ring-1 ring-[#149A30]/30">
