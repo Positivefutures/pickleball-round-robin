@@ -13,6 +13,19 @@
 export const APP_VERSION = '3.31';
 
 /**
+ * The copyright line, at the foot of the app and of the settings drawer.
+ *
+ * One constant so the two cannot drift apart, and one that names a person
+ * rather than a company because that is what the terms say the app is: made and
+ * run by Jeff Baker, in Alberta, one person and not a company.
+ *
+ * The year is written down rather than read off the clock. `getFullYear()`
+ * would be a notice that changes on a device whose date is wrong, and this app
+ * is installed and cached for months at a time. Bump it in January.
+ */
+export const COPYRIGHT = '© 2026 Jeff Baker. All rights reserved.';
+
+/**
  * Master switch for the accounts feature.
  *
  * Back on 2026-08-08 to carry on testing. It was briefly off after a sign-in

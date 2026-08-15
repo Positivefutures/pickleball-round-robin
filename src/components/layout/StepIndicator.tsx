@@ -5,6 +5,23 @@ interface Props {
   current: Step;
   /** Steps the host can jump to from here. Never includes `current`. */
   available: Step[];
+  /**
+   * Steps that are not doors but are still worth a press.
+   *
+   * There is one: Schedule, when a schedule exists but the setup has moved on
+   * from it. It is drawn shut, because pressing it will not show the schedule,
+   * and it is pressable anyway, because somebody reaching for it is asking a
+   * real question — where has my schedule gone — and deserves an answer rather
+   * than a tab that does nothing at all.
+   *
+   * Deliberately not marked disabled, by either `disabled` or `aria-disabled`.
+   * Both say "this control does nothing", and this one does something useful:
+   * it takes the host to Setup and points at the button that rebuilds. Marking
+   * it would be a lie told only to the people relying on the markup, and it is
+   * what a screen reader, and Playwright, would both act on. The difference is
+   * carried in the look, which is the flat one a step not yet reached has.
+   */
+  answering?: Step[];
   onNavigate: (step: Step) => void;
 }
 
@@ -35,7 +52,7 @@ const DIVIDER = '#dee1e7';
 const READY_BORDER = '#d3d7de';
 const READY_BG = '#fbfbfc';
 
-export function StepIndicator({ current, available, onNavigate }: Props) {
+export function StepIndicator({ current, available, answering = [], onNavigate }: Props) {
   // Both the live step and a step you can go back to are raised cards. A
   // hairline belongs between two flat neighbours and nowhere else.
   const carded = (key: Step) => key === current || available.includes(key);
@@ -48,6 +65,8 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
       {steps.map((step, i) => {
         const isActive = step.key === current;
         const isReady = available.includes(step.key);
+        // Looks like neither of the above, and still takes a press.
+        const isAnswering = answering.includes(step.key);
         const Icon = STEP_ICONS[step.key];
         // Hidden either side of a raised card so it never runs into one.
         const divider = i > 0 && !carded(step.key) && !carded(steps[i - 1].key);
@@ -65,7 +84,7 @@ export function StepIndicator({ current, available, onNavigate }: Props) {
               // where you are, and a step not reached yet has to be earned with
               // the button at the foot of the page — which is what keeps
               // Schedule off limits until Generate has built one.
-              disabled={!isReady}
+              disabled={!isReady && !isAnswering}
               onClick={() => onNavigate(step.key)}
               aria-current={isActive ? 'step' : undefined}
               // The tour dims the page around whatever it is pointing at, and

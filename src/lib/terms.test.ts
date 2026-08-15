@@ -19,7 +19,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from './appInfo';
+import { COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from './appInfo';
 
 const root = resolve(__dirname, '../..');
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
@@ -124,5 +124,37 @@ describe('the app', () => {
     // public/ is copied to the site root by Vite, so this path is the address.
     expect(TERMS_URL.startsWith('/')).toBe(true);
     expect(() => read(TERMS_FILE)).not.toThrow();
+  });
+});
+
+/**
+ * Three places claim the same thing, and one of them is a static file the build
+ * never looks at. A year bumped in the constant and forgotten in the HTML is
+ * exactly the drift nothing else here would notice.
+ */
+describe('the copyright line', () => {
+  const year = new Date().getFullYear();
+
+  it('names a person rather than a company, as the terms say the app is', () => {
+    expect(terms).toContain('made and run by Jeff Baker');
+    expect(COPYRIGHT).toContain('Jeff Baker');
+  });
+
+  it('is at the foot of the app and of the settings drawer', () => {
+    for (const file of ['src/App.tsx', 'src/components/layout/SettingsPanel.tsx']) {
+      expect(read(file)).toContain('{COPYRIGHT}');
+    }
+  });
+
+  it('says the same year on the terms page as the app does', () => {
+    const stated = COPYRIGHT.match(/\d{4}/)?.[0];
+    expect(stated).toBeTruthy();
+    expect(terms).toContain(`&copy; ${stated} Jeff Baker`);
+  });
+
+  it('has not been left behind by the calendar', () => {
+    // Written down rather than read off the clock, which is right for a notice
+    // in an app cached for months — but somebody has to bump it in January.
+    expect(COPYRIGHT).toContain(String(year));
   });
 });

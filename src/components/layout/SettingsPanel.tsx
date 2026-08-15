@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from '../../lib/appInfo';
+import { COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from '../../lib/appInfo';
 import { PersonIcon, ShareIcon } from '../icons';
 
 interface Props {
@@ -290,6 +290,10 @@ export function SettingsPanel({
           Terms of Service
         </a>
       </p>
+
+      {/* Under the links, as it is at the foot of the app. Dimmer than either:
+          it is a notice, not something to read. */}
+      <p className="mt-3 text-xs text-white/50">{COPYRIGHT}</p>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { addCourtToRemaining, removeCourtFromRemaining } from './lib/courts';
 import { carryCourtNumbers } from './lib/courtNumbers';
 import { generateId } from './utils/helpers';
 import { prunePartnerships, arePartners } from './lib/partnerships';
+import { basisKey, scheduleIsStale } from './lib/scheduleBasis';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import { PLAIN_ROBIN, openedSettings, warmRobin } from './lib/robins';
 import {
@@ -58,7 +59,9 @@ import { scheduleToPdf, PDF_FILE_NAME, PDF_TITLE } from './lib/schedulePdf';
 import { isStandalone, isIos, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
-import { APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL } from './lib/appInfo';
+import {
+  APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL, COPYRIGHT,
+} from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { GroupPicker } from './components/roster/GroupPicker';
 import { SetupPage } from './components/setup/SetupPage';
@@ -75,6 +78,7 @@ function App() {
     players: allPlayers,
     addPlayer,
     updatePlayer,
+    setPlayerRosters,
     addPlayersToRosters,
     importGroups,
     deletePlayer,
@@ -109,6 +113,7 @@ function App() {
   const [guests, setGuests] = useStoredValue(stores.guests);
   const [scheduleEdited, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
+  const [scheduleBasis, setScheduleBasis] = useStoredValue(stores.scheduleBasis);
   const [, setSessionId] = useStoredValue(stores.sessionId);
 
   // Both persisted, and both parked with the group being left, so coming back to
@@ -119,10 +124,18 @@ function App() {
   // Setup opens the first time the host reaches it and stays open, so a trip
   // back to Players is never a dead end.
   const [setupSeen, setSetupSeen] = useStoredValue(stores.setupSeen);
-  // What the schedule step says it would lose by being left. Reported up from
-  // SchedulePage, which owns the locks and broken couples that count towards it.
-  const [scheduleHasWork, setScheduleHasWork] = useState(false);
-  const [pendingLeave, setPendingLeave] = useState<'setup' | 'roster' | null>(null);
+  // Set by a press on a Schedule tab that could not take them there. SetupPage
+  // draws the box above Generate; pressing Generate, or leaving Setup, puts it
+  // down again.
+  const [promptGenerate, setPromptGenerate] = useState(false);
+  /**
+   * Whether Generate has been asked to replace a schedule worth keeping.
+   *
+   * The question used to be asked by the tabs, on the way out of the schedule.
+   * It is asked here now because here is where the loss actually happens:
+   * leaving the schedule keeps it, and pressing Generate is what writes over it.
+   */
+  const [pendingGenerate, setPendingGenerate] = useState(false);
   // Change Groups, opened from the group name in the banner.
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   // Manage Groups. It is drawn by RosterPage and opened by the Manage button on
@@ -574,6 +587,8 @@ function App() {
   const handleGenerate = useCallback(() => {
     const attending = rosterPlayers.filter((p) => selectedIds.includes(p.id));
     if (attending.length < 4) return;
+    // The box above the button has been answered by the press.
+    setPromptGenerate(false);
     const activePartnerships = prunePartnerships(
       partnerships, new Set(attending.map((p) => p.id))
     );
@@ -602,6 +617,78 @@ function App() {
   const attendingPlayers = sessionPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
   );
+
+  /** The session as it stands, in the shape the basis key is made from. */
+  const liveBasis = {
+    rosterId: activeRosterId,
+    attending: attendingPlayers,
+    partnerships,
+    numCourts,
+    numRounds,
+    specialTypes,
+    schedule,
+  };
+
+  /**
+   * The schedule's basis, written down while the host is looking at it.
+   *
+   * One place rather than one per action, which is what makes it hard to get
+   * wrong. Everything the Actions sheet does — a player removed, a court added,
+   * more rounds on the end — changes both the schedule and its inputs together
+   * and is made from this page, so it is folded in by being made at all. What
+   * cannot reach this effect is a change made on Setup or Players, which is
+   * exactly the set of changes the Schedule tab has to shut for.
+   */
+  useEffect(() => {
+    if (step !== 'schedule' || !schedule) return;
+    const key = basisKey(liveBasis);
+    if (key !== scheduleBasis) setScheduleBasis(key);
+    // liveBasis is rebuilt every render from the values listed here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, schedule, activeRosterId, selectedIds, removedIds, guests, allPlayers,
+      partnerships, numCourts, numRounds, specialTypes, scheduleBasis, setScheduleBasis]);
+
+  /**
+   * Whether the schedule still matches the session, and so whether the Schedule
+   * tab is a door back to it.
+   */
+  const scheduleStale = !schedule || scheduleIsStale(scheduleBasis, liveBasis);
+
+  /**
+   * What pressing Generate would throw away, read from storage rather than from
+   * SchedulePage.
+   *
+   * SchedulePage reports a wider answer that also counts the padlocks and the
+   * couples broken for one round, but those are its own state and go when it
+   * unmounts — and the host doing the asking is standing on Setup, where it is
+   * unmounted. These two are written down, so they are still true from here.
+   */
+  const workAtStake = !!schedule && (scheduleEdited || completedRounds.length > 0);
+
+  /**
+   * Generate, asked for from the Setup page.
+   *
+   * An untouched schedule is rebuilt without a word: it cost one tap to make and
+   * costs one to make again. A schedule with scores on it, or rounds marked
+   * complete, is an afternoon, and gets the question.
+   *
+   * Never during the tour, which generates a schedule of its own on the way
+   * past and must not meet a dialog it did not put there.
+   */
+  const requestGenerate = useCallback(() => {
+    if (workAtStake && !tour) {
+      setPendingGenerate(true);
+      return;
+    }
+    handleGenerate();
+  }, [workAtStake, tour, handleGenerate]);
+
+  // The box above Generate belongs to one visit to Setup. Walking away is an
+  // answer too, and coming back later with no press behind it should be a clean
+  // page.
+  useEffect(() => {
+    if (step !== 'setup') setPromptGenerate(false);
+  }, [step]);
 
   /**
    * The printer button. Everywhere but an installed iOS app this is one call to
@@ -666,6 +753,53 @@ function App() {
     setScheduleEdited(true);
   }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
       setSchedule, setRemovedIds, setScheduleEdited]);
+
+  /**
+   * Somebody deleted from the group while a schedule is running.
+   *
+   * The schedule survives it. This is the same deal the Actions sheet's Remove
+   * Player already offers — rounds already marked complete are kept exactly as
+   * they were played, scores and all, and only the rounds still to come are
+   * rebuilt around the smaller group — reached from the Players tab, where the
+   * host is far more likely to be when somebody drops out for good.
+   *
+   * The basis is rewritten by hand here because the effect that keeps it does
+   * not run off this tab. Absorbing the change is the whole point: the host
+   * asked for one person to go, not for their afternoon to be rebuilt.
+   *
+   * One case ends the schedule instead, and shuts the Schedule tab by leaving
+   * the basis behind: too few players left to fill a court. There is no session
+   * to rescue at that point.
+   */
+  const handleRosterDeletePlayer = useCallback((playerId: string) => {
+    const playing = schedule && attendingPlayers.some((p) => p.id === playerId);
+    const remaining = attendingPlayers.filter((p) => p.id !== playerId);
+
+    if (playing && schedule && remaining.length >= 4) {
+      const activePartnerships = prunePartnerships(
+        partnerships, new Set(remaining.map((p) => p.id))
+      );
+      const rebuilt = {
+        rounds: carryCourtNumbers(
+          schedule.rounds,
+          regenerateRemaining(
+            remaining, numCourts, schedule.rounds, completedRounds,
+            specialTypes, activePartnerships
+          ).rounds
+        ),
+      };
+      setSchedule(rebuilt);
+      setRemovedIds((prev) => [...prev, playerId]);
+      setScheduleEdited(true);
+      setScheduleBasis(basisKey({ ...liveBasis, attending: remaining, schedule: rebuilt }));
+    }
+
+    deletePlayer(playerId);
+    // liveBasis is rebuilt every render from values already in this list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
+      activeRosterId, numRounds, deletePlayer, setSchedule, setRemovedIds, setScheduleEdited,
+      setScheduleBasis]);
 
   // Reshuffle rebuilds only the rounds still to be played. Rounds already marked
   // complete stay exactly as they were played, and their pairings are replayed
@@ -822,6 +956,32 @@ function App() {
     (playerId: string, name: string, rating: number, gender: Gender) =>
       handleEditPlayerDetails(playerId, { name, rating, gender }),
     [handleEditPlayerDetails]
+  );
+
+  /**
+   * The same edit, made from the Players tab.
+   *
+   * It has to go through the same write-through, and did not used to: the
+   * Players tab wrote the correction against the player and left the copies in
+   * the schedule alone, which was harmless only because no host could ever get
+   * back to that schedule to see it. Now that the tab is a door, a name
+   * corrected on Players and still wrong on court would be the first bug
+   * anybody reported.
+   *
+   * Group membership is the one field that is not part of a player and so is
+   * not written through — it goes straight to the pool.
+   */
+  const handleRosterUpdatePlayer = useCallback(
+    (playerId: string, updates: Partial<Omit<Player, 'id'>>) => {
+      if (updates.rosterIds) setPlayerRosters(playerId, updates.rosterIds);
+
+      const details: Partial<Pick<Player, 'name' | 'rating' | 'gender'>> = {};
+      if (updates.name !== undefined) details.name = updates.name;
+      if (updates.rating !== undefined) details.rating = updates.rating;
+      if (updates.gender !== undefined) details.gender = updates.gender;
+      if (Object.keys(details).length > 0) handleEditPlayerDetails(playerId, details);
+    },
+    [setPlayerRosters, handleEditPlayerDetails]
   );
 
   // A court arriving or leaving mid-session. Both edit the rounds still to be
@@ -1002,34 +1162,53 @@ function App() {
     if (tour?.id === 'new-round-robin') completeTour();
   }, [clearSession, setStep, tour]);
 
-  // Which tabs are doors. Schedule is never one: the only way onto it is
-  // Generate, which builds a new schedule rather than returning to the old one.
+  /**
+   * Which tabs are doors.
+   *
+   * Schedule used to be a door to nowhere: the only way onto it was Generate,
+   * so every trip to Players or Setup cost the host the schedule they had. It
+   * is a door now whenever the schedule still describes the session — the whole
+   * point being that a look at the roster, or a change of mind about keeping
+   * score, is not a reason to lose an afternoon.
+   */
   const availableSteps: Step[] = [];
   if (step !== 'roster') availableSteps.push('roster');
   if (step !== 'setup' && setupSeen) availableSteps.push('setup');
+  if (step !== 'schedule' && !scheduleStale) availableSteps.push('schedule');
 
   /**
-   * The tabs are the only way back out of a schedule, so this is where the
-   * question gets asked. Off the schedule there is nothing to lose and nothing
-   * to ask: that is the move Continue to Setup already makes.
+   * And which is drawn shut but still answers: a schedule that exists and no
+   * longer fits. Pressing it cannot show the schedule, so it says where the
+   * schedule went instead.
+   */
+  const answeringSteps: Step[] =
+    step !== 'schedule' && schedule && scheduleStale ? ['schedule'] : [];
+
+  /**
+   * Moving between tabs.
+   *
+   * Nothing here discards anything any more. Leaving the schedule parks it, and
+   * the only thing that writes over it is Generate, which asks its own question
+   * when there is something to lose.
    */
   const handleStepNav = useCallback(
     (target: Step) => {
-      if (step !== 'schedule') {
+      if (target === step) return;
+      if (target !== 'schedule') {
         setStep(target);
         return;
       }
-      if (target === 'schedule') return;
-      if (scheduleHasWork) {
-        setPendingLeave(target);
+      // A Schedule tab that is a door.
+      if (!scheduleStale) {
+        setStep('schedule');
         return;
       }
-      // Nothing to lose, so no question. Players still means starting over, as
-      // it does from the New Session button beside it.
-      if (target === 'setup') setStep('setup');
-      else handleStartNewSession();
+      // And one that is not. Somebody has just asked for their schedule, so
+      // take them to the page that can give them one and point at the button.
+      setStep('setup');
+      setPromptGenerate(true);
     },
-    [step, scheduleHasWork, handleStartNewSession, setStep]
+    [step, scheduleStale, setStep]
   );
 
   // Both banners wait for a roster worth keeping. Four players is a group
@@ -1113,6 +1292,7 @@ function App() {
         <StepIndicator
           current={step}
           available={availableSteps}
+          answering={answeringSteps}
           onNavigate={handleStepNav}
         />
       </div>
@@ -1164,9 +1344,9 @@ function App() {
             onDeleteRoster={handleDeleteRoster}
             onDuplicateRoster={handleDuplicateRoster}
             onAdd={addPlayer}
-            onUpdate={updatePlayer}
+            onUpdate={handleRosterUpdatePlayer}
             onAddPlayersToRosters={addPlayersToRosters}
-            onDeletePlayer={deletePlayer}
+            onDeletePlayer={handleRosterDeletePlayer}
             onContinue={() => {
               setStep('setup');
               // The tour's first card hands this button over rather than
@@ -1199,7 +1379,8 @@ function App() {
             onRoundsChange={setNumRounds}
             onSpecialTypeChange={updateSpecialType}
             onSpecialTypeMove={moveSpecialType}
-            onGenerate={() => handleGenerate()}
+            promptGenerate={promptGenerate}
+            onGenerate={requestGenerate}
           />
         )}
 
@@ -1215,12 +1396,10 @@ function App() {
             // around the removal. Narrow enough to live with.
             canUncomplete={removedIds.length === 0}
             onRegenerate={handleReshuffle}
-            scheduleEdited={scheduleEdited}
             onUpdateSchedule={handleUpdateSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onEditPlayer={handleEditPlayer}
-            onUnsavedWorkChange={setScheduleHasWork}
             showSwapHint={!swapHintDismissed && !tour}
             hideSeatEdit={!!tour}
             actionsSheet={actionsSheet}
@@ -1246,32 +1425,20 @@ function App() {
         )}
       </main>
 
-      {/* Raised here rather than in SchedulePage because leaving is App's
-          decision, not the page's. SchedulePage takes its local locks and
-          broken couples with it when it unmounts. */}
-      {pendingLeave === 'setup' && (
+      {/* The one place a schedule is still lost, and so the one place the
+          question is still worth asking. The tabs used to ask it on the way out
+          of the schedule, which was the wrong moment: leaving keeps it, and
+          this is what writes over it. */}
+      {pendingGenerate && (
         <DiscardScheduleDialog
-          heading="Back to Setup?"
+          heading="Replace the current schedule?"
           cancelLabel="Cancel"
-          confirmLabel="Go to Setup"
+          confirmLabel="Generate"
           onConfirm={() => {
-            setPendingLeave(null);
-            setStep('setup');
+            setPendingGenerate(false);
+            handleGenerate();
           }}
-          onCancel={() => setPendingLeave(null)}
-        />
-      )}
-
-      {pendingLeave === 'roster' && (
-        <DiscardScheduleDialog
-          heading="Back to Players?"
-          cancelLabel="Cancel"
-          confirmLabel="Go to Players"
-          onConfirm={() => {
-            setPendingLeave(null);
-            handleStartNewSession();
-          }}
-          onCancel={() => setPendingLeave(null)}
+          onCancel={() => setPendingGenerate(false)}
         />
       )}
 
@@ -1312,6 +1479,9 @@ function App() {
             Terms of Service
           </a>
         </div>
+        {/* Last line on the page, under the links rather than above them: it is
+            the quietest thing here and nothing follows it. */}
+        <div className="mt-1">{COPYRIGHT}</div>
       </footer>
       </div>
 

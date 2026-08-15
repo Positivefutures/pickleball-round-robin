@@ -31,6 +31,13 @@ interface Props {
   onRoundsChange: (n: number) => void;
   onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
   onSpecialTypeMove: (type: RoundType, direction: -1 | 1) => void;
+  /**
+   * Set when the host has just pressed a Schedule tab that could not take them
+   * there. The setup has moved on from the schedule they made, so the only way
+   * back to a schedule is to build a new one, and this is what says so — beside
+   * the button that does it, rather than as a dialog in front of the page.
+   */
+  promptGenerate?: boolean;
   onGenerate: () => void;
 }
 
@@ -53,6 +60,7 @@ export function SetupPage({
   onRoundsChange,
   onSpecialTypeChange,
   onSpecialTypeMove,
+  promptGenerate = false,
   onGenerate,
 }: Props) {
   const [showError, setShowError] = useState(false);
@@ -130,6 +138,10 @@ export function SetupPage({
    */
   const makeButtonRow = (tourAnchor = false) => (
     <div>
+      {/* Only on the upper row. The page opens at the top, so this is the row
+          the host is looking at, and one bouncing box is a signpost where two
+          would be a page shouting. */}
+      {tourAnchor && promptGenerate && <GeneratePrompt />}
       <div className="flex justify-between">
         <button
           onClick={handleToggleMode}
@@ -265,6 +277,35 @@ export function SetupPage({
           onClose={() => setSpecialTypesOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Where the schedule went, said beside the button that brings it back.
+ *
+ * It is the button's own teal and it hangs directly over it with a tail, so the
+ * sentence and the thing to press read as one object rather than as a notice
+ * about something elsewhere on the page. Right-aligned for the same reason:
+ * Generate sits at the right end of the row underneath.
+ *
+ * `motion-safe` because a box that bounces without stopping is exactly what
+ * somebody who has turned motion off has turned off. It still points, still
+ * says the same words, and simply holds still.
+ *
+ * `role="status"` rather than an alert: this is the answer to a press the host
+ * just made, not an interruption.
+ */
+function GeneratePrompt() {
+  return (
+    <div className="mb-3 flex justify-end no-print" role="status">
+      <div className="relative motion-safe:animate-bounce rounded-lg bg-brand-teal px-3.5 py-2 text-sm font-bold text-white shadow-md">
+        Tap Generate Schedule
+        <span
+          aria-hidden="true"
+          className="absolute -bottom-1 right-7 h-3 w-3 rotate-45 rounded-[2px] bg-brand-teal"
+        />
+      </div>
     </div>
   );
 }

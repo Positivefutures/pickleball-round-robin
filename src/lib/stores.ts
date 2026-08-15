@@ -170,6 +170,18 @@ export const scheduleEdited = createStoredValue<boolean>('pb-schedule-edited', f
 /** Which group the saved session was built from. */
 export const scheduleRosterId = createStoredValue<string | null>(KEYS.scheduleRoster, null);
 
+/**
+ * What the saved schedule was built from, as one string — see scheduleBasis.ts
+ * for what goes into it and why.
+ *
+ * This is what keeps the Schedule tab open. It is written while the host is
+ * looking at the schedule, so every mid-session change made from that page is
+ * folded in by being made there, and compared against the live session whenever
+ * they are somewhere else. Null means no promise: either no schedule, or one
+ * parked by a build that did not record this.
+ */
+export const scheduleBasis = createStoredValue<string | null>('pb-schedule-basis', null);
+
 export const installDismissed = createStoredValue('pb-install-dismissed', false);
 
 /**

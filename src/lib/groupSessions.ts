@@ -30,6 +30,13 @@ export interface GroupSession {
   removedIds: string[];
   guests: Player[];
   scheduleEdited: boolean;
+  /**
+   * What that schedule was built from. Optional because groups parked by builds
+   * before the Schedule tab became a door have no such record, and a session
+   * with none is treated as one that cannot promise the door — see
+   * scheduleIsStale.
+   */
+  scheduleBasis?: string | null;
   sessionId: string | null;
   numCourts: number;
   numRounds: number;
@@ -62,6 +69,7 @@ function live(): GroupSession {
     removedIds: stores.removedIds.get(),
     guests: stores.guests.get(),
     scheduleEdited: stores.scheduleEdited.get(),
+    scheduleBasis: stores.scheduleBasis.get(),
     sessionId: stores.sessionId.get(),
     numCourts: stores.numCourts.get(),
     numRounds: stores.numRounds.get(),
@@ -89,6 +97,10 @@ export function clearSession(keepSelection = false): void {
   // are in nobody's group, so there is nowhere for them to be kept.
   stores.guests.set([]);
   stores.scheduleEdited.set(false);
+  // No schedule, nothing it was built from. Left behind, it would be compared
+  // against the next session's settings and answer a question about a schedule
+  // that no longer exists.
+  stores.scheduleBasis.set(null);
   if (!keepSelection) {
     stores.selectedIds.set([]);
     stores.partnerships.set([]);
@@ -106,6 +118,7 @@ function fill(saved: GroupSession, rosterId: string): void {
   stores.removedIds.set(saved.removedIds);
   stores.guests.set(saved.guests);
   stores.scheduleEdited.set(saved.scheduleEdited);
+  stores.scheduleBasis.set(saved.scheduleBasis ?? null);
   stores.sessionId.set(saved.sessionId);
   // Derived rather than stored: the key this was filed under is the answer.
   stores.scheduleRosterId.set(saved.schedule ? rosterId : null);

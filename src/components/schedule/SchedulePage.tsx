@@ -88,8 +88,6 @@ interface Props {
   numCourts: number;
   completedRounds: number[];
   canUncomplete: boolean;
-  // Set once the host has swapped players or removed someone from this schedule.
-  scheduleEdited: boolean;
   onRegenerate: (
     locks: Record<number, LockedPair[]>,
     brokenPairs: Record<number, string[]>
@@ -99,12 +97,6 @@ interface Props {
   onRemovePlayer: (playerId: string) => void;
   /** Name, rating and gender, saved against the player and written through the rounds. */
   onEditPlayer: (playerId: string, name: string, rating: number, gender: Gender) => void;
-  /**
-   * Whether leaving this schedule would throw work away. The step tabs sit
-   * above this page and are the only way off it, and only this page knows about
-   * the locks and broken couples that count towards it.
-   */
-  onUnsavedWorkChange: (atStake: boolean) => void;
   /** False once the host has closed the swap hint, which is remembered for good. */
   showSwapHint: boolean;
   onDismissSwapHint: () => void;
@@ -181,13 +173,11 @@ export function SchedulePage({
   numCourts,
   completedRounds,
   canUncomplete,
-  scheduleEdited,
   onRegenerate,
   onUpdateSchedule,
   onCompletedRoundsChange,
   onRemovePlayer,
   onEditPlayer,
-  onUnsavedWorkChange,
   showSwapHint,
   onDismissSwapHint,
   hideSeatEdit,
@@ -626,20 +616,15 @@ export function SchedulePage({
     },
   };
 
-  // Everything that leaving this schedule would throw away. On an untouched one
-  // there is nothing to lose, so a tab goes straight through rather than
-  // nagging about a schedule the host can recreate with one tap.
-  const hasUnsavedWork =
-    scheduleEdited ||
-    completedRounds.length > 0 ||
-    Object.keys(locks).length > 0 ||
-    Object.keys(brokenPairs).length > 0;
-
-  // The tabs above this page do the asking, so App has to be told the answer.
-  // Only read while this page is mounted.
-  useEffect(() => {
-    onUnsavedWorkChange(hasUnsavedWork);
-  }, [hasUnsavedWork, onUnsavedWorkChange]);
+  // This page used to report up what leaving it would cost, because the tabs
+  // asked before letting anybody off. They no longer ask: leaving keeps the
+  // schedule, and the question is now on Generate, which is the only thing that
+  // writes over one. App reads what that costs from storage.
+  //
+  // The padlocks and the couples broken for one round are the exception, and
+  // they go quietly. Both are staging for a reshuffle rather than a result, and
+  // warning about them would put a dialog back in front of the trip to Players
+  // this whole change exists to make free.
 
   const allComplete = completedSet.size >= schedule.rounds.length;
 
