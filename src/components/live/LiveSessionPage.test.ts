@@ -256,9 +256,27 @@ describe('watching a session', () => {
     expect(text()).toContain('Make your own round robin');
     expect(text()).toContain('Balanced matchups in seconds.');
     const open_ = [...container.querySelectorAll('a')].find(
-      (a) => a.textContent === 'Open Round Robin Generator'
+      (a) => a.textContent === 'Create a round robin'
     );
     expect(open_?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+  });
+
+  it('breaks the heading into two lines without running the words together', async () => {
+    // The break is drawn rather than left to the panel's width, which means two
+    // block spans — and two block spans put their text nodes straight up
+    // against each other. Without the space between them the heading reads
+    // "Make your ownround robin" to anything that takes it as text, which is
+    // every screen reader and every share preview.
+    answer = shared();
+    await open();
+
+    const heading = [...container.querySelectorAll('h2')].find((h) =>
+      (h.textContent ?? '').includes('Make your own')
+    );
+    expect(heading).toBeTruthy();
+    expect(heading!.textContent).toBe('Make your own round robin');
+    // And it really is two lines, not one that happens to fit.
+    expect(heading!.querySelectorAll('span.block')).toHaveLength(2);
   });
 
   it('names the app in the banner, and that name is the way to it', async () => {

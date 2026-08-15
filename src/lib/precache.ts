@@ -50,6 +50,14 @@ export const RUNTIME_CACHED_PUBLIC = [
   // more expensive for no gain.
   '/header-left.png',
   '/header-right.jpg',
+  // The same banner cut into corners for the share panel, with the robin taken
+  // out of the left piece and the cream carried over the court's far corner —
+  // see MakeYourOwn.tsx for why neither could be done with a crop at draw time.
+  // About 100 KB together, and only ever drawn on the live view, which is a
+  // page nobody reaches without a network in the first place.
+  '/panel-corner.png',
+  '/panel-court.png',
+  '/panel-dots.png',
   '/share-top.png',
   '/share.png',
   // The halftone in the corner of the Setup panel, 20 KB. On screen every
