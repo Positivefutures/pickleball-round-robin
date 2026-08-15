@@ -75,6 +75,17 @@ interface TeamStyles {
    * rather than as a colour arriving from somewhere else.
    */
   swappedBorder: string;
+  /**
+   * And the fill under that edge for the same two seconds: `selectedBgClass`,
+   * so the place a player lands in holds the colour it was wearing under your
+   * finger a moment ago and then lets it go.
+   *
+   * Written as the theme variable the class compiles to rather than a hex.
+   * Tailwind v4 keeps its palette in OKLCH, so blue-200's old hex is no longer
+   * the colour on the screen, and a hex here would start the fade a shade off
+   * the one the seat was actually wearing.
+   */
+  swappedBg: string;
 }
 
 function PlayerButton({
@@ -111,7 +122,7 @@ function PlayerButton({
   /** Whether this place has just been swapped into. See index.css. */
   swapped: boolean;
 }) {
-  const { bgClass, borderClass, hoverClass, selectedBgClass, swappedBorder } = styles;
+  const { bgClass, borderClass, hoverClass, selectedBgClass, swappedBorder, swappedBg } = styles;
   // Locked players cannot be tapped for swap; completed rounds are frozen entirely
   const interactive = !locked && !readOnly;
   const displayName = getDisplayName(player, allPlayers);
@@ -122,12 +133,19 @@ function PlayerButton({
       onClick={() =>
         interactive && onPlayerTap({ kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx })
       }
-      // The animation reads the colour to start from off the element, so this
-      // is the only thing either side has to say about it. A CSS animation
+      // The animation reads the two colours to start from off the element, so
+      // this is the only thing either side has to say about it. A CSS animation
       // outranks the class the place is resting on and outranks an inline
       // colour too, which is what lets the fade end wherever the place would
       // have been anyway without either of them naming it.
-      style={swapped ? ({ '--seat-swapped-from': swappedBorder } as React.CSSProperties) : undefined}
+      style={
+        swapped
+          ? ({
+              '--seat-swapped-from': swappedBorder,
+              '--seat-swapped-fill': swappedBg,
+            } as React.CSSProperties)
+          : undefined
+      }
       className={`relative w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
         swapped ? 'seat-swapped ' : ''
       }${
@@ -354,6 +372,7 @@ const TEAM1_STYLES: TeamStyles = {
   hoverClass: 'hover:bg-blue-100',
   selectedBgClass: 'bg-blue-200',
   swappedBorder: '#1d4ed8', // blue-700, against the darkened blue edge at rest
+  swappedBg: 'var(--color-blue-200)', // what selectedBgClass compiles to
 };
 
 const TEAM2_STYLES: TeamStyles = {
@@ -362,6 +381,7 @@ const TEAM2_STYLES: TeamStyles = {
   hoverClass: 'hover:bg-orange-100',
   selectedBgClass: 'bg-orange-200',
   swappedBorder: '#c2410c', // orange-700, against the darkened orange edge at rest
+  swappedBg: 'var(--color-orange-200)', // what selectedBgClass compiles to
 };
 
 export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {

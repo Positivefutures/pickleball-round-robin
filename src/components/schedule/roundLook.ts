@@ -28,6 +28,18 @@ export const ROUND_EDGE = '#2B76A9';
 export const ROUND_EDGE_SWAPPED = '#0E3E5D';
 
 /**
+ * And the fill under it for those same two seconds: the blue a chip wears while
+ * it is selected, fading back to its resting grey.
+ *
+ * Named as the theme variable rather than a hex, because that is literally what
+ * `bg-blue-100` compiles to — Tailwind v4 keeps its palette in OKLCH and the
+ * old hex for blue-100 is no longer the colour on the screen. Pointing at the
+ * variable means the fade starts on exactly the shade the selected chip was
+ * wearing a moment ago, whatever that shade becomes.
+ */
+export const SITOUT_FILL_SWAPPED = 'var(--color-blue-100)';
+
+/**
  * The line around a player's box, one colour per side.
  *
  * Tailwind's blue-200 and orange-200 with every channel taken down a fifth,

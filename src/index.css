@@ -86,21 +86,32 @@ body {
 
 /* A swap, said where the eye already is.
    Two names change over on a grid of names, and on a phone at arm's length it
-   is very easy to miss which two. So both places take a strong edge and let it
-   fade back over two seconds, which says what happened and leaves nothing
-   behind afterwards to be misread as a state.
+   is very easy to miss which two. So both places light up whole — edge and fill
+   together — and let it fade back over two seconds, which says what happened
+   and leaves nothing behind afterwards to be misread as a state.
+
+   The fill starts on the colour that place wears while it is selected, so the
+   seat a player lands in is still holding the shade that was under your finger
+   a moment ago, and then lets it go. Jeff's call on 2026-08-15: the edge alone
+   was doing this already and was too quiet to catch.
 
    Only a `from` keyframe. The 100% is implied from whatever the element would
    look like without the animation, so the fade always ends on that place's own
-   resting line and nothing here has to know what colour that is — blue on one
-   side of a court, orange on the other, the round's own line on a sit-out. The
-   colour to start from is handed in per place as --seat-swapped-from.
+   resting colours and nothing here has to know what those are — blue on one
+   side of a court, orange on the other, grey on a sit-out chip. What to start
+   from is handed in per place as --seat-swapped-from and --seat-swapped-fill.
+
+   Both are handed in everywhere `.seat-swapped` is used. An undefined custom
+   property is not "no rule": `var()` with nothing behind it makes the whole
+   declaration invalid, and a background-color resolved that way would fade in
+   from transparent rather than from the selected shade.
 
    A CSS animation outranks both the class and the inline style it is drawn
    over, which is what makes that work in all three cases. */
 @keyframes seat-swapped {
   from {
     border-color: var(--seat-swapped-from);
+    background-color: var(--seat-swapped-fill);
   }
 }
 .seat-swapped {

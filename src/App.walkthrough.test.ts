@@ -451,6 +451,54 @@ describe('the mark a swap leaves', () => {
     expect(new Set(froms).size).toBe(2);
     for (const from of froms) expect(from).toMatch(/^#[0-9a-f]{6}$/i);
   });
+
+  it('names the fill to fade from too, and it is the shade a selected place wears', () => {
+    // The edge alone was too quiet to catch on a phone, so the whole place
+    // lights up now. It has to start on exactly the colour that was under the
+    // host's finger a moment ago, which means the theme variable the selected
+    // class compiles to rather than a hex — Tailwind v4's palette is OKLCH and
+    // blue-200's old hex is no longer the colour on the screen.
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    swap(first.courts[0].team1[0].name, first.courts[0].team2[0].name);
+
+    const seats = [...container.querySelectorAll('.seat-swapped')] as HTMLElement[];
+    expect(seats).toHaveLength(2);
+
+    const fills = seats.map((el) => el.style.getPropertyValue('--seat-swapped-fill'));
+    // One per side of the court, and neither is a hex.
+    expect(fills.sort()).toEqual(['var(--color-blue-200)', 'var(--color-orange-200)']);
+
+    // And that really is what the selected class resolves to. A place wearing
+    // bg-blue-200 while selected but fading from anything else would start the
+    // animation on a colour the host never saw.
+    for (const el of seats) {
+      const fill = el.style.getPropertyValue('--seat-swapped-fill');
+      const shade = fill.replace('var(--color-', '').replace(')', '');
+      expect(el.className).toMatch(new RegExp(`bg-(blue|orange)-50\\b`));
+      expect(['blue-200', 'orange-200']).toContain(shade);
+    }
+  });
+
+  it('gives a sit-out chip a fill to fade from as well', () => {
+    // Every user of the keyframe has to hand in both colours. An undefined
+    // custom property is not "no rule": var() with nothing behind it makes the
+    // whole declaration invalid, and the chip would fade in from transparent.
+    mount();
+    generate();
+
+    const first = storedSchedule().rounds[0];
+    swap(first.courts[0].team1[0].name, first.sitOuts[0].name);
+
+    const seats = [...container.querySelectorAll('.seat-swapped')] as HTMLElement[];
+    expect(seats).toHaveLength(2);
+    for (const el of seats) {
+      expect(el.style.getPropertyValue('--seat-swapped-from')).not.toBe('');
+      expect(el.style.getPropertyValue('--seat-swapped-fill')).not.toBe('');
+    }
+  });
 });
 
 /**

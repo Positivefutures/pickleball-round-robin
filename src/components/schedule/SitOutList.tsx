@@ -2,7 +2,9 @@ import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { EditPlayerButton } from './EditPlayerButton';
-import { PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_EDGE_SWAPPED } from './roundLook';
+import {
+  PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_EDGE_SWAPPED, SITOUT_FILL_SWAPPED,
+} from './roundLook';
 
 interface Props {
   players: Player[];
@@ -50,13 +52,18 @@ function SitOutBox({
       // to the card it sits on. Selected keeps its blue and its ring: that is a
       // state you have put it in, and it has to stay tellable from the rest.
       //
-      // A swapped chip only names the colour to fade from. The animation
+      // A swapped chip only names the two colours to fade from. The animation
       // outranks this inline edge for the two seconds it runs and then hands it
       // straight back, which is why nothing here has to be undone afterwards.
       style={
         {
           ...(selected ? undefined : { borderColor: ROUND_EDGE }),
-          ...(swapped ? { '--seat-swapped-from': ROUND_EDGE_SWAPPED } : undefined),
+          ...(swapped
+            ? {
+                '--seat-swapped-from': ROUND_EDGE_SWAPPED,
+                '--seat-swapped-fill': SITOUT_FILL_SWAPPED,
+              }
+            : undefined),
         } as React.CSSProperties
       }
       className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-md border transition-colors ${
