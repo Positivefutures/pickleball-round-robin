@@ -853,9 +853,23 @@ function App() {
   // Somebody nobody has met before. They join the group as well as the session,
   // because a player who turns up once usually turns up again.
   const handleCreatePlayer = useCallback(
-    (name: string, rating: number, gender: Gender) => {
+    (name: string, rating: number, gender: Gender, replacingId?: string) => {
       const player = addPlayer(name, rating, gender, [activeRosterId]);
       if (!schedule) return;
+
+      // Reached from Sub a Player, where somebody is already on their way out.
+      // Adding the newcomer on top would put five people on a court that is
+      // losing one, so they take the place instead — the same move
+      // handleSubstitute makes, for a player who did not exist a moment ago.
+      if (replacingId) {
+        setSchedule({
+          rounds: replacePlayerInRounds(schedule.rounds, replacingId, player, completedRounds),
+        });
+        setSelectedIds((prev) => [...prev.filter((id) => id !== replacingId), player.id]);
+        setScheduleEdited(true);
+        return;
+      }
+
       setSchedule({
         rounds: addToRemainingRounds(schedule.rounds, completedRounds, player),
       });

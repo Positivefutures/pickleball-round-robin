@@ -12,15 +12,16 @@ import {
   CloseIcon,
   GuestIcon,
   LinkIcon,
+  EditPageIcon,
   LockIcon,
-  ReplayIcon,
+  ShareIcon,
   ShuffleIcon,
   SitIcon,
   SuccessIcon,
   SwapPeopleIcon,
   WarningIcon,
 } from '../icons';
-import { AddCourtIcon, RemoveCourtIcon, ShareSessionIcon } from './actionIcons';
+import { AddCourtIcon, RemoveCourtIcon } from './actionIcons';
 import { LiveShareView } from './LiveShareView';
 import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -31,8 +32,16 @@ export interface ScheduleActions {
   onStartNewSession: () => void;
   /** A group member not in this session yet. */
   onAddPlayer: (playerId: string) => void;
-  /** Somebody new: joins the group and this session. */
-  onCreatePlayer: (name: string, rating: number, gender: Gender) => void;
+  /**
+   * Somebody new: joins the group and this session.
+   *
+   * `replacingId` is Sub a Player reaching the same form. The new player takes
+   * that person's place rather than being added on top, which is the difference
+   * between subbing somebody on and putting a fifth on the court.
+   */
+  onCreatePlayer: (
+    name: string, rating: number, gender: Gender, replacingId?: string
+  ) => void;
   /** Somebody new for today only, never saved to the group. */
   onAddGuest: (name: string, rating: number, gender: Gender) => void;
   onSubstitute: (outgoingId: string, incomingId: string) => void;
@@ -89,9 +98,12 @@ const CARDS: Card[] = [
   // No Edit Player Rating card. Tapping somebody on the schedule and pressing
   // the pencil edits their name, rating and gender in one panel, which is both
   // fewer taps and the place a host is already looking when they notice.
-  { view: 'new-session', label: 'New Round Robin', Icon: ReplayIcon, color: ORANGE },
+  { view: 'new-session', label: 'New Round Robin', Icon: EditPageIcon, color: ORANGE },
   { view: 'reshuffle', label: 'Reshuffle', Icon: ShuffleIcon, color: TEAL, filled: true },
-  { view: 'share-live', label: 'Share Live Session', Icon: ShareSessionIcon, color: ORANGE },
+  // "Share Session" on the card and "Share Live Session" on the panel it opens.
+  // Three words is what fits a third of a phone without wrapping to three lines;
+  // the panel has the room to say the whole thing.
+  { view: 'share-live', label: 'Share Session', Icon: ShareIcon, color: ORANGE },
   { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, color: TEAL },
   { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, color: TEAL },
   { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, color: RED },
@@ -135,7 +147,10 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
   'add-court': { title: 'Add a Court' },
   'remove-court': { title: 'Remove a Court', sub: 'Which court is going?' },
-  'share-live': { title: 'Share Live Session', sub: 'Let everyone watch on their own phone' },
+  'share-live': {
+    title: 'Share Live Session',
+    sub: 'Let others see the schedule, with live updates, on their phone.',
+  },
   done: { title: '' },
 };
 
@@ -156,6 +171,14 @@ const DESTRUCTIVE =
   'w-full px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium';
 const ROW =
   'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 text-left transition-colors hover:bg-[#F1F3F6]';
+/**
+ * Somebody who is not in the group yet, offered at the foot of a list of people
+ * who are. In the lead colour throughout — border, glyph and label — on the pale
+ * orange that goes with it, because it is the one row that is not a name and the
+ * only way out of a list that does not contain who you are looking for.
+ */
+const NEW_ROW =
+  'flex w-full items-center gap-3 rounded-lg border border-brand-orange bg-brand-orange-light px-4 py-3 text-left font-bold text-brand-orange transition-colors hover:bg-[#ffe6d6]';
 
 /**
  * A view that asks one question and offers one answer. It says its piece at the
@@ -356,7 +379,9 @@ export function ActionsSheet({
   }
 
   function back() {
-    if (view === 'new-player') setView('add-player');
+    // New Player is reached from two lists now, so it goes back to the one it
+    // came from. subOut is the tell: it is only ever set inside Sub a Player.
+    if (view === 'new-player') setView(subOut ? 'add-sub' : 'add-player');
     else if (view === 'add-sub' && subOut) setSubOut(null);
     else setView('menu');
   }
@@ -615,10 +640,10 @@ export function ActionsSheet({
                     ))}
                     <button
                       type="button"
-                      className={`${ROW} font-medium text-green-700`}
+                      className={NEW_ROW}
                       onClick={() => setView('new-player')}
                     >
-                      <AddPlayerSolidIcon className="h-5 w-5" />
+                      <AddPlayerSolidIcon className="h-6 w-6" />
                       Someone new
                     </button>
                     {addablePlayers.length === 0 && (
@@ -632,10 +657,17 @@ export function ActionsSheet({
                 {view === 'new-player' && (
                   <PlayerForm
                     defaultRating={defaultRating}
-                    submitLabel="Add to Group and Session"
+                    submitLabel={
+                      subOut ? `Add and Sub In for ${subOut.name}` : 'Add to Group and Session'
+                    }
                     onSubmit={(name, rating, gender) => {
-                      actions.onCreatePlayer(name, rating, gender);
-                      finish(`${name} is in.`);
+                      // Reached from Sub a Player, this is one move rather than
+                      // two: the new player takes the outgoing one's place
+                      // instead of being added on top of a full court.
+                      actions.onCreatePlayer(name, rating, gender, subOut?.id);
+                      finish(
+                        subOut ? `${name} is on for ${subOut.name}.` : `${name} is in.`
+                      );
                     }}
                   />
                 )}
@@ -673,6 +705,18 @@ export function ActionsSheet({
                         <span className="text-gray-500">{p.rating.toFixed(1)}</span>
                       </button>
                     ))}
+                    {/* The same way out this list has on Add a Player. Whoever
+                        is taking the place of somebody going home is as likely
+                        to be a newcomer here as there, and without this the
+                        answer was to back out and start again. */}
+                    <button
+                      type="button"
+                      className={NEW_ROW}
+                      onClick={() => setView('new-player')}
+                    >
+                      <AddPlayerSolidIcon className="h-6 w-6" />
+                      Someone new
+                    </button>
                   </div>
                 )}
 

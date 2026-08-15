@@ -2006,7 +2006,7 @@ describe('the Actions sheet', () => {
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
       'Add a Player', 'Sub a Player', 'Add a Guest',
-      'New Round Robin', 'Reshuffle', 'Share Live Session',
+      'New Round Robin', 'Reshuffle', 'Share Session',
       'Add a Round', 'Add a Court', 'Remove a Court',
     ]);
   });
@@ -2194,7 +2194,7 @@ describe('the Actions sheet', () => {
     mount();
     generate();
 
-    action(/^Share Live Session$/);
+    action(/^Share Session$/);
     expect(text(sheet())).toContain('Accounts are switched off');
     expect(buttons(/^Create an account$/, sheet())).toHaveLength(0);
   });
@@ -2210,7 +2210,7 @@ describe('the Actions sheet', () => {
       mount();
       generate();
 
-      action(/^Share Live Session$/);
+      action(/^Share Session$/);
       expect(text(sheet())).toContain('Sharing a session needs an account');
 
       clickButton(/^Create an account$/, sheet());
@@ -2420,6 +2420,52 @@ describe('the Actions sheet', () => {
       clickButton(/^Actions$/);
       clickButton(/^Add a Player$/, sheet());
       expect(text(sheet())).toContain(going);
+    });
+
+    /**
+     * Somebody nobody has ever entered turning up to take a place.
+     *
+     * The list of people who could come on is the group minus whoever is
+     * already playing, and until now a newcomer was not on it — the answer was
+     * to back out, add them, and start the substitution again. Add a Player has
+     * had a way out of that list for a long time; this is the same one.
+     */
+    it('lets somebody brand new take the place, in one move', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const going = storedSchedule().rounds[1].courts[0].team1[0].name;
+      const expected = storedSchedule().rounds.map((r) =>
+        fingerprint(r).replace(going, 'Robin')
+      );
+      const playedAs = fingerprint(storedSchedule().rounds[0]);
+
+      action(/^Sub a Player$/);
+      clickButton(new RegExp(`^${going}`), sheet());
+      clickButton(/^Someone new$/, sheet());
+
+      // The form says what it is about to do, which is not what it says when
+      // it is reached from Add a Player.
+      expect(text(sheet())).toContain(`Add and Sub In for ${going}`);
+      const name = sheet().querySelector('input[type="text"]') as HTMLInputElement;
+      act(() => {
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype, 'value'
+        )!.set!;
+        setter.call(name, 'Robin');
+        name.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      clickButton(new RegExp(`^Add and Sub In for ${going}$`), sheet());
+
+      const after = storedSchedule();
+      // The round already played is untouched, including the player who left.
+      expect(fingerprint(after.rounds[0])).toBe(playedAs);
+      // And every round still to come is the same games with the new name in
+      // that one place — not a fifth player added on top of a full court.
+      expect(after.rounds.slice(1).map(fingerprint)).toEqual(expected.slice(1));
+      // They joined the group too, so next week they are on the list.
+      expect(storedPlayers().map((p) => p.name)).toContain('Robin');
     });
   });
 

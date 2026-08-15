@@ -43,6 +43,26 @@ body {
   overscroll-behavior: none;
 }
 
+/**
+ * The floor under the app's type, raised two pixels.
+ *
+ * `text-sm` is what most of the app's body copy is set in — the lines under a
+ * heading, the captions, the quiet notes on the Share Live Session panel — and
+ * on a phone held at arm's length beside a court it was a size you squint at.
+ * Jeff's call on 2026-08-15, from that panel. Raising the variables rather than
+ * editing 157 class names means nothing can be missed and nothing drifts.
+ *
+ * `text-xs` goes with it and by the same two pixels, or the smallest thing on
+ * the page would still be twelve. It leaves `sm` and `base` at the same size,
+ * which is a step lost out of the scale: they are kept apart as names because
+ * they mean different things to the code that uses them, and the day the scale
+ * wants pulling back apart this is the one place to do it.
+ */
+:root {
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+}
+
 /* Large-text mode (toggled from the header). --text-2xl is intentionally NOT
    scaled. It used to be the banner title, which now sets its own size against
    the viewport; what is left on it are a court-number field, a rating readout
@@ -50,8 +70,11 @@ body {
    which is body copy somebody turned this mode on to be able to read. */
 .text-large {
   font-size: 1.35rem; /* scales un-classed/inherited text */
-  --text-xs: calc(0.75rem * 1.35);
-  --text-sm: calc(0.875rem * 1.35);
+  /* The two raised above, scaled from their new sizes rather than their old
+     ones — large-text mode multiplies what the app is set in, and reading these
+     off 0.75/0.875 would quietly make it the smaller of the two modes here. */
+  --text-xs: calc(0.875rem * 1.35);
+  --text-sm: calc(1rem * 1.35);
   --text-base: calc(1rem * 1.35);
   --text-lg: calc(1.125rem * 1.35);
   --text-xl: calc(1.25rem * 1.35);
@@ -108,10 +131,27 @@ body {
 
    A CSS animation outranks both the class and the inline style it is drawn
    over, which is what makes that work in all three cases. */
+/* The thickness goes too. A swapped place starts as thick as a selected one and
+   comes back down to its hairline over the same two seconds, so the seat the
+   player landed in is still wearing the ring your finger left on it.
+
+   A box-shadow rather than a border-width. `border-box` sizing means growing the
+   border shrinks the content box instead of the element, so the name inside
+   would slide a pixel and settle back — a jiggle on every swap. A shadow is
+   drawn outside the layout and moves nothing. 2px is exactly what `ring-2` puts
+   around a selected seat.
+
+   This one needs both ends written out. The others take their 100% from the
+   element, which is what lets one keyframe serve three different resting
+   colours; there is no resting shadow to fall back to. */
 @keyframes seat-swapped {
   from {
     border-color: var(--seat-swapped-from);
     background-color: var(--seat-swapped-fill);
+    box-shadow: 0 0 0 2px var(--seat-swapped-from);
+  }
+  to {
+    box-shadow: 0 0 0 0 var(--seat-swapped-from);
   }
 }
 .seat-swapped {

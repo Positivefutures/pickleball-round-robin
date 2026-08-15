@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
-import { CopyIcon, PersonIcon, ShareIcon } from '../icons';
+import { CopyIcon, PersonIcon, ShareIcon, StopIcon } from '../icons';
 import {
   liveStatusStore,
   sharingAvailable,
@@ -35,6 +35,18 @@ const PRIMARY =
   'w-full rounded-lg bg-[#018D31] px-4 py-3 font-bold text-white transition-colors hover:bg-[#017129] disabled:opacity-40 disabled:hover:bg-[#018D31]';
 const SECONDARY =
   'flex w-full items-center gap-3 rounded-lg border border-[#D8DEE4] bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
+/**
+ * The three things you can do with a live link, side by side and built like the
+ * cards on the Actions sheet: the glyph large, the label under it, the whole
+ * tile a target. They are one row because they are one decision — how this link
+ * gets to people, or that it stops — and stacked full-width they read as three
+ * unrelated steps to work through in order.
+ */
+const TILE =
+  'flex flex-1 basis-0 flex-col items-center gap-1.5 rounded-lg border px-1 py-3 shadow-sm transition-colors';
+const TILE_QUIET = `${TILE} border-[#D8DEE4] bg-white text-[#3D495A] hover:bg-[#F1F3F6]`;
+const TILE_STOP = `${TILE} border-[#F0C3C3] bg-[#FDF2F2] text-[#B42121] hover:bg-[#FBE6E6]`;
+const TILE_LABEL = 'text-center text-sm font-bold leading-tight';
 const QUIET_TEXT = '#636A77';
 
 interface Props {
@@ -191,7 +203,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
       </div>
 
       <p className="text-center text-[15px] leading-snug text-[#3D495A]">
-        Point a camera at the code, or send the link.
+        Have people scan this QR code, or send the link.
       </p>
 
       {/* select-all: one tap selects the whole address. */}
@@ -214,33 +226,39 @@ export function LiveShareView({ onCreateAccount }: Props) {
         <p className="text-sm font-medium text-red-700">{status.message}</p>
       ) : (
         <p className="text-sm" style={{ color: QUIET_TEXT }}>
-          {scoring && 'Scores appear on their phones as you write them down. '}
-          The link stops working after 24 hours.
+          Changes you make appear on their phones. The link stops working after
+          24 hours.
         </p>
       )}
 
-      {hasSheet && (
-        <button type="button" onClick={handleShare} className={SECONDARY}>
-          <ShareIcon className="h-6 w-6" />
-          <span className="font-bold">Share link&hellip;</span>
+      <div className="flex gap-2 pt-1">
+        {/* Absent on a browser with no share sheet, and then the row is two
+            tiles wide rather than three. basis-0 on all of them so whichever
+            are there split the width evenly. */}
+        {hasSheet && (
+          <button type="button" onClick={handleShare} className={TILE_QUIET}>
+            <ShareIcon className="h-8 w-8" />
+            <span className={TILE_LABEL}>Share link</span>
+          </button>
+        )}
+
+        <button type="button" onClick={handleCopy} className={TILE_QUIET}>
+          <CopyIcon className="h-8 w-8" />
+          <span className={TILE_LABEL}>{copied ? 'Copied' : 'Copy link'}</span>
         </button>
-      )}
 
-      <button type="button" onClick={handleCopy} className={SECONDARY}>
-        <CopyIcon className="h-6 w-6" />
-        <span className="font-bold">{copied ? 'Copied' : 'Copy link'}</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          setStopped(true);
-          void stopSharing();
-        }}
-        className="w-full rounded-lg bg-red-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-700"
-      >
-        Stop Sharing
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            setStopped(true);
+            void stopSharing();
+          }}
+          className={TILE_STOP}
+        >
+          <StopIcon className="h-8 w-8" />
+          <span className={TILE_LABEL}>Stop Sharing</span>
+        </button>
+      </div>
     </div>
   );
 }

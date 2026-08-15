@@ -361,7 +361,7 @@ function Actions() {
       </P>
       <Shot
         name="actions"
-        alt="The Actions sheet: nine cards including Add a Player, Reshuffle, and Share Live Session"
+        alt="The Actions sheet: nine cards including Add a Player, Reshuffle, and Share Session"
         caption="Every mid-session change, one sheet."
       />
       <Item term="Add a Player">brings somebody from the group into the session.</Item>
@@ -369,7 +369,7 @@ function Actions() {
       <Item term="Add a Guest">
         somebody playing today only. Guests are never saved to the group.
       </Item>
-      <Item term="Share Live Session">
+      <Item term="Share Session">
         puts the session on everyone's phone. It has a chapter of its own.
       </Item>
       <Item term="Reshuffle">rebuilds the rounds you haven't played yet.</Item>
@@ -394,14 +394,14 @@ function Share() {
   return (
     <>
       <P>
-        Open <strong>Actions</strong>, then <strong>Share Live Session</strong>. The
+        Open <strong>Actions</strong>, then <strong>Share Session</strong>. The
         app makes a link and a QR code. Anyone who scans it watches the session on
         their own phone: courts, matchups, and scores as you write them down.
       </P>
       <Shot
         name="share-qr"
         alt="The Share Live Session sheet: a QR code, the link, and a Stop Sharing button"
-        caption="Point a camera at the code, or send the link."
+        caption="Have people scan this QR code, or send the link."
       />
       <P>
         Names, courts and scores are shared. Player ratings are not. Watching needs no

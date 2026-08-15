@@ -62,7 +62,6 @@ describe('the card the host holds up', () => {
   it('names the scores when the session is keeping them', () => {
     const said = open(true);
     expect(said).toContain('Names, courts and scores are shared. Player ratings are not.');
-    expect(said).toContain('Scores appear on their phones as you write them down.');
     expect(said).toContain('The link stops working after 24 hours.');
   });
 
@@ -75,5 +74,49 @@ describe('the card the host holds up', () => {
     // card that says nothing at all.
     expect(said).toContain('The link stops working after 24 hours.');
     expect(said).toContain(url);
+  });
+
+  it('tells them what to do with the code, and what the link is worth', () => {
+    const said = open(true);
+    expect(said).toContain('Have people scan this QR code, or send the link.');
+    expect(said).toContain(
+      'Changes you make appear on their phones. The link stops working after 24 hours.'
+    );
+  });
+
+  it('puts what you can do with a link on one row, not stacked down the page', () => {
+    // Stacked full width they read as steps to work through in order, which is
+    // wrong: they are one decision made once.
+    //
+    // Two tiles here rather than three. There is no navigator.share in this
+    // environment, which is the same answer a desktop browser gives, and the
+    // row is built to divide by however many it has.
+    open(true);
+    const row = container.querySelector('button')!.parentElement!;
+    expect(row.className).toContain('flex');
+
+    const tiles = [...row.querySelectorAll('button')];
+    expect(tiles.map((b) => b.textContent)).toEqual(['Copy link', 'Stop Sharing']);
+    for (const b of tiles) {
+      // basis-0 is what makes them split the row evenly whether there are two
+      // of them or three; flex-col is the glyph over the label.
+      expect(b.className).toContain('basis-0');
+      expect(b.className).toContain('flex-col');
+    }
+  });
+
+  it('offers Share link as a third tile where the phone has a share sheet', () => {
+    const share = vi.fn();
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    try {
+      open(true);
+      const row = container.querySelector('button')!.parentElement!;
+      const tiles = [...row.querySelectorAll('button')];
+      expect(tiles.map((b) => b.textContent)).toEqual([
+        'Share link', 'Copy link', 'Stop Sharing',
+      ]);
+    } finally {
+      Reflect.deleteProperty(navigator, 'share');
+    }
   });
 });
