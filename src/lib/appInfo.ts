@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.30';
+export const APP_VERSION = '3.31';
 
 /**
  * Master switch for the accounts feature.
