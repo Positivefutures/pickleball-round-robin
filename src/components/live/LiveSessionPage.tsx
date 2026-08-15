@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchShared, type LiveFetch } from '../../lib/liveViewer';
 import { APP_URL } from '../../lib/appInfo';
+import { Header } from '../layout/Header';
 import { StandingsPanel } from '../schedule/StandingsPanel';
+import {
+  PLAYER_NAME_TEXT,
+  ROUND_EDGE,
+  ROUND_FILL,
+  ROUND_HEADING_TEXT,
+} from '../schedule/roundLook';
+import { ChevronDownIcon } from '../icons';
 import { LiveCourt } from './LiveCourt';
 
 /**
@@ -14,17 +22,22 @@ import { LiveCourt } from './LiveCourt';
  * outside means a person who scans a code at a court cannot have their own
  * afternoon disturbed by looking at somebody else's.
  *
- * It also means no settings drawer, no tabs and no sync, so the chrome here is
- * its own rather than the app's. What it does share is every component that
- * draws a session, which is what the scoring release was careful to leave
- * free of stores.
+ * It also means no settings drawer, no tabs and no sync. What it does share is
+ * the banner — drawn without the drawer's button, since there is no drawer —
+ * and every component that draws a session, which is what the scoring release
+ * was careful to leave free of stores.
  */
 
 /** Long enough not to hammer, short enough that a score lands while people look. */
 const POLL_MS = 20_000;
 
-const CREAM = '#FBFAF6';
-const NAVY = '#051829';
+/**
+ * The way home, worn by the link under the schedule and the one on every
+ * notice. Sized as a player's name because it is the one thing on the page a
+ * visitor might actually want to press, and orange because everything else
+ * down there is grey.
+ */
+const HOME_LINK = `${PLAYER_NAME_TEXT} font-medium text-brand-orange underline hover:text-brand-orange-dark transition-colors`;
 
 interface Props {
   shareKey: string;
@@ -79,20 +92,19 @@ export function LiveSessionPage({ shareKey }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header
-        className="flex items-center justify-between gap-3 px-4 py-3"
-        style={{ backgroundColor: CREAM }}
-      >
-        <h1 className="text-lg font-extrabold leading-tight" style={{ color: NAVY }}>
-          Pickleball Round Robin
-        </h1>
-        {result?.state === 'ok' && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#149A30] ring-1 ring-[#149A30]/30">
-            <span className="h-2 w-2 rounded-full bg-[#149A30]" aria-hidden="true" />
-            LIVE
-          </span>
-        )}
-      </header>
+      {/* The app's own banner, with the LIVE pill standing where its buttons
+          do. No drawer here, so no button to open one. */}
+      <Header
+        title="Pickleball Round Robin"
+        corner={
+          result?.state === 'ok' ? (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#149A30] ring-1 ring-[#149A30]/30">
+              <span className="h-2 w-2 rounded-full bg-[#149A30]" aria-hidden="true" />
+              LIVE
+            </span>
+          ) : undefined
+        }
+      />
 
       <main className="mx-auto max-w-5xl space-y-4 px-2 pb-10 pt-4">
         {result === null && <Notice title="Loading this session…" />}
@@ -144,59 +156,138 @@ function Session({
 }) {
   const done = new Set(snapshot.completedRounds);
 
+  // Rounds somebody has folded away. Everything starts open, including the
+  // finished ones: a visitor was not there for the folding the host did, and a
+  // page that arrives half shut looks broken rather than tidy.
+  const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
+
+  // Where View Standings on every round goes.
+  const standingsRef = useRef<HTMLDivElement>(null);
+
+  function toggleFold(roundNumber: number) {
+    setFolded((cur) => {
+      const next = new Set(cur);
+      if (next.has(roundNumber)) next.delete(roundNumber);
+      else next.add(roundNumber);
+      return next;
+    });
+  }
+
+  // Smooth unless the phone has asked for less movement, the same as the
+  // host's page: neither scroll call consults that setting on its own.
+  function scrollBehavior(): ScrollBehavior {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
+
   return (
     <>
       {/* Rounds in the order they are played, not with the finished ones lifted
           to the top the way the host's page does. Somebody watching wants to
           know which court they are on next. */}
-      {snapshot.schedule.rounds.map((round) => (
-        <section
-          key={round.roundNumber}
-          className="rounded-lg border border-[#ddd] bg-white px-[0.6rem] pb-5 pt-3 shadow"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-[1.35rem] font-extrabold uppercase text-[#222]">
-              Round {round.roundNumber}
-            </h2>
-            {done.has(round.roundNumber) && (
-              <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                Done
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {round.courts.map((court, index) => (
-              <LiveCourt
-                // Keyed by position: two courts in one round can carry the same
-                // number while the host is part way through renaming them.
-                key={index}
-                court={court}
-                showScore={snapshot.scoringEnabled}
-              />
-            ))}
-          </div>
-
-          {round.sitOuts.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-medium text-gray-500">Sitting out</p>
-              <div className="flex flex-wrap gap-1.5">
-                {round.sitOuts.map((player) => (
-                  <span
-                    key={player.id}
-                    className="flex items-center gap-1 rounded border border-[#e2e2e2] bg-gray-50 px-2 py-1 text-sm"
-                  >
-                    {player.name}
+      {snapshot.schedule.rounds.map((round) => {
+        const expanded = !folded.has(round.roundNumber);
+        return (
+          <section
+            key={round.roundNumber}
+            className="rounded-lg border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem] shadow"
+            style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
+                  Round {round.roundNumber}
+                </h2>
+                {done.has(round.roundNumber) && (
+                  <span className="rounded bg-white/25 px-2 py-0.5 text-xs font-medium text-white">
+                    Done
                   </span>
-                ))}
+                )}
               </div>
+              {/* Down while the round is open, sideways once it is folded: the
+                  arrow points at where the courts are. */}
+              <button
+                type="button"
+                onClick={() => toggleFold(round.roundNumber)}
+                aria-expanded={expanded}
+                aria-label={
+                  expanded
+                    ? `Hide round ${round.roundNumber}`
+                    : `Show round ${round.roundNumber}`
+                }
+                className="text-white transition-colors hover:text-white/75"
+              >
+                <ChevronDownIcon
+                  className={`h-[21px] w-[21px] transition-transform ${expanded ? '' : '-rotate-90'}`}
+                />
+              </button>
             </div>
-          )}
-        </section>
-      ))}
+
+            {expanded && (
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {round.courts.map((court, index) => (
+                    <LiveCourt
+                      // Keyed by position: two courts in one round can carry the same
+                      // number while the host is part way through renaming them.
+                      key={index}
+                      court={court}
+                      showScore={snapshot.scoringEnabled}
+                    />
+                  ))}
+                </div>
+
+                {round.sitOuts.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 font-bold text-white">SITTING OUT</p>
+                    <div className="flex flex-wrap gap-2">
+                      {round.sitOuts.map((player) => (
+                        <span
+                          key={player.id}
+                          className="inline-flex items-center rounded-md border bg-gray-100 px-3 py-2"
+                          style={{ borderColor: ROUND_EDGE }}
+                        >
+                          <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
+                            {player.name}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* The way down to the table this round feeds, the same link the
+                    host's rounds carry. Only while the round is open, and only
+                    when there is a table under all of this to go to. */}
+                {snapshot.scoringEnabled && (
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        standingsRef.current?.scrollIntoView({
+                          behavior: scrollBehavior(),
+                          block: 'start',
+                        })
+                      }
+                      className="flex items-center gap-1 text-base font-medium text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+                    >
+                      View Standings
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        );
+      })}
 
       {snapshot.scoringEnabled && (
-        <StandingsPanel schedule={snapshot.schedule} players={snapshot.players} />
+        <StandingsPanel
+          schedule={snapshot.schedule}
+          players={snapshot.players}
+          panelRef={standingsRef}
+          onBackToTop={() => window.scrollTo({ top: 0, behavior: scrollBehavior() })}
+        />
       )}
 
       {/* A live view that has quietly stopped updating is worse than one that
@@ -205,8 +296,9 @@ function Session({
         {seenAt
           ? `Updated ${seenAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
           : 'Updating'}
-        {' · '}
-        <a href={APP_URL} className="underline">
+      </p>
+      <p className="text-center">
+        <a href={APP_URL} className={HOME_LINK}>
           Make your own round robin
         </a>
       </p>
@@ -239,8 +331,8 @@ function Notice({
           {retrying ? 'Trying…' : 'Try again'}
         </button>
       )}
-      <p className="mt-6 text-xs text-gray-500">
-        <a href={APP_URL} className="underline">
+      <p className="mt-6">
+        <a href={APP_URL} className={HOME_LINK}>
           Make your own round robin
         </a>
       </p>

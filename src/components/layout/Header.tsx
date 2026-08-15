@@ -13,6 +13,7 @@
  * as the panel illustrations, so the joins against the background are invisible.
  */
 
+import type { ReactNode } from 'react';
 import { ChevronDownIcon } from '../icons';
 
 /** The banner's height. Every other measurement here is a multiple of it. */
@@ -52,8 +53,9 @@ const RULE = '#D2D2D2';
 interface HeaderProps {
   /** Shown in the banner — the app name on the roster step, the group name after. */
   title: string;
-  settingsOpen: boolean;
-  onToggleSettings: () => void;
+  settingsOpen?: boolean;
+  /** Omitted on the live view, which has no drawer; the button is not drawn. */
+  onToggleSettings?: () => void;
   /**
    * Makes the title the way to another group, with a chevron after it. Omitted
    * where the title is the app's own name and leads nowhere.
@@ -61,14 +63,20 @@ interface HeaderProps {
   onTitleClick?: () => void;
   /** Omitted on steps with nothing worth printing, which hides the button. */
   onPrint?: () => void;
+  /**
+   * Sits where the buttons do, before them. The live view's LIVE pill, on a
+   * page that has neither button to keep it company.
+   */
+  corner?: ReactNode;
 }
 
 export function Header({
   title,
-  settingsOpen,
+  settingsOpen = false,
   onToggleSettings,
   onTitleClick,
   onPrint,
+  corner,
 }: HeaderProps) {
   // Both buttons have to stay legible wherever the diagonal happens to fall
   // behind them, which is teal at their right and cream at their left on a
@@ -157,6 +165,7 @@ export function Header({
           mistake. Up here the diagonal is shallow, so the left button laps
           onto the cream — which is why both are filled rather than outlined. */}
       <div className="absolute right-3 top-2 z-10 flex items-center gap-2">
+        {corner}
         {onPrint && (
           <button
             type="button"
@@ -179,27 +188,29 @@ export function Header({
         )}
         {/* Stays on screen in the sliver of panel left visible when the drawer
             is open, so the same button closes it again. */}
-        <button
-          type="button"
-          onClick={onToggleSettings}
-          aria-expanded={settingsOpen}
-          aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
-          title="Settings"
-          className={`${button} ${
-            settingsOpen ? 'text-white' : 'bg-white/95 ring-1 ring-black/10 hover:bg-white'
-          }`}
-          style={settingsOpen ? { backgroundColor: NAVY } : { color: NAVY }}
-        >
-          <svg
-            width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-            aria-hidden="true"
+        {onToggleSettings && (
+          <button
+            type="button"
+            onClick={onToggleSettings}
+            aria-expanded={settingsOpen}
+            aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
+            title="Settings"
+            className={`${button} ${
+              settingsOpen ? 'text-white' : 'bg-white/95 ring-1 ring-black/10 hover:bg-white'
+            }`}
+            style={settingsOpen ? { backgroundColor: NAVY } : { color: NAVY }}
           >
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
+            <svg
+              width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
     </header>
   );

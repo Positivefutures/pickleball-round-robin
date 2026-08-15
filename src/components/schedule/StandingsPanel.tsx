@@ -64,8 +64,8 @@ export function StandingsPanel({
   /** Where View Standings on a round card scrolls to. */
   panelRef?: RefObject<HTMLDivElement | null>;
   /**
-   * Back to the top of the page. Optional because the live view draws this same
-   * table on a page of its own, and nobody has asked for the link there.
+   * Back to the top of the page — the next round on the host's page, the
+   * banner on the live view. Both pass it; only the tests leave it off.
    */
   onBackToTop?: () => void;
 }) {

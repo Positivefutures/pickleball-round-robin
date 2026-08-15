@@ -178,8 +178,34 @@ describe('watching a session', () => {
   it('shows who is sitting out', async () => {
     answer = shared();
     await open();
-    expect(text()).toContain('Sitting out');
+    expect(text()).toContain('SITTING OUT');
     expect(text()).toContain('Dee');
+  });
+
+  it('folds a round away behind its arrow and brings it back', async () => {
+    answer = shared();
+    await open();
+    expect(text()).toContain('COURT 7');
+
+    const fold = container.querySelector<HTMLButtonElement>('[aria-label="Hide round 1"]');
+    if (!fold) throw new Error('no fold arrow on round 1');
+    await act(async () => fold.click());
+    expect(text()).not.toContain('COURT 7');
+    // The heading stays: a folded round is still a round on the page.
+    expect(text()).toContain('Round 1');
+
+    const unfold = container.querySelector<HTMLButtonElement>('[aria-label="Show round 1"]');
+    if (!unfold) throw new Error('no unfold arrow on round 1');
+    await act(async () => unfold.click());
+    expect(text()).toContain('COURT 7');
+  });
+
+  it('offers the way down to the standings on every open round', async () => {
+    // The scoring-off case is covered where the standings themselves are:
+    // no table, and no link pointing at where it would have been.
+    answer = shared({ team1: 11, team2: 7 });
+    await open();
+    expect(text()).toContain('View Standings');
   });
 
   it('marks a round the host has finished', async () => {
