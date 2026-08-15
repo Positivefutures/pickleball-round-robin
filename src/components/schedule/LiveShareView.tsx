@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
+import { CodeEntry, CODE_LENGTH } from '../CodeEntry';
+import { Toggle } from '../Toggle';
 import { CopyIcon, PersonIcon, ShareIcon, StopIcon } from '../icons';
 import {
   liveStatusStore,
@@ -258,6 +260,85 @@ export function LiveShareView({ onCreateAccount }: Props) {
           <StopIcon className="h-8 w-8" />
           <span className={TILE_LABEL}>Stop Sharing</span>
         </button>
+      </div>
+
+      <ScoreEditing scoring={scoring} />
+    </div>
+  );
+}
+
+/**
+ * Letting the people watching change the scores, behind a four digit code.
+ *
+ * Under the three tiles because it is the one thing on this card that is not
+ * about getting the link to people. They share the link first and decide this
+ * afterwards, if at all.
+ *
+ * Only offered on a session that keeps score. With scoring off there are no
+ * scores on the watchers' phones to edit, and a switch promising otherwise
+ * would be a promise the shared page cannot keep.
+ */
+function ScoreEditing({ scoring }: { scoring: boolean }) {
+  const [allowed, setAllowed] = useStoredValue(stores.scoreEditingAllowed);
+  const [code, setCode] = useStoredValue(stores.scoreEditCode);
+
+  if (!scoring) return null;
+
+  function handleToggle(on: boolean) {
+    setAllowed(on);
+    // Switching it off throws the code away rather than leaving it to come
+    // back with the switch. Turning this on again is a new decision, and the
+    // code is the thing the host has told people out loud.
+    if (!on) setCode(null);
+  }
+
+  return (
+    <div className="border-t border-panel-edge pt-3">
+      <div className="flex items-center justify-between gap-4">
+        {/* Sized as Keep Score? on the Setup panel, which is the switch this
+            one is meant to feel like. */}
+        <h3 className="text-lg font-semibold text-gray-800">Allow Editing Scores</h3>
+        <Toggle checked={allowed} onChange={handleToggle} label="Allow Editing Scores" />
+      </div>
+
+      {/*
+        The reveal. Grid rows going 0fr to 1fr is what animates a height nobody
+        has measured — max-height would need a guess, and a guess that is too
+        small clips the boxes on a large-text phone. The inner div owns the
+        overflow, because the grid track is what shrinks and the content has to
+        be allowed to be taller than it for the duration of the slide.
+
+        `invisible` once shut so the boxes leave the tab order. A zero height
+        row still has focusable children in it.
+      */}
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+          allowed ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 invisible'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-3">
+            <p id="score-code-help" className="text-sm" style={{ color: QUIET_TEXT }}>
+              Set a code, then tell it to whoever you want changing scores. They
+              are asked for it the first time they tap one.
+            </p>
+            <div className="pt-3">
+              <CodeEntry
+                value={code ?? ''}
+                onChange={(next) => setCode(next === '' ? null : next)}
+                label="Score editing code"
+                describedBy="score-code-help"
+              />
+            </div>
+            {/* Says nothing while it is being typed, then confirms. A code
+                half entered is not a mistake, so it is not marked as one. */}
+            <p className="pt-3 text-center text-sm" style={{ color: QUIET_TEXT }}>
+              {(code ?? '').length === CODE_LENGTH
+                ? 'Anyone with this code can change any score.'
+                : 'Enter four digits.'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

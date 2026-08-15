@@ -131,6 +131,29 @@ export const sessionId = createStoredValue<string | null>('pb-session-id', null)
 export const shareKey = createStoredValue<string | null>('pb-share-key', null);
 
 /**
+ * Whether the people watching this session may change its scores.
+ *
+ * Off unless the host says otherwise, and off again for every new session: it
+ * is a decision about one afternoon and one group of people, not a preference
+ * that should follow somebody to next Tuesday. Beside shareKey because it is
+ * the same kind of thing — what this phone is publishing, right now.
+ */
+export const scoreEditingAllowed = createStoredValue<boolean>(
+  'pb-score-editing-allowed',
+  false
+);
+
+/**
+ * The four digits a watcher must type before they can change a score, or null
+ * while editing is off.
+ *
+ * Kept in the clear, on the host's own phone, because the host has to be able
+ * to read it back and say it out loud to a court full of people. What leaves
+ * the device is never this — see the note in liveSession.ts.
+ */
+export const scoreEditCode = createStoredValue<string | null>('pb-score-edit-code', null);
+
+/**
  * Round numbers marked complete. An arbitrary set — the host may complete
  * rounds out of order.
  */

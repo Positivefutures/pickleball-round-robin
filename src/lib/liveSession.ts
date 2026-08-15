@@ -297,6 +297,19 @@ function adopt(minted: string, at: string) {
 }
 
 /**
+ * Forgets the score-editing switch and the code that went with it.
+ *
+ * Called wherever a share ends. The code is only ever meaningful against the
+ * link it was set for: a new session gets a new key, and a code left lying
+ * about would be one the host had told a different set of people, on a
+ * different afternoon, and had no reason to think was still live.
+ */
+function forgetScoreEditing() {
+  stores.scoreEditingAllowed.set(false);
+  stores.scoreEditCode.set(null);
+}
+
+/**
  * Stop, and take the published copy down with it.
  *
  * The local end goes first and unconditionally. A host who has pressed Stop has
@@ -310,6 +323,7 @@ export async function stopSharing(): Promise<void> {
   key = null;
   attempt = 0;
   stores.shareKey.set(null);
+  forgetScoreEditing();
   setStatus({ state: 'off' });
   if (going === null) return;
 
@@ -336,6 +350,7 @@ export function startLive(): void {
       // The session ended while the app was shut. Nothing to publish and no key
       // worth keeping; the row expires by itself.
       stores.shareKey.set(null);
+      forgetScoreEditing();
     } else {
       key = saved;
       startTracking();
@@ -358,6 +373,7 @@ export function startLive(): void {
       stopTracking();
       key = null;
       stores.shareKey.set(null);
+      forgetScoreEditing();
       setStatus({ state: 'off' });
     }
   });

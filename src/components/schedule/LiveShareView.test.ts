@@ -56,7 +56,16 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   stores.scoringEnabled.set(false);
+  stores.scoreEditingAllowed.set(false);
+  stores.scoreEditCode.set(null);
 });
+
+const switchEl = () => container.querySelector('[role="switch"]');
+const codeBoxes = () => [...container.querySelectorAll('input')];
+
+function click(el: Element) {
+  act(() => (el as HTMLElement).click());
+}
 
 describe('the card the host holds up', () => {
   it('names the scores when the session is keeping them', () => {
@@ -118,5 +127,90 @@ describe('the card the host holds up', () => {
     } finally {
       Reflect.deleteProperty(navigator, 'share');
     }
+  });
+});
+
+/**
+ * Letting the watchers change the scores.
+ *
+ * The switch is the host's decision about one afternoon, and the code is the
+ * thing they say out loud to the people on the court. What is guarded here is
+ * that the switch cannot be offered where it would be a lie, and that turning
+ * it off does not leave a code behind to come back with it.
+ */
+describe('allowing the watchers to edit scores', () => {
+  it('offers the switch on a session that keeps score', () => {
+    const said = open(true);
+    expect(said).toContain('Allow Editing Scores');
+    expect(switchEl()).not.toBeNull();
+    expect(switchEl()!.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('does not offer it at all when scoring is off', () => {
+    // There are no scores on the watchers' phones to edit, so a switch here
+    // would promise something the shared page cannot do. The card's existing
+    // test that no word of "score" appears is the other half of this.
+    open(false);
+    expect(switchEl()).toBeNull();
+    expect(codeBoxes()).toHaveLength(0);
+  });
+
+  it('keeps the code boxes out of reach until it is switched on', () => {
+    // A zero height grid row still has focusable children in it, so the row
+    // is made invisible as well as flat. Without that the four boxes are in
+    // the tab order of a card that is not showing them.
+    open(true);
+    const reveal = container.querySelector('.grid')!;
+    expect(reveal.className).toContain('grid-rows-[0fr]');
+    expect(reveal.className).toContain('invisible');
+  });
+
+  it('slides the code boxes out when it is switched on', () => {
+    open(true);
+    click(switchEl()!);
+
+    expect(switchEl()!.getAttribute('aria-checked')).toBe('true');
+    const reveal = container.querySelector('.grid')!;
+    expect(reveal.className).toContain('grid-rows-[1fr]');
+    expect(reveal.className).not.toContain('invisible');
+    expect(codeBoxes()).toHaveLength(4);
+    expect(container.textContent).toContain(
+      'Set a code, then tell it to whoever you want changing scores.'
+    );
+  });
+
+  it('says what is still missing, then what the code is worth', () => {
+    open(true);
+    click(switchEl()!);
+    expect(container.textContent).toContain('Enter four digits.');
+
+    stores.scoreEditCode.set('4719');
+    act(() => {
+      root.render(createElement(LiveShareView, {}));
+    });
+    expect(container.textContent).toContain('Anyone with this code can change any score.');
+    expect(container.textContent).not.toContain('Enter four digits.');
+  });
+
+  it('throws the code away when it is switched off again', () => {
+    // Turning it back on is a new decision. A code that survived would be one
+    // the host told a different set of people on a different afternoon.
+    open(true);
+    click(switchEl()!);
+    stores.scoreEditCode.set('4719');
+    click(switchEl()!);
+
+    expect(stores.scoreEditCode.get()).toBeNull();
+    expect(stores.scoreEditingAllowed.get()).toBe(false);
+  });
+
+  it('remembers the switch across a reload', () => {
+    // It lives in a store rather than in this component's state, so a host who
+    // backs out of the sheet and opens it again finds what they set.
+    stores.scoreEditingAllowed.set(true);
+    stores.scoreEditCode.set('4719');
+    open(true);
+    expect(switchEl()!.getAttribute('aria-checked')).toBe('true');
+    expect(codeBoxes().map((b) => (b as HTMLInputElement).value)).toEqual(['4', '7', '1', '9']);
   });
 });
