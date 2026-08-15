@@ -196,18 +196,14 @@ export function RoundCard({
                 team2: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team2'),
               };
               // Why this court is not playing the round's format, when it is
-              // not. On the card rather than on the court panel: the panel is
-              // where the score goes, and the note this replaces used to end up
-              // underneath it.
+              // not. On the card rather than inside the court panel, which is
+              // where the score lives and has no room for a sentence.
               const missReason = roundType && courtMissReason(round, roundType, court);
               return (
                 // Keyed by position, not by number: two courts in a round may
                 // now carry the same one while the host is part way through
                 // renaming them.
                 <div key={courtIdx}>
-                  {missReason && (
-                    <p className="mb-1.5 text-sm font-medium text-white no-print">{missReason}</p>
-                  )}
                   <CourtMatchup
                     court={court}
                     roundIdx={roundIdx}
@@ -228,6 +224,11 @@ export function RoundCard({
                     showScore={scoringEnabled}
                     onEditScore={() => onEditScore(courtIdx)}
                   />
+                  {/* Under the court it is about, so the eye reaches the names
+                      first and the explanation second. */}
+                  {missReason && (
+                    <p className="mt-1.5 text-sm font-medium text-white no-print">{missReason}</p>
+                  )}
                 </div>
               );
             })}

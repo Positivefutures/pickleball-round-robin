@@ -1054,8 +1054,16 @@ describe('Special Game Types', () => {
       expect(text(roundCard(1))).toContain(
         'A gendered game needs four men or four women. The 2 men and 2 women left over cannot make one.'
       );
-      // One line, above the one court that missed, not over every court.
+      // One line, under the one court that missed, not under every court.
       expect(text(roundCard(1)).match(/A gendered game needs/g)).toHaveLength(1);
+
+      // And under it rather than over it: the names first, the reason second.
+      const note = [...roundCard(1).querySelectorAll('p')].find((p) =>
+        (p.textContent ?? '').startsWith('A gendered game needs')
+      );
+      if (!note) throw new Error('no reason on the card');
+      expect(text(note.previousElementSibling!)).toContain('COURT');
+      expect(note.nextElementSibling).toBeNull();
     });
 
     it('says nothing on a round where every court is in format', () => {
