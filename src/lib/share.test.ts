@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { canShare, shareApp, sharePayload, SHARE_TITLE } from './share';
+import { canShare, sessionPayload, shareApp, sharePayload, SHARE_TITLE } from './share';
 import { APP_URL } from './appInfo';
 
 function abortError() {
@@ -22,6 +22,34 @@ describe('sharePayload', () => {
 
   it('shares a real https address', () => {
     expect(sharePayload().url).toMatch(/^https:\/\//);
+  });
+});
+
+/**
+ * What lands in somebody's mail app. The title is the subject and the text is
+ * the body, so both are read by a person who was not in the conversation.
+ */
+describe('sessionPayload', () => {
+  const url = 'https://app.pbroundrobin.com/?s=ABCDEFGHJK';
+
+  it('names the scores when the session is keeping them', () => {
+    expect(sessionPayload(url, true)).toEqual({
+      title: 'Our Round Robin Schedule and Scores',
+      text: 'Tap the link to view our round robin schedule and scores.',
+      url,
+    });
+  });
+
+  // A link that promises scores and shows none reads as a broken link.
+  it('promises only the schedule when scoring is off', () => {
+    const payload = sessionPayload(url, false);
+    expect(payload).toEqual({
+      title: 'Our Round Robin Schedule',
+      text: 'Tap the link to view our round robin schedule.',
+      url,
+    });
+    expect(payload.title).not.toContain('Score');
+    expect(payload.text).not.toContain('score');
   });
 });
 

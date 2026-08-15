@@ -8,6 +8,7 @@ import {
   stopSharing
 } from '../../lib/liveSession';
 import { canShare, sessionPayload, shareLink } from '../../lib/share';
+import * as stores from '../../lib/stores';
 
 /**
  * Sharing the session being run right now, from inside the Actions sheet.
@@ -86,9 +87,13 @@ export function LiveShareView({ onCreateAccount }: Props) {
 
   function handleShare() {
     if (!url) return;
+    // Read now rather than subscribed to: what the message should say is
+    // settled by the moment the sheet opens, and the host cannot reach the
+    // scoring switch without leaving this card.
+    //
     // Not awaited before the sheet opens: iOS only allows it from a live
     // gesture, and an await here spends it. See the note in share.ts.
-    void shareLink(sessionPayload(url));
+    void shareLink(sessionPayload(url, stores.scoringEnabled.get()));
   }
 
   // Signed out, or a build with nowhere to publish to. The card is offered

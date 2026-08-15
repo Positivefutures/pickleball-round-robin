@@ -3,13 +3,17 @@ import { APP_URL } from './appInfo';
 export const SHARE_TITLE = 'Pickleball Round Robin Generator';
 
 /**
- * No `text` field on purpose. Share targets append it to the url, so anything
- * here rides along in the message body — the share should be the link alone.
  * `title` is metadata: targets like Mail use it as the subject, and the ones
  * that send a plain message (Messages, WhatsApp) ignore it.
+ *
+ * `text` is the message body, and every target that sends one puts it above the
+ * link. Sharing the app leaves it off, because a bare link is the whole message
+ * there. Sharing a session sets it, because "tap this" is worth saying to a
+ * court full of people who did not ask for the link.
  */
 export interface SharePayload {
   title: string;
+  text?: string;
   url: string;
 }
 
@@ -83,7 +87,15 @@ export async function shareApp(share = defaultShare()): Promise<ShareOutcome> {
  * A different title because targets like Mail use it as the subject, and
  * "Pickleball Round Robin Generator" is an odd thing to head a message that
  * means "watch our session".
+ *
+ * Scores are named only when the session keeps them. A link that promises
+ * scores and then shows a schedule with no numbers on it reads as broken, and
+ * the host who turned scoring off is the one person who knows it is not.
  */
-export function sessionPayload(url: string): SharePayload {
-  return { title: 'Pickleball Round Robin', url };
+export function sessionPayload(url: string, scoring: boolean): SharePayload {
+  return {
+    title: `Our Round Robin Schedule${scoring ? ' and Scores' : ''}`,
+    text: `Tap the link to view our round robin schedule${scoring ? ' and scores' : ''}.`,
+    url,
+  };
 }
