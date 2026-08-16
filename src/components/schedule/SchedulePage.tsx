@@ -282,7 +282,10 @@ export function SchedulePage({
    * and an offer to swap in another.
    */
   function handleLockedTap(slot: CourtSlot) {
-    if (completedSet.has(schedule.rounds[slot.roundIdx].roundNumber)) return;
+    // No guard on a completed round here, unlike handlePlayerTap. That one has
+    // a swap behind it and refuses twice on purpose. This shows a pencil and
+    // changes nothing, and the seat it comes from will not call it on a round
+    // that is finished.
     setSelectedSlot(null);
     setPencilSlot((prev) => (prev && sameSlot(prev, slot) ? null : slot));
   }

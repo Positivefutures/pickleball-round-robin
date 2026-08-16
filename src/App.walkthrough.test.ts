@@ -4693,13 +4693,12 @@ describe('a padlock clicked on by hand', () => {
 
     // Removing somebody rebuilds every round still to be played, so the court
     // and side the padlock was drawn from now hold two entirely different
-    // people. It must not be drawn around them.
+    // people. The only padlock there was named the player who has gone, so
+    // there is no padlock left to draw: not around the pair it named, and not
+    // around whoever the rebuild stood in their place.
+    expect(second).not.toBe(first);
     for (const round of storedSchedule().rounds) {
-      const names = padlockedNames(round.roundNumber);
-      if (names.length > 0) {
-        expect(names).toContain(second);
-        expect(names).not.toContain(first);
-      }
+      expect(padlockedNames(round.roundNumber), `round ${round.roundNumber}`).toEqual([]);
     }
   });
 });
