@@ -319,6 +319,83 @@ describe('keeping it up to date', () => {
   });
 });
 
+describe('the round timer', () => {
+  const timer = () => (live().snapshot as { roundTimer: unknown }).roundTimer;
+
+  /** The store as the panel leaves it, for a round that is actually counting. */
+  function running(endsAt: number) {
+    stores.roundTimer.set({
+      roundNumber: 1,
+      phase: 'running',
+      minutes: 12,
+      endsAt,
+      remainingMs: 720_000,
+      soundOn: true,
+      flashOn: true,
+      alarmTone: 'bell'
+    });
+  }
+
+  it('sends nothing while the host is still choosing a length', async () => {
+    stores.roundTimer.set({
+      roundNumber: 1,
+      phase: 'idle',
+      minutes: 12,
+      endsAt: null,
+      remainingMs: 720_000,
+      soundOn: true,
+      flashOn: true,
+      alarmTone: 'bell'
+    });
+    await startSharing();
+    expect(timer()).toBeNull();
+  });
+
+  it('publishes the deadline once it is started, and not the private settings', async () => {
+    await startSharing();
+    const endsAt = Date.now() + 720_000;
+    running(endsAt);
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(timer()).toEqual({
+      roundNumber: 1,
+      phase: 'running',
+      endsAt,
+      remainingMs: 720_000,
+      flashOn: true
+    });
+    // The tone is the host's own choice on the host's own phone. Nobody
+    // watching can hear it or change it, so it never goes out.
+    expect(JSON.stringify(live().snapshot)).not.toContain('bell');
+  });
+
+  it('takes the timer back off when it is reset', async () => {
+    await startSharing();
+    running(Date.now() + 720_000);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(timer()).not.toBeNull();
+
+    stores.roundTimer.set((s) => ({ ...s, roundNumber: null, phase: 'idle', endsAt: null }));
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(timer()).toBeNull();
+  });
+
+  it('does not upload the whole session for a tap on the minutes stepper', async () => {
+    await startSharing();
+    const before = writes.length;
+
+    // Thumbing 12 up to 15 before starting anything. None of it is published,
+    // so none of it is worth a round trip.
+    for (const minutes of [13, 14, 15]) {
+      stores.roundTimer.set((s) => ({ ...s, minutes, remainingMs: minutes * 60_000 }));
+    }
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(writes.length).toBe(before);
+  });
+});
+
 describe('when the session ends', () => {
   it('takes the share down, wherever the ending came from', async () => {
     // New Round Robin, a group switch, a deleted group and sync adopting an

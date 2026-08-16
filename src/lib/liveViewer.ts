@@ -1,4 +1,8 @@
-import { SNAPSHOT_VERSION, type SessionSnapshot } from './sessionSnapshot';
+import {
+  SNAPSHOT_VERSION,
+  type SessionSnapshot,
+  type SharedRoundTimer
+} from './sessionSnapshot';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import type { CourtAssignment, Player, Round } from '../types';
 
@@ -103,6 +107,38 @@ function isRound(value: unknown): value is Round {
 }
 
 /**
+ * The host's timer, or null for every session that has none — which is most of
+ * them, and all of them published before the timer existed.
+ *
+ * Checked rather than trusted for the same reason the rounds are: this arrives
+ * over a network, and the viewer divides by it and draws it at the size of a
+ * scoreboard. A malformed one is dropped on its own, leaving the rest of the
+ * session perfectly readable, because a session is still worth watching
+ * without a countdown on it.
+ */
+function readTimer(value: unknown): SharedRoundTimer | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const timer = value as Partial<SharedRoundTimer>;
+
+  if (typeof timer.roundNumber !== 'number') return null;
+  if (timer.phase !== 'running' && timer.phase !== 'paused' && timer.phase !== 'alarming') {
+    return null;
+  }
+  // Running without a deadline is the one combination that cannot be drawn:
+  // there would be nothing to count towards.
+  const endsAt = typeof timer.endsAt === 'number' ? timer.endsAt : null;
+  if (timer.phase === 'running' && endsAt === null) return null;
+
+  return {
+    roundNumber: timer.roundNumber,
+    phase: timer.phase,
+    endsAt,
+    remainingMs: typeof timer.remainingMs === 'number' ? Math.max(0, timer.remainingMs) : 0,
+    flashOn: timer.flashOn === true
+  };
+}
+
+/**
  * Turns whatever came back into a snapshot, or says why it will not.
  *
  * Only the fields the viewer actually walks into are checked. `rating` and
@@ -141,7 +177,8 @@ export function read(value: unknown): LiveFetch {
       // absence means off. Read the same way as scoringEnabled beside it:
       // strictly true, so a field that arrives as a string or a number does
       // not open a prompt.
-      scoreEditing: document.scoreEditing === true
+      scoreEditing: document.scoreEditing === true,
+      roundTimer: readTimer(document.roundTimer)
     }
   };
 }

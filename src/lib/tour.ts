@@ -248,7 +248,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'court-numbers',
     tab: 'schedule',
     // The court panel alone, not the round it sits in. The round's header
-    // carries COMPLETED, and a box that reached up to include it would put a
+    // carries DONE, and a box that reached up to include it would put a
     // tick that freezes the round inside the lit area on a card about renaming
     // a court.
     regions: [{ anchors: [{ name: 'court-1' }] }],

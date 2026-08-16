@@ -201,7 +201,7 @@ describe('the deck', () => {
     expect(regions[0].plain).toBe(true);
   });
 
-  it('keeps COMPLETED out of the court numbers card', () => {
+  it('keeps DONE out of the court numbers card', () => {
     // The tick that freezes a round lives in the round header. Box the round
     // and it comes inside the lit area on a card about renaming a court.
     const card = TOUR_STEPS[4];

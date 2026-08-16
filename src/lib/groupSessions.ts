@@ -2,6 +2,7 @@ import type { Player, Partnership, Schedule, SpecialGameTypes } from '../types';
 import type { Step } from './steps';
 import * as stores from './stores';
 import { stopSharing } from './liveSession';
+import { clearRoundTimerForNewSchedule } from './roundTimer';
 
 /**
  * One group's afternoon, kept while the host is looking at another group's.
@@ -110,6 +111,8 @@ export function clearSession(keepSelection = false): void {
   // against the next session's settings and answer a question about a schedule
   // that no longer exists.
   stores.scheduleBasis.set(null);
+  // Whatever round it was pinned to is leaving with the rest of the session.
+  clearRoundTimerForNewSchedule();
   if (!keepSelection) {
     stores.selectedIds.set([]);
     stores.partnerships.set([]);

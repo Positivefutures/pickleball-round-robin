@@ -123,6 +123,14 @@ function roundCard(n: number): HTMLElement {
   return card as HTMLElement;
 }
 
+/**
+ * The card plus the format tab sitting on top of it, which is outside the card
+ * itself — see RoundTypeBadge for why it is drawn there.
+ */
+function roundBlock(n: number): HTMLElement {
+  return roundCard(n).parentElement as HTMLElement;
+}
+
 function checkbox(n: number): HTMLInputElement {
   return roundCard(n).querySelector('input[type="checkbox"]') as HTMLInputElement;
 }
@@ -1024,10 +1032,47 @@ describe('Special Game Types', () => {
 
     clickButton(/^Generate Schedule/);
     // Every 2 rounds means the second one. Round 1 waits.
-    expect(text(roundCard(2))).toContain('Mixed Round');
-    expect(text(roundCard(1))).not.toContain('Mixed Round');
+    expect(text(roundBlock(2))).toContain('Mixed Round');
+    expect(text(roundBlock(1))).not.toContain('Mixed Round');
     expect(storedSchedule().rounds[1].roundType).toBe('mixed');
     expect(storedSchedule().rounds[0].roundType).toBeUndefined();
+  });
+
+  it('sits the format on a tab above the card, with the icon for that format', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Special Game Types$/);
+    sayYes('mixed');
+    clickButton(/^Done$/);
+    clickButton(/^Generate Schedule/);
+
+    const card = roundCard(2);
+    // Outside the card, and immediately above it. Inside, it was one more thing
+    // on the heading line; here the card's own top edge closes the tab.
+    expect(text(card)).not.toContain('Mixed Round');
+    const tab = [...roundBlock(2).children].find((el) => text(el).includes('Mixed Round'))!;
+    expect(tab).toBeDefined();
+    expect(tab.nextElementSibling).toBe(card);
+    expect(tab.className).toContain('justify-center');
+
+    const pill = tab.firstElementChild!;
+    // The same drawing the Special Game Types panel marks the format with, and
+    // an edge in the fill's own colour several steps down.
+    expect(pill.querySelector('svg')).not.toBeNull();
+    expect(pill.className).toContain('bg-teal-100');
+    expect(pill.className).toContain('border-teal-400');
+  });
+
+  it('marks a gendered round with both symbols, since the format is two things', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Special Game Types$/);
+    sayYes('gendered');
+    clickButton(/^Done$/);
+    clickButton(/^Generate Schedule/);
+
+    const tab = [...roundBlock(2).children].find((el) => text(el).includes('Gendered Round'))!;
+    expect(tab.firstElementChild!.querySelectorAll('svg')).toHaveLength(2);
   });
 
   it('gives the first special round to a type when two are switched on', () => {

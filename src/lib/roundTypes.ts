@@ -21,6 +21,15 @@ interface RoundTypeMeta {
   shortName: string;
   badge: string;
   badgeClass: string;
+  /**
+   * The line around the tab on a round card: the badge's own fill, several
+   * steps down the same ramp, so the edge reads as the colour darkening rather
+   * than as a second colour drawn around it.
+   *
+   * Its own field rather than part of `badgeClass` because the Setup tab prints
+   * the same chip flat, inside a panel that already has a line around it.
+   */
+  badgeEdgeClass: string;
   printColor: string;
 }
 
@@ -31,6 +40,7 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     shortName: 'Gendered',
     badge: 'Gendered Round',
     badgeClass: 'bg-purple-100 text-purple-700',
+    badgeEdgeClass: 'border-purple-400',
     printColor: '#7e22ce',
   },
   mixed: {
@@ -39,6 +49,7 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     shortName: 'Mixed',
     badge: 'Mixed Round',
     badgeClass: 'bg-teal-100 text-teal-700',
+    badgeEdgeClass: 'border-teal-400',
     printColor: '#0f766e',
   },
   skill: {
@@ -47,6 +58,7 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     shortName: 'Equal Skill',
     badge: 'Equal Skill Round',
     badgeClass: 'bg-amber-100 text-amber-800',
+    badgeEdgeClass: 'border-amber-400',
     printColor: '#b45309',
   },
 };
@@ -206,7 +218,11 @@ export function specialSummary(
  * the old `isGendered` flag, so everything reads rounds through here.
  */
 export function roundTypeOf(round: Round): RoundType | null {
-  if (round.roundType) return round.roundType;
+  // Checked against the list rather than simply returned, because a round on a
+  // watcher's page arrived over a network: everything else that reads a type
+  // uses it to index ROUND_TYPE_META, and a document carrying a word this app
+  // has never heard of would take the page down rather than draw no badge.
+  if (round.roundType && ROUND_TYPES.includes(round.roundType)) return round.roundType;
   return round.isGendered ? 'gendered' : null;
 }
 

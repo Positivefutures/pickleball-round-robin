@@ -2,10 +2,15 @@ import type { Player, Roster, Schedule, Partnership, SpecialGameTypes } from '..
 import type { Step } from './steps';
 import type { GroupSession } from './groupSessions';
 import type { ExampleMeta } from './exampleGroup';
+import type { RoundTimerState } from './roundTimerState';
 import { createStoredValue } from './store';
 import { DEFAULT_COURTS } from './assign';
 import { KEYS, EMPTY_GROUP_NAME } from './migrations';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
+// From roundTimerState rather than from roundTimer, which imports this file:
+// a cycle here seeds the store with `undefined` whenever the graph happens to
+// reach the timer first. See roundTimerState.ts.
+import { DEFAULT_ROUND_TIMER_STATE } from './roundTimerState';
 
 /**
  * Every persisted value in the app, in one place.
@@ -158,6 +163,17 @@ export const scoreEditCode = createStoredValue<string | null>('pb-score-edit-cod
  * rounds out of order.
  */
 export const completedRounds = createStoredValue<number[]>(KEYS.completedRounds, []);
+
+/**
+ * The one round timer running (or configured, or paused) anywhere in the app.
+ * Persisted with an absolute `endsAt` rather than a decrementing counter, so a
+ * reload lands on the correct remaining time instead of losing it — see
+ * lib/roundTimer.ts, which owns every read and write of this key.
+ */
+export const roundTimer = createStoredValue<RoundTimerState>(
+  'pb-round-timer',
+  DEFAULT_ROUND_TIMER_STATE
+);
 
 export const selectedIds = createStoredValue<string[]>('pb-selected-ids', []);
 export const removedIds = createStoredValue<string[]>('pb-removed-ids', []);

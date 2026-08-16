@@ -12,9 +12,12 @@ import {
   ROUND_FILL,
   ROUND_HEADING_TEXT,
 } from '../schedule/roundLook';
+import { RoundTypeBadge } from '../schedule/RoundTypeBadge';
+import { roundTypeOf } from '../../lib/roundTypes';
 import { ChevronDownIcon } from '../icons';
 import { CodePrompt } from './CodePrompt';
 import { LiveCourt } from './LiveCourt';
+import { LiveRoundTimer, LiveTimerChip } from './LiveRoundTimer';
 import { MakeYourOwn } from './MakeYourOwn';
 
 /**
@@ -400,6 +403,15 @@ function Session({
   // page that arrives half shut looks broken rather than tidy.
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
 
+  /**
+   * Whether the timer sheet is up. Opened by tapping the clock and closed by
+   * hand, never by a poll: a countdown that reaches zero on the host's phone
+   * is a thing to look at, not a reason to take over the screen of somebody
+   * who is mid-point on the far court.
+   */
+  const [timerOpen, setTimerOpen] = useState(false);
+  const timer = snapshot.roundTimer;
+
   // Where View Standings on every round goes.
   const standingsRef = useRef<HTMLDivElement>(null);
 
@@ -425,117 +437,131 @@ function Session({
           know which court they are on next. */}
       {snapshot.schedule.rounds.map((round, roundIndex) => {
         const expanded = !folded.has(round.roundNumber);
+        const roundType = roundTypeOf(round);
         return (
-          <section
-            key={round.roundNumber}
-            className="rounded-lg border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem] shadow"
-            style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
-                  Round {round.roundNumber}
-                </h2>
-                {done.has(round.roundNumber) && (
-                  <span className="rounded bg-white/25 px-2 py-0.5 text-xs font-medium text-white">
-                    Done
-                  </span>
-                )}
-              </div>
-              {/* Down while the round is open, sideways once it is folded: the
-                  arrow points at where the courts are. */}
-              <button
-                type="button"
-                onClick={() => toggleFold(round.roundNumber)}
-                aria-expanded={expanded}
-                aria-label={
-                  expanded
-                    ? `Hide round ${round.roundNumber}`
-                    : `Show round ${round.roundNumber}`
-                }
-                className="text-white transition-colors hover:text-white/75"
-              >
-                {/* Twice the size it opened at. The glyph is solid rather than
-                    drawn in a stroke, so scaling it is what makes it heavier. */}
-                <ChevronDownIcon
-                  className={`h-[42px] w-[42px] transition-transform ${expanded ? '' : '-rotate-90'}`}
-                />
-              </button>
-            </div>
-
-            {expanded && (
-              <>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {round.courts.map((court, index) => (
-                    <LiveCourt
-                      // Keyed by position: two courts in one round can carry the same
-                      // number while the host is part way through renaming them.
-                      key={index}
-                      court={court}
-                      showScore={snapshot.scoringEnabled}
-                      // The same two positions the queue is keyed on, and the
-                      // same ones the host reads back. Not the round's number,
-                      // which is the host's to change.
-                      onEditScore={
-                        onEditScore
-                          ? () => onEditScore({ round: roundIndex, court: index })
-                          : undefined
-                      }
-                    />
-                  ))}
+          // Wrapped so the gap the page puts between rounds falls above the
+          // tab, not between the tab and the card it belongs to.
+          <div key={round.roundNumber}>
+            {roundType && <RoundTypeBadge type={roundType} />}
+            <section
+              className="rounded-lg border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem] shadow"
+              style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
+                    Round {round.roundNumber}
+                  </h2>
+                  {done.has(round.roundNumber) && (
+                    <span className="rounded bg-white/25 px-2 py-0.5 text-xs font-medium text-white">
+                      Done
+                    </span>
+                  )}
                 </div>
+                <div className="flex items-center gap-3">
+                  {/* Only on the round actually being timed, and only once it
+                      has been started — the host's page shows a clock on every
+                      round because the host is the one who picks which to time. */}
+                  {timer?.roundNumber === round.roundNumber && (
+                    <LiveTimerChip timer={timer} onOpen={() => setTimerOpen(true)} />
+                  )}
+                  {/* Down while the round is open, sideways once it is folded:
+                      the arrow points at where the courts are. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleFold(round.roundNumber)}
+                    aria-expanded={expanded}
+                    aria-label={
+                      expanded
+                        ? `Hide round ${round.roundNumber}`
+                        : `Show round ${round.roundNumber}`
+                    }
+                    className="text-white transition-colors hover:text-white/75"
+                  >
+                    {/* Twice the size it opened at. The glyph is solid rather
+                        than drawn in a stroke, so scaling it is what makes it
+                        heavier. */}
+                    <ChevronDownIcon
+                      className={`h-[42px] w-[42px] transition-transform ${expanded ? '' : '-rotate-90'}`}
+                    />
+                  </button>
+                </div>
+              </div>
 
-                {/* The way down to the table this round feeds, the same link
-                    the host's rounds carry and in the same place: the far end
-                    of the SITTING OUT line, or its own row on a round where
-                    nobody is sitting out. Only when there is a table to go to. */}
-                {(() => {
-                  const link = snapshot.scoringEnabled ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        standingsRef.current?.scrollIntoView({
-                          behavior: scrollBehavior(),
-                          block: 'start',
-                        })
-                      }
-                      // Set against SITTING OUT beside it, as on the host's card.
-                      className="flex shrink-0 items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
-                    >
-                      View Standings
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </button>
-                  ) : null;
+              {expanded && (
+                <>
+                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {round.courts.map((court, index) => (
+                      <LiveCourt
+                        // Keyed by position: two courts in one round can carry the same
+                        // number while the host is part way through renaming them.
+                        key={index}
+                        court={court}
+                        showScore={snapshot.scoringEnabled}
+                        // The same two positions the queue is keyed on, and the
+                        // same ones the host reads back. Not the round's number,
+                        // which is the host's to change.
+                        onEditScore={
+                          onEditScore
+                            ? () => onEditScore({ round: roundIndex, court: index })
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
 
-                  if (round.sitOuts.length === 0) {
-                    return link && <div className="mt-3 flex justify-end">{link}</div>;
-                  }
+                  {/* The way down to the table this round feeds, the same link
+                      the host's rounds carry and in the same place: the far end
+                      of the SITTING OUT line, or its own row on a round where
+                      nobody is sitting out. Only when there is a table to go to. */}
+                  {(() => {
+                    const link = snapshot.scoringEnabled ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          standingsRef.current?.scrollIntoView({
+                            behavior: scrollBehavior(),
+                            block: 'start',
+                          })
+                        }
+                        // Set against SITTING OUT beside it, as on the host's card.
+                        className="flex shrink-0 items-center gap-1 text-base font-bold text-white underline decoration-white/50 underline-offset-2 transition-colors hover:text-white/75"
+                      >
+                        View Standings
+                        <ChevronDownIcon className="h-4 w-4" />
+                      </button>
+                    ) : null;
 
-                  return (
-                    <div className="mt-4">
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <p className="font-bold text-white">SITTING OUT</p>
-                        {link}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {round.sitOuts.map((player) => (
-                          <span
-                            key={player.id}
-                            className="inline-flex items-center rounded-md border bg-gray-100 px-3 py-2"
-                            style={{ borderColor: ROUND_EDGE }}
-                          >
-                            <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
-                              {player.name}
+                    if (round.sitOuts.length === 0) {
+                      return link && <div className="mt-3 flex justify-end">{link}</div>;
+                    }
+
+                    return (
+                      <div className="mt-4">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="font-bold text-white">SITTING OUT</p>
+                          {link}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {round.sitOuts.map((player) => (
+                            <span
+                              key={player.id}
+                              className="inline-flex items-center rounded-md border bg-gray-100 px-3 py-2"
+                              style={{ borderColor: ROUND_EDGE }}
+                            >
+                              <span className={`font-medium text-gray-900 ${PLAYER_NAME_TEXT}`}>
+                                {player.name}
+                              </span>
                             </span>
-                          </span>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
-          </section>
+                    );
+                  })()}
+                </>
+              )}
+            </section>
+          </div>
         );
       })}
 
@@ -557,6 +583,12 @@ function Session({
           : 'Updating'}
       </p>
       <MakeYourOwn />
+
+      {/* Goes on its own when the host resets or clears their timer: the field
+          is gone from the next poll, and there is nothing left to count. */}
+      {timerOpen && timer && (
+        <LiveRoundTimer timer={timer} onClose={() => setTimerOpen(false)} />
+      )}
     </>
   );
 }

@@ -17,6 +17,47 @@ import type { Player, Schedule } from '../types';
 
 export const SNAPSHOT_VERSION = 1;
 
+/**
+ * The host's round timer, as a watching phone needs it.
+ *
+ * A projection rather than the whole `RoundTimerState`: the minutes the host
+ * configured, which tone they chose and whether their own phone will make a
+ * noise are all settings for the person holding it, and nobody watching can
+ * change any of them.
+ *
+ * `endsAt` is the reason a twenty-second poll is fast enough to run a
+ * countdown on. It is an absolute deadline, not a number ticking down, so a
+ * watcher subtracts it from their own clock and is right whether the document
+ * they are holding arrived a second ago or eleven minutes ago. What that does
+ * assume is that the two phones agree on the time, which every phone that has
+ * ever been on a network does to well inside a second.
+ */
+export interface SharedRoundTimer {
+  roundNumber: number;
+  /** Never 'idle'. A timer nobody has started yet is not worth publishing. */
+  phase: 'running' | 'paused' | 'alarming';
+  /** Absolute ms deadline on the host's clock. Null unless running. */
+  endsAt: number | null;
+  /** Frozen ms left while paused, 0 while alarming. Ignored while running. */
+  remainingMs: number;
+  /** Whether reaching zero flashes the screen, so every phone does the same thing. */
+  flashOn: boolean;
+}
+
+/**
+ * How much of the round is left, on the clock of whichever phone is asking.
+ *
+ * The mirror of `liveRemainingMs` in roundTimer.ts, for the shape that goes
+ * over the wire: computed fresh rather than read off a document that may be
+ * twenty seconds old, which is the whole reason a deadline is published
+ * instead of a remainder.
+ */
+export function sharedRemainingMs(timer: SharedRoundTimer, now = Date.now()): number {
+  if (timer.phase === 'running') return Math.max(0, (timer.endsAt ?? now) - now);
+  if (timer.phase === 'alarming') return 0;
+  return timer.remainingMs;
+}
+
 export interface SessionSnapshot {
   version: number;
   /** ISO, on the writer's clock. */
@@ -42,6 +83,15 @@ export interface SessionSnapshot {
    * session published before today meant.
    */
   scoreEditing: boolean;
+  /**
+   * The round being timed right now, or null when none is.
+   *
+   * Added after the fact like `scoreEditing` above, and for the same reason
+   * not a version bump: an older app reading this ignores a field it has never
+   * heard of, and this app reading an older document takes the absence as "no
+   * timer", which is what every session published before today meant.
+   */
+  roundTimer: SharedRoundTimer | null;
 }
 
 export type SnapshotInput = Omit<SessionSnapshot, 'version' | 'at'>;

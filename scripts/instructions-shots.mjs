@@ -394,7 +394,7 @@ async function shootAccountSignIn() {
 
 // ------------------------------------------------------------------- run it
 
-const SHOTS = [
+const ALL = [
   shootPlayers,
   shootPlayerEdit,
   shootSetup,
@@ -408,6 +408,35 @@ const SHOTS = [
   shootShareQr,
   shootAccountSignIn,
 ];
+
+/**
+ * Names on the command line narrow it to those shots:
+ *
+ *   node scripts/instructions-shots.mjs round-card standings
+ *
+ * With none, everything is redrawn, which is what you want after a change to
+ * the shell every page sits in. One picture at a time is for a change to one
+ * screen, and matters because these are binaries: rewriting eleven identical
+ * WebPs to fix the twelfth puts eleven meaningless diffs in the commit.
+ *
+ * Matched against the shot's own name rather than the function's, and matched
+ * with the hyphens taken out of both: shootAccountSignIn writes
+ * account-signin.webp, so deriving the file name from the function name is
+ * right everywhere but there, and a filter that will not run one of the twelve
+ * is worse than one that is relaxed about a dash.
+ */
+const wanted = process.argv.slice(2);
+const shotName = (fn) => fn.name.replace(/^shoot/, '')
+  .replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+const loose = (name) => name.replace(/-/g, '');
+const SHOTS = wanted.length === 0
+  ? ALL
+  : ALL.filter((fn) => wanted.some((w) => loose(w) === loose(shotName(fn))));
+
+if (SHOTS.length === 0) {
+  console.error(`No shot named ${wanted.join(', ')}. Known: ${ALL.map(shotName).join(', ')}`);
+  process.exit(1);
+}
 
 try {
   mkdirSync(OUT, { recursive: true });

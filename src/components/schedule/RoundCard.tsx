@@ -2,9 +2,11 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
-import { ROUND_TYPE_META, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
+import { courtMissReason, roundTypeOf } from '../../lib/roundTypes';
 import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from './roundLook';
 import { ChevronDownIcon } from '../icons';
+import { RoundTimerChip } from './RoundTimerChip';
+import { RoundTypeBadge } from './RoundTypeBadge';
 
 interface Props {
   round: Round;
@@ -23,6 +25,8 @@ interface Props {
   canUncomplete: boolean;
   onToggleComplete: () => void;
   onToggleExpand: () => void;
+  /** Opens the Round Timer panel for this round. */
+  onOpenTimer: () => void;
   /** Opens the box for renaming a court in this round. */
   onEditCourtNumber: (courtIdx: number) => void;
   /** Whether this session keeps score. */
@@ -99,6 +103,7 @@ export function RoundCard({
   canUncomplete,
   onToggleComplete,
   onToggleExpand,
+  onOpenTimer,
   onEditCourtNumber,
   scoringEnabled,
   onEditScore,
@@ -117,13 +122,6 @@ export function RoundCard({
   // Courts only. The question a mark answers is whether the four people on this
   // court are the four the format asked for, and nobody sitting out is on one.
   const showGender = roundType === 'gendered' || roundType === 'mixed';
-  const typeBadge = roundType && (
-    <span
-      className={`text-xs font-medium px-2 py-0.5 rounded ${ROUND_TYPE_META[roundType].badgeClass}`}
-    >
-      {ROUND_TYPE_META[roundType].badge}
-    </span>
-  );
 
   /**
    * The way down to the table this round feeds. A long session is several
@@ -152,22 +150,22 @@ export function RoundCard({
     ) : null;
 
   return (
-    <div
-      className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
-      style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
-    >
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
+    <>
+      {/* Sitting on the card rather than inside it. See RoundTypeBadge. */}
+      {roundType && <RoundTypeBadge type={roundType} />}
+
+      <div
+        className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
+        style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+      >
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             {/* Just the number. The heading used to carry "(completed)" beside
-                it, which said a third time what the ticked COMPLETED box and
+                it, which said a third time what the ticked DONE box and
                 the View/Hide button already say. Jeff's call on 2026-08-15. */}
             <h3 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
               Round {round.roundNumber}
             </h3>
-            {/* A completed round also carries View/Hide, which leaves no room
-                for the badge alongside — it drops to its own line instead. */}
-            {!isComplete && typeBadge}
             {isComplete && (
               <button
                 type="button"
@@ -180,114 +178,126 @@ export function RoundCard({
               </button>
             )}
           </div>
-          {isComplete && typeBadge && <div className="mt-1">{typeBadge}</div>}
+
+          {/* Grouped with DONE so the outer row still resolves to two flex
+              items, the same two it has always had — the timer button is not a
+              third thing for justify-between to place. */}
+          <div className="flex items-center gap-3">
+            {/* Gone once the round is DONE: a finished round has nothing left
+                to time, and checking DONE while this timer is running stops it
+                — see stopAndResetIfRound in lib/roundTimer.ts. */}
+            {!isComplete && (
+              <RoundTimerChip roundNumber={round.roundNumber} onOpen={onOpenTimer} />
+            )}
+
+            {/* Locked reads as a paler white rather than a grey, which would be
+                the one dark thing on the card and look like a mistake. The
+                tooltip is what actually says why it will not move. */}
+            <label
+              className={`flex items-center gap-2 ${ROUND_HEADING_TEXT} font-bold select-none no-print ${
+                isComplete && !canUncomplete
+                  ? 'text-white/70 cursor-default'
+                  : 'text-white cursor-pointer'
+              }`}
+              title={
+                isComplete && !canUncomplete
+                  ? 'Completed rounds are locked once a player has been removed'
+                  : undefined
+              }
+            >
+              DONE
+              {/* Filled in the round's own edge colour rather than the app's
+                  green, which would be a second accent fighting the card
+                  behind it. */}
+              <input
+                type="checkbox"
+                checked={isComplete}
+                disabled={isComplete && !canUncomplete}
+                onChange={onToggleComplete}
+                style={{ accentColor: ROUND_EDGE }}
+                className="w-5 h-5 disabled:cursor-default"
+              />
+            </label>
+          </div>
         </div>
 
-        {/* Locked reads as a paler white rather than a grey, which would be the
-            one dark thing on the card and look like a mistake. The tooltip is
-            what actually says why it will not move. */}
-        <label
-          className={`flex items-center gap-2 ${ROUND_HEADING_TEXT} font-bold select-none no-print ${
-            isComplete && !canUncomplete
-              ? 'text-white/70 cursor-default'
-              : 'text-white cursor-pointer'
-          }`}
-          title={
-            isComplete && !canUncomplete
-              ? 'Completed rounds are locked once a player has been removed'
-              : undefined
-          }
-        >
-          COMPLETED
-          {/* Filled in the round's own edge colour rather than the app's green,
-              which would be a second accent fighting the card behind it. */}
-          <input
-            type="checkbox"
-            checked={isComplete}
-            disabled={isComplete && !canUncomplete}
-            onChange={onToggleComplete}
-            style={{ accentColor: ROUND_EDGE }}
-            className="w-5 h-5 disabled:cursor-default"
-          />
-        </label>
+        {showBody && (
+          <>
+            {/* The line changes with scoring on, because the plain one would be a
+                lie: the players are fixed but the board is still live. */}
+            {isComplete && (
+              <p className="text-base text-white italic mt-3 no-print">
+                {scoringEnabled
+                  ? 'This round is complete. Scores can still be changed.'
+                  : 'This round is complete and can no longer be edited.'}
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+              {round.courts.map((court, courtIdx) => {
+                const lockedTeams = {
+                  team1: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team1'),
+                  team2: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team2'),
+                };
+                // Why this court is not playing the round's format, when it is
+                // not. On the card rather than inside the court panel, which is
+                // where the score lives and has no room for a sentence.
+                const missReason = roundType && courtMissReason(round, roundType, court);
+                return (
+                  // Keyed by position, not by number: two courts in a round may
+                  // now carry the same one while the host is part way through
+                  // renaming them.
+                  <div key={courtIdx}>
+                    <CourtMatchup
+                      court={court}
+                      roundIdx={roundIdx}
+                      courtIdx={courtIdx}
+                      tourCourt={tourRound ? courtIdx : undefined}
+                      hideSeatEdit={hideSeatEdit}
+                      swappedIds={swappedIds}
+                      swapSeq={swapSeq}
+                      selectedSlot={selectedSlot}
+                      pencilSlot={pencilSlot}
+                      onPlayerTap={onPlayerTap}
+                      onLockedTap={onLockedTap}
+                      allPlayers={allPlayers}
+                      lockedTeams={lockedTeams}
+                      onToggleLock={onToggleLock}
+                      onOpenPlayerMenu={onOpenPlayerMenu}
+                      readOnly={isComplete}
+                      showGender={showGender}
+                      onEditNumber={() => onEditCourtNumber(courtIdx)}
+                      showScore={scoringEnabled}
+                      onEditScore={() => onEditScore(courtIdx)}
+                    />
+                    {/* Under the court it is about, so the eye reaches the names
+                        first and the explanation second. */}
+                    {missReason && (
+                      <p className="mt-1.5 text-sm font-medium text-white no-print">{missReason}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <SitOutList
+              players={round.sitOuts}
+              roundIdx={roundIdx}
+              swappedIds={swappedIds}
+              swapSeq={swapSeq}
+              selectedSlot={selectedSlot}
+              onPlayerTap={onPlayerTap}
+              onOpenPlayerMenu={onOpenPlayerMenu}
+              allPlayers={allPlayers}
+              readOnly={isComplete}
+              action={standingsLink}
+            />
+            {/* Nobody sitting out, so there is no line for it to share. It keeps
+                the place it has always had. */}
+            {round.sitOuts.length === 0 && standingsLink && (
+              <div className="mt-3 flex justify-end">{standingsLink}</div>
+            )}
+          </>
+        )}
       </div>
-
-      {showBody && (
-        <>
-          {/* The line changes with scoring on, because the plain one would be a
-              lie: the players are fixed but the board is still live. */}
-          {isComplete && (
-            <p className="text-base text-white italic mt-3 no-print">
-              {scoringEnabled
-                ? 'This round is complete. Scores can still be changed.'
-                : 'This round is complete and can no longer be edited.'}
-            </p>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {round.courts.map((court, courtIdx) => {
-              const lockedTeams = {
-                team1: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team1'),
-                team2: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team2'),
-              };
-              // Why this court is not playing the round's format, when it is
-              // not. On the card rather than inside the court panel, which is
-              // where the score lives and has no room for a sentence.
-              const missReason = roundType && courtMissReason(round, roundType, court);
-              return (
-                // Keyed by position, not by number: two courts in a round may
-                // now carry the same one while the host is part way through
-                // renaming them.
-                <div key={courtIdx}>
-                  <CourtMatchup
-                    court={court}
-                    roundIdx={roundIdx}
-                    courtIdx={courtIdx}
-                    tourCourt={tourRound ? courtIdx : undefined}
-                    hideSeatEdit={hideSeatEdit}
-                    swappedIds={swappedIds}
-                    swapSeq={swapSeq}
-                    selectedSlot={selectedSlot}
-                    pencilSlot={pencilSlot}
-                    onPlayerTap={onPlayerTap}
-                    onLockedTap={onLockedTap}
-                    allPlayers={allPlayers}
-                    lockedTeams={lockedTeams}
-                    onToggleLock={onToggleLock}
-                    onOpenPlayerMenu={onOpenPlayerMenu}
-                    readOnly={isComplete}
-                    showGender={showGender}
-                    onEditNumber={() => onEditCourtNumber(courtIdx)}
-                    showScore={scoringEnabled}
-                    onEditScore={() => onEditScore(courtIdx)}
-                  />
-                  {/* Under the court it is about, so the eye reaches the names
-                      first and the explanation second. */}
-                  {missReason && (
-                    <p className="mt-1.5 text-sm font-medium text-white no-print">{missReason}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <SitOutList
-            players={round.sitOuts}
-            roundIdx={roundIdx}
-            swappedIds={swappedIds}
-            swapSeq={swapSeq}
-            selectedSlot={selectedSlot}
-            onPlayerTap={onPlayerTap}
-            onOpenPlayerMenu={onOpenPlayerMenu}
-            allPlayers={allPlayers}
-            readOnly={isComplete}
-            action={standingsLink}
-          />
-          {/* Nobody sitting out, so there is no line for it to share. It keeps
-              the place it has always had. */}
-          {round.sitOuts.length === 0 && standingsLink && (
-            <div className="mt-3 flex justify-end">{standingsLink}</div>
-          )}
-        </>
-      )}
-    </div>
+    </>
   );
 }

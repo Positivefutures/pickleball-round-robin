@@ -43,6 +43,8 @@ import { isSupabaseConfigured, hasAuthCallback, hasStoredSession, linkNotice } f
 import { authStore } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
+import { startRoundTimerWatchdog, clearRoundTimerForNewSchedule } from './lib/roundTimer';
+import { RoundTimerPanel } from './components/schedule/RoundTimerPanel';
 import { InstallPanel } from './components/layout/InstallPanel';
 import { TourSheet } from './components/tour/TourSheet';
 import { TutorialOverlay } from './components/tour/TutorialOverlay';
@@ -315,6 +317,7 @@ function App() {
   useEffect(() => {
     startSync();
     startLive();
+    startRoundTimerWatchdog();
   }, []);
 
   // The panel opens first on every browser, and offers the OS share sheet from
@@ -635,6 +638,8 @@ function App() {
     // Nobody is covering for anybody in a session that has not started.
     setSubPartnerships([]);
     setScheduleEdited(false);
+    // Whatever round it was pinned to no longer exists in this schedule.
+    clearRoundTimerForNewSchedule();
     setScheduleRosterId(activeRosterId);
     // Nothing reads this yet. A session gets its name here so that sharing one
     // already under way has a key to hand rather than minting one halfway.
@@ -1676,6 +1681,12 @@ function App() {
           </p>
         </TourSheet>
       )}
+
+      {/* Last of all, so an alarm that started on the Schedule tab can force
+          itself back to the front over whatever tab the host has since
+          switched to — see the component's own comment for why it is mounted
+          here rather than owned by SchedulePage. */}
+      <RoundTimerPanel />
 
       {/* Outside the sliding panel so a print started from the drawer is never
           caught mid-slide. */}

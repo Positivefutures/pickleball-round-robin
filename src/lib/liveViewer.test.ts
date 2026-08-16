@@ -217,6 +217,59 @@ describe('checking what came back', () => {
   });
 });
 
+// -------------------------------------------------------- the round timer --
+
+describe('the host round timer', () => {
+  function withTimer(timer: unknown) {
+    const document = JSON.parse(JSON.stringify(published));
+    document.roundTimer = timer;
+    const got = read(document);
+    if (got.state !== 'ok') throw new Error('not ok');
+    return got.snapshot.roundTimer;
+  }
+
+  it('carries a running timer through as published', () => {
+    const endsAt = Date.now() + 300_000;
+    expect(withTimer({ roundNumber: 1, phase: 'running', endsAt, remainingMs: 0, flashOn: true }))
+      .toEqual({ roundNumber: 1, phase: 'running', endsAt, remainingMs: 0, flashOn: true });
+  });
+
+  it('carries a paused one, which has time on it but no deadline', () => {
+    expect(withTimer({ roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000, flashOn: false }))
+      .toEqual({ roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000, flashOn: false });
+  });
+
+  it('is null on every session published before the timer existed', () => {
+    const older = JSON.parse(JSON.stringify(published));
+    delete older.roundTimer;
+    const got = read(older);
+    if (got.state !== 'ok') throw new Error('not ok');
+    expect(got.snapshot.roundTimer).toBeNull();
+  });
+
+  it('drops one it cannot draw, and keeps the session', () => {
+    // Each of these would end as a countdown to nowhere, a blank round number
+    // in the heading, or a phase the sheet has no state for.
+    const bad = [
+      null,
+      'running',
+      { phase: 'running', endsAt: 1, remainingMs: 0, flashOn: true }, // no round
+      { roundNumber: 1, phase: 'idle', endsAt: null, remainingMs: 0, flashOn: true },
+      { roundNumber: 1, phase: 'running', endsAt: null, remainingMs: 0, flashOn: true },
+      { roundNumber: '1', phase: 'paused', endsAt: null, remainingMs: 0, flashOn: true }
+    ];
+    for (const timer of bad) {
+      expect(withTimer(timer), JSON.stringify(timer)).toBeNull();
+    }
+  });
+
+  it('will not take a negative remainder, or a flash flag that is merely truthy', () => {
+    expect(
+      withTimer({ roundNumber: 1, phase: 'paused', endsAt: null, remainingMs: -5000, flashOn: 'yes' })
+    ).toEqual({ roundNumber: 1, phase: 'paused', endsAt: null, remainingMs: 0, flashOn: false });
+  });
+});
+
 // ------------------------------------------------------------ editing a score --
 
 describe('offering a code', () => {

@@ -17,6 +17,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { LiveFetch } from '../../lib/liveViewer';
+import type { SharedRoundTimer } from '../../lib/sessionSnapshot';
 import type { Player, Schedule } from '../../types';
 
 let answer: LiveFetch = { state: 'gone' };
@@ -91,7 +92,8 @@ function schedule(score?: { team1: number; team2: number }): Schedule {
 /** Exactly what the host publishes: built here, then redacted, as liveSession does. */
 function shared(
   score?: { team1: number; team2: number },
-  scoreEditing = false
+  scoreEditing = false,
+  roundTimer: SharedRoundTimer | null = null
 ): LiveFetch {
   return {
     state: 'ok',
@@ -102,7 +104,8 @@ function shared(
         completedRounds: [1],
         players,
         scoringEnabled: true,
-        scoreEditing
+        scoreEditing,
+        roundTimer
       })
     )
   };
@@ -639,5 +642,120 @@ describe('keeping up', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(asks).toBeGreaterThan(before);
+  });
+});
+
+// ---------------------------------------------- the host's timer, read-only --
+
+describe('the round timer', () => {
+  const clocks = () => [
+    ...container.querySelectorAll<HTMLButtonElement>('button[aria-label="Round timer"]')
+  ];
+  const sheet = () => container.querySelector('[role="dialog"][aria-label="Round Timer"]');
+
+  function timing(roundNumber: number, msLeft: number): SharedRoundTimer {
+    return {
+      roundNumber,
+      phase: 'running',
+      endsAt: Date.now() + msLeft,
+      remainingMs: 0,
+      flashOn: true
+    };
+  }
+
+  it('shows no clock on a session where nobody has started one', async () => {
+    answer = shared();
+    await open();
+    expect(clocks()).toHaveLength(0);
+  });
+
+  it('puts a clock on the round being timed, and only that one', async () => {
+    answer = shared(undefined, false, timing(2, 300_000));
+    await open();
+
+    expect(clocks()).toHaveLength(1);
+    const header = clocks()[0].closest('div')?.parentElement;
+    expect(header?.textContent).toContain('Round 2');
+  });
+
+  it('counts down from the deadline on this phone, not from what was published', async () => {
+    // remainingMs is deliberately 0 in the published document: a watcher works
+    // from the absolute deadline, which is what makes a twenty-second poll
+    // enough to run a countdown that moves every second.
+    answer = shared(undefined, false, timing(1, 305_000));
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+
+    expect(sheet()?.textContent).toContain('5:05');
+    expect(sheet()?.textContent).toContain('Round 1 Timer');
+  });
+
+  it('offers a watcher nothing to press', async () => {
+    answer = shared(undefined, false, timing(1, 60_000));
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+
+    const words = [...sheet()!.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(words.join(' ')).not.toMatch(/START|STOP|RESET/);
+    // Nor any way to change how long the round is.
+    expect(sheet()!.querySelector('[aria-label="Fewer minutes"]')).toBeNull();
+  });
+
+  it('says time is up on its own clock, without waiting to be told', async () => {
+    // The host publishes once at START and not again until the phase changes,
+    // so the document still says 'running' when the deadline passes.
+    answer = shared(undefined, false, timing(1, -1000));
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+
+    expect(sheet()?.textContent).toContain('TIME');
+  });
+
+  it('puts the time left beside the clock, without the sheet being opened', async () => {
+    // The point of the whole thing: somebody two courts away glances at the
+    // page and knows how long is left, with nothing to tap first.
+    answer = shared(undefined, false, timing(2, 305_000));
+    await open();
+
+    expect(clocks()[0].textContent?.trim()).toBe('5:05');
+    // Icon first, digits second, the same way round as the host's card.
+    expect(clocks()[0].firstElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+});
+
+// -------------------------------------------------------- the format on top --
+
+describe('the format tab', () => {
+  /** The published session with one round given a format. */
+  function formatted(roundType: unknown): LiveFetch {
+    const got = shared();
+    if (got.state !== 'ok') throw new Error('unreachable');
+    (got.snapshot.schedule.rounds[1] as { roundType?: unknown }).roundType = roundType;
+    return got;
+  }
+
+  it('marks a special round the same way the host card does', async () => {
+    answer = formatted('mixed');
+    await open();
+
+    expect(text()).toContain('Mixed Round');
+  });
+
+  it('draws no tab for a format this app has never heard of', async () => {
+    // Straight off a network, so it may say anything. Everything that reads a
+    // round's type uses it to look up a name and a colour, and an unknown word
+    // reaching that lookup takes the whole page down rather than drawing
+    // nothing.
+    answer = formatted('quidditch');
+    await open();
+
+    expect(text()).toContain('Round 2');
+    expect(text()).not.toContain('quidditch');
   });
 });

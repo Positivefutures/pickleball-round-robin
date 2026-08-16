@@ -1,6 +1,11 @@
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore } from './auth';
-import { sessionSnapshot, withholdPrivate, type SessionSnapshot } from './sessionSnapshot';
+import {
+  sessionSnapshot,
+  withholdPrivate,
+  type SessionSnapshot,
+  type SharedRoundTimer
+} from './sessionSnapshot';
 import { isCode, sealCode } from './scoreCode';
 import { isShareKey, mintShareKey, shareUrl } from './shareKey';
 import * as stores from './stores';
@@ -137,8 +142,31 @@ function currentSnapshot(): SessionSnapshot | null {
     completedRounds: stores.completedRounds.get(),
     players,
     scoringEnabled: stores.scoringEnabled.get(),
-    scoreEditing: editingOn()
+    scoreEditing: editingOn(),
+    roundTimer: sharedRoundTimer()
   });
+}
+
+/**
+ * The round timer as the watchers get it, or null when there is nothing to
+ * send.
+ *
+ * Idle is nothing to send: the host has opened the panel and is still deciding
+ * how long the round should be, and a clock appearing on nine other phones at
+ * that moment would be announcing a decision nobody has made. Everything from
+ * START onwards goes.
+ */
+function sharedRoundTimer(): SharedRoundTimer | null {
+  const timer = stores.roundTimer.get();
+  if (timer.roundNumber === null || timer.phase === 'idle') return null;
+
+  return {
+    roundNumber: timer.roundNumber,
+    phase: timer.phase,
+    endsAt: timer.endsAt,
+    remainingMs: timer.remainingMs,
+    flashOn: timer.flashOn
+  };
 }
 
 /**
@@ -383,17 +411,40 @@ const WATCHED = [
   stores.scoreEditCode
 ];
 
+/**
+ * The round timer is watched apart from the list above, through a filter.
+ *
+ * Most of what that store holds is never published — the minutes, the tone,
+ * whether the host's own phone makes a noise — and the minutes in particular
+ * move on every tap of a stepper. Sending the whole session up because
+ * somebody is thumbing 12 up to 15 would be a dozen uploads for a decision
+ * nobody outside this phone can see. So this compares what would actually go
+ * on the wire and stays quiet unless that changed, which in practice is START,
+ * STOP, RESET and reaching zero.
+ */
+let lastTimer: string | null = null;
+
+function onTimerChange() {
+  const next = JSON.stringify(sharedRoundTimer());
+  if (next === lastTimer) return;
+  lastTimer = next;
+  onChange();
+}
+
 function startTracking() {
   if (untrack.length > 0) return;
   for (const store of WATCHED) {
     untrack.push(store.subscribe(onChange));
   }
+  lastTimer = JSON.stringify(sharedRoundTimer());
+  untrack.push(stores.roundTimer.subscribe(onTimerChange));
   syncDraining();
 }
 
 function stopTracking() {
   for (const off of untrack) off();
   untrack = [];
+  lastTimer = null;
   if (timer) clearTimeout(timer);
   timer = null;
   // Straight off rather than through syncDraining(), which would empty a queue

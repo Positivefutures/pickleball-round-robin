@@ -6,6 +6,7 @@ import { effectiveCourtCount } from '../../lib/pairing';
 import { arePartners, partnerKey } from '../../lib/partnerships';
 import { renumberFrom } from '../../lib/courtNumbers';
 import { courtRatingDiff } from '../../utils/helpers';
+import { openRoundTimer, stopAndResetIfRound } from '../../lib/roundTimer';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
@@ -17,6 +18,7 @@ import { StandingsPanel } from './StandingsPanel';
 import { SwapHint } from './SwapHint';
 import { ActionsButton } from './ActionsButton';
 import { ActionsSheet, type ActionsEntry, type ScheduleActions } from './ActionsSheet';
+import { TimerBlockedDialog } from './TimerBlockedDialog';
 
 export interface CourtSlot {
   kind: 'court';
@@ -253,6 +255,22 @@ export function SchedulePage({
     null
   );
 
+  // This page deliberately does not subscribe to the timer. The clock and the
+  // time left are drawn by RoundTimerChip, which subscribes on its own so that
+  // a countdown ticking four times a second redraws one button rather than
+  // every court on the page. The panel itself is owned by App.tsx — see
+  // lib/roundTimer.ts for why: this page unmounts on every tab switch, and a
+  // running timer has to survive that.
+  //
+  // Set when a timer icon is tapped while a different round's timer is
+  // running, paused, or alarming.
+  const [timerBlockedBy, setTimerBlockedBy] = useState<number | null>(null);
+
+  function handleOpenTimer(roundNumber: number) {
+    const result = openRoundTimer(roundNumber);
+    if (result.blocked) setTimerBlockedBy(result.blockedByRound ?? null);
+  }
+
   /**
    * Who just moved, so the two places they landed in can say so.
    *
@@ -352,6 +370,10 @@ export function SchedulePage({
   // completed rounds group at the top of the list. Unchecking is allowed only
   // until a player has been removed (which regenerates the remaining rounds).
   function handleToggleComplete(roundNumber: number) {
+    // A round marked DONE has no more use for a countdown — take the timer
+    // away rather than leave it running behind an icon that's about to
+    // disappear.
+    stopAndResetIfRound(roundNumber);
     if (completedSet.has(roundNumber)) {
       if (!canUncomplete) return;
       onCompletedRoundsChange(completedRounds.filter((n) => n !== roundNumber));
@@ -845,6 +867,7 @@ export function SchedulePage({
             canUncomplete={canUncomplete}
             onToggleComplete={() => handleToggleComplete(round.roundNumber)}
             onToggleExpand={() => handleToggleExpand(round.roundNumber)}
+            onOpenTimer={() => handleOpenTimer(round.roundNumber)}
             onEditCourtNumber={(courtIdx) => setEditingCourt({ roundIdx, courtIdx })}
             scoringEnabled={scoringEnabled}
             onEditScore={(courtIdx) => setScoringCourt({ roundIdx, courtIdx })}
@@ -923,6 +946,10 @@ export function SchedulePage({
           onDone={handleScoreDone}
           onCancel={() => setScoringCourt(null)}
         />
+      )}
+
+      {timerBlockedBy !== null && (
+        <TimerBlockedDialog roundNumber={timerBlockedBy} onClose={() => setTimerBlockedBy(null)} />
       )}
 
       {menuPlayer && (

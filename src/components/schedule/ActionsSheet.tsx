@@ -47,7 +47,7 @@ export interface ScheduleActions {
   onSubstitute: (outgoingId: string, incomingId: string) => void;
   /**
    * Somebody going home. They leave the remaining rounds and those rounds are
-   * rebuilt around it, which is why it locks the Completed checkboxes and a
+   * rebuilt around it, which is why it locks the Done checkboxes and a
    * substitution does not.
    */
   onRemovePlayer: (playerId: string) => void;

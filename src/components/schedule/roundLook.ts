@@ -54,7 +54,7 @@ export const TEAM1_EDGE = 'border-[#99afcb]';
 export const TEAM2_EDGE = 'border-[#cbac88]';
 
 /**
- * What a round says about itself: ROUND 3, COURT 1, COMPLETED.
+ * What a round says about itself: ROUND 3, COURT 1, DONE.
  *
  * All three are the same size because they are the same kind of thing, and a
  * court read at arm's length is found by its number before anything else.
@@ -63,6 +63,20 @@ export const TEAM2_EDGE = 'border-[#cbac88]';
  * exactly this, so it is the ordinary mode that has caught up.
  */
 export const ROUND_HEADING_TEXT = 'text-[1.35rem]';
+
+/**
+ * The clock on a round's header, and the time left beside it once one is
+ * running.
+ *
+ * Here rather than in either component because the host's card and a watcher's
+ * card draw the same thing from two different sources — a live store on one
+ * side, a published document on the other — and the two must not drift apart.
+ *
+ * The digits sit at the heading's own size, which is also DONE's: all three are
+ * things read off the top of a card at arm's length, so all three are one size.
+ */
+export const ROUND_TIMER_CHIP =
+  'no-print flex shrink-0 items-center gap-1.5 text-white transition-colors hover:text-white/75';
 
 /**
  * A player's name, on a court and in the sit-out list.
