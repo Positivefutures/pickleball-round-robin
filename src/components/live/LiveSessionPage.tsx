@@ -289,8 +289,6 @@ export function LiveSessionPage({ shareKey }: Props) {
           <Notice
             title="This session link has ended."
             body="Ask whoever is running it for a new one."
-            onRetry={retry}
-            retrying={pulling}
           />
         )}
 
