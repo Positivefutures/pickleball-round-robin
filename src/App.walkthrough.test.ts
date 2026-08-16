@@ -4579,13 +4579,15 @@ describe('a linked player', () => {
 
   it('takes its pencil away when somebody is removed from the grid', () => {
     seedLinked();
-    const n = roundWithPair();
-    click(seat('Ava', n));
-    expect(pencil('Ava', n)).not.toBeNull();
+    // Anybody not held by a padlock, so this is about the tap rather than about
+    // the couple: an ordinary selection shows a pencil the same way.
+    const tapped = storedSchedule().rounds[0].courts[0].team2[0].name;
+    click(seat(tapped, 1));
+    expect(pencil(tapped, 1)).not.toBeNull();
 
-    // Removing anybody rebuilds every round still to be played. A pencil left
-    // showing would be sitting on a place that now holds somebody else, and it
-    // would open their panel.
+    // Removing anybody rebuilds every round still to be played, and a selection
+    // is a place rather than a person. Left standing, the pencil reappears on
+    // whoever the rebuild put in that place, and opens their panel.
     action(/^Remove a Player$/);
     clickButton(/^Cara/, sheet());
     clickButton(/^Remove$/, sheet());
