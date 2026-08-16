@@ -1,5 +1,5 @@
 import type { Player } from '../../types';
-import { PencilIcon } from '../icons';
+import { PencilIcon, SwapPeopleIcon } from '../icons';
 import { TrashIcon } from './icons';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PanelHeading } from '../PanelGlyph';
@@ -15,15 +15,28 @@ import { panelCard } from '../panelStyles';
  *
  * Built like RemovePlayerDialog rather than like the Actions sheet, because it
  * belongs to one player on one card. The sheet is for the session.
+ *
+ * Subbing is here rather than on the Actions grid because it is one player's
+ * business: the question it starts with is who is coming off, and tapping
+ * somebody has already answered it. Its second half is still the sheet's,
+ * which is where the list of who could come on lives, along with the way to a
+ * newcomer who is in neither list yet.
+ *
+ * "Sub", not "swap". Swapping already means something on this page: two people
+ * trading seats, which the hint under the first round teaches. A word that
+ * meant both would be the wrong one twice.
  */
 export function PlayerMenu({
   player,
   onEdit,
+  onSub,
   onRemove,
   onCancel,
 }: {
   player: Player;
   onEdit: () => void;
+  /** Opens the sheet on Sub a Player, with this one already coming off. */
+  onSub: () => void;
   onRemove: () => void;
   onCancel: () => void;
 }) {
@@ -61,6 +74,14 @@ export function PlayerMenu({
           >
             <PencilIcon className="h-5 w-5 text-gray-600" />
             Edit Player
+          </button>
+          <button
+            type="button"
+            onClick={onSub}
+            className={`${row} border-panel-edge bg-white text-gray-800 hover:bg-[#F1F3F6]`}
+          >
+            <SwapPeopleIcon className="h-5 w-5 text-gray-600" />
+            Sub Someone In
           </button>
           <button
             type="button"

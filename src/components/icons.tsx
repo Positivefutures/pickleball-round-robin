@@ -80,6 +80,27 @@ export function AddPlayerSolidIcon({ className }: { className?: string }) {
 }
 
 /**
+ * The same person and the same sign, with the upright taken out of it.
+ *
+ * Drawn from AddPlayerSolidIcon rather than beside it: the figure is the same
+ * three paths, and the bar is the plus's own crossbar, from 14.8 to 23.4 across
+ * and 5.9 to 8.3 down. Add and Remove sit next to each other on the Actions
+ * grid, so a figure a hair different in either would read as two people.
+ *
+ * Colour is the caller's. It carries the grid's red there, which is what the
+ * one other card that takes something away already wears.
+ */
+export function RemovePlayerSolidIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <circle cx="9" cy="7" r="4.4" />
+      <path d="M9 13.4c-4.42 0-8 2.3-8 5.15V20h16v-1.45c0-2.85-3.58-5.15-8-5.15z" />
+      <path d="M14.8 5.9h8.6v2.4h-8.6z" />
+    </Solid>
+  );
+}
+
+/**
  * Three people, solid. Marks a group: the My Groups panel and the group's own
  * list. This is Jeff's own artwork, `INBOX/My Groups.svg`, with the paths taken
  * across untouched — hence the 512 grid it was drawn on rather than the 24 the

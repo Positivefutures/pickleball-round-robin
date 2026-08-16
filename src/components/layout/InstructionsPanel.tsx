@@ -365,7 +365,10 @@ function Actions() {
         caption="Every mid-session change, one sheet."
       />
       <Item term="Add a Player">brings somebody from the group into the session.</Item>
-      <Item term="Sub a Player">swaps somebody in for somebody going home.</Item>
+      <Item term="Remove a Player">
+        takes somebody out of the rounds still to play. Tap a player on the
+        schedule instead to sub somebody in for them.
+      </Item>
       <Item term="Add a Guest">
         somebody playing today only. Guests are never saved to the group.
       </Item>

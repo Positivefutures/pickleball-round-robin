@@ -118,8 +118,8 @@ interface Props {
    * during that flash should show the grid rather than the tail of the last
    * thing done.
    */
-  actionsSheet: { view: ActionsEntry; opened: number } | null;
-  onOpenActions: (view: ActionsEntry) => void;
+  actionsSheet: { view: ActionsEntry; opened: number; subOutId?: string } | null;
+  onOpenActions: (view: ActionsEntry, subOutId?: string) => void;
   onCloseActions: () => void;
   /** Passed through: the tour's last card asks the question itself. */
   confirmNewSession?: boolean;
@@ -130,7 +130,7 @@ interface Props {
    * together here, because the padlocks and broken couples it has to honour are
    * this page's own state and go no further.
    */
-  actions: Omit<ScheduleActions, 'onReshuffle'>;
+  actions: Omit<ScheduleActions, 'onReshuffle' | 'onRemovePlayer'>;
   defaultRating: number;
   /** Whether this session keeps score: the boards and the standings table. */
   scoringEnabled: boolean;
@@ -614,6 +614,10 @@ export function SchedulePage({
       onRegenerate(locks, brokenPairs);
       setSelectedSlot(null);
     },
+    // The same removal a player's own panel performs, reached from the grid
+    // instead. It is this page's prop rather than App's actions object so that
+    // both routes end in one call and cannot come apart.
+    onRemovePlayer,
   };
 
   // This page used to report up what leaving it would cost, because the tabs
@@ -742,6 +746,7 @@ export function SchedulePage({
           key={actionsSheet.opened}
           open
           entry={actionsSheet.view}
+          subOutId={actionsSheet.subOutId}
           onClose={onCloseActions}
           schedule={schedule}
           completedRounds={completedRounds}
@@ -787,6 +792,11 @@ export function SchedulePage({
           onEdit={() => {
             setEditCandidate(menuPlayer);
             setMenuPlayer(null);
+          }}
+          onSub={() => {
+            setMenuPlayer(null);
+            setSelectedSlot(null);
+            onOpenActions('add-sub', menuPlayer.id);
           }}
           onRemove={() => {
             setRemoveCandidate(menuPlayer);

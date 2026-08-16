@@ -13,6 +13,7 @@ import {
   LinkIcon,
   EditPageIcon,
   LockIcon,
+  RemovePlayerSolidIcon,
   ShareIcon,
   ShuffleIcon,
   SitIcon,
@@ -44,6 +45,12 @@ export interface ScheduleActions {
   /** Somebody new for today only, never saved to the group. */
   onAddGuest: (name: string, rating: number, gender: Gender) => void;
   onSubstitute: (outgoingId: string, incomingId: string) => void;
+  /**
+   * Somebody going home. They leave the remaining rounds and those rounds are
+   * rebuilt around it, which is why it locks the Completed checkboxes and a
+   * substitution does not.
+   */
+  onRemovePlayer: (playerId: string) => void;
   onAddCourt: () => void;
   onRemoveCourt: (courtNumber: number) => void;
   onAddRounds: (count: number) => void;
@@ -54,6 +61,7 @@ type View =
   | 'add-player'
   | 'new-player'
   | 'add-sub'
+  | 'remove-player'
   | 'add-guest'
   | 'reshuffle'
   | 'new-session'
@@ -64,10 +72,15 @@ type View =
   | 'done';
 
 /**
- * Where the sheet opens. The sit-out row's own button opens Add a Player, and
- * coming back from My Account opens the card that sent you there.
+ * Where the sheet opens. The sit-out row's own button opens Add a Player,
+ * coming back from My Account opens the card that sent you there, and Sub
+ * Someone In on a player's own panel opens the second half of subbing with
+ * that player already chosen.
  */
-export type ActionsEntry = Extract<View, 'menu' | 'add-player' | 'share-live'>;
+export type ActionsEntry = Extract<
+  View,
+  'menu' | 'add-player' | 'share-live' | 'add-sub'
+>;
 
 // The two primaries, taken from the palette rather than sampled, plus the red
 // the one destructive card has always used. Written as var() so index.css stays
@@ -92,7 +105,11 @@ interface Card {
 
 const CARDS: Card[] = [
   { view: 'add-player', label: 'Add a Player', Icon: AddPlayerSolidIcon, color: TEAL },
-  { view: 'add-sub', label: 'Sub a Player', Icon: SwapPeopleIcon, color: TEAL },
+  // Subbing has no card. It is one player's business rather than the session's,
+  // so it is reached by tapping that player on the schedule; the view is still
+  // here and the sheet still opens straight onto it. What stands in its place
+  // is the other half of somebody leaving: they go and nobody replaces them.
+  { view: 'remove-player', label: 'Remove a Player', Icon: RemovePlayerSolidIcon, color: RED },
   { view: 'add-guest', label: 'Add a Guest', Icon: GuestIcon, color: TEAL },
   // No Edit Player Rating card. Tapping somebody on the schedule and pressing
   // the pencil edits their name, rating and gender in one panel, which is both
@@ -125,6 +142,14 @@ PANEL_GLYPHS.set('new-player', {
   Icon: AddPlayerSolidIcon,
   color: TEAL,
 });
+// Subbing lost its card when Remove a Player took the place, but not its panel:
+// it is opened from a player on the schedule instead.
+PANEL_GLYPHS.set('add-sub', {
+  view: 'add-sub',
+  label: 'Sub a Player',
+  Icon: SwapPeopleIcon,
+  color: TEAL,
+});
 
 /**
  * Whether an account could be made at all, which is not the same as having one.
@@ -137,6 +162,7 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'add-player': { title: 'Add a Player', sub: 'Who is joining?' },
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
   'add-sub': { title: 'Sub a Player' },
+  'remove-player': { title: 'Remove a Player', sub: 'Who is going home?' },
   'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
   // No sub here. Reshuffle's counts what it is about to rebuild, so it is put
   // together at render time and set larger than the rest: on this panel the line
@@ -238,6 +264,12 @@ interface Props {
   onClose: () => void;
   /** Which view to land on. The sit-out row's own button opens Add a Player. */
   entry?: ActionsEntry;
+  /**
+   * Who is coming off, when the sheet was opened on Sub a Player from that
+   * player's own panel. It skips the first of the two questions, which has
+   * already been answered by tapping them.
+   */
+  subOutId?: string;
   schedule: Schedule;
   completedRounds: number[];
   /** Everybody in the session, guests included. */
@@ -265,6 +297,7 @@ export function ActionsSheet({
   open,
   onClose,
   entry = 'menu',
+  subOutId,
   schedule,
   completedRounds,
   players,
@@ -277,7 +310,13 @@ export function ActionsSheet({
 }: Props) {
   const [view, setView] = useState<View>(entry);
   const [message, setMessage] = useState('');
-  const [subOut, setSubOut] = useState<Player | null>(null);
+  // Read once. The sheet is keyed on its opening, so a new one gets a new
+  // component and there is nothing to keep in step afterwards.
+  const [subOut, setSubOut] = useState<Player | null>(
+    () => players.find((p) => p.id === subOutId) ?? null
+  );
+  /** Who Remove a Player is about to send home, once they have been picked. */
+  const [removing, setRemoving] = useState<Player | null>(null);
   const [extraRounds, setExtraRounds] = useState(1);
 
   const [shown, setShown] = useState(false);
@@ -289,6 +328,13 @@ export function ActionsSheet({
   const dragFrom = useRef<number | null>(null);
 
   useScrollLock(open);
+
+  // Courts in play now against what would be left after one player goes. The
+  // same two numbers RemovePlayerDialog is given on the schedule page, worked
+  // out the same way, so the two routes to a removal warn about the same thing.
+  const currentCourts = effectiveCourtCount(players.length, numCourts);
+  const nextCourts = effectiveCourtCount(players.length - 1, numCourts);
+  const sitOutsAfterRemoval = players.length - 1 - nextCourts * 4;
 
   const completedSet = new Set(completedRounds);
   const openRounds = schedule.rounds.filter((r) => !completedSet.has(r.roundNumber));
@@ -373,6 +419,7 @@ export function ActionsSheet({
       return;
     }
     if (card.view === 'add-sub') setSubOut(null);
+    if (card.view === 'remove-player') setRemoving(null);
     if (card.view === 'add-round') setExtraRounds(1);
     setView(card.view);
   }
@@ -381,7 +428,13 @@ export function ActionsSheet({
     // New Player is reached from two lists now, so it goes back to the one it
     // came from. subOut is the tell: it is only ever set inside Sub a Player.
     if (view === 'new-player') setView(subOut ? 'add-sub' : 'add-player');
-    else if (view === 'add-sub' && subOut) setSubOut(null);
+    // Back out of the second question to the first, except where the first was
+    // answered by tapping somebody on the schedule: there is no list behind it
+    // to go back to, so the whole sheet closes.
+    else if (view === 'add-sub' && subOut) {
+      if (subOutId) onClose();
+      else setSubOut(null);
+    } else if (view === 'remove-player' && removing) setRemoving(null);
     else setView('menu');
   }
 
@@ -397,6 +450,9 @@ export function ActionsSheet({
       return 'Everyone in this group is already playing.';
     }
     if (card.view === 'add-sub' && players.length === 0) return 'Nobody to swap out.';
+    if (card.view === 'remove-player' && players.length - 1 < 4) {
+      return 'That would leave fewer than 4 players.';
+    }
     if (card.view === 'remove-court' && (firstOpen?.courts.length ?? 0) <= 1) {
       return 'There is only one court.';
     }
@@ -716,6 +772,80 @@ export function ActionsSheet({
                       <AddPlayerSolidIcon className="h-6 w-6" />
                       Someone New
                     </button>
+                  </div>
+                )}
+
+                {view === 'remove-player' && !removing && (
+                  <div className="space-y-2">
+                    {players.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={ROW}
+                        onClick={() => setRemoving(p)}
+                      >
+                        <span className="flex-1 font-medium text-gray-800">{p.name}</span>
+                        <span className="text-gray-500">{p.rating.toFixed(1)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {view === 'remove-player' && removing && (
+                  <div className={CONFIRM}>
+                    <div className="space-y-3">
+                      <p className="text-gray-700">
+                        {removing.name} comes out of the rounds still to play, and
+                        those rounds are rebuilt without them. Rounds already
+                        marked done are left exactly as they were played.
+                      </p>
+
+                      {/* Only when it really costs a court. On a session with
+                          people to spare the removal changes nothing anybody
+                          would notice, and a warning about that would be noise
+                          in front of the button. */}
+                      {nextCourts < currentCourts && (
+                        <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
+                          <span
+                            className="flex shrink-0 items-center"
+                            style={{ color: ORANGE }}
+                            aria-hidden="true"
+                          >
+                            <WarningIcon className="h-9 w-9" />
+                          </span>
+                          <div>
+                            <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
+                              This drops to {nextCourts === 1 ? '1 court' : `${nextCourts} courts`}
+                            </p>
+                            <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
+                              {sitOutsAfterRemoval === 1
+                                ? '1 player sits out each round.'
+                                : `${sitOutsAfterRemoval} players sit out each round.`}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={`${CONFIRM_FOOT} flex gap-3 space-y-0`}>
+                      <button
+                        type="button"
+                        className={SECONDARY}
+                        onClick={() => setRemoving(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={DESTRUCTIVE}
+                        onClick={() => {
+                          actions.onRemovePlayer(removing.id);
+                          finish(`${removing.name} is out.`);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 )}
 

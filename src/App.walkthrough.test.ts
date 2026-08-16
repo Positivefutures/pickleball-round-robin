@@ -191,6 +191,16 @@ function openPlayerMenu(name: string, round = 1) {
   click(edit);
 }
 
+/**
+ * Starts a substitution the only way there is one: tap the player coming off,
+ * then Sub Someone In. It lands on the sheet's second question, because the
+ * first was answered by whose name was tapped.
+ */
+function subIn(name: string, round = 1) {
+  openPlayerMenu(name, round);
+  clickButton(/^Sub Someone In$/);
+}
+
 /** Takes somebody off the rounds still to be played, confirmation and all. */
 function takeOff(name: string, round = 1) {
   openPlayerMenu(name, round);
@@ -2019,7 +2029,7 @@ describe('the Actions sheet', () => {
     clickButton(/^Actions$/);
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
-      'Add a Player', 'Sub a Player', 'Add a Guest',
+      'Add a Player', 'Remove a Player', 'Add a Guest',
       'New Round Robin', 'Reshuffle', 'Share Session',
       'Add a Round', 'Add a Court', 'Remove a Court',
     ]);
@@ -2042,7 +2052,7 @@ describe('the Actions sheet', () => {
     const header = () => sheet().querySelector('header')!;
     expect(header().querySelector('svg.h-14')).toBeNull();
 
-    for (const label of ['Add a Player', 'Sub a Player', 'Add a Guest', 'Reshuffle']) {
+    for (const label of ['Add a Player', 'Remove a Player', 'Add a Guest', 'Reshuffle']) {
       clickButton(new RegExp(`^${label}$`), sheet());
       const stack = header().querySelector('h2')!.parentElement!;
       expect(text(stack), label).toContain(label);
@@ -2395,9 +2405,7 @@ describe('the Actions sheet', () => {
       );
       const playedAs = fingerprint(storedSchedule().rounds[0]);
 
-      action(/^Sub a Player$/);
-      expect(text(sheet())).toContain('Who is coming off?');
-      clickButton(new RegExp(`^${going}`), sheet());
+      subIn(going, 2);
       expect(text(sheet())).toContain(`Who is going on for ${going}?`);
       clickButton(/^Lex/, sheet());
 
@@ -2414,8 +2422,7 @@ describe('the Actions sheet', () => {
       markComplete(1);
 
       const going = storedSchedule().rounds[1].courts[0].team1[0].name;
-      action(/^Sub a Player$/);
-      clickButton(new RegExp(`^${going}`), sheet());
+      subIn(going, 2);
       clickButton(/^Lex/, sheet());
 
       expect(window.localStorage.getItem('pb-removed-ids')).toBe('[]');
@@ -2427,8 +2434,7 @@ describe('the Actions sheet', () => {
       generate();
 
       const going = storedSchedule().rounds[0].courts[0].team1[0].name;
-      action(/^Sub a Player$/);
-      clickButton(new RegExp(`^${going}`), sheet());
+      subIn(going, 1);
       clickButton(/^Lex/, sheet());
 
       clickButton(/^Actions$/);
@@ -2455,8 +2461,7 @@ describe('the Actions sheet', () => {
       );
       const playedAs = fingerprint(storedSchedule().rounds[0]);
 
-      action(/^Sub a Player$/);
-      clickButton(new RegExp(`^${going}`), sheet());
+      subIn(going, 2);
       clickButton(/^Someone New$/, sheet());
 
       // The form says what it is about to do, which is not what it says when
@@ -2480,6 +2485,111 @@ describe('the Actions sheet', () => {
       expect(after.rounds.slice(1).map(fingerprint)).toEqual(expected.slice(1));
       // They joined the group too, so next week they are on the list.
       expect(storedPlayers().map((p) => p.name)).toContain('Robin');
+    });
+  });
+
+  /**
+   * The card that took Sub a Player's place on the grid.
+   *
+   * The two are not the same job and the panel says so: a substitution keeps
+   * the rounds as they were and puts somebody else in one seat, and this
+   * rebuilds every round still to play around one fewer person. That is why
+   * only this one locks the Completed checkboxes.
+   */
+  describe('Remove a Player', () => {
+    beforeEach(() => seed(9, 9, 2));
+
+    it('wears the same red as the other card that takes something away', () => {
+      mount();
+      generate();
+      clickButton(/^Actions$/);
+
+      const glyph = (label: string) =>
+        (buttons(new RegExp(`^${label}$`), sheet())[0].querySelector('span') as HTMLElement)
+          .style.color;
+
+      expect(glyph('Remove a Player')).toBe(glyph('Remove a Court'));
+      expect(glyph('Remove a Player')).not.toBe(glyph('Add a Player'));
+    });
+
+    it('takes the one tapped out of the rounds still to play', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const going = storedSchedule().rounds[1].courts[0].team1[0];
+      const playedAs = fingerprint(storedSchedule().rounds[0]);
+
+      action(/^Remove a Player$/);
+      expect(text(sheet())).toContain('Who is going home?');
+      clickButton(new RegExp(`^${going.name}`), sheet());
+      clickButton(/^Remove$/, sheet());
+
+      // The round already played keeps whoever played it.
+      expect(fingerprint(storedSchedule().rounds[0])).toBe(playedAs);
+      // And they are in none of the rest, on a court or on the bench.
+      for (const round of storedSchedule().rounds.slice(1)) {
+        const present = [
+          ...round.courts.flatMap((c) => [...c.team1, ...c.team2]),
+          ...round.sitOuts,
+        ];
+        expect(present.map((p) => p.id)).not.toContain(going.id);
+      }
+      expect(window.localStorage.getItem('pb-removed-ids')).toContain(going.id);
+    });
+
+    it('locks the Completed checkboxes, which a sub does not', () => {
+      mount();
+      generate();
+      markComplete(1);
+
+      const going = storedSchedule().rounds[1].courts[0].team1[0].name;
+      action(/^Remove a Player$/);
+      clickButton(new RegExp(`^${going}`), sheet());
+      clickButton(/^Remove$/, sheet());
+
+      // The rounds behind those boxes were rebuilt around the removal, so
+      // unticking one would offer to replay a round that no longer exists.
+      expect(checkbox(1).disabled).toBe(true);
+    });
+
+    it('says so when it costs a court', () => {
+      // Six on two courts is one full court and one short one of two. Take a
+      // player out and the short court has nobody left to be short with, so
+      // there is one court and one person on the bench.
+      //
+      // Not eight on two: seven still fills a four and a three, and a short
+      // court counts as a court. There is nothing to warn about there, which
+      // is the case this warning has to stay quiet for.
+      seed(6, 6, 2);
+      mount();
+      generate();
+
+      action(/^Remove a Player$/);
+      clickButton(new RegExp(`^${storedSchedule().rounds[0].courts[0].team1[0].name}`), sheet());
+      expect(text(sheet())).toContain('This drops to 1 court');
+      expect(text(sheet())).toContain('1 player sits out each round');
+    });
+
+    it('stays quiet when the courts survive it', () => {
+      seed(9, 9, 2);
+      mount();
+      generate();
+
+      action(/^Remove a Player$/);
+      clickButton(new RegExp(`^${storedSchedule().rounds[0].courts[0].team1[0].name}`), sheet());
+      expect(text(sheet())).not.toContain('This drops to');
+    });
+
+    it('is not offered at all when it would leave fewer than four', () => {
+      seed(4, 4, 1);
+      mount();
+      generate();
+
+      clickButton(/^Actions$/);
+      const card = buttons(/^Remove a Player$/, sheet())[0] as HTMLButtonElement;
+      expect(card.disabled).toBe(true);
+      expect(card.title).toContain('fewer than 4');
     });
   });
 
@@ -2814,13 +2924,27 @@ describe('the player menu on a place', () => {
     expect(card.querySelector(`[aria-label="Remove ${victim.name}"]`)).toBeNull();
   });
 
-  it('opens a menu with both things a host can do', () => {
+  it('opens a menu with the three things a host can do to one player', () => {
     mount();
     generate();
 
     openPlayerMenu(onCourtOne().name);
     expect(buttons(/^Edit Player$/)).toHaveLength(1);
+    // Subbing is here rather than on the Actions grid, because tapping the
+    // player has already answered the question that flow starts with.
+    expect(buttons(/^Sub Someone In$/)).toHaveLength(1);
     expect(buttons(/^Remove from Remaining Rounds$/)).toHaveLength(1);
+  });
+
+  it('opens the sub panel on who is coming on, the first question answered', () => {
+    mount();
+    generate();
+
+    const going = onCourtOne().name;
+    subIn(going);
+    expect(text(sheet())).toContain(`Who is going on for ${going}?`);
+    // Not the list of who is coming off. That was the tap.
+    expect(text(sheet())).not.toContain('Who is coming off?');
   });
 
   it('changes nothing on its own, and Cancel leaves it that way', () => {

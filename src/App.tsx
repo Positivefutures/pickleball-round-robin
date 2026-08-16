@@ -151,7 +151,7 @@ function App() {
    * again — and the tour is App's.
    */
   const [actionsSheet, setActionsSheet] =
-    useState<{ view: ActionsEntry; opened: number } | null>(null);
+    useState<{ view: ActionsEntry; opened: number; subOutId?: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   /**
    * The picture at the head of the settings drawer, settled on the way in and
@@ -578,8 +578,8 @@ function App() {
    * the press, which means a press that did not open the sheet cannot advance
    * the card either.
    */
-  const handleOpenActions = useCallback((view: ActionsEntry) => {
-    setActionsSheet((prev) => ({ view, opened: (prev?.opened ?? 0) + 1 }));
+  const handleOpenActions = useCallback((view: ActionsEntry, subOutId?: string) => {
+    setActionsSheet((prev) => ({ view, subOutId, opened: (prev?.opened ?? 0) + 1 }));
     if (tour?.id === 'actions') nextCard();
   }, [tour]);
 
