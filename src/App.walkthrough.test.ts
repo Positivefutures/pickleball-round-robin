@@ -2947,6 +2947,59 @@ describe('the player menu on a place', () => {
     expect(text(sheet())).not.toContain('Who is coming off?');
   });
 
+  /**
+   * Who the sub list offers, which is everybody in the group who is not already
+   * playing. Somebody standing on a court cannot come on for somebody else: the
+   * substitution writes them into the seat they are leaving, so a court would
+   * end up with the same person twice.
+   */
+  it('offers only players who are not in the session', () => {
+    // Twelve in the group, nine of them playing.
+    seed(12, 9, 2);
+    mount();
+    generate();
+
+    const playing = new Set([
+      ...onCourt(storedSchedule().rounds[0]),
+      ...storedSchedule().rounds[0].sitOuts.map((p) => p.name),
+    ]);
+    expect(playing.size).toBe(9);
+
+    subIn(onCourtOne().name);
+    // The panel's own rows, not the heading or the way out to a newcomer.
+    const offered = buttons(/^[A-Z]/, sheet())
+      .map((b) => NAMES.find((n) => text(b).startsWith(n)))
+      .filter((n): n is string => !!n);
+
+    expect(offered.sort()).toEqual(['Jo', 'Kit', 'Lex']);
+    for (const name of offered) expect(playing.has(name)).toBe(false);
+  });
+
+  it('stops offering somebody the moment they come on', () => {
+    seed(12, 9, 2);
+    mount();
+    generate();
+
+    const replaced = onCourtOne().name;
+    subIn(replaced);
+    clickButton(/^Jo/, sheet());
+
+    // Somebody else this time. Jo took the seat the first one left, so opening
+    // the sub panel on that place would be asking who comes on for Jo.
+    const second = storedSchedule().rounds[0].courts[0].team2[0].name;
+    subIn(second);
+
+    // Jo is playing now, so she is no longer somebody who could come on. The
+    // player she replaced is, because a player who left may well come back.
+    const offered = buttons(/^[A-Z]/, sheet())
+      .map((b) => NAMES.find((n) => text(b).startsWith(n)))
+      .filter((n): n is string => !!n);
+
+    expect(offered).not.toContain('Jo');
+    expect(offered).toContain(replaced);
+    expect(offered.sort()).toEqual([replaced, 'Kit', 'Lex'].sort());
+  });
+
   it('changes nothing on its own, and Cancel leaves it that way', () => {
     mount();
     generate();
