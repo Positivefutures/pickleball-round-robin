@@ -699,27 +699,11 @@ export function SchedulePage({
     });
   }
 
-  /** Somebody going home takes every padlock they were held by with them. */
-  function releasePadlocks(playerId: string) {
-    setLocks((prev) => {
-      const next: Record<number, LockedPair[]> = {};
-      for (const [key, roundLocks] of Object.entries(prev)) {
-        const kept = roundLocks.filter(
-          (lp) => lp.player1Id !== playerId && lp.player2Id !== playerId
-        );
-        if (kept.length > 0) next[Number(key)] = kept;
-      }
-      return next;
-    });
-    setBrokenPairs((prev) => {
-      const next: Record<number, string[]> = {};
-      for (const [key, keys] of Object.entries(prev)) {
-        const kept = keys.filter((k) => !k.split('|').includes(playerId));
-        if (kept.length > 0) next[Number(key)] = kept;
-      }
-      return next;
-    });
-  }
+  // Somebody going home needs no padlocks swept up after them. locksInPlace is
+  // the one rule, and it covers this and more: the removal rebuilds every round
+  // still to be played, so a padlock is not stale merely because it names a
+  // player who has left, it is stale because the place it was put on now holds
+  // two different people. A sweep keyed on who went home would miss that.
 
   // The sheet's reshuffle is this page's reshuffle: the padlocks and the couples
   // broken for one round are held here, and a rebuild that ignored them would
@@ -754,8 +738,10 @@ export function SchedulePage({
     // instead. It is this page's prop rather than App's actions object so that
     // both routes end in one call and cannot come apart.
     onRemovePlayer: (playerId) => {
-      releasePadlocks(playerId);
       onRemovePlayer(playerId);
+      // The rounds still to come are rebuilt around the smaller group, so a
+      // pencil left showing would be sitting on a place that now holds somebody
+      // else entirely, and it would open their panel.
       clearTaps();
     },
   };

@@ -4577,6 +4577,24 @@ describe('a linked player', () => {
     expect(standIns()).toEqual([]);
   });
 
+  it('takes its pencil away when somebody is removed from the grid', () => {
+    seedLinked();
+    const n = roundWithPair();
+    click(seat('Ava', n));
+    expect(pencil('Ava', n)).not.toBeNull();
+
+    // Removing anybody rebuilds every round still to be played. A pencil left
+    // showing would be sitting on a place that now holds somebody else, and it
+    // would open their panel.
+    action(/^Remove a Player$/);
+    clickButton(/^Cara/, sheet());
+    clickButton(/^Remove$/, sheet());
+
+    for (const round of storedSchedule().rounds) {
+      expect(roundCard(round.roundNumber).querySelector('[aria-label^="Edit "]')).toBeNull();
+    }
+  });
+
   it('breaks its padlock when the player goes home', () => {
     seedLinked();
     takeOff('Ava', roundWithPair());
@@ -4654,12 +4672,13 @@ describe('a padlock clicked on by hand', () => {
     takeOff(first, 1);
     reshuffle();
 
+    // Eight players and two courts: everybody plays every round, nobody sits.
     // A padlock still naming the player who went home makes the scheduler throw
-    // away every attempt it makes, and it gives back a round with nobody on a
-    // court. Every round here has courts and people on them.
+    // away every attempt it makes at that round, and what comes back is one
+    // court with four people on it and the other five stood on the side.
     for (const round of storedSchedule().rounds) {
-      expect(round.courts.length).toBeGreaterThan(0);
-      expect(onCourt(round).length).toBeGreaterThan(0);
+      expect(round.courts, `round ${round.roundNumber}`).toHaveLength(2);
+      expect(round.sitOuts, `round ${round.roundNumber}`).toHaveLength(0);
     }
   });
 
