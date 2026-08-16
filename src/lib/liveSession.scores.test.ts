@@ -40,6 +40,8 @@ interface EditRow {
 }
 
 let shared: SharedRow[] = [];
+/** How many times the session has gone up, so a missing publish is visible. */
+let published = 0;
 let queue: EditRow[] = [];
 /** Every select and delete aimed at score_edits, so a chatty poll is visible. */
 let reads: number;
@@ -79,10 +81,12 @@ function editsTable() {
 function sharedTable() {
   return {
     insert(row: SharedRow) {
+      published += 1;
       shared.push(row);
       return Promise.resolve({ error: null });
     },
     upsert(row: SharedRow) {
+      published += 1;
       const at = shared.findIndex((held) => held.share_key === row.share_key);
       if (at === -1) shared.push(row);
       else shared[at] = row;
@@ -177,6 +181,7 @@ function queued(edits: Omit<EditRow, 'share_key'>[]) {
 
 beforeEach(() => {
   shared = [];
+  published = 0;
   queue = [];
   reads = 0;
   removed = [];
@@ -248,15 +253,20 @@ describe('publishing the code', () => {
 
   it('republishes when the code is typed, without the schedule being touched', async () => {
     await startSharing();
+    const atStart = published;
+
+    // The switch first, with no code behind it yet. That publish goes up on
+    // its own and carries nothing, which is the state a host is in for the few
+    // seconds it takes them to type.
+    stores.scoreEditingAllowed.set(true);
+    await vi.waitFor(() => expect(published).toBeGreaterThan(atStart), 4000);
     expect(row().score_code_hash).toBeNull();
 
-    // What a host actually does: share first, then decide, on a session whose
-    // schedule does not change while they do it.
-    stores.scoreEditingAllowed.set(true);
+    // Now only the code changes, and nothing here asks for a publish. The
+    // publisher watches the stores; a code typed into a store nobody watches
+    // is four digits the host reads out that open nothing.
     stores.scoreEditCode.set('4719');
-    await __testing.publishNow();
-
-    expect(row().score_code_hash).not.toBeNull();
+    await vi.waitFor(() => expect(row().score_code_hash).not.toBeNull(), 4000);
   });
 });
 
