@@ -371,7 +371,11 @@ async function shootShareQr() {
   }, DEMO_SHARE_KEY);
   await page.reload({ waitUntil: 'networkidle' });
   await actionsButton(page).click();
-  await page.getByText('Share Live Session').first().click();
+  // The card reads "Share Session" and the panel it opens reads "Share Live
+  // Session". This waited on the panel's words to find the card, so it broke
+  // silently the day the card was shortened to fit three across a phone, and
+  // this shot has been the one stale picture in the manual since.
+  await page.getByRole('button', { name: 'Share Session' }).first().click();
   // The QR carries its name as an aria-label, so getByText never sees it.
   await page.getByLabel(/Scan to watch/i).first().waitFor();
   await settle(page, 600);
