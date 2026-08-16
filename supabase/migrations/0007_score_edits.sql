@@ -83,10 +83,20 @@ alter table public.shared_sessions
 -- not switched editing on, and one where the code is simply wrong. The caller
 -- learns nothing from the difference, which is deliberate.
 --
--- pgcrypto's digest() is used rather than Postgres's built-in sha256() because
--- the built-in takes bytea and returns bytea, and the client sends hex.
-create extension if not exists pgcrypto with schema public;
-
+-- ## The hash is built in, and pgcrypto is deliberately not used
+--
+-- The first draft of this file called pgcrypto's digest() and opened with
+-- `create extension if not exists pgcrypto with schema public`. Rehearsed
+-- against a database set up the way Supabase sets one up, that fails: pgcrypto
+-- is already installed in the `extensions` schema, so `if not exists` makes the
+-- create a no-op, the extension stays where it is, and public.digest() does not
+-- exist. The migration then dies at this statement having already added the two
+-- columns above -- a half applied migration on a live database.
+--
+-- pg_catalog.sha256() has been built into Postgres since 11 and needs no
+-- extension, so there is nothing to install and nothing to locate. It takes
+-- bytea and returns bytea, which is what convert_to() and encode() either side
+-- of it are for. All three are schema qualified because search_path is empty.
 create or replace function public.share_code_ok(key text, code text)
 returns boolean
 language sql
@@ -98,8 +108,11 @@ as $$
     (
       select s.score_code_hash is not null
          and s.score_code_salt is not null
-         and s.score_code_hash = encode(
-               public.digest(s.score_code_salt || code, 'sha256'), 'hex'
+         and s.score_code_hash = pg_catalog.encode(
+               pg_catalog.sha256(
+                 pg_catalog.convert_to(s.score_code_salt || code, 'UTF8')
+               ),
+               'hex'
              )
       from public.shared_sessions s
       where s.share_key = key
@@ -146,10 +159,22 @@ create index if not exists score_edits_share_idx
 
 alter table public.score_edits enable row level security;
 
--- No policies for anon at all. Everything a watcher does goes through the
--- function below; the table itself is unreadable and unwritable from outside.
--- The host reads its own through a policy, because the host is authenticated
--- and owns the share the rows hang off.
+-- Two barriers, not one.
+--
+-- The first is this revoke. Supabase grants anon and authenticated ALL on new
+-- tables in public by default, so without it anon holds a grant on the one
+-- table in the schema that takes writes from strangers. Nothing needs it:
+-- submit_score_edit() is security definer and runs as the owner, so a watcher
+-- reaches this table through that function or not at all.
+--
+-- The second is RLS below, which has no anon policy and so refuses anon even if
+-- some later default privilege hands the grant back. Rehearsed both ways round
+-- on a database set up the way Supabase sets one up.
+revoke all on public.score_edits from anon;
+
+-- The host reads and clears its own through the two policies below, because the
+-- host is authenticated and owns the share the rows hang off. There is no
+-- insert policy for anybody: the function is the only way in.
 drop policy if exists score_edits_select on public.score_edits;
 create policy score_edits_select on public.score_edits
   for select to authenticated using (
@@ -177,13 +202,19 @@ create policy score_edits_delete on public.score_edits
 --
 -- Returns true if it was taken. False covers a wrong code, an expired share and
 -- a key that never existed, identically and on purpose.
+-- Not one argument here is named after a column, and that is deliberate for the
+-- reason 0005 gives at length about its own `key`: inside PL/pgSQL a variable
+-- whose name matches a column in the statement is either ambiguous or silently
+-- resolved to the column, and neither ending is one you find by reading. `key`
+-- is safe because the column is share_key; the four below are shortened so that
+-- round_index, court_index, team1 and team2 belong to the table alone.
 create or replace function public.submit_score_edit(
   key text,
   code text,
-  round_index integer,
-  court_index integer,
-  team1 integer,
-  team2 integer
+  round_idx integer,
+  court_idx integer,
+  score1 integer,
+  score2 integer
 )
 returns boolean
 language plpgsql
@@ -208,7 +239,7 @@ begin
   insert into public.score_edits
     (share_key, round_index, court_index, team1, team2)
   values
-    (key, round_index, court_index, team1, team2);
+    (key, round_idx, court_idx, score1, score2);
 
   return true;
 end;
