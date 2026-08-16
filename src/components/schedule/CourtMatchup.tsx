@@ -1,5 +1,5 @@
 import type { CourtAssignment, Player } from '../../types';
-import type { PlayerSlot } from './SchedulePage';
+import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { BalanceIndicator } from './BalanceIndicator';
 import { EditPlayerButton } from './EditPlayerButton';
@@ -19,6 +19,13 @@ interface Props {
   courtIdx: number;
   selectedSlot: PlayerSlot | null;
   onPlayerTap: (slot: PlayerSlot) => void;
+  /**
+   * The one locked seat showing its pencil, if any. Locked seats are kept apart
+   * from `selectedSlot` because a selection is an offer to swap and a locked
+   * player has nobody to swap with — see SchedulePage.handleLockedTap.
+   */
+  pencilSlot: CourtSlot | null;
+  onLockedTap: (slot: CourtSlot) => void;
   allPlayers: Player[];
   lockedTeams: { team1: boolean; team2: boolean };
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
@@ -96,7 +103,9 @@ function PlayerButton({
   roundIdx,
   courtIdx,
   selected,
+  pencilOnly,
   onPlayerTap,
+  onLockedTap,
   onOpenPlayerMenu,
   allPlayers,
   readOnly,
@@ -112,7 +121,10 @@ function PlayerButton({
   roundIdx: number;
   courtIdx: number;
   selected: boolean;
+  /** Locked, and tapped: show the pencil and nothing else. */
+  pencilOnly: boolean;
   onPlayerTap: (slot: PlayerSlot) => void;
+  onLockedTap: (slot: CourtSlot) => void;
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
   readOnly: boolean;
@@ -123,16 +135,30 @@ function PlayerButton({
   swapped: boolean;
 }) {
   const { bgClass, borderClass, hoverClass, selectedBgClass, swappedBorder, swappedBg } = styles;
-  // Locked players cannot be tapped for swap; completed rounds are frozen entirely
-  const interactive = !locked && !readOnly;
+  /**
+   * A locked seat is tappable, but not for swapping.
+   *
+   * It used to be dead: the only way to a locked player's pencil was to undo the
+   * padlock first, tap them, and lock the pair again afterwards — three steps to
+   * correct a spelling. Now a tap brings up the pencil on its own, and the seat
+   * does not change colour, because a colour that says "selected" would be
+   * offering a swap this player cannot make. A second tap puts it away.
+   *
+   * A completed round is still frozen entirely. Nothing on it can be changed,
+   * and a pencil that led to a panel offering to would be a lie.
+   */
+  const showPencil = !readOnly && !hideSeatEdit && (locked ? pencilOnly : selected);
   const displayName = getDisplayName(player, allPlayers);
+  const slot: CourtSlot = { kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx };
 
   return (
     <button
       type="button"
-      onClick={() =>
-        interactive && onPlayerTap({ kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx })
-      }
+      onClick={() => {
+        if (readOnly) return;
+        if (locked) onLockedTap(slot);
+        else onPlayerTap(slot);
+      }}
       // The animation reads the two colours to start from off the element, so
       // this is the only thing either side has to say about it. A CSS animation
       // outranks the class the place is resting on and outranks an inline
@@ -154,7 +180,7 @@ function PlayerButton({
           : selected
             ? `${selectedBgClass} border-blue-500 ring-2 ring-blue-500 border`
             : `${bgClass} ${borderClass} ${hoverClass} border`
-      }${interactive ? '' : ' cursor-default'}`}
+      }${readOnly ? ' cursor-default' : ''}`}
     >
       {showGender && <GenderMark player={player} />}
       {/* One line, cut with an ellipsis. A name long enough to wrap used to
@@ -167,7 +193,7 @@ function PlayerButton({
       >
         {displayName}
       </span>
-      {selected && interactive && !hideSeatEdit ? (
+      {showPencil ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
         <span className="shrink-0 pl-2 text-gray-500">{player.rating.toFixed(1)}</span>
@@ -225,7 +251,9 @@ function TeamColumn({
   roundIdx,
   courtIdx,
   selectedSlot,
+  pencilSlot,
   onPlayerTap,
+  onLockedTap,
   onToggleLock,
   onOpenPlayerMenu,
   allPlayers,
@@ -244,7 +272,9 @@ function TeamColumn({
   roundIdx: number;
   courtIdx: number;
   selectedSlot: PlayerSlot | null;
+  pencilSlot: CourtSlot | null;
   onPlayerTap: (slot: PlayerSlot) => void;
+  onLockedTap: (slot: CourtSlot) => void;
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
   onOpenPlayerMenu: (player: Player) => void;
   allPlayers: Player[];
@@ -285,6 +315,15 @@ function TeamColumn({
     );
   }
 
+  function isPencil(playerIdx: number) {
+    return (
+      pencilSlot?.roundIdx === roundIdx &&
+      pencilSlot.courtIdx === courtIdx &&
+      pencilSlot.team === teamKey &&
+      pencilSlot.playerIdx === playerIdx
+    );
+  }
+
   const emptySelected =
     selectedSlot?.kind === 'empty' &&
     selectedSlot.roundIdx === roundIdx &&
@@ -307,7 +346,9 @@ function TeamColumn({
           roundIdx={roundIdx}
           courtIdx={courtIdx}
           selected={isSelected(0)}
+          pencilOnly={isPencil(0)}
           onPlayerTap={onPlayerTap}
+          onLockedTap={onLockedTap}
           onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
@@ -342,7 +383,9 @@ function TeamColumn({
           roundIdx={roundIdx}
           courtIdx={courtIdx}
           selected={isSelected(1)}
+          pencilOnly={isPencil(1)}
           onPlayerTap={onPlayerTap}
+          onLockedTap={onLockedTap}
           onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
           readOnly={readOnly}
@@ -384,7 +427,7 @@ const TEAM2_STYLES: TeamStyles = {
   swappedBg: 'var(--color-orange-200)', // what selectedBgClass compiles to
 };
 
-export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayerTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
+export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, pencilSlot, onPlayerTap, onLockedTap, allPlayers, lockedTeams, onToggleLock, onOpenPlayerMenu, readOnly = false, showGender = false, hideSeatEdit = false, swappedIds, swapSeq, onEditNumber, showScore = false, onEditScore, tourCourt }: Props) {
   // Written out in capitals rather than set in them, so the printed sheet, the
   // PDF and the screen all say the same thing and a test can read it back.
   const label = `COURT ${court.courtNumber}`;
@@ -485,7 +528,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           roundIdx={roundIdx}
           courtIdx={courtIdx}
           selectedSlot={selectedSlot}
+          pencilSlot={pencilSlot}
           onPlayerTap={onPlayerTap}
+          onLockedTap={onLockedTap}
           onToggleLock={onToggleLock}
           onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}
@@ -509,7 +554,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, onPlayer
           roundIdx={roundIdx}
           courtIdx={courtIdx}
           selectedSlot={selectedSlot}
+          pencilSlot={pencilSlot}
           onPlayerTap={onPlayerTap}
+          onLockedTap={onLockedTap}
           onToggleLock={onToggleLock}
           onOpenPlayerMenu={onOpenPlayerMenu}
           allPlayers={allPlayers}

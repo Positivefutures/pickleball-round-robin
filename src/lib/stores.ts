@@ -184,6 +184,21 @@ export const guests = createStoredValue<Player[]>('pb-guests', []);
 export const partnerships = createStoredValue<Partnership[]>(KEYS.partnerships, []);
 
 /**
+ * Couples a substitute has taken over, for this afternoon and no longer.
+ *
+ * Kept apart from `partnerships` because the two answer different questions.
+ * That one is who somebody's partner is, set up once and carried into next
+ * week. This one is who is covering for whom right now: Dave steps into Jeff's
+ * seat beside Ann, and plays with Ann for the rest of the day. Writing that into
+ * the standing list would say Dave is Ann's partner from now on, which is not
+ * what anybody agreed when Jeff turned his ankle.
+ *
+ * Read through withSubbedPairs(), which lays these over the standing ones.
+ * Emptied by clearSession() whichever way the session ends, like guests.
+ */
+export const subPartnerships = createStoredValue<Partnership[]>('pb-sub-partnerships', []);
+
+/**
  * True once the host has hand-modified the generated schedule — a swap, a
  * player removal, or a score written down. Persisted alongside the schedule so a
  * refresh mid-session doesn't make an edited schedule look untouched.

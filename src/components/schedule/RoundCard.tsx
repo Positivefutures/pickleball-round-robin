@@ -1,5 +1,5 @@
 import type { Round, Player, LockedPair } from '../../types';
-import type { PlayerSlot } from './SchedulePage';
+import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 import { ROUND_TYPE_META, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
@@ -14,6 +14,9 @@ interface Props {
   allPlayers: Player[];
   locks: LockedPair[];
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
+  /** The one locked seat showing its pencil. See CourtMatchup. */
+  pencilSlot: CourtSlot | null;
+  onLockedTap: (slot: CourtSlot) => void;
   onOpenPlayerMenu: (player: Player) => void;
   isComplete: boolean;
   isExpanded: boolean;
@@ -88,6 +91,8 @@ export function RoundCard({
   allPlayers,
   locks,
   onToggleLock,
+  pencilSlot,
+  onLockedTap,
   onOpenPlayerMenu,
   isComplete,
   isExpanded,
@@ -242,7 +247,9 @@ export function RoundCard({
                     swappedIds={swappedIds}
                     swapSeq={swapSeq}
                     selectedSlot={selectedSlot}
+                    pencilSlot={pencilSlot}
                     onPlayerTap={onPlayerTap}
+                    onLockedTap={onLockedTap}
                     allPlayers={allPlayers}
                     lockedTeams={lockedTeams}
                     onToggleLock={onToggleLock}

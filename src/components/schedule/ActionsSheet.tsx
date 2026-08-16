@@ -41,7 +41,7 @@ export interface ScheduleActions {
    */
   onCreatePlayer: (
     name: string, rating: number, gender: Gender, replacingId?: string
-  ) => void;
+  ) => string;
   /** Somebody new for today only, never saved to the group. */
   onAddGuest: (name: string, rating: number, gender: Gender) => void;
   onSubstitute: (outgoingId: string, incomingId: string) => void;

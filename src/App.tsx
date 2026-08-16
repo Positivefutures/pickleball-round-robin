@@ -12,7 +12,9 @@ import { addToRemainingRounds, replacePlayerInRounds } from './lib/sitout';
 import { addCourtToRemaining, removeCourtFromRemaining } from './lib/courts';
 import { carryCourtNumbers } from './lib/courtNumbers';
 import { generateId } from './utils/helpers';
-import { prunePartnerships, arePartners } from './lib/partnerships';
+import {
+  prunePartnerships, arePartners, withSubbedPairs, transferPartnership,
+} from './lib/partnerships';
 import { basisKey, scheduleIsStale } from './lib/scheduleBasis';
 import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
 import { PLAIN_ROBIN, openedSettings, warmRobin } from './lib/robins';
@@ -98,6 +100,7 @@ function App() {
   // which is also where the comment explaining each one lives.
   const [selectedIds, setSelectedIds] = useStoredValue(stores.selectedIds);
   const [partnerships, setPartnerships] = useStoredValue(stores.partnerships);
+  const [subPartnerships, setSubPartnerships] = useStoredValue(stores.subPartnerships);
   const [largeText, setLargeText] = useStoredValue(stores.largeText);
   const [defaultRating, setDefaultRating] = useStoredValue(stores.defaultRating);
   const [numCourts, setNumCourts] = useStoredValue(stores.numCourts);
@@ -404,15 +407,39 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allPlayers, guests, activeRosterId, setSelectedIds]);
 
-  // A partnership only makes sense while both members are selected. Whenever the
-  // selection shrinks (deselect, roster cleanup), drop any now-invalid couple.
+  /**
+   * A partnership only makes sense while both members are selected. Whenever the
+   * selection shrinks (deselect, roster cleanup), drop any now-invalid couple.
+   *
+   * Only while there is no schedule. Mid-session the selection is who is playing
+   * this afternoon, and subbing somebody off takes them out of it — which used
+   * to delete the couple they were in, from storage, for good. A host covering
+   * for a twisted ankle came back the following week to find the couple gone.
+   * Setup is where couples are decided, so Setup is where the selection is
+   * allowed to unmake one. What holds mid-session instead is stores.subPartnerships.
+   */
   useEffect(() => {
+    if (schedule) return;
     const sel = new Set(selectedIds);
     setPartnerships((prev) => {
       const next = prunePartnerships(prev, sel);
       return next.length === prev.length ? prev : next;
     });
-  }, [selectedIds, setPartnerships]);
+  }, [schedule, selectedIds, setPartnerships]);
+
+  /**
+   * The couples in force this afternoon: Setup's, with any a stand-in has taken
+   * over laid on top.
+   *
+   * Everything that touches a running session reads this rather than
+   * `partnerships` — the padlocks on the schedule, and every rebuild of the
+   * rounds still to come. Setup reads the standing list, because Setup is where
+   * that list is edited and a stand-in has no business showing up in it.
+   */
+  const sessionPartnerships = useMemo(
+    () => withSubbedPairs(partnerships, subPartnerships),
+    [partnerships, subPartnerships]
+  );
 
   const togglePlayer = useCallback((id: string) => {
     setSelectedIds((prev) =>
@@ -423,10 +450,15 @@ function App() {
   const createPartnership = useCallback((id1: string, id2: string) => {
     if (id1 === id2) return;
     setPartnerships((prev) => {
-      // Neither player may already be in a partnership.
-      const taken = new Set(prev.flatMap((p) => [p.player1Id, p.player2Id]));
-      if (taken.has(id1) || taken.has(id2)) return prev;
-      return [...prev, { player1Id: id1, player2Id: id2 }];
+      // Nobody is in two couples, so anything either player is already in gives
+      // way. It used to refuse instead, which was silent and, since a couple can
+      // now outlive one of its members being deselected, wrong: the Set Partners
+      // panel lists a player whose partner is not here as free to pair, and a
+      // tap on somebody the panel says is free has to do something.
+      const next = prev.filter(
+        (p) => ![p.player1Id, p.player2Id].some((id) => id === id1 || id === id2)
+      );
+      return [...next, { player1Id: id1, player2Id: id2 }];
     });
   }, [setPartnerships]);
 
@@ -600,6 +632,8 @@ function App() {
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
     setCompletedRounds([]);
     setRemovedIds([]);
+    // Nobody is covering for anybody in a session that has not started.
+    setSubPartnerships([]);
     setScheduleEdited(false);
     setScheduleRosterId(activeRosterId);
     // Nothing reads this yet. A session gets its name here so that sharing one
@@ -612,7 +646,7 @@ function App() {
     if (tour?.id === 'select-players') nextCard();
   }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
       activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds,
-      setScheduleEdited, setScheduleRosterId, setSessionId, setStep]);
+      setScheduleEdited, setScheduleRosterId, setSessionId, setStep, setSubPartnerships]);
 
   const attendingPlayers = sessionPlayers.filter(
     (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
@@ -736,7 +770,7 @@ function App() {
     if (remaining.length < 4) return;
 
     const activePartnerships = prunePartnerships(
-      partnerships, new Set(remaining.map((p) => p.id))
+      sessionPartnerships, new Set(remaining.map((p) => p.id))
     );
     // The rebuilt rounds come back numbered from 1 again, and the court a group
     // is standing on has not moved because somebody went home.
@@ -750,9 +784,15 @@ function App() {
       ),
     });
     setRemovedIds((prev) => [...prev, playerId]);
+    // Somebody going home breaks whatever they were linked in, the same as
+    // unlocking it by hand would. The standing couple in Setup is untouched:
+    // it has one member missing this afternoon and is whole again next week.
+    setSubPartnerships((prev) =>
+      prev.filter((p) => p.player1Id !== playerId && p.player2Id !== playerId)
+    );
     setScheduleEdited(true);
-  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
-      setSchedule, setRemovedIds, setScheduleEdited]);
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
+      setSchedule, setRemovedIds, setScheduleEdited, setSubPartnerships]);
 
   /**
    * Somebody deleted from the group while a schedule is running.
@@ -777,7 +817,7 @@ function App() {
 
     if (playing && schedule && remaining.length >= 4) {
       const activePartnerships = prunePartnerships(
-        partnerships, new Set(remaining.map((p) => p.id))
+        sessionPartnerships, new Set(remaining.map((p) => p.id))
       );
       const rebuilt = {
         rounds: carryCourtNumbers(
@@ -790,6 +830,9 @@ function App() {
       };
       setSchedule(rebuilt);
       setRemovedIds((prev) => [...prev, playerId]);
+      setSubPartnerships((prev) =>
+        prev.filter((p) => p.player1Id !== playerId && p.player2Id !== playerId)
+      );
       setScheduleEdited(true);
       setScheduleBasis(basisKey({ ...liveBasis, attending: remaining, schedule: rebuilt }));
     }
@@ -797,9 +840,9 @@ function App() {
     deletePlayer(playerId);
     // liveBasis is rebuilt every render from values already in this list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
       activeRosterId, numRounds, deletePlayer, setSchedule, setRemovedIds, setScheduleEdited,
-      setScheduleBasis]);
+      setScheduleBasis, setSubPartnerships]);
 
   // Reshuffle rebuilds only the rounds still to be played. Rounds already marked
   // complete stay exactly as they were played, and their pairings are replayed
@@ -813,7 +856,7 @@ function App() {
     if (attendingPlayers.length < 4) return;
 
     const activePartnerships = prunePartnerships(
-      partnerships, new Set(attendingPlayers.map((p) => p.id))
+      sessionPartnerships, new Set(attendingPlayers.map((p) => p.id))
     );
     // Reshuffling changes who plays where, not what the courts are called.
     setSchedule({
@@ -828,7 +871,7 @@ function App() {
     // The remaining rounds are machine-built again, so swaps are gone — but a
     // removal is still work that going back to Setup would throw away.
     setScheduleEdited(removedIds.length > 0);
-  }, [schedule, attendingPlayers, partnerships, completedRounds, numCourts, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
       removedIds, setSchedule, setScheduleEdited]);
 
   // Brings a latecomer into a session already under way. They land in the
@@ -853,9 +896,9 @@ function App() {
   // Somebody nobody has met before. They join the group as well as the session,
   // because a player who turns up once usually turns up again.
   const handleCreatePlayer = useCallback(
-    (name: string, rating: number, gender: Gender, replacingId?: string) => {
+    (name: string, rating: number, gender: Gender, replacingId?: string): string => {
       const player = addPlayer(name, rating, gender, [activeRosterId]);
-      if (!schedule) return;
+      if (!schedule) return player.id;
 
       // Reached from Sub a Player, where somebody is already on their way out.
       // Adding the newcomer on top would put five people on a court that is
@@ -866,8 +909,12 @@ function App() {
           rounds: replacePlayerInRounds(schedule.rounds, replacingId, player, completedRounds),
         });
         setSelectedIds((prev) => [...prev.filter((id) => id !== replacingId), player.id]);
+        // Whoever the player going off was linked to, this one is linked to now.
+        setSubPartnerships((prev) =>
+          transferPartnership(prev, partnerships, replacingId, player.id)
+        );
         setScheduleEdited(true);
-        return;
+        return player.id;
       }
 
       setSchedule({
@@ -875,9 +922,10 @@ function App() {
       });
       setSelectedIds((prev) => [...prev, player.id]);
       setScheduleEdited(true);
+      return player.id;
     },
-    [addPlayer, activeRosterId, schedule, completedRounds, setSchedule, setSelectedIds,
-     setScheduleEdited]
+    [addPlayer, activeRosterId, schedule, completedRounds, partnerships, setSchedule,
+     setSelectedIds, setScheduleEdited, setSubPartnerships]
   );
 
   // A guest plays today and is never saved to the group. See stores.guests for
@@ -909,6 +957,13 @@ function App() {
    * Both take them out of the session, but a removal locks the Completed
    * checkboxes for good, and it locks them because a removal rebuilds the
    * remaining rounds. This does not, so it has no business locking anything.
+   *
+   * Anyone the player going off was linked to, the substitute is now linked to,
+   * for the rest of the afternoon. They are standing in that person's place on
+   * the court, so standing in their place beside their partner is the same
+   * move — and the padlock the host is looking at stays where it is instead of
+   * quietly coming undone. See stores.subPartnerships for why this is not
+   * written into Setup's couples.
    */
   const handleSubstitute = useCallback(
     (outgoingId: string, incomingId: string) => {
@@ -921,10 +976,13 @@ function App() {
       });
       setSelectedIds((prev) => [...prev.filter((id) => id !== outgoingId), incomingId]);
       setRemovedIds((prev) => prev.filter((id) => id !== incomingId));
+      setSubPartnerships((prev) =>
+        transferPartnership(prev, partnerships, outgoingId, incomingId)
+      );
       setScheduleEdited(true);
     },
-    [schedule, sessionPlayers, completedRounds, setSchedule, setSelectedIds, setRemovedIds,
-     setScheduleEdited]
+    [schedule, sessionPlayers, completedRounds, partnerships, setSchedule, setSelectedIds,
+     setRemovedIds, setScheduleEdited, setSubPartnerships]
   );
 
   /**
@@ -1005,14 +1063,14 @@ function App() {
   const handleAddCourt = useCallback(() => {
     if (!schedule) return;
     const activePartnerships = prunePartnerships(
-      partnerships, new Set(attendingPlayers.map((p) => p.id))
+      sessionPartnerships, new Set(attendingPlayers.map((p) => p.id))
     );
     setSchedule({
       rounds: addCourtToRemaining(schedule.rounds, completedRounds, activePartnerships),
     });
     setNumCourts(numCourts + 1);
     setScheduleEdited(true);
-  }, [schedule, partnerships, attendingPlayers, completedRounds, numCourts, setNumCourts,
+  }, [schedule, sessionPartnerships, attendingPlayers, completedRounds, numCourts, setNumCourts,
       setSchedule, setScheduleEdited]);
 
   const handleRemoveCourt = useCallback((courtNumber: number) => {
@@ -1030,7 +1088,7 @@ function App() {
     if (!schedule) return;
     if (attendingPlayers.length < 4) return;
     const activePartnerships = prunePartnerships(
-      partnerships, new Set(attendingPlayers.map((p) => p.id))
+      sessionPartnerships, new Set(attendingPlayers.map((p) => p.id))
     );
     setSchedule(
       extendSchedule(
@@ -1038,7 +1096,7 @@ function App() {
       )
     );
     setNumRounds(numRounds + count);
-  }, [schedule, attendingPlayers, partnerships, numCourts, numRounds, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, numCourts, numRounds, specialTypes,
       setNumRounds, setSchedule]);
 
   // Players who aren't in this session yet — including anyone removed from it
@@ -1402,7 +1460,7 @@ function App() {
           <SchedulePage
             schedule={schedule}
             players={attendingPlayers}
-            partnerships={partnerships}
+            partnerships={sessionPartnerships}
             numCourts={numCourts}
             completedRounds={completedRounds}
             // Re-adding the last removed player empties this and so re-enables

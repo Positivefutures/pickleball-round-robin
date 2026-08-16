@@ -25,6 +25,11 @@ export interface GroupSession {
   setupSeen: boolean;
   selectedIds: string[];
   partnerships: Partnership[];
+  /**
+   * Couples a substitute took over mid-session. Optional because groups parked
+   * by builds before stand-ins existed have none, and none is an empty list.
+   */
+  subPartnerships?: Partnership[];
   schedule: Schedule | null;
   completedRounds: number[];
   removedIds: string[];
@@ -64,6 +69,7 @@ function live(): GroupSession {
     setupSeen: stores.setupSeen.get(),
     selectedIds: stores.selectedIds.get(),
     partnerships: stores.partnerships.get(),
+    subPartnerships: stores.subPartnerships.get(),
     schedule: stores.schedule.get(),
     completedRounds: stores.completedRounds.get(),
     removedIds: stores.removedIds.get(),
@@ -96,6 +102,9 @@ export function clearSession(keepSelection = false): void {
   // Guests belong to the session and go with it, whichever way it ends. They
   // are in nobody's group, so there is nowhere for them to be kept.
   stores.guests.set([]);
+  // Who was covering for whom belongs to the afternoon, so it goes with it even
+  // when the crowd is kept. The couples underneath it are Setup's and stay.
+  stores.subPartnerships.set([]);
   stores.scheduleEdited.set(false);
   // No schedule, nothing it was built from. Left behind, it would be compared
   // against the next session's settings and answer a question about a schedule
@@ -113,6 +122,7 @@ export function clearSession(keepSelection = false): void {
 function fill(saved: GroupSession, rosterId: string): void {
   stores.selectedIds.set(saved.selectedIds);
   stores.partnerships.set(saved.partnerships);
+  stores.subPartnerships.set(saved.subPartnerships ?? []);
   stores.schedule.set(saved.schedule);
   stores.completedRounds.set(saved.completedRounds);
   stores.removedIds.set(saved.removedIds);

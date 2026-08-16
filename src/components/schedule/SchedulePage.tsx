@@ -166,6 +166,37 @@ function partnershipLocksForRound(
   return result;
 }
 
+/**
+ * The padlocks on a round that still mean what they said.
+ *
+ * A padlock the host set by hand names two players and a place. Both can come
+ * apart underneath it: a player is subbed off, or somebody goes home and the
+ * remaining rounds are rebuilt around the smaller group, which leaves the same
+ * court and side holding two entirely different people.
+ *
+ * Neither is cosmetic. The padlock is drawn from the place alone, so a stale one
+ * appears around a pair the host never locked; and the scheduler, handed a lock
+ * naming somebody who is not there, throws away every attempt it makes and
+ * returns a round with no courts on it and everybody sitting out. So a lock is
+ * only honoured while the two it names are still standing where it left them.
+ */
+function locksInPlace(round: Round, roundLocks: LockedPair[]): LockedPair[] {
+  return roundLocks.filter((lp) => {
+    const team = round?.courts[lp.courtIdx]?.[lp.team];
+    if (team?.length !== 2) return false;
+    const here = new Set([team[0].id, team[1].id]);
+    return here.has(lp.player1Id) && here.has(lp.player2Id);
+  });
+}
+
+/** A partnerKey with one member swapped out, or unchanged if they are not in it. */
+function rekey(key: string, outgoingId: string, incomingId: string): string {
+  const [a, b] = key.split('|');
+  if (a === outgoingId) return partnerKey(incomingId, b);
+  if (b === outgoingId) return partnerKey(a, incomingId);
+  return key;
+}
+
 export function SchedulePage({
   schedule,
   players,
@@ -192,6 +223,16 @@ export function SchedulePage({
   onOpenAccount,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
+  /**
+   * The locked seat whose pencil is showing, if any.
+   *
+   * Its own state rather than a second kind of selection, because the two mean
+   * opposite things. A selection is an offer: tap somebody else and the pair
+   * change places. A locked player has no such offer to make, and holding them
+   * in `selectedSlot` would put the swap machinery and the swap hint behind a
+   * tap that cannot swap. Only one of the two is ever set.
+   */
+  const [pencilSlot, setPencilSlot] = useState<CourtSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
   // Couples the host has broken for a specific round (partnerKeys by round index).
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
@@ -226,6 +267,25 @@ export function SchedulePage({
   // Never into an unmounted page: leaving the schedule while a fade is running
   // is the ordinary way out of it.
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+
+  /** Nothing tapped: no seat offering a swap, and no pencil showing. */
+  function clearTaps() {
+    setSelectedSlot(null);
+    setPencilSlot(null);
+  }
+
+  /**
+   * A tap on a player held by a padlock.
+   *
+   * It shows their pencil and does nothing else. Tap them again and it goes.
+   * Any ordinary selection is dropped, so there is never a pencil in one place
+   * and an offer to swap in another.
+   */
+  function handleLockedTap(slot: CourtSlot) {
+    if (completedSet.has(schedule.rounds[slot.roundIdx].roundNumber)) return;
+    setSelectedSlot(null);
+    setPencilSlot((prev) => (prev && sameSlot(prev, slot) ? null : slot));
+  }
 
   function markSwapped(roundIdx: number, playerIds: string[]) {
     window.clearTimeout(flashTimer.current);
@@ -295,7 +355,7 @@ export function SchedulePage({
     } else {
       onCompletedRoundsChange([...completedRounds, roundNumber]);
     }
-    setSelectedSlot(null);
+    clearTaps();
   }
 
   function handleToggleExpand(roundNumber: number) {
@@ -357,14 +417,14 @@ export function SchedulePage({
     if (!removeCandidate) return;
     onRemovePlayer(removeCandidate.id);
     setRemoveCandidate(null);
-    setSelectedSlot(null);
+    clearTaps();
   }
 
   function handleSaveEdit(name: string, rating: number, gender: Gender) {
     if (!editCandidate) return;
     onEditPlayer(editCandidate.id, name, rating, gender);
     setEditCandidate(null);
-    setSelectedSlot(null);
+    clearTaps();
   }
 
   function handleToggleLock(roundIdx: number, courtIdx: number, team: 'team1' | 'team2') {
@@ -389,7 +449,7 @@ export function SchedulePage({
         else next[roundIdx] = nextRound;
         return next;
       });
-      setSelectedSlot(null);
+      clearTaps();
       return;
     }
 
@@ -428,8 +488,10 @@ export function SchedulePage({
         };
       }
     });
-    // Deselect any swap selection when toggling a lock
-    setSelectedSlot(null);
+    // Deselect any swap selection when toggling a lock, and put away the pencil
+    // it may have been showing: the padlock that made it a locked seat has just
+    // gone, so the next tap on that player means the ordinary thing again.
+    clearTaps();
   }
 
   /**
@@ -502,13 +564,14 @@ export function SchedulePage({
     // same mark: the place they came from is a gap now, and the only thing on
     // screen that says where they went is the seat they went into.
     markSwapped(empty.roundIdx, [player.id]);
-    setSelectedSlot(null);
+    clearTaps();
   }
 
   function handlePlayerTap(slot: PlayerSlot) {
     // Completed rounds are frozen — guard here too so a stale selection can't
     // mutate one after it's been marked complete.
     if (completedSet.has(schedule.rounds[slot.roundIdx].roundNumber)) return;
+    setPencilSlot(null);
 
     if (!selectedSlot) {
       setSelectedSlot(slot);
@@ -602,7 +665,60 @@ export function SchedulePage({
 
     onUpdateSchedule({ rounds: newRounds });
     markSwapped(slot.roundIdx, moved);
-    setSelectedSlot(null);
+    clearTaps();
+  }
+
+  /**
+   * A substitute inherits the padlocks of the player they are standing in for.
+   *
+   * The couples set up in Setup are handed over by App, which owns them. These
+   * are the other kind: the padlock a host clicks between two players who are
+   * not a couple, and the couple they have broken for one round by clicking it
+   * off. Both are this page's own state and go no further, so both are handed
+   * over here. Left alone, the first would be dropped as stale and the second
+   * would quietly re-link a pair the host had deliberately separated.
+   */
+  function handOverPadlocks(outgoingId: string, incomingId: string) {
+    setLocks((prev) => {
+      const next: Record<number, LockedPair[]> = {};
+      for (const [key, roundLocks] of Object.entries(prev)) {
+        next[Number(key)] = roundLocks.map((lp) => ({
+          ...lp,
+          player1Id: lp.player1Id === outgoingId ? incomingId : lp.player1Id,
+          player2Id: lp.player2Id === outgoingId ? incomingId : lp.player2Id,
+        }));
+      }
+      return next;
+    });
+    setBrokenPairs((prev) => {
+      const next: Record<number, string[]> = {};
+      for (const [key, keys] of Object.entries(prev)) {
+        next[Number(key)] = keys.map((k) => rekey(k, outgoingId, incomingId));
+      }
+      return next;
+    });
+  }
+
+  /** Somebody going home takes every padlock they were held by with them. */
+  function releasePadlocks(playerId: string) {
+    setLocks((prev) => {
+      const next: Record<number, LockedPair[]> = {};
+      for (const [key, roundLocks] of Object.entries(prev)) {
+        const kept = roundLocks.filter(
+          (lp) => lp.player1Id !== playerId && lp.player2Id !== playerId
+        );
+        if (kept.length > 0) next[Number(key)] = kept;
+      }
+      return next;
+    });
+    setBrokenPairs((prev) => {
+      const next: Record<number, string[]> = {};
+      for (const [key, keys] of Object.entries(prev)) {
+        const kept = keys.filter((k) => !k.split('|').includes(playerId));
+        if (kept.length > 0) next[Number(key)] = kept;
+      }
+      return next;
+    });
   }
 
   // The sheet's reshuffle is this page's reshuffle: the padlocks and the couples
@@ -611,13 +727,37 @@ export function SchedulePage({
   const sheetActions: ScheduleActions = {
     ...actions,
     onReshuffle: () => {
-      onRegenerate(locks, brokenPairs);
-      setSelectedSlot(null);
+      // Only the padlocks still holding the pair they were put on. See
+      // locksInPlace: a stale one hands the scheduler a player who is not here,
+      // and it answers with a round nobody is playing in.
+      const live: Record<number, LockedPair[]> = {};
+      for (const [key, roundLocks] of Object.entries(locks)) {
+        const roundIdx = Number(key);
+        const kept = locksInPlace(schedule.rounds[roundIdx], roundLocks);
+        if (kept.length > 0) live[roundIdx] = kept;
+      }
+      onRegenerate(live, brokenPairs);
+      clearTaps();
+    },
+    onSubstitute: (outgoingId, incomingId) => {
+      handOverPadlocks(outgoingId, incomingId);
+      actions.onSubstitute(outgoingId, incomingId);
+      clearTaps();
+    },
+    onCreatePlayer: (name, rating, gender, replacingId) => {
+      const newId = actions.onCreatePlayer(name, rating, gender, replacingId);
+      if (replacingId) handOverPadlocks(replacingId, newId);
+      clearTaps();
+      return newId;
     },
     // The same removal a player's own panel performs, reached from the grid
     // instead. It is this page's prop rather than App's actions object so that
     // both routes end in one call and cannot come apart.
-    onRemovePlayer,
+    onRemovePlayer: (playerId) => {
+      releasePadlocks(playerId);
+      onRemovePlayer(playerId);
+      clearTaps();
+    },
   };
 
   // This page used to report up what leaving it would cost, because the tabs
@@ -668,7 +808,7 @@ export function SchedulePage({
       {orderedRounds.map(({ round, roundIdx, complete }) => {
         // Show ad-hoc locks plus every intact couple in this round (deduped by
         // court+team so a couple never renders as two overlapping locks).
-        const manualLocks = locks[roundIdx] || [];
+        const manualLocks = locksInPlace(round, locks[roundIdx] || []);
         const partnerLocks = hasPartnerships
           ? partnershipLocksForRound(
               round, partnerships, new Set(brokenPairs[roundIdx] || [])
@@ -704,7 +844,9 @@ export function SchedulePage({
             swappedIds={swapFlash?.roundIdx === roundIdx ? swapFlash.playerIds : undefined}
             swapSeq={swapFlash?.seq}
             selectedSlot={selectedSlot}
+            pencilSlot={pencilSlot}
             onPlayerTap={handlePlayerTap}
+            onLockedTap={handleLockedTap}
             allPlayers={players}
             locks={roundLocks}
             onToggleLock={handleToggleLock}
@@ -722,6 +864,14 @@ export function SchedulePage({
           {selectedSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
               Tap another player to swap, or tap the pencil for more
+            </p>
+          )}
+          {/* A locked player has no swap to offer, so the line above would be
+              half wrong. This one says what the pencil is for and where the
+              swap went. */}
+          {pencilSlot?.roundIdx === roundIdx && (
+            <p className="text-sm text-blue-600 text-center mt-2">
+              Tap the pencil for more. Unlock the pair to swap.
             </p>
           )}
         </div>
@@ -795,7 +945,7 @@ export function SchedulePage({
           }}
           onSub={() => {
             setMenuPlayer(null);
-            setSelectedSlot(null);
+            clearTaps();
             onOpenActions('add-sub', menuPlayer.id);
           }}
           onRemove={() => {

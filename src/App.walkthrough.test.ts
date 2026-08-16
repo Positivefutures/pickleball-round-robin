@@ -4328,3 +4328,357 @@ describe('the partner play notice', () => {
     expect(container.textContent).not.toContain('Partner play:');
   });
 });
+
+/**
+ * Reaching a player who is held by a padlock.
+ *
+ * Every one of these used to be impossible. A locked seat was dead to the touch,
+ * so correcting a linked player's spelling meant undoing the padlock, tapping
+ * them, and putting it back afterwards — and forgetting the last step quietly
+ * changed who the scheduler kept together. Now the seat answers a tap with its
+ * pencil and nothing else, which is the one thing a locked player has to offer.
+ */
+describe('a linked player', () => {
+  /**
+   * Ava and Ben linked in Setup, then a schedule built around it.
+   *
+   * Ten in the group and nine of them playing, so Jo is on the bench and there
+   * is somebody to stand in.
+   */
+  function seedLinked(inGroup = 10, playing = 9, courts = 2) {
+    seed(inGroup, playing, courts);
+    window.localStorage.setItem(
+      'pb-partnerships',
+      JSON.stringify([{ player1Id: 'p1', player2Id: 'p2' }])
+    );
+    mount();
+    generate();
+  }
+
+  /** The seat holding one player on a round, whatever state it is in. */
+  function seat(name: string, round = 1): HTMLElement {
+    const found = buttons(new RegExp(`^${name}`), roundCard(round));
+    if (found.length === 0) throw new Error(`no seat for ${name} on round ${round}`);
+    return found[0];
+  }
+
+  function pencil(name: string, round = 1): Element | null {
+    return roundCard(round).querySelector(`[aria-label="Edit ${name}"]`);
+  }
+
+  /** Every padlocked pair on a round, by the names either side of the padlock. */
+  function padlocked(round = 1): string[][] {
+    return [...roundCard(round).querySelectorAll('[aria-label="Unlock pair"]')].map((lock) => {
+      const column = lock.parentElement as HTMLElement;
+      return [...column.children]
+        .filter((el) => el !== lock && el.tagName === 'BUTTON')
+        .map((el) => NAMES.find((n) => text(el).startsWith(n)) ?? text(el));
+    });
+  }
+
+  /** Which round Ava and Ben are both playing in, since a couple can sit out. */
+  function roundWithPair(): number {
+    const round = storedSchedule().rounds.find((r) =>
+      r.courts.some((c) =>
+        [c.team1, c.team2].some(
+          (t) => t.some((p) => p.name === 'Ava') && t.some((p) => p.name === 'Ben')
+        )
+      )
+    );
+    if (!round) throw new Error('Ava and Ben are never on a court together');
+    return round.roundNumber;
+  }
+
+  it('shows its pencil when tapped, and no more than that', () => {
+    seedLinked();
+    const n = roundWithPair();
+    const before = seat('Ava', n).className;
+
+    click(seat('Ava', n));
+
+    expect(pencil('Ava', n)).not.toBeNull();
+    // Not selected. The blue edge and the darker fill are an offer to swap, and
+    // a locked player has no swap to make.
+    expect(seat('Ava', n).className).not.toContain('ring-blue-500');
+    expect(seat('Ava', n).className).not.toContain('bg-blue-200');
+    expect(seat('Ava', n).className).not.toContain('bg-orange-200');
+    // The padlock's own black edge is what it was wearing before the tap.
+    expect(seat('Ava', n).className).toBe(before);
+  });
+
+  it('puts the pencil away when tapped again', () => {
+    seedLinked();
+    const n = roundWithPair();
+
+    click(seat('Ava', n));
+    expect(pencil('Ava', n)).not.toBeNull();
+
+    click(seat('Ava', n));
+    expect(pencil('Ava', n)).toBeNull();
+  });
+
+  it('says what the pencil is for, and where the swap went', () => {
+    seedLinked();
+    const n = roundWithPair();
+    click(seat('Ava', n));
+
+    expect(container.textContent).toContain('Tap the pencil for more. Unlock the pair to swap.');
+    // Not the line an unlocked seat gets, which offers a swap this seat cannot
+    // make.
+    expect(container.textContent).not.toContain('Tap another player to swap');
+  });
+
+  it('opens the same panel, with all three things on it', () => {
+    seedLinked();
+    const n = roundWithPair();
+    click(seat('Ava', n));
+    click(pencil('Ava', n)!);
+
+    const panel = sheet();
+    expect(text(panel)).toContain('Edit Player');
+    expect(text(panel)).toContain('Sub Someone In');
+    expect(text(panel)).toContain('Remove from Remaining Rounds');
+  });
+
+  it('still cannot be swapped with anybody', () => {
+    seedLinked();
+    const n = roundWithPair();
+    const before = fingerprint(storedSchedule().rounds[n - 1]);
+
+    click(seat('Ava', n));
+    // Somebody on the other side of the same court. Tapping them after a
+    // selection is what trades two places over.
+    const other = onCourt(storedSchedule().rounds[n - 1]).find(
+      (name) => name !== 'Ava' && name !== 'Ben'
+    )!;
+    click(seat(other, n));
+
+    expect(fingerprint(storedSchedule().rounds[n - 1])).toBe(before);
+  });
+
+  it('offers no pencil once the round is complete', () => {
+    seedLinked();
+    const n = roundWithPair();
+    markComplete(n);
+    // A completed round folds itself away. Open it again, or there are no seats
+    // on screen to tap and the test would pass without proving anything.
+    clickButton(/^View$/, roundCard(n));
+
+    click(seat('Ava', n));
+
+    expect(pencil('Ava', n)).toBeNull();
+  });
+
+  it('keeps its padlock when somebody stands in for it', () => {
+    seedLinked();
+    // Read before the substitution: Ava is gone afterwards, and the round is
+    // the one the padlock has to still be on.
+    const n = roundWithPair();
+    subIn('Ava', n);
+    clickButton(/^Jo/, sheet());
+
+    // The padlock is still on the court, and Jo is inside it beside Ben.
+    const pairs = padlocked(n);
+    expect(pairs.some((names) => names.includes('Jo') && names.includes('Ben'))).toBe(true);
+    expect(pairs.some((names) => names.includes('Ava'))).toBe(false);
+  });
+
+  it('hands the pairing on well enough to survive a reshuffle', () => {
+    seedLinked();
+    subIn('Ava', roundWithPair());
+    clickButton(/^Jo/, sheet());
+
+    reshuffle();
+
+    // Every round from here on has Jo and Ben on the same team, or neither of
+    // them on a court at all. That is what a linked pair means.
+    for (const round of storedSchedule().rounds) {
+      const together = round.courts.some((c) =>
+        [c.team1, c.team2].some(
+          (t) => t.some((p) => p.name === 'Jo') && t.some((p) => p.name === 'Ben')
+        )
+      );
+      const playing = onCourt(round);
+      if (playing.includes('Jo') || playing.includes('Ben')) expect(together).toBe(true);
+    }
+  });
+
+  it('leaves the couple in Setup alone when it is stood in for', () => {
+    seedLinked();
+    subIn('Ava', roundWithPair());
+    clickButton(/^Jo/, sheet());
+
+    // Ava is off for the afternoon, not divorced. Standing in used to delete the
+    // couple from storage outright, so she came back the following week with no
+    // partner and nothing on screen to say why.
+    expect(JSON.parse(window.localStorage.getItem('pb-partnerships') ?? '[]')).toEqual([
+      { player1Id: 'p1', player2Id: 'p2' },
+    ]);
+  });
+
+  /** What the app is holding about who is covering for whom. */
+  function standIns(): { player1Id: string; player2Id: string }[] {
+    return JSON.parse(window.localStorage.getItem('pb-sub-partnerships') ?? '[]');
+  }
+
+  /** The step tabs, which is how a host gets back to Setup mid-session. */
+  function tab(label: RegExp): HTMLButtonElement {
+    const found = [...container.querySelectorAll('nav button')].find((b) => label.test(text(b)));
+    if (!found) throw new Error(`no step tab matching ${label}`);
+    return found as HTMLButtonElement;
+  }
+
+  it('lets the partner left behind be linked to somebody else', () => {
+    seedLinked();
+    subIn('Ava', roundWithPair());
+    clickButton(/^Jo/, sheet());
+
+    // Ava's couple with Ben is still in storage, with Ava not in the session.
+    // Set Partners lists Ben as free to pair, because his partner is not here —
+    // so a tap on him has to do something. It used to refuse in silence.
+    click(tab(/^2\. Setup$/));
+    clickButton(/^Set Partners$/);
+    clickButton(/^Ben/);
+    clickButton(/^Cara/);
+    clickButton(/^Done Pairing$/);
+
+    const stored = JSON.parse(window.localStorage.getItem('pb-partnerships') ?? '[]');
+    expect(stored).toEqual([{ player1Id: 'p2', player2Id: 'p3' }]);
+  });
+
+  it('forgets who was covering for whom when a new schedule is built', () => {
+    seedLinked();
+    subIn('Ava', roundWithPair());
+    clickButton(/^Jo/, sheet());
+    expect(standIns()).toHaveLength(1);
+
+    // A fresh schedule is a fresh afternoon. Nobody is standing in for anybody
+    // in a session that has not started.
+    click(tab(/^2\. Setup$/));
+    clickButton(/^Generate Schedule/);
+    // It asks first, because building one throws the running session away.
+    clickButton(/^Generate$/);
+
+    expect(standIns()).toEqual([]);
+  });
+
+  it('forgets a stand-in who goes home themselves', () => {
+    seedLinked();
+    subIn('Ava', roundWithPair());
+    clickButton(/^Jo/, sheet());
+    expect(standIns()).toHaveLength(1);
+
+    // Jo came on for Ava and inherited Ben. Now Jo goes home too, which breaks
+    // it — so if she comes back later she arrives linked to nobody, the same as
+    // anybody else who has been removed.
+    const round = storedSchedule().rounds.find((r) => onCourt(r).includes('Jo'))!;
+    takeOff('Jo', round.roundNumber);
+
+    expect(standIns()).toEqual([]);
+  });
+
+  it('breaks its padlock when the player goes home', () => {
+    seedLinked();
+    takeOff('Ava', roundWithPair());
+
+    // Nothing on the schedule is padlocked any more: the only couple there was
+    // has lost a member, and Ben is free to be moved like anybody else.
+    for (const round of storedSchedule().rounds) {
+      expect(padlocked(round.roundNumber)).toEqual([]);
+    }
+  });
+
+  it('frees the partner left behind to be swapped', () => {
+    seedLinked();
+    takeOff('Ava', roundWithPair());
+
+    const round = storedSchedule().rounds.find((r) => onCourt(r).includes('Ben'))!;
+    click(seat('Ben', round.roundNumber));
+
+    // A selected seat, not a locked one showing a pencil.
+    expect(seat('Ben', round.roundNumber).className).toContain('ring-blue-500');
+  });
+});
+
+/**
+ * The padlock a host clicks on between two players who are not a couple.
+ *
+ * It is the other kind of lock, and it names two people and a place. Both halves
+ * can come apart underneath it, and when they do the scheduler is handed a
+ * player who is not in the room — which it answers with a round that has no
+ * courts on it and everybody sitting out.
+ */
+describe('a padlock clicked on by hand', () => {
+  beforeEach(() => seed(10, 9, 2));
+
+  /** Locks the first pair on Round 1 and returns their two names. */
+  function lockFirstPair(): string[] {
+    const card = roundCard(1);
+    const lock = card.querySelector('[aria-label="Lock pair"]') as HTMLElement;
+    const column = lock.parentElement as HTMLElement;
+    const names = [...column.children]
+      .filter((el) => el !== lock && el.tagName === 'BUTTON')
+      .map((el) => NAMES.find((n) => text(el).startsWith(n)) ?? '?');
+    click(lock);
+    return names;
+  }
+
+  function padlockedNames(round = 1): string[] {
+    return [...roundCard(round).querySelectorAll('[aria-label="Unlock pair"]')].flatMap((lock) => {
+      const column = lock.parentElement as HTMLElement;
+      return [...column.children]
+        .filter((el) => el !== lock && el.tagName === 'BUTTON')
+        .map((el) => NAMES.find((n) => text(el).startsWith(n)) ?? '?');
+    });
+  }
+
+  it('follows the seat when somebody stands in', () => {
+    mount();
+    generate();
+    const [first, second] = lockFirstPair();
+
+    subIn(first, 1);
+    clickButton(/^Jo/, sheet());
+
+    const names = padlockedNames(1);
+    expect(names).toContain('Jo');
+    expect(names).toContain(second);
+    expect(names).not.toContain(first);
+  });
+
+  it('leaves the rounds playable after a reshuffle that follows a removal', () => {
+    mount();
+    generate();
+    const [first] = lockFirstPair();
+
+    takeOff(first, 1);
+    reshuffle();
+
+    // A padlock still naming the player who went home makes the scheduler throw
+    // away every attempt it makes, and it gives back a round with nobody on a
+    // court. Every round here has courts and people on them.
+    for (const round of storedSchedule().rounds) {
+      expect(round.courts.length).toBeGreaterThan(0);
+      expect(onCourt(round).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never lands on a pair the host did not lock', () => {
+    mount();
+    generate();
+    const [first, second] = lockFirstPair();
+
+    takeOff(first, 1);
+
+    // Removing somebody rebuilds every round still to be played, so the court
+    // and side the padlock was drawn from now hold two entirely different
+    // people. It must not be drawn around them.
+    for (const round of storedSchedule().rounds) {
+      const names = padlockedNames(round.roundNumber);
+      if (names.length > 0) {
+        expect(names).toContain(second);
+        expect(names).not.toContain(first);
+      }
+    }
+  });
+});

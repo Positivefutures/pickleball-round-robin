@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule, regenerateRemaining } from './pairing';
 import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
-import { arePartners, partnerKey, prunePartnerships, partneredIds } from './partnerships';
+import {
+  arePartners, partnerKey, prunePartnerships, partneredIds,
+  withSubbedPairs, transferPartnership,
+} from './partnerships';
 import type { Player, Partnership, Schedule } from '../types';
 
 function makePlayers(n: number): Player[] {
@@ -166,5 +169,105 @@ describe('generateSchedule with partnerships', () => {
     const active = prunePartnerships(partnerships, new Set(remaining.map((p) => p.id)));
     const regen = regenerateRemaining(remaining, 3, original.rounds, [1, 2, 3], DEFAULT_SPECIAL_TYPES, active);
     expect(couplesAlwaysIntact(regen, active)).toBe(true);
+  });
+});
+
+/**
+ * Standing in for somebody, and taking their partner on with the seat.
+ *
+ * The couples in Setup are never touched by any of this. A substitute covering
+ * for a twisted ankle is not a decision about who anybody's partner is, so what
+ * these two build is a separate list that lasts the afternoon and no longer.
+ */
+describe('stand-ins', () => {
+  const jeffAndAnn: Partnership = { player1Id: 'jeff', player2Id: 'ann' };
+  const daveAndSue: Partnership = { player1Id: 'dave', player2Id: 'sue' };
+
+  describe('withSubbedPairs', () => {
+    it('hands back the standing couples untouched when nobody is standing in', () => {
+      const base = [jeffAndAnn, daveAndSue];
+      expect(withSubbedPairs(base, [])).toBe(base);
+    });
+
+    it('puts a stand-in ahead of the couples it does not touch', () => {
+      const stand: Partnership = { player1Id: 'dave', player2Id: 'ann' };
+      // The scheduler claims players couple by couple and skips any whose
+      // members are already spoken for, so the order is the rule, not a detail.
+      expect(withSubbedPairs([jeffAndAnn, daveAndSue], [stand])[0]).toEqual(stand);
+    });
+
+    it('sets aside a stand-in own couple, because the seat wins', () => {
+      // Dave partners Sue every week. Today he has stepped into Jeff's place
+      // beside Ann, and that is the padlock on the screen in front of the host.
+      const stand: Partnership = { player1Id: 'dave', player2Id: 'ann' };
+      const inForce = withSubbedPairs([jeffAndAnn, daveAndSue], [stand]);
+      expect(inForce).toEqual([stand]);
+    });
+
+    it('leaves couples alone when a stand-in has nothing to do with them', () => {
+      const kimAndLou: Partnership = { player1Id: 'kim', player2Id: 'lou' };
+      const stand: Partnership = { player1Id: 'dave', player2Id: 'ann' };
+      expect(withSubbedPairs([jeffAndAnn, kimAndLou], [stand])).toContainEqual(kimAndLou);
+    });
+  });
+
+  describe('transferPartnership', () => {
+    it('hands the partner to whoever takes the seat', () => {
+      const subbed = transferPartnership([], [jeffAndAnn], 'jeff', 'dave');
+      expect(subbed).toEqual([{ player1Id: 'dave', player2Id: 'ann' }]);
+    });
+
+    it('keeps the couple the way round it was set up', () => {
+      // Ann is player2 here, so standing in for her must leave Jeff as player1.
+      const subbed = transferPartnership([], [jeffAndAnn], 'ann', 'dave');
+      expect(subbed).toEqual([{ player1Id: 'jeff', player2Id: 'dave' }]);
+    });
+
+    it('adds nothing when the player going off was linked to nobody', () => {
+      expect(transferPartnership([], [jeffAndAnn], 'kim', 'dave')).toEqual([]);
+    });
+
+    it('carries the couple through a second substitution', () => {
+      // Jeff goes off and Dave takes his place beside Ann; then Dave goes off
+      // and Ed takes his. Ed is playing with Ann.
+      const first = transferPartnership([], [jeffAndAnn], 'jeff', 'dave');
+      const second = transferPartnership(first, [jeffAndAnn], 'dave', 'ed');
+      expect(second).toEqual([{ player1Id: 'ed', player2Id: 'ann' }]);
+    });
+
+    it('never leaves one player standing in two couples', () => {
+      const kimAndLou: Partnership = { player1Id: 'kim', player2Id: 'lou' };
+      const first = transferPartnership([], [jeffAndAnn, kimAndLou], 'jeff', 'dave');
+      // Dave, already covering for Jeff, now covers for Kim as well. He cannot
+      // be locked to Ann and to Lou at once.
+      const second = transferPartnership(first, [jeffAndAnn, kimAndLou], 'kim', 'dave');
+      const appearances = second.filter(
+        (p) => p.player1Id === 'dave' || p.player2Id === 'dave'
+      );
+      expect(appearances).toHaveLength(1);
+      expect(second).toEqual([{ player1Id: 'dave', player2Id: 'lou' }]);
+    });
+
+    it('drops what a substitute was covering when they go off themselves', () => {
+      const first = transferPartnership([], [jeffAndAnn], 'jeff', 'dave');
+      // Dave goes off and Ed comes on, but Ed is not standing in for a linked
+      // player this time: Dave's cover ends with him rather than being inherited
+      // by nobody in particular.
+      const second = transferPartnership(first, [jeffAndAnn], 'dave', 'ed');
+      expect(second.some((p) => p.player1Id === 'dave' || p.player2Id === 'dave')).toBe(false);
+    });
+
+    it('keeps the scheduler pairing the substitute with the partner', () => {
+      const players = makePlayers(12);
+      const base = pairFirst(1); // p0 and p1
+      const stand = transferPartnership([], base, 'p0', 'p11');
+      const inForce = withSubbedPairs(base, stand);
+      const playing = players.filter((p) => p.id !== 'p0');
+      const built = generateSchedule(
+        playing, 2, 6, DEFAULT_SPECIAL_TYPES,
+        prunePartnerships(inForce, new Set(playing.map((p) => p.id)))
+      );
+      expect(couplesAlwaysIntact(built, [{ player1Id: 'p11', player2Id: 'p1' }])).toBe(true);
+    });
   });
 });
