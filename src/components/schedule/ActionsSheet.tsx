@@ -212,7 +212,12 @@ const NEW_ROW =
  * failed to load.
  */
 const CONFIRM = 'flex h-full flex-col gap-6';
-const CONFIRM_FOOT = 'mt-auto space-y-3 pt-6';
+/**
+ * Every call site wraps one child, so nothing here is ever between two
+ * siblings for a `space-y` to space. The two that put a pair of buttons
+ * side by side add their own `gap-3` for that.
+ */
+const CONFIRM_FOOT = 'mt-auto pt-6';
 
 function names(round: Round | undefined, courtNumber: number): Player[] {
   const court = round?.courts.find((c) => c.courtNumber === courtNumber);
@@ -827,7 +832,7 @@ export function ActionsSheet({
                       )}
                     </div>
 
-                    <div className={`${CONFIRM_FOOT} flex gap-3 space-y-0`}>
+                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
                       <button
                         type="button"
                         className={SECONDARY}
@@ -935,7 +940,7 @@ export function ActionsSheet({
                     {/* One line, Cancel on the left. The pair reads as a choice
                         rather than as a button with an afterthought under it,
                         and the way out is where a way out belongs. */}
-                    <div className={`${CONFIRM_FOOT} flex gap-3 space-y-0`}>
+                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
                       <button
                         type="button"
                         className={SECONDARY}
