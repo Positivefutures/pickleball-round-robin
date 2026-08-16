@@ -315,7 +315,7 @@ function Schedule() {
       <Item term="Swap two players">tap one player, then tap the other.</Item>
       <Item term="Padlock">
         keeps a pair together, then <strong>Reshuffle</strong> rebuilds everything else
-        around them.
+        around them. Tap either name to reach their pencil without undoing it.
       </Item>
       <Item term="Player Summary">
         at the bottom: games played, and who has partnered or played against whom.
