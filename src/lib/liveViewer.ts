@@ -136,7 +136,93 @@ export function read(value: unknown): LiveFetch {
         ? document.completedRounds.filter((n): n is number => typeof n === 'number')
         : [],
       players: document.players,
-      scoringEnabled: document.scoringEnabled === true
+      scoringEnabled: document.scoringEnabled === true,
+      // Absent on every session published before editing existed, and that
+      // absence means off. Read the same way as scoringEnabled beside it:
+      // strictly true, so a field that arrives as a string or a number does
+      // not open a prompt.
+      scoreEditing: document.scoreEditing === true
     }
   };
+}
+
+// --------------------------------------------------- changing what is there --
+
+/**
+ * The two calls behind a watcher editing a score.
+ *
+ * Both take the share key and the code together, because holding the two is the
+ * whole permission model — the same shape reading chose. Neither is given a row
+ * id, so there is nothing to aim at a session whose key you do not hold.
+ *
+ * The code is never checked here. `share_code_ok` and `submit_score_edit` are
+ * security definer functions that recompute the hash themselves, and
+ * submit_score_edit checks the code again rather than trusting a caller that
+ * says it already passed. A caller that says so is exactly what somebody
+ * skipping the prompt would write.
+ */
+
+export type CodeCheck =
+  /** The code opens this share. */
+  | 'ok'
+  /** Wrong code, or a share that has ended, or one where editing is off. */
+  | 'wrong'
+  | 'offline'
+  | 'error';
+
+export async function checkCode(key: string, code: string): Promise<CodeCheck> {
+  if (!isSupabaseConfigured()) return 'error';
+
+  try {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.rpc('share_code_ok', { key, code });
+    if (error) throw new Error(error.message);
+    return data === true ? 'ok' : 'wrong';
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error ?? '');
+    return looksOffline(text) ? 'offline' : 'error';
+  }
+}
+
+export type EditResult =
+  /** Queued. The host's phone takes it from there. */
+  | 'saved'
+  /**
+   * The database would not have it: the code has stopped working, the host has
+   * switched editing off or stopped sharing, or the queue is at its cap. One
+   * answer for all of them, because the caller cannot do anything different
+   * about any of them and the difference is not a watcher's business.
+   */
+  | 'refused'
+  | 'offline'
+  | 'error';
+
+export async function submitScoreEdit(
+  key: string,
+  code: string,
+  roundIndex: number,
+  courtIndex: number,
+  team1: number,
+  team2: number
+): Promise<EditResult> {
+  if (!isSupabaseConfigured()) return 'error';
+
+  try {
+    const supabase = await getSupabase();
+    // The argument names are the function's, and they are deliberately not the
+    // column names. See the note in 0007 about what a shadowed name costs.
+    const { data, error } = await supabase.rpc('submit_score_edit', {
+      key,
+      code,
+      round_idx: roundIndex,
+      court_idx: courtIndex,
+      score1: team1,
+      score2: team2
+    });
+    if (error) throw new Error(error.message);
+    return data === true ? 'saved' : 'refused';
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error ?? '');
+    return looksOffline(text) ? 'offline' : 'error';
+  }
 }

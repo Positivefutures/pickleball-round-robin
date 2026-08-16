@@ -27,6 +27,21 @@ export interface SessionSnapshot {
   /** Everybody in the session: guests included, and anyone who has gone home. */
   players: Player[];
   scoringEnabled: boolean;
+  /**
+   * Whether the host has switched on letting watchers change the scores.
+   *
+   * The switch, and never the code. A watching phone needs to know whether a
+   * score is worth tapping — a session with this off would otherwise offer a
+   * prompt for a code that does not exist — and it learns nothing else from a
+   * boolean. The code is asked of the database, which is the only thing that
+   * knows it.
+   *
+   * Not part of version 1 and deliberately not a version bump. An older app
+   * reading a newer document ignores a field it does not know, and this app
+   * reading an older one takes the absence as false, which is what every
+   * session published before today meant.
+   */
+  scoreEditing: boolean;
 }
 
 export type SnapshotInput = Omit<SessionSnapshot, 'version' | 'at'>;

@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { CODE_LENGTH } from '../lib/scoreCode';
 
 /**
  * Four boxes that together hold a four digit code.
@@ -33,7 +34,10 @@ import { useRef } from 'react';
  * keeps the value a plain string rather than four slots that can each be empty.
  */
 
-export const CODE_LENGTH = 4;
+// Re-exported so the two call sites that already ask this component how long a
+// code is carry on doing so. The number itself belongs with the hashing, which
+// has to agree with the database about it.
+export { CODE_LENGTH };
 
 const BOX =
   'h-16 w-14 rounded-lg border-2 text-center text-3xl font-bold text-[#1F293D] ' +
@@ -48,9 +52,16 @@ interface Props {
   label: string;
   /** Ties the boxes to the line of text explaining them. */
   describedBy?: string;
+  /**
+   * Puts the caret in the first box on mount. For a panel that exists only to
+   * ask for a code, where anything else would be a tap nobody should need. The
+   * host's card leaves it off: the boxes are one thing on a long card, and
+   * stealing focus there would scroll it out from under them.
+   */
+  autoFocus?: boolean;
 }
 
-export function CodeEntry({ value, onChange, label, describedBy }: Props) {
+export function CodeEntry({ value, onChange, label, describedBy, autoFocus }: Props) {
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
 
   /**
@@ -71,6 +82,14 @@ export function CodeEntry({ value, onChange, label, describedBy }: Props) {
     boxes.current[Math.max(0, Math.min(index, CODE_LENGTH - 1))]?.focus();
     moving.current = false;
   }
+
+  // Once, on mount. A caller that wants the boxes emptied and the caret sent
+  // back to the first one remounts this with a new key, which is what the
+  // viewer's prompt does after a code it would not take.
+  useEffect(() => {
+    if (autoFocus) focusBox(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function type(digits: string) {
     const clean = digits.replace(/\D/g, '');

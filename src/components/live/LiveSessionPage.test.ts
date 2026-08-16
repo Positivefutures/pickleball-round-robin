@@ -21,12 +21,25 @@ import type { Player, Schedule } from '../../types';
 
 let answer: LiveFetch = { state: 'gone' };
 let asks = 0;
+/** What the database says about a code, and about a score sent to it. */
+let codeAnswer = 'ok';
+let editAnswer = 'saved';
+let offered: { key: string; code: string }[] = [];
+let sent: unknown[][] = [];
 
 vi.mock('../../lib/liveViewer', () => ({
   fetchShared: (key: string) => {
     asks += 1;
     void key;
     return Promise.resolve(answer);
+  },
+  checkCode: (key: string, code: string) => {
+    offered.push({ key, code });
+    return Promise.resolve(codeAnswer);
+  },
+  submitScoreEdit: (...args: unknown[]) => {
+    sent.push(args);
+    return Promise.resolve(editAnswer);
   }
 }));
 
@@ -76,7 +89,10 @@ function schedule(score?: { team1: number; team2: number }): Schedule {
 }
 
 /** Exactly what the host publishes: built here, then redacted, as liveSession does. */
-function shared(score?: { team1: number; team2: number }): LiveFetch {
+function shared(
+  score?: { team1: number; team2: number },
+  scoreEditing = false
+): LiveFetch {
   return {
     state: 'ok',
     snapshot: withholdPrivate(
@@ -85,7 +101,8 @@ function shared(score?: { team1: number; team2: number }): LiveFetch {
         schedule: schedule(score),
         completedRounds: [1],
         players,
-        scoringEnabled: true
+        scoringEnabled: true,
+        scoreEditing
       })
     )
   };
@@ -109,6 +126,256 @@ const text = () => container.textContent ?? '';
 beforeEach(() => {
   asks = 0;
   answer = { state: 'gone' };
+  codeAnswer = 'ok';
+  editAnswer = 'saved';
+  offered = [];
+  sent = [];
+});
+
+// ------------------------------------------ reaching a score from this page --
+
+/** The board on a court, once it is something you can press. */
+const boards = () => [
+  ...container.querySelectorAll<HTMLButtonElement>('button[aria-label*="Change it"]')
+];
+
+/**
+ * One key on the score dialog's own pad.
+ *
+ * Scoped to the pad, and it has to be: each side of the board is itself a
+ * button, so once team one reads 1 there are two buttons on screen reading 1
+ * and the first of them is the panel.
+ */
+function key(text: string): HTMLButtonElement {
+  const pad = container.querySelector('[aria-label="Score keypad"]');
+  if (!pad) throw new Error('no keypad on screen');
+  const button = [...pad.querySelectorAll('button')].find((b) => b.textContent?.trim() === text);
+  if (!button) throw new Error(`no key reading ${text}`);
+  return button as HTMLButtonElement;
+}
+
+/** Save, Cancel: the buttons under the pad, whose words appear nowhere else. */
+function face(text: string): HTMLButtonElement {
+  const button = [...container.querySelectorAll('button')].find(
+    (b) => b.textContent?.trim() === text
+  );
+  if (!button) throw new Error(`no button reading ${text}`);
+  return button as HTMLButtonElement;
+}
+
+/** Types a code into the four boxes the way a keyboard would. */
+async function typeCode(digits: string) {
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    'value'
+  )!.set!;
+  for (const digit of digits) {
+    const boxes = [...container.querySelectorAll('input')] as HTMLInputElement[];
+    const box = (document.activeElement as HTMLInputElement) ?? boxes[0];
+    await act(async () => {
+      setter.call(box, digit);
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+}
+
+/**
+ * Writes a score on whichever court's dialog is open, and saves it.
+ *
+ * Clear first, because the dialog opens holding whatever the court already
+ * says and a score is two digits at most: typing over the top of 11 gets you
+ * 11 again. Clear is the way a person retypes one too.
+ */
+async function write(team1: string, team2: string) {
+  await act(async () => key('Clear').click());
+  for (const digit of team1) await act(async () => key(digit).click());
+  for (const digit of team2) await act(async () => key(digit).click());
+  await act(async () => face('Save').click());
+}
+
+/** A fetch, without waiting twenty seconds for the interval. */
+async function poll() {
+  await act(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+describe('changing a score from a watching phone', () => {
+  it('leaves the scores alone when the host has not switched editing on', async () => {
+    answer = shared({ team1: 11, team2: 7 });
+    await open();
+    expect(text()).toContain('COURT 7');
+    expect(boards()).toHaveLength(0);
+    expect(text()).not.toContain('Tap a score');
+  });
+
+  it('makes the score a button when the host has', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+    expect(boards()).toHaveLength(1);
+    // And says so, because a board that has always looked like this would not
+    // announce itself.
+    expect(text()).toContain('Tap a score to change it');
+    expect(text()).toContain('You will be asked for a code');
+  });
+
+  it('says nothing about tapping when the session keeps no score', async () => {
+    const off = shared(undefined, true);
+    if (off.state !== 'ok') throw new Error('not ok');
+    off.snapshot.scoringEnabled = false;
+    answer = off;
+    await open();
+    expect(boards()).toHaveLength(0);
+    expect(text()).not.toContain('Tap a score');
+  });
+
+  it('asks for the code, then opens the score', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    expect(text()).toContain('Enter the Code');
+    // Nothing is sent while it is being typed.
+    expect(offered).toHaveLength(0);
+
+    await typeCode('4719');
+    expect(offered).toEqual([{ key: 'ABCDEFGHJK', code: '4719' }]);
+    // The fourth digit is the whole answer, so the prompt goes and the host's
+    // own score dialog is what is left.
+    expect(text()).not.toContain('Enter the Code');
+    expect(text()).toContain('Court 7 Score');
+  });
+
+  it('keeps a wrong code out, and says so', async () => {
+    codeAnswer = 'wrong';
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('0000');
+
+    expect(text()).toContain('That code is not right');
+    expect(text()).not.toContain('Court 7 Score');
+    // And the boxes are empty again, ready to be tried.
+    const boxes = [...container.querySelectorAll('input')] as HTMLInputElement[];
+    expect(boxes.map((b) => b.value).join('')).toBe('');
+  });
+
+  it('asks once, not once a court', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await act(async () => face('Cancel').click());
+
+    // The second tap goes straight to the score. Being asked again for a code
+    // said out loud once is what the host meant to avoid by giving it out.
+    await act(async () => boards()[0].click());
+    expect(text()).toContain('Court 7 Score');
+    expect(offered).toHaveLength(1);
+  });
+
+  it('sends the court by position and the code with it', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await write('11', '9');
+
+    expect(sent).toEqual([['ABCDEFGHJK', '4719', 0, 0, 11, 9]]);
+  });
+
+  it('shows the new score at once rather than waiting for it to come back', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await write('11', '9');
+
+    // The host has not applied it and the session still says 7. Half a minute
+    // of the old number is how somebody comes to type the same score twice.
+    const panels = () =>
+      [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels()).toContain('9');
+    expect(panels()).not.toContain('7');
+
+    // And it survives the polls in between.
+    await poll();
+    expect(panels()).toContain('9');
+  });
+
+  it('lets go of its own score once the session comes back agreeing', async () => {
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await write('11', '9');
+
+    // The host took it and published.
+    answer = shared({ team1: 11, team2: 9 }, true);
+    await poll();
+
+    // Then changed it themselves, which is what last write wins means. If this
+    // phone were still holding its own number it would ignore them.
+    answer = shared({ team1: 11, team2: 5 }, true);
+    await poll();
+    const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels).toContain('5');
+    expect(panels).not.toContain('9');
+  });
+
+  it('takes the score back when the database will not have it', async () => {
+    editAnswer = 'refused';
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await write('11', '9');
+
+    // The old number is back, rather than a score on screen that no other phone
+    // at the court will ever show.
+    const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels).toContain('7');
+    expect(panels).not.toContain('9');
+    expect(text()).toContain('not taking changes now');
+
+    // And the code is asked for again, because a refusal is what a code that
+    // has stopped working looks like.
+    await act(async () => boards()[0].click());
+    expect(text()).toContain('Enter the Code');
+  });
+
+  it('says so when the score could not be sent at all', async () => {
+    editAnswer = 'offline';
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+    await write('11', '9');
+
+    expect(text()).toContain('You are offline');
+    const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels).toContain('7');
+  });
+
+  it('will not let a watcher erase a score', async () => {
+    // There is no way to say "no score" to submit_score_edit, so a clearance
+    // that looked like it worked would quietly not have happened.
+    answer = shared({ team1: 11, team2: 7 }, true);
+    await open();
+    await act(async () => boards()[0].click());
+    await typeCode('4719');
+
+    await act(async () => key('Clear').click());
+    expect(face('Save').disabled).toBe(true);
+    await act(async () => face('Save').click());
+    expect(sent).toHaveLength(0);
+  });
 });
 
 afterEach(() => {

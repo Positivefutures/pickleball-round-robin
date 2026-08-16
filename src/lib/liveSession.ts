@@ -1,6 +1,7 @@
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore } from './auth';
 import { sessionSnapshot, withholdPrivate, type SessionSnapshot } from './sessionSnapshot';
+import { isCode, sealCode } from './scoreCode';
 import { isShareKey, mintShareKey, shareUrl } from './shareKey';
 import * as stores from './stores';
 import { getSupabase, isSupabaseConfigured } from './supabase';
@@ -38,6 +39,9 @@ import { getSupabase, isSupabaseConfigured } from './supabase';
 
 const TABLE = 'shared_sessions';
 
+/** Where the watchers' scores queue up until this phone takes them. */
+const EDITS_TABLE = 'score_edits';
+
 /** The client asks for a day. The database clamps anything longer. */
 const SHARE_HOURS = 24;
 
@@ -59,6 +63,17 @@ const PUBLISH_DELAY_MS = 1500;
  */
 const RETRY_BASE_MS = 15_000;
 const RETRY_CAP_MS = 5 * 60_000;
+
+/**
+ * How often to look for scores the watchers have left.
+ *
+ * Only while a share is live, the tab is in front and the host has switched
+ * editing on, which together make this a poll almost nobody pays for. Twice as
+ * often as the watchers poll, because this is the leg they wait on: their own
+ * number does not come back to them until this phone has taken it and published
+ * again.
+ */
+const DRAIN_MS = 10_000;
 
 export type LiveStatus =
   | { state: 'off' }
@@ -92,6 +107,8 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let attempt = 0;
 let publishing = false;
 let started = false;
+let drainTimer: ReturnType<typeof setInterval> | null = null;
+let draining = false;
 
 // ------------------------------------------------------------ the document --
 
@@ -119,11 +136,29 @@ function currentSnapshot(): SessionSnapshot | null {
     schedule,
     completedRounds: stores.completedRounds.get(),
     players,
-    scoringEnabled: stores.scoringEnabled.get()
+    scoringEnabled: stores.scoringEnabled.get(),
+    scoreEditing: editingOn()
   });
 }
 
-function row(shareKey: string, snapshot: SessionSnapshot) {
+/**
+ * Whether a watcher could change a score right now: the switch on, and four
+ * digits actually typed. Half a code is not a code, and a session that offered
+ * to take one while the host was still typing would be asking for something
+ * nobody could give.
+ */
+function editingOn(): boolean {
+  return stores.scoreEditingAllowed.get() && isCode(stores.scoreEditCode.get());
+}
+
+async function row(shareKey: string, snapshot: SessionSnapshot) {
+  // The one place the code turns into something publishable. Note what is not
+  // here: the code itself. sealCode() gives back a salt and a hash, and the
+  // database recomputes the same sum rather than ever being told the digits.
+  const sealed = stores.scoreEditingAllowed.get()
+    ? await sealCode(stores.scoreEditCode.get())
+    : null;
+
   return {
     share_key: shareKey,
     // A schedule generated before sessions were named has none. The share key
@@ -131,9 +166,19 @@ function row(shareKey: string, snapshot: SessionSnapshot) {
     // and a restart, and with no session id there is nothing to recognise.
     session_id: snapshot.sessionId ?? shareKey,
     // The one place a session leaves the device, and the only caller of this.
-    snapshot: withholdPrivate(snapshot),
+    //
+    // The flag is settled here rather than taken from the snapshot as built,
+    // so that what the document promises and what the columns can deliver are
+    // the same fact. A watcher told editing is on when no hash went with it
+    // would be offered a prompt no code could answer.
+    snapshot: { ...withholdPrivate(snapshot), scoreEditing: sealed !== null },
     expires_at: new Date(Date.now() + SHARE_HOURS * 3600_000).toISOString(),
-    updated_at: snapshot.at
+    updated_at: snapshot.at,
+    // Always both, and null when editing is off. An upsert writes only the
+    // columns it is given, so leaving these out would leave this morning's
+    // hash sitting on the row and the switch would switch nothing off.
+    score_code_hash: sealed?.hash ?? null,
+    score_code_salt: sealed?.salt ?? null
     // user_id is deliberately absent. The column defaults to auth.uid() and the
     // with-check verifies it, so sending one could only ever be wrong.
   };
@@ -173,7 +218,7 @@ async function publish(): Promise<void> {
   setStatus({ state: 'publishing', url });
   try {
     const supabase = await getSupabase();
-    const { error } = await supabase.from(TABLE).upsert(row(key, snapshot), {
+    const { error } = await supabase.from(TABLE).upsert(await row(key, snapshot), {
       onConflict: 'share_key'
     });
     if (error) throw new Error(error.message);
@@ -187,12 +232,144 @@ async function publish(): Promise<void> {
   }
 }
 
+// ------------------------------------------------- taking the edits offered --
+
+/** One row of score_edits, as the host reads it back. */
+interface QueuedEdit {
+  id: number;
+  round_index: number;
+  court_index: number;
+  team1: number;
+  team2: number;
+}
+
+/**
+ * Writes what the watchers sent into the schedule on this phone.
+ *
+ * Last write wins, which is Jeff's call: they are applied oldest first, so two
+ * people arguing about the same court end on whoever pressed Save last, and
+ * anything the host types afterwards stands because the host is typing after
+ * all of this.
+ *
+ * Returns whether anything actually moved. That answer matters: writing the
+ * store is what schedules a publish, so a drain that changed nothing must not
+ * write it, or a live share would republish itself every ten seconds until the
+ * afternoon ended.
+ */
+function applyEdits(edits: QueuedEdit[]): boolean {
+  const current = stores.schedule.get();
+  if (!current) return false;
+
+  const rounds = current.rounds.map((round) => ({ ...round, courts: [...round.courts] }));
+  let moved = false;
+
+  for (const edit of edits) {
+    // A court that has since been taken away, or a whole round that has. The
+    // row is still deleted by the caller: it is an edit to something that is
+    // no longer there, and keeping it would only apply it to whatever moved
+    // into that position later.
+    const round = rounds[edit.round_index];
+    const court = round?.courts[edit.court_index];
+    if (!court) continue;
+
+    // Already what it says. Re-reading a row whose delete failed is the usual
+    // way here, and it must not count as a change.
+    if (court.score?.team1 === edit.team1 && court.score?.team2 === edit.team2) continue;
+
+    round.courts[edit.court_index] = {
+      ...court,
+      score: { team1: edit.team1, team2: edit.team2 }
+    };
+    moved = true;
+  }
+
+  if (moved) stores.schedule.set({ ...current, rounds });
+  return moved;
+}
+
+/**
+ * Take whatever is queued, and clear it.
+ *
+ * Applied first and deleted afterwards, so a delete that never lands means the
+ * next pass applies the same numbers over the same numbers and stops. The other
+ * order would lose an edit outright on a connection that dropped between the
+ * two requests.
+ *
+ * With editing switched off the queue is emptied without being read into the
+ * schedule. Those rows were sent to a host who has since said they do not want
+ * them, and leaving them would mean a switch turned back on next Tuesday
+ * applied a score from today.
+ */
+async function drain(): Promise<void> {
+  if (key === null || draining) return;
+  if (authStore.get().status !== 'signed-in') return;
+  // A phone in a pocket. The visibility handler brings this back the moment it
+  // is looked at, which is also when the host would care.
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+
+  const going = key;
+  draining = true;
+  try {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from(EDITS_TABLE)
+      .select('id, round_index, court_index, team1, team2')
+      .eq('share_key', going)
+      .order('id', { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const queued = (data ?? []) as QueuedEdit[];
+    if (queued.length === 0) return;
+
+    if (stores.scoreEditingAllowed.get()) applyEdits(queued);
+
+    await supabase
+      .from(EDITS_TABLE)
+      .delete()
+      .in('id', queued.map((edit) => edit.id));
+  } catch {
+    // Nothing to say and nothing to show. The rows are still there and the next
+    // pass is ten seconds away; a share that cannot reach the database has a
+    // publish failing loudly on the same card already.
+  } finally {
+    draining = false;
+  }
+}
+
+/**
+ * Starts and stops the polling to match the switch.
+ *
+ * Called wherever the switch could have moved, which is every store change, so
+ * turning editing on begins looking immediately rather than at the top of some
+ * interval that was already running.
+ */
+function syncDraining() {
+  const wanted = key !== null && stores.scoreEditingAllowed.get();
+
+  if (wanted && drainTimer === null) {
+    drainTimer = setInterval(() => void drain(), DRAIN_MS);
+    return;
+  }
+  if (!wanted && drainTimer !== null) {
+    clearInterval(drainTimer);
+    drainTimer = null;
+    // Switched off with people still watching. Empty the queue rather than
+    // leave it for a switch that comes back on.
+    void drain();
+  }
+}
+
 // ----------------------------------------------------------- what to watch --
 
 /**
  * Everything a watching phone would notice. The schedule carries the courts and
  * the scores; the rest is who is in the session and whether it keeps score at
  * all.
+ *
+ * The last two are the score-editing switch and the code behind it. They are
+ * here because they are published — as a flag on the document and as a salted
+ * hash on the row — so a host who types a code and is never republished has set
+ * a code that opens nothing.
  */
 const WATCHED = [
   stores.schedule,
@@ -201,7 +378,9 @@ const WATCHED = [
   stores.removedIds,
   stores.guests,
   stores.players,
-  stores.scoringEnabled
+  stores.scoringEnabled,
+  stores.scoreEditingAllowed,
+  stores.scoreEditCode
 ];
 
 function startTracking() {
@@ -209,6 +388,7 @@ function startTracking() {
   for (const store of WATCHED) {
     untrack.push(store.subscribe(onChange));
   }
+  syncDraining();
 }
 
 function stopTracking() {
@@ -216,6 +396,10 @@ function stopTracking() {
   untrack = [];
   if (timer) clearTimeout(timer);
   timer = null;
+  // Straight off rather than through syncDraining(), which would empty a queue
+  // that is about to be deleted along with the share it hangs off.
+  if (drainTimer) clearInterval(drainTimer);
+  drainTimer = null;
 }
 
 function onChange() {
@@ -227,6 +411,7 @@ function onChange() {
     void stopSharing();
     return;
   }
+  syncDraining();
   schedulePublish();
 }
 
@@ -272,7 +457,7 @@ export async function startSharing(): Promise<void> {
     await supabase.from(TABLE).delete().neq('share_key', minted);
 
     for (let tries = 0; tries < MINT_ATTEMPTS; tries++) {
-      const { error } = await supabase.from(TABLE).insert(row(minted, snapshot));
+      const { error } = await supabase.from(TABLE).insert(await row(minted, snapshot));
       if (!error) {
         adopt(minted, snapshot.at);
         return;
@@ -380,8 +565,11 @@ export function startLive(): void {
 
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
-      // A phone that slept through two rounds catches up the moment it wakes.
-      if (document.visibilityState === 'visible' && key !== null) schedulePublish(0);
+      // A phone that slept through two rounds catches up the moment it wakes,
+      // in both directions: what it has to say, and what was left for it.
+      if (document.visibilityState !== 'visible' || key === null) return;
+      schedulePublish(0);
+      void drain();
     });
   }
 }
@@ -418,12 +606,26 @@ export const __testing = {
     key = null;
     attempt = 0;
     publishing = false;
+    draining = false;
     started = false;
     status = { state: 'off' };
     listeners.clear();
   },
   publishNow: () => publish(),
+  drainNow: () => drain(),
+  rowFor: (shareKey: string) => {
+    const snapshot = currentSnapshot();
+    return snapshot ? row(shareKey, snapshot) : null;
+  },
   get key() {
     return key;
+  },
+  get draining() {
+    return drainTimer !== null;
+  },
+  adopt(minted: string) {
+    key = minted;
+    stores.shareKey.set(minted);
+    startTracking();
   }
 };

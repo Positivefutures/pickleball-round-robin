@@ -26,6 +26,16 @@ interface Props {
   court: CourtAssignment;
   onDone: (score: CourtScore | null) => void;
   onCancel: () => void;
+  /**
+   * Whether saving two empty sides takes the score off the court.
+   *
+   * True for the host, whose phone owns the schedule. False for somebody
+   * watching a shared session: what they send goes through
+   * `submit_score_edit`, which takes two numbers and has no way to say "none",
+   * so an erasure they appeared to make would quietly not happen. They can
+   * still correct a score, which is what the code was given to them for.
+   */
+  allowClear?: boolean;
 }
 
 /**
@@ -38,7 +48,7 @@ interface Props {
  * Both sides are held as strings, not numbers. An empty panel has to be tellable
  * apart from a nought, and tapping 1 then 1 has to give eleven rather than two.
  */
-export function ScoreDialog({ court, onDone, onCancel }: Props) {
+export function ScoreDialog({ court, onDone, onCancel, allowClear = true }: Props) {
   const [team1, setTeam1] = useState(court.score ? String(court.score.team1) : '');
   const [team2, setTeam2] = useState(court.score ? String(court.score.team2) : '');
   const [side, setSide] = useState<Side>('team1');
@@ -51,8 +61,9 @@ export function ScoreDialog({ court, onDone, onCancel }: Props) {
 
   // A half score is not a score, so both or neither. Both empty saves as a
   // deletion, which is how a score written down by mistake is taken back:
-  // Clear, then Save.
-  const canSave = (team1 === '') === (team2 === '');
+  // Clear, then Save. Where clearing is not on offer, both empty is simply not
+  // a saveable state, and Clear goes back to being a way to start again.
+  const canSave = allowClear ? (team1 === '') === (team2 === '') : team1 !== '' && team2 !== '';
 
   // What the panels are wearing right now, so the winner turns green as it is
   // typed rather than only once it is saved.

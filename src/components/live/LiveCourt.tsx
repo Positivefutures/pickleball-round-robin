@@ -13,6 +13,12 @@ interface Props {
   court: CourtAssignment;
   /** Whether this session keeps score at all. */
   showScore: boolean;
+  /**
+   * Opens the score for changing. Absent unless the host has switched editing
+   * on, and then the board is a button rather than a reading. A watcher who
+   * cannot change anything is not shown something that looks like they could.
+   */
+  onEditScore?: () => void;
 }
 
 /**
@@ -31,8 +37,16 @@ interface Props {
  * balance badge to hold the right-hand end of the header, the score takes it
  * rather than floating in the middle of nothing.
  */
-export function LiveCourt({ court, showScore }: Props) {
+export function LiveCourt({ court, showScore, onEditScore }: Props) {
   const scored = showScore && court.team1.length > 0 && court.team2.length > 0;
+
+  const board = (
+    <span className="flex shrink-0 items-center gap-[6px]">
+      <ScorePanel value={court.score?.team1} tone={toneFor(court.score, 'team1')} size="sm" />
+      <ScoreColon size="sm" />
+      <ScorePanel value={court.score?.team2} tone={toneFor(court.score, 'team2')} size="sm" />
+    </span>
+  );
 
   return (
     <div className="rounded-lg border-2 bg-white p-4" style={{ borderColor: ROUND_EDGE }}>
@@ -40,13 +54,24 @@ export function LiveCourt({ court, showScore }: Props) {
         <h4 className={`whitespace-nowrap font-bold text-gray-700 ${ROUND_HEADING_TEXT}`}>
           COURT {court.courtNumber}
         </h4>
-        {scored && (
-          <span className="flex shrink-0 items-center gap-[6px]">
-            <ScorePanel value={court.score?.team1} tone={toneFor(court.score, 'team1')} size="sm" />
-            <ScoreColon size="sm" />
-            <ScorePanel value={court.score?.team2} tone={toneFor(court.score, 'team2')} size="sm" />
-          </span>
-        )}
+        {scored &&
+          (onEditScore ? (
+            // The board itself is the target, at the size it already is. A
+            // pencil beside it would be a second thing to aim at on the one
+            // row of this card that is already full.
+            <button
+              type="button"
+              onClick={onEditScore}
+              aria-label={`Court ${court.courtNumber} score, ${
+                court.score ? `${court.score.team1} to ${court.score.team2}` : 'not set'
+              }. Change it.`}
+              className="shrink-0 rounded-md transition-opacity hover:opacity-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal"
+            >
+              {board}
+            </button>
+          ) : (
+            board
+          ))}
       </div>
 
       <div className="flex items-start gap-2">

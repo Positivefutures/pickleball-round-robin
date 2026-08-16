@@ -29,7 +29,7 @@ vi.mock('./supabase', () => ({
     })
 }));
 
-const { fetchShared, read } = await import('./liveViewer');
+const { fetchShared, read, checkCode, submitScoreEdit } = await import('./liveViewer');
 
 function player(name: string): Player {
   return { id: `id-${name}`, name, rating: 4, gender: 'F', rosterIds: [] };
@@ -188,5 +188,111 @@ describe('checking what came back', () => {
     const withRatings = JSON.parse(JSON.stringify(published));
     withRatings.players[0].rating = 4.5;
     expect(read(withRatings).state).toBe('ok');
+  });
+
+  it('takes a missing editing flag as off, which is every session before today', () => {
+    const older = JSON.parse(JSON.stringify(published));
+    delete older.scoreEditing;
+    const got = read(older);
+    if (got.state !== 'ok') throw new Error('not ok');
+    expect(got.snapshot.scoreEditing).toBe(false);
+  });
+
+  it('wants the flag to be true and not merely truthy', () => {
+    // It decides whether a score is a button. A string or a 1 arriving from
+    // somewhere unexpected should not open the prompt.
+    for (const value of ['true', 1, {}]) {
+      const odd = JSON.parse(JSON.stringify(published));
+      odd.scoreEditing = value;
+      const got = read(odd);
+      if (got.state !== 'ok') throw new Error('not ok');
+      expect(got.snapshot.scoreEditing, JSON.stringify(value)).toBe(false);
+    }
+
+    const on = JSON.parse(JSON.stringify(published));
+    on.scoreEditing = true;
+    const got = read(on);
+    if (got.state !== 'ok') throw new Error('not ok');
+    expect(got.snapshot.scoreEditing).toBe(true);
+  });
+});
+
+// ------------------------------------------------------------ editing a score --
+
+describe('offering a code', () => {
+  it('asks with the key and the code, and nothing else', async () => {
+    answer = { data: true, error: null };
+    await checkCode('ABCDEFGHJK', '4719');
+    expect(asked).toEqual({
+      name: 'share_code_ok',
+      args: { key: 'ABCDEFGHJK', code: '4719' }
+    });
+  });
+
+  it('takes true for an answer and nothing else', async () => {
+    answer = { data: true, error: null };
+    expect(await checkCode('ABCDEFGHJK', '4719')).toBe('ok');
+
+    // The function returns false for a wrong code, an expired share and a key
+    // that was never real, and the caller is told the same thing for all three.
+    answer = { data: false, error: null };
+    expect(await checkCode('ABCDEFGHJK', '0000')).toBe('wrong');
+
+    // Anything that is not the boolean it promised is not a yes.
+    answer = { data: null, error: null };
+    expect(await checkCode('ABCDEFGHJK', '4719')).toBe('wrong');
+  });
+
+  it('tells a lost connection apart from a refusal', async () => {
+    answer = { data: null, error: { message: 'Failed to fetch' } };
+    expect(await checkCode('ABCDEFGHJK', '4719')).toBe('offline');
+
+    answer = { data: null, error: { message: 'something else went wrong' } };
+    expect(await checkCode('ABCDEFGHJK', '4719')).toBe('error');
+  });
+});
+
+describe('sending a score', () => {
+  it('names the arguments the way the function does, not the way the columns do', async () => {
+    answer = { data: true, error: null };
+    await submitScoreEdit('ABCDEFGHJK', '4719', 2, 1, 11, 9);
+
+    // 0007 shortened these deliberately: an argument named after a column it
+    // inserts into is either ambiguous inside the function or silently the
+    // column. Sending round_index here would be a 404 from PostgREST, which
+    // this test is the only thing standing between us and.
+    expect(asked).toEqual({
+      name: 'submit_score_edit',
+      args: {
+        key: 'ABCDEFGHJK',
+        code: '4719',
+        round_idx: 2,
+        court_idx: 1,
+        score1: 11,
+        score2: 9
+      }
+    });
+  });
+
+  it('sends the code every time, rather than trusting the phone that checked it', async () => {
+    answer = { data: true, error: null };
+    await submitScoreEdit('ABCDEFGHJK', '4719', 0, 0, 11, 9);
+    expect((asked as { args: { code: string } }).args.code).toBe('4719');
+  });
+
+  it('reads false as refused, whatever the reason was', async () => {
+    answer = { data: true, error: null };
+    expect(await submitScoreEdit('ABCDEFGHJK', '4719', 0, 0, 11, 9)).toBe('saved');
+
+    answer = { data: false, error: null };
+    expect(await submitScoreEdit('ABCDEFGHJK', '0000', 0, 0, 11, 9)).toBe('refused');
+  });
+
+  it('tells a lost connection apart from a refusal', async () => {
+    answer = { data: null, error: { message: 'Load failed' } };
+    expect(await submitScoreEdit('ABCDEFGHJK', '4719', 0, 0, 11, 9)).toBe('offline');
+
+    answer = { data: null, error: { message: 'permission denied' } };
+    expect(await submitScoreEdit('ABCDEFGHJK', '4719', 0, 0, 11, 9)).toBe('error');
   });
 });

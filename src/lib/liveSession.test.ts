@@ -216,7 +216,12 @@ describe('starting a share', () => {
 
   it('sends no ratings, which is the whole reason redaction exists', async () => {
     await startSharing();
-    const sent = JSON.stringify(live().snapshot);
+    // Without the timestamp. It is an ISO string, so a session published at
+    // 23.113 seconds past the minute carries "3.11" in it, and this test would
+    // fail perhaps once in a few hundred runs over something that has nothing
+    // to do with a rating. Searching the serialised document is still the
+    // point: a field somebody forgot is exactly what this is looking for.
+    const sent = JSON.stringify({ ...(live().snapshot as object), at: '' });
     for (const rating of ['3.11', '3.22', '3.33', '3.44', '0.55']) {
       expect(sent).not.toContain(rating);
     }
