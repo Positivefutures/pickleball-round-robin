@@ -1056,15 +1056,17 @@ describe('Set Game Types', () => {
     mount();
     clickButton(/^Continue to Setup/);
 
-    // Nothing set yet, so Setup shows the title and no chips.
+    // Nothing set yet: the title, and a list that has to be opened to say
+    // anything. Setup itself does not summarise what is in it.
     expect(container.textContent).toContain('Set Game Types');
-    expect(container.textContent).not.toContain('R2 Mixed');
+    expect(container.querySelector('h4')).toBeNull();
 
     planRound(2, 'Mixed Round');
 
-    // Back on Setup, the choice shown as a chip under the title it was made
-    // from, naming the round it is on.
-    expect(container.textContent).toContain('R2 Mixed');
+    // Shut again, and the choice is kept. The list is where it is read.
+    openPlanner();
+    expect(text(pill(2))).toBe('Mixed');
+    clickButton(/^Done$/);
 
     clickButton(/^Generate Schedule/);
     expect(text(roundBlock(2))).toContain('Mixed Round');
@@ -1140,6 +1142,145 @@ describe('Set Game Types', () => {
    * The ⓘ explains the three formats and changes nothing. Everything that was
    * a setting on the old panel has gone to the list.
    */
+  /**
+   * Reset All sits on the title line, outside the list, and so outside the
+   * draft the list is keeping. That is the whole difficulty with it: while the
+   * list is open, everything the host has just set lives in that draft and the
+   * committed plan is still empty. Read the wrong one and the button is greyed
+   * out over a list full of rounds they can see they have set.
+   */
+  describe('Reset All', () => {
+    function resetButton(): HTMLButtonElement {
+      const found = [...container.querySelectorAll('button')].find(
+        (b) => text(b) === 'Reset All'
+      );
+      if (!found) throw new Error('no Reset All');
+      return found as HTMLButtonElement;
+    }
+
+    /** Is it on the page at all? It is hidden rather than disabled. */
+    function resetShown(): boolean {
+      return [...container.querySelectorAll('button')].some((b) => text(b) === 'Reset All');
+    }
+
+    /** What each row's pill says, top to bottom. */
+    function pillLabels(): string[] {
+      return planRows().map((r) => text(r.lastElementChild!));
+    }
+
+    /** The committed plan, as it was written to storage. */
+    function storedPlan(): (string | null)[] {
+      return JSON.parse(window.localStorage.getItem('pb-round-plan') ?? '[]');
+    }
+
+    it('is not on the page until the list is open', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      expect(resetShown()).toBe(false);
+
+      openPlanner();
+      // Open, but every round is ordinary. Still nothing to reset.
+      expect(resetShown()).toBe(false);
+
+      setRoundType(2, 'Mixed Round');
+      expect(resetShown()).toBe(true);
+    });
+
+    /**
+     * It answers to the draft, not to the committed plan. Read the wrong one
+     * and it stays away while the host is looking at a list of rounds they can
+     * see they have set.
+     */
+    it('appears on a round set in the open list, before anything is committed', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      openPlanner();
+      setRoundType(3, 'Gendered Round');
+
+      expect(storedPlan()[2]).toBeNull();
+      expect(resetShown()).toBe(true);
+    });
+
+    it('goes away again with the list', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(2, 'Mixed Round');
+      // Committed, and the list shut behind it. Nothing on screen to act on.
+      expect(storedPlan()[1]).toBe('mixed');
+      expect(resetShown()).toBe(false);
+
+      openPlanner();
+      expect(resetShown()).toBe(true);
+    });
+
+    it('puts the open list back to Normal', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      openPlanner();
+      setRoundType(2, 'Mixed Round');
+      setRoundType(5, 'Gendered Round');
+      expect(pillLabels()).toContain('Mixed');
+
+      click(resetButton());
+      expect(pillLabels().every((l) => l === 'Normal')).toBe(true);
+      expect(resetShown()).toBe(false);
+    });
+
+    it('clears a plan that was already committed', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(2, 'Mixed Round');
+      openPlanner();
+
+      click(resetButton());
+      expect(storedPlan()[1]).toBeNull();
+      expect(pillLabels().every((l) => l === 'Normal')).toBe(true);
+
+      // And it stays cleared when the list is shut and opened again.
+      clickButton(/^Set Game Types$/);
+      openPlanner();
+      expect(pillLabels().every((l) => l === 'Normal')).toBe(true);
+    });
+
+    /**
+     * Nothing is going to rebuild a round already on the board, so clearing it
+     * would only make the list lie about what happened on court.
+     */
+    it('leaves a round already played as it was played', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(1, 'Mixed Round');
+      clickButton(/^Generate Schedule/);
+      markComplete(1);
+
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      setRoundType(3, 'Gendered Round');
+      click(resetButton());
+
+      expect(text(pill(1))).toBe('Mixed');
+      expect(pillLabels().slice(1).every((l) => l === 'Normal')).toBe(true);
+    });
+
+    /**
+     * A round already played is not something the host can reset, so it is not
+     * a reason to offer them the button. With round 1 played and mixed and
+     * nothing else set, the list has nothing in it that can be cleared.
+     */
+    it('stays away when the only round set is one already played', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(1, 'Mixed Round');
+      clickButton(/^Generate Schedule/);
+      markComplete(1);
+
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      expect(text(pill(1))).toBe('Mixed');
+      expect(resetShown()).toBe(false);
+    });
+  });
+
   it('opens an information panel that sets nothing', () => {
     mount();
     clickButton(/^Continue to Setup/);
@@ -1147,7 +1288,9 @@ describe('Set Game Types', () => {
 
     const panel = container.querySelector('.fixed.inset-0')!;
     expect(text(panel)).toContain('Game Types');
-    expect(text(panel)).toContain('Equal Skill Games');
+    // Named by the pill the host meets on a round card, not by a heading only
+    // this panel uses.
+    expect(text(panel)).toContain('Equal Skill Round');
     expect(text(panel)).toContain('You play with and against people near your own level.');
     // The one thing about game types a host cannot work out by looking.
     expect(text(panel)).toContain('A pair from Set Partners is split for that round only');
@@ -2554,33 +2697,88 @@ describe('the Actions sheet', () => {
   describe('Add a Round', () => {
     beforeEach(() => seed(9, 9, 2));
 
-    it('puts them on the end without touching the ones above', () => {
+    it('puts it on the end without touching the ones above', () => {
       mount();
       generate();
       const before = storedSchedule().rounds.map(fingerprint);
 
       action(/^Add a Round$/);
-      clickLabel('More rounds', sheet()); // 1 -> 2
       // Future tense: nothing has happened until the button below is pressed.
-      expect(text(sheet())).toContain('Rounds 9 to 10 will be added');
+      expect(text(sheet())).toContain('Round 9 will be added');
       expect(text(sheet())).not.toContain('are added');
-      // And the line that explained itself twice has gone.
-      expect(text(sheet())).not.toContain('nothing above them changes');
-      // Centred under the stepper it belongs to.
       const line = [...sheet().querySelectorAll('p')].find((el) =>
-        text(el).startsWith('Rounds 9 to 10')
+        text(el).startsWith('Round 9')
       )!;
       expect(line.className).toContain('text-center');
-      clickButton(/^Add 2 Rounds$/, sheet());
+
+      clickButton(/^Add 1 Round$/, sheet());
 
       const after = storedSchedule();
-      expect(after.rounds.map((r) => r.roundNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      expect(after.rounds.map((r) => r.roundNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
       expect(after.rounds.slice(0, 8).map(fingerprint)).toEqual(before);
-      expect(window.localStorage.getItem('pb-num-rounds')).toBe('10');
+      expect(window.localStorage.getItem('pb-num-rounds')).toBe('9');
+      expect(onCourt(after.rounds[8])).toHaveLength(8);
+    });
 
-      for (const r of after.rounds.slice(8)) {
-        expect(onCourt(r), `Round ${r.roundNumber}`).toHaveLength(8);
-      }
+    /**
+     * One round a time, on purpose. The stepper that offered up to eight went
+     * with the frequency machine: a host adding rounds is adding the next one,
+     * and each one now carries a format of its own to choose.
+     */
+    it('offers no way to add more than one', () => {
+      mount();
+      generate();
+      action(/^Add a Round$/);
+
+      expect(text(sheet())).not.toContain('Add 2 Rounds');
+      expect(sheet().querySelector('[aria-label="More rounds"]')).toBeNull();
+      expect(sheet().querySelector('[aria-label="Fewer rounds"]')).toBeNull();
+    });
+
+    it('offers the four game types, Normal first', () => {
+      mount();
+      generate();
+      action(/^Add a Round$/);
+
+      const pills = [...sheet().querySelectorAll('button')]
+        .map((b) => text(b))
+        .filter((t) => ['Normal', 'Gendered', 'Mixed', 'Equal Skill'].includes(t));
+      expect(pills).toEqual(['Normal', 'Gendered', 'Mixed', 'Equal Skill']);
+    });
+
+    it('builds the new round as the type that was picked', () => {
+      mount();
+      generate();
+      action(/^Add a Round$/);
+      clickButton(/^Gendered$/, sheet());
+      clickButton(/^Add 1 Round$/, sheet());
+
+      const added = storedSchedule().rounds[8];
+      expect(added.roundType).toBe('gendered');
+      // And the planner agrees, so the round has a row saying what it is.
+      expect(JSON.parse(window.localStorage.getItem('pb-round-plan')!)[8]).toBe('gendered');
+    });
+
+    it('adds an ordinary round when nothing is picked', () => {
+      mount();
+      generate();
+      action(/^Add a Round$/);
+      clickButton(/^Add 1 Round$/, sheet());
+
+      expect(storedSchedule().rounds[8].roundType).toBeUndefined();
+      expect(JSON.parse(window.localStorage.getItem('pb-round-plan')!)[8]).toBeNull();
+    });
+
+    it('adds nothing on Cancel', () => {
+      mount();
+      generate();
+      action(/^Add a Round$/);
+      clickButton(/^Mixed$/, sheet());
+      clickButton(/^Cancel$/, sheet());
+
+      expect(storedSchedule().rounds).toHaveLength(8);
+      // Back on the menu, not shut.
+      expect(text(sheet())).toContain('Add a Round');
     });
 
     it('is still offered once every round has been played', () => {

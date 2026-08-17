@@ -11,6 +11,7 @@ describe('pillMeta', () => {
     expect(pillMeta('gendered')).toEqual({
       badge: ROUND_TYPE_META.gendered.badge,
       shortName: ROUND_TYPE_META.gendered.shortName,
+      description: ROUND_TYPE_META.gendered.description,
       badgeClass: ROUND_TYPE_META.gendered.badgeClass,
       badgeEdgeClass: ROUND_TYPE_META.gendered.badgeEdgeClass,
     });
@@ -22,6 +23,9 @@ describe('pillMeta', () => {
       // The list draws the short one: "Gendered Round" beside ROUND 4 wrapped
       // the round number onto two lines on a phone.
       shortName: 'Normal',
+      // Normal carries a line of its own so the ⓘ panel can describe the thing
+      // most of the afternoon is, not only the three exceptions to it.
+      description: NORMAL_ROUND_META.description,
       badgeClass: NORMAL_ROUND_META.badgeClass,
       badgeEdgeClass: NORMAL_ROUND_META.badgeEdgeClass,
     });

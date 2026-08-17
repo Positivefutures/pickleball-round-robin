@@ -1,8 +1,11 @@
 import type { Player } from '../../types';
+import { SpotsFilled } from './SpotsFilled';
 
 interface Props {
   players: Player[];
   selectedIds: string[];
+  /** Only to work out how many places there are to fill. */
+  numCourts: number;
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
@@ -11,6 +14,7 @@ interface Props {
 export function PlayerSelector({
   players,
   selectedIds,
+  numCourts,
   onToggle,
   onSelectAll,
   onDeselectAll,
@@ -38,6 +42,11 @@ export function PlayerSelector({
             Deselect All
           </button>
         </div>
+      </div>
+      {/* Under the heading and over the grid, so the count and the ticks that
+          change it are the same glance. */}
+      <div className="mb-4">
+        <SpotsFilled numPlayers={selectedIds.length} numCourts={numCourts} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {sorted.map((player) => {

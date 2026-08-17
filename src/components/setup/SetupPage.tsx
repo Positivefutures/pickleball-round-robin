@@ -212,7 +212,6 @@ export function SetupPage({
             numRounds={numRounds}
             onCourtsChange={onCourtsChange}
             onRoundsChange={onRoundsChange}
-            numPlayers={selectedIds.length}
             roundPlan={roundPlan}
             lockedRounds={completedRounds}
             expanded={plannerOpen}
@@ -267,6 +266,7 @@ export function SetupPage({
           <PlayerSelector
             players={selectablePlayers}
             selectedIds={selectedIds}
+            numCourts={numCourts}
             onToggle={onTogglePlayer}
             onSelectAll={onSelectAll}
             onDeselectAll={onDeselectAll}

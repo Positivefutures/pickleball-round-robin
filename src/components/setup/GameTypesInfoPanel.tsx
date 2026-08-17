@@ -1,8 +1,12 @@
-import { ROUND_TYPES, ROUND_TYPE_META } from '../../lib/roundTypes';
+import type { RoundType } from '../../types';
+import { ROUND_TYPES, pillMeta } from '../../lib/roundTypes';
 import { CourtIcon } from '../icons';
 import { PanelGlyph } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
 import { TypeGlyphs } from './typeGlyphs';
+
+/** Normal first, the same order the picker offers them in. */
+const FORMATS: (RoundType | null)[] = [null, ...ROUND_TYPES];
 
 /**
  * What the three game types are, and nothing else.
@@ -32,17 +36,26 @@ export function GameTypesInfoPanel({ onClose }: { onClose: () => void }) {
           Game Types
         </h2>
 
-        {ROUND_TYPES.map((type) => {
-          const meta = ROUND_TYPE_META[type];
+        {/* Each format named by the pill it wears everywhere else, rather than
+            by a heading of its own. The host meets these on a round card and in
+            the picker; a panel that explains them under a different name in a
+            different colour is explaining something they have not seen.
+
+            Normal first, in the same order the picker offers them. It is what
+            most of the afternoon is and what the other three are a change from,
+            so a panel that only listed the three would be describing the
+            exceptions and never the rule. */}
+        {FORMATS.map((type) => {
+          const pill = pillMeta(type);
           return (
-            <section key={type} className="mt-6 border-t border-gray-200 pt-5">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-                {meta.title}
-                <span className="flex shrink-0 items-center gap-1">
-                  <TypeGlyphs type={type} size="panel" className="text-[#60697c]" />
-                </span>
+            <section key={type ?? 'normal'} className="mt-6 border-t border-gray-200 pt-5">
+              <h3
+                className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-base font-bold ${pill.badgeClass} ${pill.badgeEdgeClass}`}
+              >
+                <TypeGlyphs type={type} size="picker" />
+                {pill.badge}
               </h3>
-              <p className="mt-1 text-sm font-medium text-gray-700">{meta.description}</p>
+              <p className="mt-2 text-sm font-medium text-gray-700">{pill.description}</p>
             </section>
           );
         })}

@@ -1,5 +1,5 @@
 import type { RoundPlan, RoundType } from '../types';
-import { ROUND_TYPES, ROUND_TYPE_META } from './roundTypes';
+import { ROUND_TYPES } from './roundTypes';
 
 /**
  * The host's per-round plan: what each round is played as.
@@ -99,23 +99,32 @@ export function moveRound(
   return next;
 }
 
-export interface PlanChip {
-  roundNumber: number;
-  type: RoundType;
-  /** "R4 Gendered" */
-  label: string;
+/**
+ * Every round ordinary again, except the ones already played.
+ *
+ * The whole plan and not just the rounds on screen: a host who has cleared the
+ * afternoon and then adds two rounds back should get two ordinary rounds, not a
+ * format they thought they had thrown away.
+ *
+ * A round already played is left exactly as it was played. Nothing is going to
+ * rebuild it, so clearing it here would only make the list lie about what
+ * happened on court.
+ */
+export function clearPlan(plan: RoundPlan, locked: ReadonlySet<number>): RoundPlan {
+  const next = normalizeRoundPlan(plan);
+  return next.map((type, i) => (locked.has(i + 1) ? type : null));
 }
 
-/** The special rounds this session has, for the chips under the title. */
-export function planChips(plan: RoundPlan, numRounds: number): PlanChip[] {
-  const chips: PlanChip[] = [];
+/** Is there anything for `clearPlan` to do? */
+export function planHasTypes(
+  plan: RoundPlan,
+  numRounds: number,
+  locked: ReadonlySet<number>
+): boolean {
   for (let n = 1; n <= numRounds; n++) {
-    const type = planAt(plan, n);
-    if (type) {
-      chips.push({ roundNumber: n, type, label: `R${n} ${ROUND_TYPE_META[type].shortName}` });
-    }
+    if (!locked.has(n) && planAt(plan, n) !== null) return true;
   }
-  return chips;
+  return false;
 }
 
 /**

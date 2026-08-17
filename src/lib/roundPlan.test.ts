@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { RoundPlan } from '../types';
 import {
-  PLAN_SLOTS, emptyPlan, moveRound, normalizeRoundPlan, planAt, planChips, planKey,
-  setPlanType, unplayedChanged,
+  PLAN_SLOTS, clearPlan, emptyPlan, moveRound, normalizeRoundPlan, planAt,
+  planHasTypes, planKey, setPlanType, unplayedChanged,
 } from './roundPlan';
 
 /** "— G — M" — one letter per round, easier to read than an array of strings. */
@@ -145,17 +145,6 @@ describe('moveRound', () => {
   });
 });
 
-describe('planChips', () => {
-  it('names each special round and skips the ordinary ones', () => {
-    const plan = normalizeRoundPlan([null, null, null, 'gendered', null, 'mixed']);
-    expect(planChips(plan, 8).map((c) => c.label)).toEqual(['R4 Gendered', 'R6 Mixed']);
-  });
-
-  it('says nothing about rounds the session does not reach', () => {
-    expect(planChips(setPlanType(emptyPlan(), 10, 'skill'), 8)).toEqual([]);
-  });
-});
-
 describe('planKey', () => {
   it('is the same string for the same plan', () => {
     expect(planKey(emptyPlan(), 8)).toBe(planKey(emptyPlan(), 8));
@@ -200,5 +189,64 @@ describe('unplayedChanged', () => {
   it('is false when every round is complete', () => {
     const after = setPlanType(before, 1, 'mixed');
     expect(unplayedChanged(before, after, 4, [1, 2, 3, 4])).toBe(false);
+  });
+});
+
+describe('clearPlan', () => {
+  const set = (plan: RoundPlan, n: number, t: 'gendered' | 'mixed' | 'skill') =>
+    setPlanType(plan, n, t);
+
+  it('puts every round back to ordinary', () => {
+    const plan = set(set(emptyPlan(), 2, 'mixed'), 5, 'gendered');
+    expect(shape(clearPlan(plan, new Set()), 6)).toBe('— — — — — —');
+  });
+
+  /**
+   * A round already played keeps what it was played as. Nothing is going to
+   * rebuild it, so clearing it would only make the list lie about what
+   * happened on court.
+   */
+  it('leaves a round already played exactly as it was played', () => {
+    const plan = set(set(emptyPlan(), 2, 'mixed'), 5, 'gendered');
+    expect(shape(clearPlan(plan, new Set([2])), 6)).toBe('— M — — — —');
+  });
+
+  /**
+   * The tail as well as the rounds on screen. A host who has cleared the
+   * afternoon and then adds two rounds back should get two ordinary rounds,
+   * not a format they thought they had thrown away.
+   */
+  it('clears the slots past the end of the session too', () => {
+    const cleared = clearPlan(set(emptyPlan(), 12, 'skill'), new Set());
+    expect(planAt(cleared, 12)).toBeNull();
+    expect(cleared).toHaveLength(PLAN_SLOTS);
+  });
+
+  it('does not touch the plan it was given', () => {
+    const plan = set(emptyPlan(), 3, 'skill');
+    clearPlan(plan, new Set());
+    expect(planAt(plan, 3)).toBe('skill');
+  });
+});
+
+describe('planHasTypes', () => {
+  it('is false when every round is ordinary', () => {
+    expect(planHasTypes(emptyPlan(), 8, new Set())).toBe(false);
+  });
+
+  it('is true when a round in the session is set', () => {
+    expect(planHasTypes(setPlanType(emptyPlan(), 3, 'mixed'), 8, new Set())).toBe(true);
+  });
+
+  // Reset All greys out on what the host can see. A type sitting in slot 12 of
+  // an eight-round session is not on the list they are looking at.
+  it('ignores rounds past the end of the session', () => {
+    expect(planHasTypes(setPlanType(emptyPlan(), 12, 'mixed'), 8, new Set())).toBe(false);
+  });
+
+  // Nothing can clear a round already played, so one is not something to reset.
+  it('ignores a round already played', () => {
+    const plan = setPlanType(emptyPlan(), 2, 'gendered');
+    expect(planHasTypes(plan, 8, new Set([2]))).toBe(false);
   });
 });

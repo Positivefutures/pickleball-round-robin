@@ -63,8 +63,9 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
  * ink and 400 edge, which is the same ramp the three coloured ones use.
  */
 export const NORMAL_ROUND_META = {
-  badge: 'Normal Round',
+  description: 'The ordinary round robin. Anybody can be drawn with anybody.',
   shortName: 'Normal',
+  badge: 'Normal Round',
   badgeClass: 'bg-gray-100 text-gray-700',
   badgeEdgeClass: 'border-gray-400',
 } as const;
@@ -74,6 +75,8 @@ interface PillMeta {
   badge: string;
   /** "Gendered" — a row in the planner, beside ROUND 4 on a phone. */
   shortName: string;
+  /** One line saying what the format is, for the ⓘ panel. */
+  description: string;
   badgeClass: string;
   badgeEdgeClass: string;
 }
@@ -84,6 +87,7 @@ export function pillMeta(type: RoundType | null): PillMeta {
   return {
     badge: meta.badge,
     shortName: meta.shortName,
+    description: meta.description,
     badgeClass: meta.badgeClass,
     badgeEdgeClass: meta.badgeEdgeClass,
   };

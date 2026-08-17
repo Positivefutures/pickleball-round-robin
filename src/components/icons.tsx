@@ -528,6 +528,11 @@ export function TipIcon({ className }: { className?: string }) {
 /**
  * An i in a circle. Marks a button that only explains something.
  *
+ * `INBOX/info.svg` verbatim on its own 24 grid, with the black fill dropped so
+ * it takes the colour of whatever it sits beside. The i is drawn as a dot and a
+ * stem with round ends rather than as a bar, which is what carries at the small
+ * size this is used at.
+ *
  * Not TipIcon, which is a lit bulb and says "here is an idea you might not have
  * had". This one sits beside a heading the host is about to use and offers the
  * definitions behind it, which is a different promise.
@@ -535,7 +540,9 @@ export function TipIcon({ className }: { className?: string }) {
 export function InfoIcon({ className }: { className?: string }) {
   return (
     <Solid className={className}>
-      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1.1 2.6a1.35 1.35 0 1 1 2.2 0 1.35 1.35 0 0 1-2.2 0zM11 10.5h2v7h-2z" />
+      <path d="m12 0a12 12 0 1 0 12 12 12.013 12.013 0 0 0 -12-12zm0 21a9 9 0 1 1 9-9 9.011 9.011 0 0 1 -9 9z" />
+      <path d="m11.545 9.545h-.3a1.577 1.577 0 0 0 -1.605 1.393 1.5 1.5 0 0 0 1.36 1.594v4.65a1.5 1.5 0 0 0 3 0v-5.182a2.455 2.455 0 0 0 -2.455-2.455z" />
+      <path d="m11.83 8.466a1.716 1.716 0 1 0 -1.716-1.716 1.715 1.715 0 0 0 1.716 1.716z" />
     </Solid>
   );
 }

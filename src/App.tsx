@@ -1,7 +1,7 @@
 import {
   useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore,
 } from 'react';
-import type { Gender, Player, Schedule, LockedPair, RoundPlan } from './types';
+import type { Gender, Player, Schedule, LockedPair, RoundPlan, RoundType } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useStoredValue } from './hooks/useStoredValue';
@@ -16,7 +16,7 @@ import {
   prunePartnerships, arePartners, withSubbedPairs, transferPartnership,
 } from './lib/partnerships';
 import { basisKey, scheduleIsStale } from './lib/scheduleBasis';
-import { normalizeRoundPlan, unplayedChanged } from './lib/roundPlan';
+import { normalizeRoundPlan, setPlanType, unplayedChanged } from './lib/roundPlan';
 import { PLAIN_ROBIN, openedSettings, warmRobin } from './lib/robins';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
@@ -1124,25 +1124,37 @@ function App() {
     setScheduleEdited(true);
   }, [schedule, completedRounds, numCourts, setNumCourts, setSchedule, setScheduleEdited]);
 
-  // More rounds on the end. The ones already there do not move, and the new ones
-  // are built around them rather than from scratch.
-  const handleAddRounds = useCallback((count: number) => {
+  /**
+   * One more round on the end, played as whatever the host picked. The rounds
+   * already there do not move, and the new one is built around them rather
+   * than from scratch.
+   *
+   * The plan is written before the schedule is extended, and the extension is
+   * handed that same plan rather than the closed-over one: `extendSchedule`
+   * reads the new round's type out of the slot at its own number, and
+   * `setRoundPlan` has not re-rendered yet. The same rule as handlePlanCommit.
+   */
+  const handleAddRound = useCallback((type: RoundType | null) => {
     if (!schedule) return;
     if (attendingPlayers.length < 4) return;
     const activePartnerships = prunePartnerships(
       sessionPartnerships, new Set(attendingPlayers.map((p) => p.id))
     );
+    // Off the schedule rather than off `numRounds`: the schedule is what is
+    // being extended, and extendSchedule numbers the new round from it.
+    const added = schedule.rounds.reduce((max, r) => Math.max(max, r.roundNumber), 0) + 1;
+    // The plan is sixteen slots and this is the one path that can take a
+    // session past them, so it is grown here as well as set — the new round
+    // needs a row of its own in the planner rather than falling off the end.
+    const plan = setPlanType(normalizeRoundPlan(roundPlan, added), added, type);
+
     setSchedule(
       extendSchedule(
-        attendingPlayers, numCourts, schedule.rounds, count, roundPlan, activePartnerships
+        attendingPlayers, numCourts, schedule.rounds, 1, plan, activePartnerships
       )
     );
-    setNumRounds(numRounds + count);
-    // The plan is sixteen slots and this is the one path that can take a
-    // session past them. Grown here so the new rounds have a row apiece in the
-    // planner rather than falling off the end of it; they are ordinary rounds
-    // until the host says otherwise.
-    setRoundPlan((prev) => normalizeRoundPlan(prev, numRounds + count));
+    setNumRounds(numRounds + 1);
+    setRoundPlan(plan);
   }, [schedule, attendingPlayers, sessionPartnerships, numCourts, numRounds, roundPlan,
       setNumRounds, setRoundPlan, setSchedule]);
 
@@ -1538,7 +1550,7 @@ function App() {
               onSubstitute: handleSubstitute,
               onAddCourt: handleAddCourt,
               onRemoveCourt: handleRemoveCourt,
-              onAddRounds: handleAddRounds,
+              onAddRound: handleAddRound,
             }}
           />
         )}

@@ -30,6 +30,12 @@ interface Props {
   plan: RoundPlan;
   /** Rounds already played: no handle, no pill, and nothing moves through them. */
   lockedRounds: number[];
+  /**
+   * The draft as it stands, every time it changes. Not a commit — nothing acts
+   * on it. Reset All sits outside this list, on the title line, and this is how
+   * it can tell whether there is anything on screen left to reset.
+   */
+  onDraftChange?: (next: RoundPlan) => void;
   onCommit: (next: RoundPlan) => void;
 }
 
@@ -37,12 +43,27 @@ function nameOf(type: RoundType | null): string {
   return type ? ROUND_TYPE_META[type].shortName : NORMAL_ROUND_META.shortName;
 }
 
-export function GameTypePlanner({ numRounds, plan, lockedRounds, onCommit }: Props) {
+export function GameTypePlanner({
+  numRounds,
+  plan,
+  lockedRounds,
+  onDraftChange,
+  onCommit,
+}: Props) {
   const [draft, setDraft] = useState<RoundPlan>(plan);
   const [pickerRound, setPickerRound] = useState<number | null>(null);
   /** What just happened, for anybody who cannot see the list move. */
   const [announcement, setAnnouncement] = useState('');
   const hintId = useId();
+
+  /** The one way the draft changes, so the line above never goes unsaid. */
+  const change = useCallback(
+    (next: RoundPlan) => {
+      setDraft(next);
+      onDraftChange?.(next);
+    },
+    [onDraftChange]
+  );
 
   useScrollLock(pickerRound !== null);
 
@@ -60,9 +81,9 @@ export function GameTypePlanner({ numRounds, plan, lockedRounds, onCommit }: Pro
       // Named for what moved, not for where it went: the rows are numbered 1..N
       // whatever happens, so "Round 2 moved to Round 3" would say nothing.
       setAnnouncement(`${nameOf(planAt(draft, fromRound))} moved to Round ${toRound}.`);
-      setDraft(moveRound(draft, fromRound, toRound, numRounds, locked));
+      change(moveRound(draft, fromRound, toRound, numRounds, locked));
     },
-    [draft, locked, numRounds]
+    [change, draft, locked, numRounds]
   );
 
   const { dragging, handleProps, rowProps } = useListReorder({
@@ -74,11 +95,11 @@ export function GameTypePlanner({ numRounds, plan, lockedRounds, onCommit }: Pro
   const pick = useCallback(
     (type: RoundType | null) => {
       if (pickerRound === null) return;
-      setDraft(setPlanType(draft, pickerRound, type));
+      change(setPlanType(draft, pickerRound, type));
       setAnnouncement(`Round ${pickerRound} set to ${nameOf(type)}.`);
       setPickerRound(null);
     },
-    [draft, pickerRound]
+    [change, draft, pickerRound]
   );
 
   const rounds = Array.from({ length: numRounds }, (_, i) => i + 1);

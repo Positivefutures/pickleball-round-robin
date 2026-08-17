@@ -1,7 +1,7 @@
+import { useMemo, useState } from 'react';
 import type { RoundPlan } from '../../types';
-import { planChips } from '../../lib/roundPlan';
-import { ROUND_TYPE_META } from '../../lib/roundTypes';
-import { BallIcon, ChevronDownIcon, InfoIcon, StepPlayersIcon } from '../icons';
+import { clearPlan, planHasTypes } from '../../lib/roundPlan';
+import { BallIcon, ChevronDownIcon, InfoIcon } from '../icons';
 import { Toggle } from '../Toggle';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { GameTypePlanner } from './GameTypePlanner';
@@ -103,7 +103,6 @@ interface Props {
   numRounds: number;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
-  numPlayers: number;
   roundPlan: RoundPlan;
   /** Rounds already played. Locked in the list, and never rebuilt. */
   lockedRounds: number[];
@@ -120,7 +119,6 @@ export function SessionConfig({
   numRounds,
   onCourtsChange,
   onRoundsChange,
-  numPlayers,
   roundPlan,
   lockedRounds,
   expanded,
@@ -130,9 +128,38 @@ export function SessionConfig({
   scoringEnabled,
   onScoringChange,
 }: Props) {
-  const spotsNeeded = numCourts * 4;
-  const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
-  const chips = planChips(roundPlan, numRounds);
+  const locked = useMemo(() => new Set(lockedRounds), [lockedRounds]);
+
+  /**
+   * The open list's draft, or null when the list is shut.
+   *
+   * The list keeps its own draft and hands nothing back until Done, so that the
+   * Schedule tab does not blink while the host is still choosing. Reset All is
+   * outside that: it is on the title line and works in both states. Without
+   * this it would be reading the committed plan, and would sit greyed out over
+   * a list full of the rounds the host had just set.
+   */
+  const [openDraft, setOpenDraft] = useState<RoundPlan | null>(null);
+  const canReset = planHasTypes(openDraft ?? roundPlan, numRounds, locked);
+
+  /**
+   * Bumped by Reset All to remount the list, which is what a key is for. The
+   * draft is seeded when the list opens, so clearing the plan underneath it
+   * would otherwise leave the rows saying what they said before.
+   */
+  const [resetNonce, setResetNonce] = useState(0);
+
+  function handleReset() {
+    onPlanCommit(clearPlan(roundPlan, locked));
+    setOpenDraft(null);
+    setResetNonce((n) => n + 1);
+  }
+
+  /** Shutting the list throws its draft away, the same as it always did. */
+  function handleToggle() {
+    setOpenDraft(null);
+    onToggleExpanded();
+  }
 
   return (
     <div className="space-y-4">
@@ -166,28 +193,6 @@ export function SessionConfig({
       {/* Closes off the two numbers being set from everything they decide. */}
       <hr className="border-0 border-t" style={{ borderColor: RULE }} />
 
-      <div className="flex items-center gap-3">
-        <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: TEAL }}
-        >
-          <StepPlayersIcon className="h-6 w-6 text-white" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[1.2rem] font-bold" style={{ color: NAVY }}>
-            {numPlayers} of {spotsNeeded} Spots Filled
-          </p>
-          {/* Red, not amber. Straight off the mockup, where it is the one warm
-              thing on the panel and the only line that is a consequence rather
-              than a setting. */}
-          {sitOutsPerRound > 0 && (
-            <p className="text-sm text-[#FD1F04]">
-              {sitOutsPerRound} player{sitOutsPerRound > 1 ? 's' : ''} will sit out each round
-            </p>
-          )}
-        </div>
-      </div>
-
       {/* Above the game types now. It is one switch with one answer, and it was
           sitting under a list that can be sixteen rounds long. */}
       <div className="flex items-center gap-4">
@@ -196,65 +201,80 @@ export function SessionConfig({
       </div>
 
       <div>
-        <div className="flex items-center gap-1">
+        {/* Wraps rather than clips. The three fit on one line on a 390px phone,
+            which is the one this was drawn for; on anything narrower Reset All
+            drops to a line of its own, still at the right, rather than being
+            cut off by the panel's edge. */}
+        <div className="flex flex-wrap items-center gap-1">
           {/* As wide as its own words, at the left. Full width it read as the
               main thing on the panel, which the two numbers above it are. The
               chevron turns rather than pointing on: what it opens is right
               here, not another panel. */}
           <button
             type="button"
-            onClick={onToggleExpanded}
+            onClick={handleToggle}
             aria-expanded={expanded}
-            className="flex items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
+            className="flex shrink-0 items-center gap-2 rounded-xl border bg-[#FAFCFC] px-3 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
             style={{ borderColor: TEAL, color: TEAL }}
           >
-            <BallIcon className="h-6 w-6" />
-            <span className="min-w-0 font-bold">Set Game Types</span>
+            <BallIcon className="h-6 w-6 shrink-0" />
+            {/* One line. Reset All arrived at the other end of this row and
+                took just enough width to break the title in half. */}
+            <span className="whitespace-nowrap font-bold">Set Game Types</span>
             {/* Down when there is something to open, up when it is open.
                 Not the chevron that points on to another panel: what this
                 opens is right underneath it. */}
             <ChevronDownIcon
-              className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              className={`h-5 w-5 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
             />
           </button>
 
           {/* Its own button, not part of the title: it explains the formats and
               changes nothing, so pressing it must never be a way to open the
-              list by accident. 44px of target around a 20px glyph. */}
+              list by accident. 44px of target around a 25px glyph. */}
           <button
             type="button"
             onClick={onOpenInfo}
             aria-label="About game types"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#F1F8F9]"
+            className="flex h-11 w-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#F1F8F9]"
             style={{ color: TEAL }}
           >
-            <InfoIcon className="h-5 w-5" />
+            <InfoIcon className="h-[25px] w-[25px]" />
           </button>
-        </div>
 
-        {/* Which rounds are special, in the same chips the round cards use for
-            them, so the same thing is the same colour in both places. Only
-            worth saying while the list is shut: open, every row says it. */}
-        {!expanded && chips.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {chips.map((chip) => (
-              <span
-                key={chip.roundNumber}
-                className={`rounded px-2 py-0.5 text-xs font-medium ${ROUND_TYPE_META[chip.type].badgeClass}`}
-              >
-                {chip.label}
-              </span>
-            ))}
-          </div>
-        )}
+          {/* Only while the list is open, and only when there is something in
+              it to clear. It belongs to the list rather than to the title: with
+              the list shut there is nothing on screen for it to act on, and a
+              button that throws work away should not be sitting on a panel
+              beside the thing it would throw away.
+
+              Held at the right end of the line, away from the two controls that
+              open something.
+
+              A round already played keeps what it was played as. Nothing is
+              going to rebuild it, and clearing it would only make the list lie
+              about what happened on court. */}
+          {expanded && canReset && (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="ml-auto shrink-0 px-1 text-sm font-medium text-brand-teal transition-colors hover:text-brand-teal-dark"
+            >
+              Reset All
+            </button>
+          )}
+        </div>
 
         {expanded && (
           <GameTypePlanner
+            key={resetNonce}
             numRounds={numRounds}
             plan={roundPlan}
             lockedRounds={lockedRounds}
+            onDraftChange={setOpenDraft}
             onCommit={(next) => {
               onPlanCommit(next);
+              setOpenDraft(null);
               onToggleExpanded();
             }}
           />

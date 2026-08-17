@@ -1,7 +1,7 @@
 import type { CSSProperties, KeyboardEvent, PointerEvent, Ref } from 'react';
 import type { RoundType } from '../../types';
 import { pillMeta } from '../../lib/roundTypes';
-import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from '../schedule/roundLook';
+import { ROUND_EDGE, ROUND_FILL } from '../schedule/roundLook';
 import { DragHandleIcon } from '../icons';
 import { TypeGlyphs } from './typeGlyphs';
 
@@ -55,13 +55,18 @@ export function RoundPlanRow({
   // The short name, not the badge. "Gendered Round" beside ROUND 4 on a 390px
   // phone wrapped the round number onto two lines, and the round number is the
   // thing the host is reading down the list.
-  const pillClass = `flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-bold ${meta.badgeClass} ${meta.badgeEdgeClass}`;
+  //
+  // One step under ROUND N rather than level with it: the round number is what
+  // the list is read down, and two things the same size beside each other on a
+  // narrow row were competing for that. The 36px handle sets the row's height,
+  // so taking a step off here costs nothing.
+  const pillClass = `flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3 py-0.5 text-base font-bold ${meta.badgeClass} ${meta.badgeEdgeClass}`;
 
   return (
     <div
       ref={rowRef}
       style={{ ...rowStyle, backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
-      className={`flex items-center gap-2 rounded-lg border-2 px-2 py-2 ${dragging ? 'shadow-lg' : 'shadow'}`}
+      className={`flex items-center gap-2 rounded-lg border px-2 py-[3px] ${dragging ? 'shadow-lg' : 'shadow'}`}
     >
       {locked ? (
         // Where the handle would be, so the numbers stay in a column and a
@@ -79,9 +84,11 @@ export function RoundPlanRow({
         </button>
       )}
 
-      <h4
-        className={`${ROUND_HEADING_TEXT} min-w-0 flex-1 whitespace-nowrap font-extrabold uppercase text-white`}
-      >
+      {/* Not the round card's own heading size, which is set to be read off a
+          phone lying on a bench at arm's length. This is a list being read at
+          reading distance, so it sits at Keep Score's size, level with the
+          other things on the panel that are being set. */}
+      <h4 className="min-w-0 flex-1 whitespace-nowrap text-lg font-extrabold uppercase text-white">
         Round {roundNumber}
       </h4>
 

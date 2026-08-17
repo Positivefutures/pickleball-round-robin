@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { Gender, Player, Round, Schedule } from '../../types';
+import type { Gender, Player, Round, RoundType, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
+import { ROUND_TYPES, pillMeta } from '../../lib/roundTypes';
+import { TypeGlyphs } from '../setup/typeGlyphs';
 import { isScored } from '../../lib/standings';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PlayerForm } from '../roster/PlayerForm';
@@ -53,7 +55,8 @@ export interface ScheduleActions {
   onRemovePlayer: (playerId: string) => void;
   onAddCourt: () => void;
   onRemoveCourt: (courtNumber: number) => void;
-  onAddRounds: (count: number) => void;
+  /** One round on the end, played as the type the host picked. */
+  onAddRound: (type: RoundType | null) => void;
 }
 
 type View =
@@ -183,6 +186,9 @@ const SHEET_FRACTION = 0.92;
 const SLIDE_MS = 300;
 const DONE_MS = 1600;
 const DRAG_TO_CLOSE = 80;
+
+/** Normal first, the same order the round type picker offers them in. */
+const ADD_ROUND_TYPES: (RoundType | null)[] = [null, ...ROUND_TYPES];
 
 const PRIMARY =
   'w-full px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-40 disabled:hover:bg-brand-teal';
@@ -322,7 +328,8 @@ export function ActionsSheet({
   );
   /** Who Remove a Player is about to send home, once they have been picked. */
   const [removing, setRemoving] = useState<Player | null>(null);
-  const [extraRounds, setExtraRounds] = useState(1);
+  /** The type the round about to be added will be played as. */
+  const [addType, setAddType] = useState<RoundType | null>(null);
 
   const [shown, setShown] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -425,7 +432,7 @@ export function ActionsSheet({
     }
     if (card.view === 'add-sub') setSubOut(null);
     if (card.view === 'remove-player') setRemoving(null);
-    if (card.view === 'add-round') setExtraRounds(1);
+    if (card.view === 'add-round') setAddType(null);
     setView(card.view);
   }
 
@@ -964,50 +971,58 @@ export function ActionsSheet({
 
                 {view === 'add-round' && (
                   <div className={CONFIRM}>
-                    <div className="flex items-center justify-center gap-4">
-                      <button
-                        type="button"
-                        aria-label="Fewer rounds"
-                        onClick={() => setExtraRounds((n) => Math.max(1, n - 1))}
-                        className="min-h-14 min-w-14 rounded-md border border-[#999] bg-gray-200 text-2xl font-bold text-gray-700 transition-colors hover:bg-gray-300"
-                      >
-                        &minus;
-                      </button>
-                      <span
-                        className="min-w-16 text-center text-3xl font-bold"
-                        style={{ color: NAVY_TEXT }}
-                      >
-                        {extraRounds}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="More rounds"
-                        onClick={() => setExtraRounds((n) => Math.min(8, n + 1))}
-                        className="min-h-14 min-w-14 rounded-md border border-[#999] bg-gray-200 text-2xl font-bold text-gray-700 transition-colors hover:bg-gray-300"
-                      >
-                        +
-                      </button>
-                    </div>
                     {/* Future tense: nothing has happened yet, and the sentence
                         used to read as though it had. What it leaves out is
                         already on the sheet's own subtitle. */}
                     <p className="text-center text-gray-700">
-                      {extraRounds === 1
-                        ? `Round ${lastRoundNumber + 1} will be added.`
-                        : `Rounds ${lastRoundNumber + 1} to ${lastRoundNumber + extraRounds} will be added.`}
+                      Round {lastRoundNumber + 1} will be added.
                     </p>
-                    <div className={CONFIRM_FOOT}>
+
+                    {/* Four across where there is room, two and two where there
+                        is not, and every one the same width either way — which
+                        is a grid's job, not a flex row's. Normal and Gendered
+                        pair off on the first line, Mixed and Equal Skill on the
+                        second, because that is the order they are offered in
+                        everywhere else.
+
+                        The short names, not the badges: "Equal Skill Round" in
+                        a quarter of a phone is two lines of type in a pill. */}
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {ADD_ROUND_TYPES.map((type) => {
+                        const meta = pillMeta(type);
+                        const chosen = type === addType;
+                        return (
+                          <button
+                            key={type ?? 'normal'}
+                            type="button"
+                            aria-current={chosen ? 'true' : undefined}
+                            onClick={() => setAddType(type)}
+                            className={`flex min-h-14 w-full items-center justify-center gap-1.5 rounded-full border-2 px-2 text-sm font-bold transition-transform active:scale-95 ${meta.badgeClass} ${meta.badgeEdgeClass} ${chosen ? 'ring-2 ring-brand-teal ring-offset-2' : ''}`}
+                          >
+                            <TypeGlyphs type={type} size="badge" />
+                            {meta.shortName}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
+                      <button
+                        type="button"
+                        className={SECONDARY}
+                        onClick={() => setView('menu')}
+                      >
+                        Cancel
+                      </button>
                       <button
                         type="button"
                         className={PRIMARY}
                         onClick={() => {
-                          actions.onAddRounds(extraRounds);
-                          finish(
-                            extraRounds === 1 ? '1 round added.' : `${extraRounds} rounds added.`
-                          );
+                          actions.onAddRound(addType);
+                          finish('1 round added.');
                         }}
                       >
-                        {extraRounds === 1 ? 'Add 1 Round' : `Add ${extraRounds} Rounds`}
+                        Add 1 Round
                       </button>
                     </div>
                   </div>

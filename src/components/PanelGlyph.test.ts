@@ -200,6 +200,10 @@ describe('the glyph itself', () => {
  * The drawings do not fill their boxes equally: the two gendered symbols reach
  * the edges, the mixed one fills 77% of its height. At one box size the mixed
  * one read as the small icon on the panel, so each carries its own.
+ *
+ * The panel names each format with the pill it wears everywhere else, so the
+ * glyphs in here are the pill's own size — `picker` in `typeGlyphs`, not the
+ * larger `panel` row this panel used when it had headings of its own.
  */
 describe('the game type symbols', () => {
   function heading(title: string): Element {
@@ -226,7 +230,7 @@ describe('the game type symbols', () => {
     container.remove();
     const gendered = boxOf(heading('Gendered'));
 
-    expect(gendered).toBe(26);
+    expect(gendered).toBe(22);
     expect(mixed).toBeGreaterThan(gendered);
   });
 });

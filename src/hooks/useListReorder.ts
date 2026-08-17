@@ -21,6 +21,20 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
  * and the list is reordered once, on drop, by the caller's own state — so React
  * is never asked to reconcile a list that is halfway to somewhere.
  *
+ * The drop is the part worth reading twice, because the obvious version of it
+ * is visibly wrong. Clearing the travel and reordering the list in one go looks
+ * like everything springs back where it came from and then walks to the new
+ * place, which is the row's content arriving in its new slot while the slot is
+ * still animating home. So the drop happens in two beats instead:
+ *
+ * 1. **Landing.** The finger let go somewhere between two rows, so the row
+ *    slides the rest of the way into the slot it chose. Everything else is
+ *    already where it is going — it moved out of the way during the drag.
+ * 2. **The still frame.** Now that every row is exactly over the slot it will
+ *    occupy, the travel is dropped and the list is reordered in the same paint,
+ *    with transitions off. Nothing can move, because there is nowhere left to
+ *    move to: the round numbers relabel and the rows stay put.
+ *
  * The split between the ref and the state below is deliberate. `press` is what
  * the finger is doing and is written on every pointer event, so it is a ref;
  * `drag` is what the list is drawing and so it is state. Nothing here reads a
@@ -35,6 +49,13 @@ const EDGE = 80;
 
 /** The most it scrolls in one frame, at the very edge of the window. */
 const MAX_SCROLL_STEP = 14;
+
+/**
+ * How long a row takes to settle into the slot it was dropped on, and the one
+ * length every transition in here runs at. The rows getting out of the way use
+ * it during the drag, so the row landing among them has to move at their speed.
+ */
+const SLIDE_MS = 150;
 
 interface Options {
   count: number;
@@ -87,10 +108,18 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
   const handles = useRef<(HTMLButtonElement | null)[]>([]);
   const press = useRef<Press | null>(null);
   const frame = useRef<number | null>(null);
+  /** The move that has been let go of and is sliding into place. */
+  const landing = useRef<{ from: number; to: number; timer: number } | null>(null);
+  /** The frames counted out before transitions are allowed back. */
+  const paint = useRef<number | null>(null);
 
   const [drag, setDrag] = useState<Drag | null>(null);
   /** How far the dragged row has travelled, in document coordinates. */
   const [offset, setOffset] = useState(0);
+  /** The dropped row is sliding home: it needs a transition, not the finger. */
+  const [settling, setSettling] = useState(false);
+  /** The still frame. No row may move on the paint the reorder lands in. */
+  const [frozen, setFrozen] = useState(false);
 
   const canMove = useCallback((i: number) => !disabled?.(i), [disabled]);
 
@@ -116,13 +145,23 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
     }
   }
 
-  const stop = useCallback(() => {
+  const clearTimers = useCallback(() => {
     if (frame.current !== null) cancelAnimationFrame(frame.current);
+    if (paint.current !== null) cancelAnimationFrame(paint.current);
+    if (landing.current !== null) clearTimeout(landing.current.timer);
     frame.current = null;
+    paint.current = null;
+    landing.current = null;
+  }, []);
+
+  const stop = useCallback(() => {
+    clearTimers();
     press.current = null;
     setDrag(null);
     setOffset(0);
-  }, []);
+    setSettling(false);
+    setFrozen(false);
+  }, [clearTimers]);
 
   // A drag interrupted by an unmount would leave a rAF loop running against a
   // list nobody is looking at.
@@ -163,13 +202,68 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
     frame.current = requestAnimationFrame(tick);
   }, []);
 
+  /**
+   * The still frame: drop the travel and reorder the list in the same paint.
+   *
+   * Every row is already sitting over the slot it is about to occupy, so this
+   * changes no pixel except the labels — which is the whole point. Transitions
+   * are off while it happens, because a transition here is the list animating
+   * back from where it already is.
+   */
+  const settle = useCallback(
+    (from: number, to: number) => {
+      clearTimers();
+      press.current = null;
+      setFrozen(true);
+      setDrag(null);
+      setOffset(0);
+      setSettling(false);
+      onMove(from, to);
+
+      // Two frames, not one. A rAF asked for from inside a pointer handler can
+      // still run before the browser has painted, and letting transitions back
+      // in before that paint is the flicker all over again.
+      paint.current = requestAnimationFrame(() => {
+        paint.current = requestAnimationFrame(() => {
+          paint.current = null;
+          setFrozen(false);
+        });
+      });
+    },
+    [clearTimers, onMove]
+  );
+
+  /** Land a move that is still sliding, now, because something else is starting. */
+  const flush = useCallback(() => {
+    const pending = landing.current;
+    if (pending !== null) settle(pending.from, pending.to);
+  }, [settle]);
+
   const finish = useCallback(() => {
-    const from = drag?.from;
+    // Already let go of. A pointerup and a pointercancel can both arrive for
+    // one gesture, and the second must not start a second landing.
+    if (landing.current !== null) return;
+    if (drag === null || target === null || target === drag.from) {
+      stop();
+      return;
+    }
+    // The finger let go between two rows. Slide the rest of the way into the
+    // slot it chose before anything is reordered, so that when the reorder
+    // comes there is nothing left for it to move.
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    press.current = null;
+
+    const { from } = drag;
     const to = target;
-    stop();
-    if (from === undefined || to === null || to === from) return;
-    onMove(from, to);
-  }, [drag, onMove, stop, target]);
+    setSettling(true);
+    setOffset(drag.centres[to] - drag.centres[from]);
+    landing.current = {
+      from,
+      to,
+      timer: window.setTimeout(() => settle(from, to), SLIDE_MS),
+    };
+  }, [drag, settle, stop, target]);
 
   const handleProps = useCallback(
     (index: number) => ({
@@ -181,6 +275,9 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
       style: { touchAction: 'none' as const },
 
       onPointerDown: (e: PointerEvent) => {
+        // A second grab while the last one is still sliding. Land it first, or
+        // its timer fires part way through the new drag and moves the wrong row.
+        flush();
         if (!canMove(index)) return;
         press.current = {
           from: index,
@@ -222,6 +319,7 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
 
       onKeyDown: (e: KeyboardEvent) => {
         if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        flush();
         if (!canMove(index)) return;
         const open = openIndices();
         const at = open.indexOf(index);
@@ -235,7 +333,7 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
         requestAnimationFrame(() => handles.current[to]?.focus());
       },
     }),
-    [canMove, count, finish, onMove, openIndices, startEdgeScroll]
+    [canMove, count, finish, flush, onMove, openIndices, startEdgeScroll]
   );
 
   const rowProps = useCallback(
@@ -275,16 +373,18 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
         },
         style: {
           transform: translate === 0 ? undefined : `translateY(${translate}px)`,
-          // The row under the finger keeps up with it; the ones getting out of
-          // its way slide.
-          transition: lifted ? 'none' : 'transform 150ms ease',
+          // Nothing moves on the frame the list is reordered. Then: the row
+          // under the finger keeps up with it, the ones getting out of its way
+          // slide, and a row let go of slides too, into the gap they left.
+          transition:
+            frozen || (lifted && !settling) ? 'none' : `transform ${SLIDE_MS}ms ease`,
           zIndex: lifted ? 20 : undefined,
           position: lifted ? ('relative' as const) : undefined,
           touchAction: drag === null ? undefined : ('none' as const),
         } satisfies CSSProperties,
       };
     },
-    [drag, offset, target]
+    [drag, frozen, offset, settling, target]
   );
 
   return { dragging: drag?.from ?? null, handleProps, rowProps };
