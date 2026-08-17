@@ -22,7 +22,8 @@
       an iPhone 16 Pro Max: `env(safe-area-inset-top)` inside this app is 0. Two
       releases of the fix for iOS 26's blurred top edge were sized off that
       value and were therefore zero pixels tall. What actually holds the effect
-      off is `.top-band` in index.css, whose height is a plain number.
+      off is that the document never scrolls — see the scroll architecture at
+      the top of index.css.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
@@ -42,8 +43,7 @@
       painted with the theme-color above, which is that same cream.
 
       The cost is that `env(safe-area-inset-top)` is 0 inside this app. See the
-      viewport note above and `.top-band` in index.css, which is written to
-      survive this being changed either way.
+      viewport note above; nothing is sized off that inset any more.
     -->
     <meta name="apple-mobile-web-app-title" content="Round Robin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

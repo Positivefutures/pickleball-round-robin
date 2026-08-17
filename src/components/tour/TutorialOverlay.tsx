@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Region, TourView } from '../../lib/tour';
 import { noteScrolled, skipTour } from '../../lib/tour';
+import { appScrollBy, appScrollTo } from '../../lib/appScroll';
 import { subscribeSuspend, tourSuspended } from '../../lib/tourSuspend';
 import {
   DIM,
@@ -119,7 +120,7 @@ export function TutorialOverlay({
   }, [view]);
 
   // Put the page where this card needs it, on the one frame before App takes
-  // the lock. A pinned body cannot be scrolled.
+  // the lock. A frozen pane cannot be scrolled.
   //
   // Every arrival at a card scrolls, not just the first. Cards are walked
   // backwards as well as forwards, and a card returned to by Back is being
@@ -130,7 +131,7 @@ export function TutorialOverlay({
     if (!view.scrolling) return;
     const frame = requestAnimationFrame(() => {
       if (view.scroll === 'top') {
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        appScrollTo({ top: 0, behavior: 'auto' });
       } else {
         const boxes = view.regions
           .filter((r) => !r.plain)
@@ -142,7 +143,7 @@ export function TutorialOverlay({
           const by = minimalScroll(whole, top, bottom);
           // Never smooth: it would settle over three hundred milliseconds with
           // the measure loop chasing it and the lock waiting behind.
-          if (by !== 0) window.scrollBy({ top: by, behavior: 'auto' });
+          if (by !== 0) appScrollBy(by);
         }
       }
       noteScrolled();

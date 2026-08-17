@@ -3,6 +3,7 @@ import { fetchShared, fetchSharedAt, submitScoreEdit, type LiveFetch } from '../
 import type { SessionSnapshot } from '../../lib/sessionSnapshot';
 import type { CourtScore } from '../../types';
 import { APP_URL } from '../../lib/appInfo';
+import { appScrollTo } from '../../lib/appScroll';
 import { Header } from '../layout/Header';
 import { StandingsPanel } from '../schedule/StandingsPanel';
 import { ScoreDialog } from '../schedule/ScoreDialog';
@@ -325,7 +326,9 @@ export function LiveSessionPage({ shareKey }: Props) {
     : undefined;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    // The live view mounts instead of App, so it brings its own scroll pane —
+    // the document is held still for it too; see index.css.
+    <div data-app-scroll className="app-scroll bg-gray-50">
       {/* The app's own banner, with the LIVE pill standing where its buttons
           do. No drawer here, so no button to open one. */}
       <Header
@@ -677,7 +680,7 @@ function Session({
           players={snapshot.players}
           panelRef={standingsRef}
           readOnly
-          onBackToTop={() => window.scrollTo({ top: 0, behavior: scrollBehavior() })}
+          onBackToTop={() => appScrollTo({ top: 0, behavior: scrollBehavior() })}
         />
       )}
 

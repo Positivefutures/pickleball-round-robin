@@ -127,6 +127,18 @@ afterEach(() => {
 });
 
 /**
+ * The pane the app scrolls in. The document is held still — see the scroll
+ * architecture at the top of index.css — so everything that used to be asked
+ * of window (scrollTo on a step change, the freeze under a dialog) happens to
+ * this element, and this is where the tests look for it.
+ */
+function scroller(): HTMLElement {
+  const pane = container.querySelector<HTMLElement>('[data-app-scroll]');
+  if (!pane) throw new Error('no scroll pane mounted');
+  return pane;
+}
+
+/**
  * A relaunch: the app all the way down and up again, with an optional change to
  * what is in storage in between.
  *
@@ -1145,17 +1157,17 @@ describe('step 6 — every step starts at the top', () => {
   beforeEach(() => seed(9, 9, 2));
 
   it('scrolls to the top on each step change', () => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     mount();
-    scrollTo.mockClear();
+    // The pane, not the window: the document cannot scroll in this app.
+    const scrollTo = vi.fn();
+    scroller().scrollTo = scrollTo as never;
 
     clickButton(/^Continue to Setup/);
-    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
 
     scrollTo.mockClear();
     clickButton(/^Generate Schedule/);
-    expect(scrollTo).toHaveBeenCalledWith(0, 0);
-    vi.restoreAllMocks();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
   });
 });
 
@@ -3185,6 +3197,12 @@ describe('the Actions sheet', () => {
       });
       expect(() => sheet()).toThrow();
 
+      // The sheet has let its lock go, and My Account still holds one. This
+      // is the moment that tells counted locks from naive ones: a lock that
+      // does not count its holders unfreezes the page right here, under an
+      // overlay that asked for it still.
+      expect(scroller().style.overflow).toBe('hidden');
+
       // The panel has to load the Supabase client before it can say whether
       // anyone is signed in, so this is its opening state rather than the sign
       // in form. What matters here is that it opened, and how it closes.
@@ -3196,14 +3214,15 @@ describe('the Actions sheet', () => {
 
       // And the page moves again afterwards. This route holds two scroll locks
       // at once — the sheet is still sliding out when My Account opens — and
-      // releases them in the order it took them, which used to leave the body
-      // pinned with position:fixed and nothing left to unpin it. The app was
-      // then unscrollable on every tab until it was reloaded.
+      // releases them in the order it took them, which before the locks were
+      // counted left the page frozen on every tab with nothing left to let it
+      // go. The freeze is an overflow on the app's scroll pane now, so that is
+      // what must be clear again.
       click(container.querySelector('[aria-label="Close Actions"]')!);
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, SHEET_GONE_MS));
       });
-      expect(document.body.style.position).toBe('');
+      expect(scroller().style.overflow).toBe('');
     } finally {
       vi.unstubAllEnvs();
     }
@@ -4912,17 +4931,16 @@ describe('the player roster panel', () => {
      * and closing the dialog left the host somewhere they had never been.
      */
     it('holds the page still underneath', () => {
-      // The body is shared with every test in this file, and a lock left on by
-      // one of them would make this pass without proving anything.
-      document.body.style.position = '';
+      // The pane is born with each mount, so unlike the shared body the old
+      // version of this test had to scrub, it starts provably unlocked.
       mount();
-      expect(document.body.style.position).not.toBe('fixed');
+      expect(scroller().style.overflow).not.toBe('hidden');
 
       clickButton(/^Manage$/);
-      expect(document.body.style.position).toBe('fixed');
+      expect(scroller().style.overflow).toBe('hidden');
 
       clickButton(/^Done$/);
-      expect(document.body.style.position).not.toBe('fixed');
+      expect(scroller().style.overflow).not.toBe('hidden');
     });
   });
 
@@ -5498,7 +5516,8 @@ describe('the way between a round and the standings', () => {
     seed(9, 9, 2, true);
     mount();
     generate();
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollTo = vi.fn();
+    scroller().scrollTo = scrollTo as never;
 
     clickButton(/^Back to Top$/);
 
@@ -5513,14 +5532,15 @@ describe('the way between a round and the standings', () => {
     generate();
     markComplete(1);
     markComplete(2);
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollTo = vi.fn();
+    scroller().scrollTo = scrollTo as never;
     const seen = watchScroll();
 
     clickButton(/^Back to Top$/);
 
-    // Nothing here may fall back to the top of the document. Only the object
-    // form is the page's own: releasing a scroll lock calls scrollTo(x, y).
-    expect(scrollTo.mock.calls.filter((c) => typeof c[0] === 'object')).toEqual([]);
+    // Nothing here may fall back to the top of the page: the round card is
+    // the destination, and the pane must not be sent anywhere on top of it.
+    expect(scrollTo).not.toHaveBeenCalled();
     expect(seen).toHaveLength(1);
     expect(text(seen[0].querySelector('h3')!)).toBe('Round 3');
     // The 24px gap between cards stays on screen, so the completed round above
@@ -5533,7 +5553,8 @@ describe('the way between a round and the standings', () => {
     mount();
     generate();
     for (let n = 1; n <= 8; n++) markComplete(n);
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollTo = vi.fn();
+    scroller().scrollTo = scrollTo as never;
 
     clickButton(/^Back to Top$/);
 
@@ -5547,7 +5568,8 @@ describe('the way between a round and the standings', () => {
     // Neither scrollIntoView nor scrollTo consults this setting on its own,
     // unlike the CSS property, so the page has to ask.
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollTo = vi.fn();
+    scroller().scrollTo = scrollTo as never;
 
     clickButton(/^Back to Top$/);
 

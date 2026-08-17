@@ -59,55 +59,60 @@
 }
 
 /**
- * The flat cream strip above the banner, and the only defence against iOS 26's
- * scroll edge effect.
+ * The document never scrolls. The app does, in a pane of its own.
  *
- * What the effect does: over a home screen web app it samples the page's own top
- * rows, blurs and lightens them, and paints the result back down over them and
- * up under the clock. The banner puts an orange wedge and a teal court on its
- * first row, so what arrived was a smear of both across the status bar and on
- * down over the robin. There is no way to switch it off from a web page. The
- * only lever is what it has to blur, because a blur of a flat colour is that
- * flat colour.
+ * This is the whole defence against iOS 26's scroll edge effect, which over an
+ * installed web app samples the page's own top rows, blurs and lightens them,
+ * and paints the result back down over them and up under the clock. The banner
+ * puts an orange wedge and a teal court on its first row, so what arrived was
+ * a smear of both across the status bar and on down over the robin. There is
+ * no switch for it on a web page — but it keys off the root scroller alone.
+ * Held still, it never engages: the proof is `INBOX/Tutorial-On.png`, taken
+ * while the tutorial's scroll lock pinned the body, where rows 0 to 186 are
+ * flat #FBFAF6 to the byte and the banner starts sharp underneath. So the root
+ * is now held still permanently — html, body and #root are exactly the
+ * viewport, with nothing to scroll — and everything from the banner to the
+ * footer scrolls inside `.app-scroll` instead, a pane the system is not
+ * watching.
  *
- * **Why the height is a plain 40px and not the safe-area inset.** The first two
- * attempts sized this off `env(safe-area-inset-top)`, and both shipped a band of
- * exactly zero. This app has no `apple-mobile-web-app-status-bar-style`, so iOS
- * runs the opaque status bar and hands the web view a viewport that already
- * starts below it — the inset inside the page is 0, and no arithmetic on 0 makes
- * a band. Measured off `INBOX/Tutorial-Off.png` (iPhone 16 Pro Max, 1320x2868):
- * the artwork does not reach its true `#FD4B01` until device row 294, which is
- * 98pt down the screen, 62pt of which is the status bar. So the effect reaches
- * 36pt into the page, and 40px covers it with a little to spare.
+ * This replaced a blank cream band above the banner, which fed the effect a
+ * flat colour it could not visibly smear. It worked, and cost forty pixels of
+ * every home screen; git history has the band if the effect ever needs feeding
+ * again.
  *
- * The `env()` term is kept and added to, not relied on. The day this app takes
- * the translucent status bar the inset becomes real, the viewport grows upward
- * by it, and the band has to grow by the same amount to stay in front.
+ * Three consequences worth knowing:
+ * - `.app-scroll` carries `[data-app-scroll]`, and lib/appScroll.ts is the one
+ *   way code reaches it. Nothing may call window.scrollTo again: it would be
+ *   asking a scroller that no longer moves.
+ * - useScrollLock freezes this pane, not the body. A real element honours
+ *   `overflow: hidden` on iOS, so the pin-the-body dance went with the band.
+ * - In a browser tab the same layout means scrolling cannot collapse Safari's
+ *   bar. Accepted: one scroll architecture everywhere beats two.
  *
- * **Why it is behind an attribute rather than a media query.** Forty blank
- * pixels at the top of the page is a real cost, and it buys nothing anywhere
- * except an installed iOS app. `data-home-screen` is set once at startup by
- * lib/homeScreen.ts; everywhere else this rule collapses to nothing.
- *
- * The proof that this is the whole story, and worth repeating against any
- * screenshot that says the blur is back: with the tutorial open the effect does
- * not happen at all, because the tour locks scrolling. Rows 0 to 186 of
- * `INBOX/Tutorial-On.png` are flat #FBFAF6 to the byte, with the banner starting
- * sharp underneath.
+ * The overscroll rules keep their old job — no rubber banding, no pull to
+ * refresh. Dragging past either end used to haul the whole app with it and
+ * show the settings drawer sitting behind; there is nothing above the header
+ * or below the footer worth reaching for. They are on the pane for that, and
+ * still on html and body for the day something makes the root overflow.
  */
-.top-band {
-  height: 0;
+html,
+body,
+#root {
+  height: 100%;
 }
 
-html[data-home-screen] .top-band {
-  height: calc(env(safe-area-inset-top, 0px) + 40px);
+html,
+body {
+  overflow: hidden;
 }
 
-/* No rubber banding, and no pull to refresh.
-   Dragging past the top or the bottom on a phone used to haul the whole app
-   with it and show the settings drawer sitting behind, which is a fixed panel
-   and so stays put while everything in front of it moves. There is nothing
-   above the header or below the footer worth reaching for. */
+.app-scroll {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+
 html,
 body {
   overscroll-behavior: none;
@@ -318,11 +323,18 @@ body {
     font-size: 10pt;
   }
 
-  /* Tailwind's min-h-screen holds the app panel a full viewport tall even with
-     every child of it hidden, so the schedule used to begin on page two behind
-     a blank one. Paper has no viewport. */
-  .app-panel {
-    min-height: 0 !important;
+  /* The screen holds everything to the viewport and scrolls the .app-scroll
+     pane inside it — see the scroll architecture at the top of this file.
+     Paper has no viewport: every box has to open up to its full height and
+     let the printer paginate, or the schedule prints as one clipped page. */
+  html,
+  body,
+  #root,
+  .app-shell,
+  .app-panel,
+  .app-scroll {
+    height: auto !important;
+    overflow: visible !important;
   }
   .app-panel main {
     padding-top: 0;

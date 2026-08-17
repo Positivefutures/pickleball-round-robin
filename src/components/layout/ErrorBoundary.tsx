@@ -102,8 +102,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!crash) return this.props.children;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-800 p-4">
-        <div className={`w-full max-w-md ${panelCard} bg-white p-6`}>
+      // h-full with its own overflow, because the document cannot scroll in
+      // this app (see index.css) and the crash screen mounts outside the
+      // app's own scroll pane. The card centres itself with m-auto, which
+      // unlike items-center still lets its top be scrolled to on a short
+      // phone screen.
+      <div className="flex h-full overflow-y-auto bg-gray-800 p-4">
+        <div className={`m-auto w-full max-w-md ${panelCard} bg-white p-6`}>
           <h1 className="text-center text-[1.35rem] font-extrabold text-[#222]">
             Something went wrong
           </h1>

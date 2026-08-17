@@ -438,8 +438,8 @@ describe('Back and Skip', () => {
     //
     // happy-dom reports every rect as zero, so the smallest-scroll cards ask for
     // nothing measurable. The congratulations card is the one that goes to a
-    // fixed place, which makes its arrival observable — and it has to be matched
-    // on the exact call, because releasing the scroll lock calls scrollTo too.
+    // fixed place, which makes its arrival observable. The ask lands on the
+    // app's scroll pane, which is the only thing that scrolls in this app.
     throughSetup();
     frame();
     expect(cardNumber()).toBe(4);
@@ -447,13 +447,13 @@ describe('Back and Skip', () => {
     frame();
     expect(cardNumber()).toBe(5);
 
-    const scrollTo = vi.spyOn(window, 'scrollTo');
+    const scrollTo = vi.fn();
+    container.querySelector<HTMLElement>('[data-app-scroll]')!.scrollTo = scrollTo as never;
     clickButton(/^Back$/);
     frame();
 
     expect(cardNumber()).toBe(4);
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
-    scrollTo.mockRestore();
   });
 
   it('ends the tour from any card, for good', () => {

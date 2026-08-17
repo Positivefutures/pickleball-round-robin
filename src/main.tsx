@@ -11,16 +11,11 @@ import { startAppUpdates } from './lib/appUpdate'
 import { ErrorBoundary, CrashTest } from './components/layout/ErrorBoundary'
 import { sharedKeyFromUrl } from './lib/shareKey'
 import { LiveSessionPage } from './components/live/LiveSessionPage'
-import { markHomeScreenApp } from './lib/homeScreen'
 
 // First, so that a fault in anything below is heard rather than lost. It only
 // attaches two listeners; nothing is loaded and nothing is sent until something
 // actually breaks.
 startMonitoring()
-
-// Before the first paint, so the banner is never drawn once without its band and
-// then again with it. One attribute on <html>; see lib/homeScreen.ts.
-markHomeScreenApp()
 
 // A link somebody was sent, rather than their own copy of the app. Read here
 // rather than inside App because a visitor has their own saved session in this

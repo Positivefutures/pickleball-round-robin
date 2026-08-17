@@ -7,6 +7,7 @@ import { arePartners, partnerKey } from '../../lib/partnerships';
 import { renumberFrom } from '../../lib/courtNumbers';
 import { courtRatingDiff } from '../../utils/helpers';
 import { openRoundTimer, stopAndResetIfRound } from '../../lib/roundTimer';
+import { appScrollTo } from '../../lib/appScroll';
 import { RoundCard } from './RoundCard';
 import { PartnerSummary } from './PartnerSummary';
 import { RemovePlayerDialog } from './RemovePlayerDialog';
@@ -360,7 +361,7 @@ export function SchedulePage({
       next.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
       return;
     }
-    window.scrollTo({ top: 0, behavior: scrollBehavior() });
+    appScrollTo({ top: 0, behavior: scrollBehavior() });
   }
 
   const hasPartnerships = partnerships.length > 0;

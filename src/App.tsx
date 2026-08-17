@@ -6,6 +6,7 @@ import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useStoredValue } from './hooks/useStoredValue';
 import { useScrollLock } from './hooks/useScrollLock';
+import { appScrollTo } from './lib/appScroll';
 import * as stores from './lib/stores';
 import { extendSchedule, generateSchedule, regenerateRemaining } from './lib/pairing';
 import { addToRemainingRounds, replacePlayerInRounds } from './lib/sitout';
@@ -291,7 +292,7 @@ function App() {
   // Continue to Setup below the roster — and keeping that offset would drop you
   // into the middle of the next step instead of its heading.
   useEffect(() => {
-    window.scrollTo(0, 0);
+    appScrollTo({ top: 0 });
   }, [step]);
 
   // Gets the next dressed-up robin fetched and decoded, if one is due on the
@@ -1425,7 +1426,7 @@ function App() {
 
   return (
     <div
-      className={`app-shell relative min-h-screen overflow-x-hidden bg-gray-800 ${
+      className={`app-shell relative h-full overflow-x-hidden bg-gray-800 ${
         largeText ? 'text-large' : ''
       }`}
     >
@@ -1450,7 +1451,7 @@ function App() {
       {/* The whole app rides on this panel. Opening settings slides it left far
           enough to leave a fifth of it — including the settings button — on screen. */}
       <div
-        className={`app-panel relative z-10 min-h-screen bg-gray-50 transition-transform duration-300 ease-in-out ${
+        className={`app-panel relative z-10 h-full bg-gray-50 transition-transform duration-300 ease-in-out ${
           settingsOpen ? '-translate-x-[80%] shadow-2xl shadow-black/50' : ''
         }`}
       >
@@ -1469,6 +1470,13 @@ function App() {
           aria-hidden="true"
         />
       )}
+      {/* The pane the whole app scrolls in, banner to footer — the document
+          itself is held to the viewport and cannot move, which is what keeps
+          iOS 26's scroll edge effect off the top of the banner. The story is
+          at the top of index.css; lib/appScroll.ts is how code scrolls it.
+          The click-catcher above sits outside it on purpose: an absolute
+          inset-0 child of a scrolled pane covers only the first screenful. */}
+      <div data-app-scroll className="app-scroll">
       <Header
         // Past the roster step the group being worked on is the useful label
         title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}
@@ -1687,6 +1695,7 @@ function App() {
             the quietest thing here and nothing follows it. */}
         <div className="mt-1">{COPYRIGHT}</div>
       </footer>
+      </div>
       </div>
 
       {showInstructions && (

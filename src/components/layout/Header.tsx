@@ -46,8 +46,8 @@ const NAVY = '#051829';
  *
  * The cream runs almost the same value as the page behind the tabs, so without
  * a rule the artwork has no bottom and the two just bleed into one another. The
- * top edge has the same problem against the safe-area band below the clock,
- * which is the same cream again, so it takes the same line.
+ * top edge has the same problem against iOS's own status bar, which theme-color
+ * paints in the same cream again, so it takes the same line.
  *
  * Both are drawn inside the height rather than added to it, so nothing below
  * moves.
@@ -98,153 +98,142 @@ export function Header({
     'flex h-10 w-12 items-center justify-center rounded-md shadow-sm transition-colors';
 
   return (
-    <>
-      {/* Blank cream, so that the thing iOS 26 blurs over the top of an
-          installed app is a flat colour and the blur of it is that colour. The
-          banner then starts below everything the effect touches and stays
-          sharp. Its height, why it is a fixed forty pixels rather than anything
-          measured off the safe area, and why it is worth spending only on an
-          iPhone home screen are all in `.top-band` in index.css. Everywhere
-          else this is a div of no height. */}
-      <div aria-hidden="true" className="top-band no-print" style={{ backgroundColor: CREAM }} />
+    <header
+      className="relative isolate overflow-hidden no-print"
+      style={{
+        height: HEIGHT,
+        backgroundColor: CREAM,
+        borderTop: `1px solid ${RULE}`,
+        borderBottom: `1px solid ${RULE}`,
+      }}
+    >
+      {/* Wedge, halftone fade, badge and dots. Pinned left, height drives it. */}
+      <img
+        src="/header-left.png"
+        alt=""
+        width={280}
+        height={264}
+        className="pointer-events-none absolute inset-y-0 left-0 h-full w-auto max-w-none select-none"
+      />
 
-      <header
-        className="relative isolate overflow-hidden no-print"
+      {/* The court, in a window anchored to the right edge with the image held
+          against the window's left. Narrowing the window therefore eats the
+          picture from its right: the leading diagonal survives and the ball is
+          what goes over the side, which is what should happen on a phone. */}
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 overflow-hidden"
         style={{
-          height: HEIGHT,
-          backgroundColor: CREAM,
-          borderTop: `1px solid ${RULE}`,
-          borderBottom: `1px solid ${RULE}`,
+          width: `min(calc(${RIGHT_ASPECT} * ${HEIGHT}), calc(100% - ${TITLE_MIN}))`,
         }}
       >
-        {/* Wedge, halftone fade, badge and dots. Pinned left, height drives it. */}
         <img
-          src="/header-left.png"
+          src="/header-right.jpg"
           alt=""
-          width={280}
+          width={352}
           height={264}
-          className="pointer-events-none absolute inset-y-0 left-0 h-full w-auto max-w-none select-none"
+          className="absolute inset-y-0 left-0 h-full w-auto max-w-none select-none"
         />
+      </div>
 
-        {/* The court, in a window anchored to the right edge with the image held
-            against the window's left. Narrowing the window therefore eats the
-            picture from its right: the leading diagonal survives and the ball is
-            what goes over the side, which is what should happen on a phone. */}
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 overflow-hidden"
-          style={{
-            width: `min(calc(${RIGHT_ASPECT} * ${HEIGHT}), calc(100% - ${TITLE_MIN}))`,
-          }}
+      <div
+        className="relative flex h-full items-center"
+        style={{
+          paddingLeft: `calc(${TITLE_INSET} * ${HEIGHT})`,
+          // Clears the buttons, and the court's diagonal where it reaches
+          // furthest in across the title's lowest line.
+          paddingRight: `max(7.5rem, calc(0.95 * ${HEIGHT}))`,
+        }}
+      >
+        {/* Clamped rather than truncated: three lines is enough for the longest
+            name worth reading, and a fourth would push the banner open. Three
+            lines of the largest size still sit inside the banner at every width,
+            which is what holds the clamp's top end where it is. */}
+        <h1
+          className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
+          style={{ color: NAVY }}
         >
-          <img
-            src="/header-right.jpg"
-            alt=""
-            width={352}
-            height={264}
-            className="absolute inset-y-0 left-0 h-full w-auto max-w-none select-none"
-          />
-        </div>
+          {titleHref ? (
+            <a href={titleHref} className="hover:opacity-70 transition-opacity">
+              {title}
+            </a>
+          ) : onTitleClick ? (
+            /* The whole name is the target, which on a phone is the only tap
+               area big enough to be worth having. The chevron runs on from the
+               last word rather than sitting in a corner of its own, so a name
+               that wraps to three lines keeps it. */
+            <button
+              type="button"
+              onClick={onTitleClick}
+              aria-haspopup="dialog"
+              className="text-left hover:opacity-70 transition-opacity"
+            >
+              {title}
+              {/* Sized against the title rather than in pixels, so it holds its
+                  share of the line at every width the banner clamps to. The
+                  glyph is a thin chevron inside a 24 box, so it needs most of a
+                  full em to carry against type this heavy. */}
+              <ChevronDownIcon
+                className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
+              />
+            </button>
+          ) : (
+            title
+          )}
+        </h1>
+      </div>
 
-        <div
-          className="relative flex h-full items-center"
-          style={{
-            paddingLeft: `calc(${TITLE_INSET} * ${HEIGHT})`,
-            // Clears the buttons, and the court's diagonal where it reaches
-            // furthest in across the title's lowest line.
-            paddingRight: `max(7.5rem, calc(0.95 * ${HEIGHT}))`,
-          }}
-        >
-          {/* Clamped rather than truncated: three lines is enough for the longest
-              name worth reading, and a fourth would push the banner open. Three
-              lines of the largest size still sit inside the banner at every width,
-              which is what holds the clamp's top end where it is. */}
-          <h1
-            className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
+      {/* Held to the top rather than centred: the ball sits across the lower
+          half of the court, and a button parked on top of it reads as a
+          mistake. Up here the diagonal is shallow, so the left button laps
+          onto the cream — which is why both are filled rather than outlined. */}
+      <div className="absolute right-3 top-2 z-10 flex items-center gap-2">
+        {corner}
+        {onPrint && (
+          <button
+            type="button"
+            onClick={onPrint}
+            aria-label="Print / Save PDF"
+            title="Print / Save PDF"
+            className={`${button} bg-white/95 ring-1 ring-black/10 hover:bg-white`}
             style={{ color: NAVY }}
           >
-            {titleHref ? (
-              <a href={titleHref} className="hover:opacity-70 transition-opacity">
-                {title}
-              </a>
-            ) : onTitleClick ? (
-              /* The whole name is the target, which on a phone is the only tap
-                 area big enough to be worth having. The chevron runs on from the
-                 last word rather than sitting in a corner of its own, so a name
-                 that wraps to three lines keeps it. */
-              <button
-                type="button"
-                onClick={onTitleClick}
-                aria-haspopup="dialog"
-                className="text-left hover:opacity-70 transition-opacity"
-              >
-                {title}
-                {/* Sized against the title rather than in pixels, so it holds its
-                    share of the line at every width the banner clamps to. The
-                    glyph is a thin chevron inside a 24 box, so it needs most of a
-                    full em to carry against type this heavy. */}
-                <ChevronDownIcon
-                  className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
-                />
-              </button>
-            ) : (
-              title
-            )}
-          </h1>
-        </div>
-
-        {/* Held to the top rather than centred: the ball sits across the lower
-            half of the court, and a button parked on top of it reads as a
-            mistake. Up here the diagonal is shallow, so the left button laps
-            onto the cream — which is why both are filled rather than outlined. */}
-        <div className="absolute right-3 top-2 z-10 flex items-center gap-2">
-          {corner}
-          {onPrint && (
-            <button
-              type="button"
-              onClick={onPrint}
-              aria-label="Print / Save PDF"
-              title="Print / Save PDF"
-              className={`${button} bg-white/95 ring-1 ring-black/10 hover:bg-white`}
-              style={{ color: NAVY }}
+            <svg
+              width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"
             >
-              <svg
-                width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-            </button>
-          )}
-          {/* Stays on screen in the sliver of panel left visible when the drawer
-              is open, so the same button closes it again. */}
-          {onToggleSettings && (
-            <button
-              type="button"
-              onClick={onToggleSettings}
-              aria-expanded={settingsOpen}
-              aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
-              title="Settings"
-              className={`${button} ${
-                settingsOpen ? 'text-white' : 'bg-white/95 ring-1 ring-black/10 hover:bg-white'
-              }`}
-              style={settingsOpen ? { backgroundColor: NAVY } : { color: NAVY }}
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+          </button>
+        )}
+        {/* Stays on screen in the sliver of panel left visible when the drawer
+            is open, so the same button closes it again. */}
+        {onToggleSettings && (
+          <button
+            type="button"
+            onClick={onToggleSettings}
+            aria-expanded={settingsOpen}
+            aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
+            title="Settings"
+            className={`${button} ${
+              settingsOpen ? 'text-white' : 'bg-white/95 ring-1 ring-black/10 hover:bg-white'
+            }`}
+            style={settingsOpen ? { backgroundColor: NAVY } : { color: NAVY }}
+          >
+            <svg
+              width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              aria-hidden="true"
             >
-              <svg
-                width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </header>
-    </>
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </header>
   );
 }

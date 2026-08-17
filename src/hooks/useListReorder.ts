@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
+import { appScrollBy, appScrollY } from '../lib/appScroll';
 
 /**
  * A list whose rows can be picked up and moved, by finger and by keyboard.
@@ -169,9 +170,10 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
 
   /**
    * Sixteen rounds is taller than a phone, so a drag has to be able to reach
-   * the end of the list. The window scrolls while the finger sits in the top or
-   * bottom strip, and the travel is measured in document coordinates — so a row
-   * under a stationary finger keeps moving as the page goes by underneath it.
+   * the end of the list. The app's scroll pane moves while the finger sits in
+   * the top or bottom strip, and the travel is measured in page coordinates —
+   * clientY plus how far down the pane is — so a row under a stationary finger
+   * keeps moving as the page goes by underneath it.
    *
    * A `function` rather than a const so it can schedule itself, which is the
    * one thing a `useCallback` cannot do.
@@ -189,12 +191,12 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
       else if (bottom > 0) step = Math.min(MAX_SCROLL_STEP, (bottom / EDGE) * MAX_SCROLL_STEP);
 
       if (step !== 0) {
-        const before = window.scrollY;
-        window.scrollBy(0, step);
-        // Only if the page actually moved. At either end of the document it
-        // has not, and pretending otherwise would drag the row off the list.
-        if (window.scrollY !== before) {
-          setOffset(finger.clientY + window.scrollY - finger.startDoc);
+        const before = appScrollY();
+        appScrollBy(step);
+        // Only if the page actually moved. At either end of the pane it has
+        // not, and pretending otherwise would drag the row off the list.
+        if (appScrollY() !== before) {
+          setOffset(finger.clientY + appScrollY() - finger.startDoc);
         }
       }
       frame.current = requestAnimationFrame(tick);
@@ -281,7 +283,7 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
         if (!canMove(index)) return;
         press.current = {
           from: index,
-          startDoc: e.clientY + window.scrollY,
+          startDoc: e.clientY + appScrollY(),
           clientY: e.clientY,
           captured: false,
         };
@@ -290,7 +292,7 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
       onPointerMove: (e: PointerEvent) => {
         const finger = press.current;
         if (finger === null) return;
-        const dy = e.clientY + window.scrollY - finger.startDoc;
+        const dy = e.clientY + appScrollY() - finger.startDoc;
         finger.clientY = e.clientY;
 
         if (!finger.captured) {
@@ -303,7 +305,7 @@ export function useListReorder({ count, disabled, onMove }: Options): ListReorde
           const centres: number[] = [];
           for (let i = 0; i < count; i++) {
             const rect = rows.current[i]?.getBoundingClientRect();
-            centres[i] = rect ? rect.top + rect.height / 2 + window.scrollY : 0;
+            centres[i] = rect ? rect.top + rect.height / 2 + appScrollY() : 0;
           }
           setDrag({ from: finger.from, centres, open: openIndices() });
           if (frame.current === null) startEdgeScroll();
