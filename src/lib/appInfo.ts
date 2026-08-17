@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.46';
+export const APP_VERSION = '3.47';
 
 /**
  * The copyright line, at the foot of the app and of the settings drawer.

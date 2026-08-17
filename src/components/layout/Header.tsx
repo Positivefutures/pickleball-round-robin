@@ -42,6 +42,23 @@ const CREAM = '#FBFAF6';
 const NAVY = '#051829';
 
 /**
+ * Height of the flat cream strip above the banner.
+ *
+ * The safe-area inset alone is not enough, which is what the first attempt at
+ * this used and why the blur came back. Measured off a screenshot from an
+ * iPhone 16 Pro Max: the inset is 62pt, and iOS was still redrawing the page
+ * down to 96pt. So it runs at full strength over the inset and then feathers
+ * for another 34pt, and the banner's first 34pt were being blurred with it —
+ * enough to drag the wedge's orange back up over the clock.
+ *
+ * 36px covers the feather with a little to spare. The second term is the inset
+ * again, multiplied far past 36 and then clamped back to it, which is how you
+ * write "36px, but only where there is an inset at all" in one expression.
+ * Anywhere without one the whole calc is 0 and the band is a zero-height div.
+ */
+const BAND = 'calc(env(safe-area-inset-top, 0px) + min(36px, 100 * env(safe-area-inset-top, 0px)))';
+
+/**
  * A hairline closing the banner off at both ends.
  *
  * The cream runs almost the same value as the page behind the tabs, so without
@@ -111,16 +128,16 @@ export function Header({
           The effect cannot be turned off from a web page. What it blurs can be
           changed, though, and a blur of flat cream is flat cream. So
           `viewport-fit=cover` in index.html takes the strip back, and this fills
-          it with the colour the banner already sits on. The banner itself starts
-          below it, where it has always started, and stays sharp.
+          it with the colour the banner already sits on. The banner starts below
+          everything iOS touches, and stays sharp.
 
-          Nothing moves anywhere else: off iOS, and on any iOS that does not
-          claim the strip, `env(safe-area-inset-top)` is 0 and this is a
-          zero-height div. */}
+          How far down that reaches is the whole trick, and it is further than
+          the clock: see BAND. Nothing moves anywhere else, because off iOS the
+          band has no height. */}
       <div
         aria-hidden="true"
         className="no-print"
-        style={{ height: 'env(safe-area-inset-top)', backgroundColor: CREAM }}
+        style={{ height: BAND, backgroundColor: CREAM }}
       />
 
       <header
