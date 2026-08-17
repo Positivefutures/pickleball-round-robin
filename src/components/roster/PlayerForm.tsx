@@ -19,6 +19,11 @@ interface Props {
   /** Overrides the submit label where "Add Player" would be the wrong words. */
   submitLabel?: string;
   /**
+   * Overrides the name field's label for the same reason. Adding a guest uses
+   * this form, and on that panel the person being named is not a player yet.
+   */
+  nameLabel?: string;
+  /**
    * Puts the buttons on a row of their own under the fields, rather than in
    * line with them. The wide panel on the Players tab has room for them beside
    * Gender; a narrow one does not, and they end up wrapping one at a time.
@@ -36,6 +41,7 @@ export function PlayerForm({
   selectedRosterIds,
   onRosterToggle,
   submitLabel,
+  nameLabel = 'Player Name',
   stackActions = false,
 }: Props) {
   const [name, setName] = useState('');
@@ -146,7 +152,7 @@ export function PlayerForm({
       <div className="flex gap-3 items-end flex-wrap">
       <div className="flex-1 min-w-[160px]">
         <label className={`${FIELD_LABEL} mb-1`}>
-          Player Name
+          {nameLabel}
         </label>
         {/* Every offer of help is turned off here. A field labelled Player Name
             with no autocomplete set is read by browsers and password managers

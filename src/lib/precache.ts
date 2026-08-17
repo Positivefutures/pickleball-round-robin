@@ -29,14 +29,21 @@ export const PRECACHED_PUBLIC = [
   // Ko-fi. They cost 35 KB together and reading the terms offline is fair.
   '/privacy.html',
   '/terms.html',
+  // The default alarm tone, 48 KB, and the only one of the seven that is here.
+  // A round ending with no sound is the timer failing at the one thing it is
+  // for, and a host who never opened the tone picker has this one — so this is
+  // the file that has to be on the phone before the phone is ever at a court.
+  // The other six are runtime cached below.
+  '/alarms/clear-announce.mp3',
 ];
 
 /**
- * Cached the first time somebody looks at them, and not before.
+ * Cached the first time somebody reaches for them, and not before.
  *
- * These are the panel illustrations, which come to about 320 KB. Most people
- * never open Donate, so precaching them would spend a phone's data at a court
- * on pictures it will not show.
+ * The panel illustrations, about 320 KB, and the six alarm tones nobody has
+ * chosen, about 400 KB. Most people never open Donate and never change their
+ * alarm, so precaching either would spend a phone's data at a court on things
+ * it will not use.
  */
 export const RUNTIME_CACHED_PUBLIC = [
   '/account-top.png',
@@ -111,6 +118,21 @@ export const RUNTIME_CACHED_PUBLIC = [
   '/instructions/share-qr.webp',
   '/instructions/special-types.webp',
   '/instructions/standings.webp',
+  // The six alarm tones that are not the default, about 400 KB of which the
+  // marimba is 300 KB on its own. Precaching the set would quadruple what an
+  // install costs to give most hosts six sounds they will never choose.
+  //
+  // Runtime caching lands them at the right moment instead: picking a tone in
+  // the timer sheet plays it, and playing it is what fetches it. So the tone a
+  // host actually uses is on the phone from the moment they chose it, which is
+  // necessarily a moment they had a network. See alarmSounds.ts for what
+  // happens on the path where none of that held.
+  '/alarms/double-beep.mp3',
+  '/alarms/fairy-message.mp3',
+  '/alarms/marimba-ringtone.mp3',
+  '/alarms/musical-alert.mp3',
+  '/alarms/police-whistle.mp3',
+  '/alarms/software-interface.mp3',
 ];
 
 /**

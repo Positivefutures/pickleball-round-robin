@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ALARM_TONES, previewTone, type AlarmToneId } from '../../lib/alarmSounds';
+import { ALARM_TONES, previewTone, resolveTone, type AlarmToneId } from '../../lib/alarmSounds';
 import { CheckIcon, ChevronDownIcon } from '../icons';
 import { VolumeUpIcon } from './timerIcons';
 
@@ -9,21 +9,25 @@ interface Props {
 }
 
 /**
- * Choosing which of the five tones plays when time is up.
+ * Choosing which of the seven tones plays when time is up.
  *
  * A native `<select>` hands the list to the OS, which is the browser's own
  * grey menu rather than this app's — the same reason `GroupPicker` draws its
  * own rows. This one is lighter than `GroupPicker`'s centred modal, though:
- * an inline expanding list under the row, since it's a five-item pick already
+ * an inline expanding list under the row, since it's a short pick already
  * sitting inside a full-bleed sheet, and a second stacked overlay on top of
  * that would be heavy-handed for what it's choosing.
  *
- * Picking a tone plays it — the point of the row is to hear the five, not
- * just read their names.
+ * Picking a tone plays it — the point of the row is to hear them, not just
+ * read their names. It is also what puts the file in the runtime cache, so a
+ * tone that has been chosen is a tone that will ring with no signal.
  */
 export function AlarmTonePicker({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
-  const current = ALARM_TONES.find((t) => t.id === value) ?? ALARM_TONES[0];
+  // Through resolveTone, so a tone stored by the synthesized build reads as the
+  // recording that replaced it rather than falling back to the top of the list.
+  const selectedId = resolveTone(value);
+  const current = ALARM_TONES.find((t) => t.id === selectedId) ?? ALARM_TONES[0];
 
   function select(id: AlarmToneId) {
     onChange(id);
@@ -48,7 +52,7 @@ export function AlarmTonePicker({ value, onChange }: Props) {
       {open && (
         <div className="space-y-2 pb-2">
           {ALARM_TONES.map((t) => {
-            const selected = t.id === value;
+            const selected = t.id === selectedId;
             return (
               <button
                 key={t.id}

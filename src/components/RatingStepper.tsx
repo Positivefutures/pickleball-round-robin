@@ -5,7 +5,7 @@ import { STEPPER_KEY, STEPPER_VALUE } from './stepperLook';
  * The minus / number / plus control for a player's rating.
  *
  * Extracted so every form that sets one steps the same way, between the same
- * bounds: Add Player on the Players tab, the roster's own edit row, Add a Guest
+ * bounds: Add Player on the Players tab, the roster's own edit row, Add Guest
  * and Edit Player from the schedule. See lib/rating.ts for the bounds.
  *
  * Painted like the courts and rounds steppers on Setup, out of `stepperLook`:

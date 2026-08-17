@@ -1,4 +1,4 @@
-import type { AlarmToneId } from './alarmSounds';
+import { DEFAULT_ALARM_TONE, type AlarmToneId } from './alarmSounds';
 
 /**
  * The shape of the round timer, and what it starts life as.
@@ -57,5 +57,5 @@ export const DEFAULT_ROUND_TIMER_STATE: RoundTimerState = {
   remainingMs: DEFAULT_MINUTES * 60_000,
   soundOn: true,
   flashOn: true,
-  alarmTone: 'bell',
+  alarmTone: DEFAULT_ALARM_TONE,
 };

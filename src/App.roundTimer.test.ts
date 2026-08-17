@@ -15,6 +15,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import App from './App';
 import { runMigrations } from './lib/migrations';
 import { __testing as roundTimerTesting } from './lib/roundTimer';
+import { ALARM_TONES } from './lib/alarmSounds';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -46,8 +47,14 @@ function seed(inGroup: number, selected: number, courts: number) {
   runMigrations();
 }
 
-/** Just enough of AudioContext that startTimer()'s warm-up doesn't throw —
- *  nothing here asserts on the sound itself, that's alarmSounds.test.ts. */
+/**
+ * Just enough of AudioContext that startTimer()'s warm-up doesn't throw —
+ * nothing here asserts on the sound itself, that's alarmSounds.test.ts.
+ *
+ * `fetch` is stubbed alongside it in beforeEach, because the warm-up also
+ * pulls down the chosen tone. Left alone, happy-dom takes that literally and
+ * the suite makes a real request for a file no server here is serving.
+ */
 class FakeAudioContext {
   state = 'running';
   currentTime = 0;
@@ -57,7 +64,13 @@ class FakeAudioContext {
     return {};
   }
   createBufferSource() {
-    return { buffer: null, connect() {}, start() {} };
+    return {
+      buffer: null, loop: false,
+      connect() {}, start() {}, stop() {}, addEventListener() {},
+    };
+  }
+  async decodeAudioData() {
+    return { duration: 4, numberOfChannels: 1 };
   }
   createOscillator() {
     return {
@@ -98,6 +111,7 @@ function mount() {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('AudioContext', FakeAudioContext);
+  vi.stubGlobal('fetch', async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
 });
 
 afterEach(() => {
@@ -173,10 +187,10 @@ function openTimer(n: number) {
   clickLabel('Round timer', roundCard(n));
 }
 
-function storedTimer(): { roundNumber: number | null; phase: string } {
+function storedTimer(): { roundNumber: number | null; phase: string; alarmTone: string } {
   return JSON.parse(
     window.localStorage.getItem('pb-round-timer')
-    ?? '{"roundNumber":null,"phase":"idle"}'
+    ?? '{"roundNumber":null,"phase":"idle","alarmTone":""}'
   );
 }
 
@@ -368,5 +382,43 @@ describe('Round Timer', () => {
     clickButton(/^Generate Schedule/);
 
     expect(storedTimer().roundNumber).toBeNull();
+  });
+
+  /**
+   * The picker is a list of names read off ALARM_TONES, and lib/alarmSounds
+   * proves each of those names is a file. What is left to check is the part
+   * only a mounted App can answer: that opening the row really does put all
+   * seven on screen to choose between.
+   */
+  it('offers all seven tones, opening on the one that is set', () => {
+    openTimer(1);
+    const panel = timerPanel()!;
+
+    // Closed, the row shows the current tone and nothing else.
+    expect(text(panel)).toContain('Clear Announce');
+    expect(text(panel)).not.toContain('Police Whistle');
+
+    clickButton(/^Clear Announce$/, panel);
+
+    const listed = ALARM_TONES.filter((tone) => buttons(
+      new RegExp(`^${tone.label}$`), panel
+    ).length > 0);
+    expect(listed).toHaveLength(7);
+  });
+
+  it('rings the tone that was picked, not the one it opened on', () => {
+    openTimer(1);
+    const panel = timerPanel()!;
+    clickButton(/^Clear Announce$/, panel);
+    clickButton(/^Police Whistle$/, panel);
+
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel); // 12 -> 1
+    clickButton(/^START TIMER$/, panel);
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+
+    expect(text(timerPanel()!)).toContain('TIME’S UP');
+    expect(storedTimer().alarmTone).toBe('police-whistle');
   });
 });

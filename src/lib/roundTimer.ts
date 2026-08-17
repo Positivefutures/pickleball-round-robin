@@ -103,8 +103,9 @@ export function startTimer(): void {
   if (s.roundNumber === null || (s.phase !== 'idle' && s.phase !== 'paused')) return;
 
   // The user gesture that unlocks audio for the alarm the watchdog fires
-  // later, with no gesture of its own.
-  warmUpAudio();
+  // later, with no gesture of its own. It also pulls the chosen tone down now,
+  // minutes before the countdown could want it.
+  warmUpAudio(s.alarmTone);
 
   const remaining = s.phase === 'paused' ? s.remainingMs : s.minutes * 60_000;
   stores.roundTimer.set({ ...s, phase: 'running', endsAt: Date.now() + remaining, remainingMs: remaining });

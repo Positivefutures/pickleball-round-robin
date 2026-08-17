@@ -942,7 +942,7 @@ function App() {
       const player = addPlayer(name, rating, gender, [activeRosterId]);
       if (!schedule) return player.id;
 
-      // Reached from Sub a Player, where somebody is already on their way out.
+      // Reached from Sub Player, where somebody is already on their way out.
       // Adding the newcomer on top would put five people on a court that is
       // losing one, so they take the place instead — the same move
       // handleSubstitute makes, for a player who did not exist a moment ago.

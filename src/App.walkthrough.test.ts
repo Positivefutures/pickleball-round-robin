@@ -289,7 +289,7 @@ describe('9 players / 2 courts', () => {
     const victim = storedSchedule().rounds[0].courts[0].team1[0];
     takeOff(victim.name);
 
-    action(/^Add a Player$/);
+    action(/^Add Player$/);
     expect(text(sheet())).toContain('Who is joining?');
     const offered = buttons(/./, sheet()).map(text);
     expect(offered.filter((t) => t.includes(victim.name))).toHaveLength(1);
@@ -299,7 +299,7 @@ describe('9 players / 2 courts', () => {
     mount();
     generate();
 
-    action(/^Add a Player$/);
+    action(/^Add Player$/);
     expect(text(sheet())).toContain('Everyone in this group is already playing');
   });
 });
@@ -767,7 +767,7 @@ describe('10 in the group, 9 playing / 2 courts', () => {
     const before = storedSchedule();
     const kept = before.rounds.slice(0, 3).map(fingerprint);
 
-    action(/^Add a Player$/);
+    action(/^Add Player$/);
     expect(text(sheet())).toContain('Who is joining?');
     clickButton(/^Jo/, sheet());
 
@@ -2155,7 +2155,7 @@ describe('filling an empty place', () => {
    */
   function addPlayer(): string {
     const before = new Set(everyone(1));
-    action(/^Add a Player$/);
+    action(/^Add Player$/);
     const rows = buttons(/\d\.\d$/, sheet());
     expect(rows.length).toBeGreaterThan(0);
     click(rows[0]);
@@ -2377,9 +2377,9 @@ describe('the Actions sheet', () => {
     clickButton(/^Actions$/);
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(buttons(/./, sheet()).map(text)).toEqual([
-      'Add a Player', 'Remove a Player', 'Add a Guest',
+      'Add Player', 'Remove Player', 'Add Guest',
       'New Round Robin', 'Reshuffle', 'Share Session',
-      'Add a Round', 'Add a Court', 'Remove a Court',
+      'Add Round', 'Add Court', 'Remove Court',
     ]);
   });
 
@@ -2390,7 +2390,7 @@ describe('the Actions sheet', () => {
    * its own — it is nine of them.
    */
   it('heads each action panel with its own glyph, centred, above the title', () => {
-    // Spare players in the group, so Sub a Player and Add a Guest are live
+    // Spare players in the group, so Sub Player and Add Guest are live
     // cards rather than disabled ones that swallow the tap.
     seed(12, 8, 2);
     mount();
@@ -2400,7 +2400,7 @@ describe('the Actions sheet', () => {
     const header = () => sheet().querySelector('header')!;
     expect(header().querySelector('svg.h-14')).toBeNull();
 
-    for (const label of ['Add a Player', 'Remove a Player', 'Add a Guest', 'Reshuffle']) {
+    for (const label of ['Add Player', 'Remove Player', 'Add Guest', 'Reshuffle']) {
       clickButton(new RegExp(`^${label}$`), sheet());
       const stack = header().querySelector('h2')!.parentElement!;
       expect(text(stack), label).toContain(label);
@@ -2606,7 +2606,7 @@ describe('the Actions sheet', () => {
     }
   });
 
-  describe('Add a Court', () => {
+  describe('Add Court', () => {
     // Twelve over two courts is eight playing and four waiting. A third court
     // is exactly enough for the four of them.
     beforeEach(() => seed(12, 12, 2));
@@ -2617,7 +2617,7 @@ describe('the Actions sheet', () => {
       markComplete(1);
       const played = fingerprint(storedSchedule().rounds[0]);
 
-      action(/^Add a Court$/);
+      action(/^Add Court$/);
       expect(text(sheet())).toContain('The 4 players sitting out will be placed on it');
       clickButton(/^Add the Court$/, sheet());
 
@@ -2636,7 +2636,7 @@ describe('the Actions sheet', () => {
       mount();
       generate();
 
-      action(/^Add a Court$/);
+      action(/^Add Court$/);
       clickButton(/^Add the Court$/, sheet());
       expect(window.localStorage.getItem('pb-num-courts')).toBe('3');
 
@@ -2652,12 +2652,12 @@ describe('the Actions sheet', () => {
       generate();
 
       // Nine players fill two courts and a 2v1. A third has nobody for it.
-      action(/^Add a Court$/);
+      action(/^Add Court$/);
       expect(text(sheet())).toContain('a reshuffle would drop it again');
     });
   });
 
-  describe('Remove a Court', () => {
+  describe('Remove Court', () => {
     beforeEach(() => seed(12, 12, 3));
 
     it('takes it out of the unplayed rounds and sits its players down', () => {
@@ -2668,7 +2668,7 @@ describe('the Actions sheet', () => {
       const losing = storedSchedule().rounds[1].courts[1];
       const displaced = [...losing.team1, ...losing.team2].map((p) => p.name);
 
-      action(/^Remove a Court$/);
+      action(/^Remove Court$/);
       clickButton(/^COURT 2/, sheet());
 
       const after = storedSchedule();
@@ -2688,13 +2688,13 @@ describe('the Actions sheet', () => {
       const on = storedSchedule().rounds[0].courts[0];
       const first = [...on.team1, ...on.team2][0].name;
 
-      action(/^Remove a Court$/);
+      action(/^Remove Court$/);
       expect(text(sheet())).toContain(first);
       expect(text(sheet())).toContain('sit out instead');
     });
   });
 
-  describe('Add a Round', () => {
+  describe('Add Round', () => {
     beforeEach(() => seed(9, 9, 2));
 
     it('puts it on the end without touching the ones above', () => {
@@ -2702,7 +2702,7 @@ describe('the Actions sheet', () => {
       generate();
       const before = storedSchedule().rounds.map(fingerprint);
 
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
       // Future tense: nothing has happened until the button below is pressed.
       expect(text(sheet())).toContain('Round 9 will be added');
       expect(text(sheet())).not.toContain('are added');
@@ -2728,7 +2728,7 @@ describe('the Actions sheet', () => {
     it('offers no way to add more than one', () => {
       mount();
       generate();
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
 
       expect(text(sheet())).not.toContain('Add 2 Rounds');
       expect(sheet().querySelector('[aria-label="More rounds"]')).toBeNull();
@@ -2738,7 +2738,7 @@ describe('the Actions sheet', () => {
     it('offers the four game types, Normal first', () => {
       mount();
       generate();
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
 
       const pills = [...sheet().querySelectorAll('button')]
         .map((b) => text(b))
@@ -2749,7 +2749,7 @@ describe('the Actions sheet', () => {
     it('builds the new round as the type that was picked', () => {
       mount();
       generate();
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
       clickButton(/^Gendered$/, sheet());
       clickButton(/^Add 1 Round$/, sheet());
 
@@ -2762,7 +2762,7 @@ describe('the Actions sheet', () => {
     it('adds an ordinary round when nothing is picked', () => {
       mount();
       generate();
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
       clickButton(/^Add 1 Round$/, sheet());
 
       expect(storedSchedule().rounds[8].roundType).toBeUndefined();
@@ -2772,13 +2772,13 @@ describe('the Actions sheet', () => {
     it('adds nothing on Cancel', () => {
       mount();
       generate();
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
       clickButton(/^Mixed$/, sheet());
       clickButton(/^Cancel$/, sheet());
 
       expect(storedSchedule().rounds).toHaveLength(8);
       // Back on the menu, not shut.
-      expect(text(sheet())).toContain('Add a Round');
+      expect(text(sheet())).toContain('Add Round');
     });
 
     it('is still offered once every round has been played', () => {
@@ -2786,14 +2786,14 @@ describe('the Actions sheet', () => {
       generate();
       for (let n = 1; n <= 8; n++) markComplete(n);
 
-      action(/^Add a Round$/);
+      action(/^Add Round$/);
       clickButton(/^Add 1 Round$/, sheet());
       expect(storedSchedule().rounds).toHaveLength(9);
       expect(completedRounds()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     });
   });
 
-  describe('Sub a Player', () => {
+  describe('Sub Player', () => {
     // Twelve in the group, eleven playing: Lex is the one left to come on.
     beforeEach(() => seed(12, 11, 2));
 
@@ -2841,7 +2841,7 @@ describe('the Actions sheet', () => {
       clickButton(/^Lex/, sheet());
 
       clickButton(/^Actions$/);
-      clickButton(/^Add a Player$/, sheet());
+      clickButton(/^Add Player$/, sheet());
       expect(text(sheet())).toContain(going);
     });
 
@@ -2850,7 +2850,7 @@ describe('the Actions sheet', () => {
      *
      * The list of people who could come on is the group minus whoever is
      * already playing, and until now a newcomer was not on it — the answer was
-     * to back out, add them, and start the substitution again. Add a Player has
+     * to back out, add them, and start the substitution again. Add Player has
      * had a way out of that list for a long time; this is the same one.
      */
     it('lets somebody brand new take the place, in one move', () => {
@@ -2868,7 +2868,7 @@ describe('the Actions sheet', () => {
       clickButton(/^Someone New$/, sheet());
 
       // The form says what it is about to do, which is not what it says when
-      // it is reached from Add a Player.
+      // it is reached from Add Player.
       expect(text(sheet())).toContain(`Add and Sub In for ${going}`);
       const name = sheet().querySelector('input[type="text"]') as HTMLInputElement;
       act(() => {
@@ -2892,14 +2892,14 @@ describe('the Actions sheet', () => {
   });
 
   /**
-   * The card that took Sub a Player's place on the grid.
+   * The card that took Sub Player's place on the grid.
    *
    * The two are not the same job and the panel says so: a substitution keeps
    * the rounds as they were and puts somebody else in one seat, and this
    * rebuilds every round still to play around one fewer person. That is why
    * only this one locks the Completed checkboxes.
    */
-  describe('Remove a Player', () => {
+  describe('Remove Player', () => {
     beforeEach(() => seed(9, 9, 2));
 
     it('wears the same red as the other card that takes something away', () => {
@@ -2911,8 +2911,8 @@ describe('the Actions sheet', () => {
         (buttons(new RegExp(`^${label}$`), sheet())[0].querySelector('span') as HTMLElement)
           .style.color;
 
-      expect(glyph('Remove a Player')).toBe(glyph('Remove a Court'));
-      expect(glyph('Remove a Player')).not.toBe(glyph('Add a Player'));
+      expect(glyph('Remove Player')).toBe(glyph('Remove Court'));
+      expect(glyph('Remove Player')).not.toBe(glyph('Add Player'));
     });
 
     it('takes the one tapped out of the rounds still to play', () => {
@@ -2923,7 +2923,7 @@ describe('the Actions sheet', () => {
       const going = storedSchedule().rounds[1].courts[0].team1[0];
       const playedAs = fingerprint(storedSchedule().rounds[0]);
 
-      action(/^Remove a Player$/);
+      action(/^Remove Player$/);
       expect(text(sheet())).toContain('Who is going home?');
       clickButton(new RegExp(`^${going.name}`), sheet());
       clickButton(/^Remove$/, sheet());
@@ -2947,7 +2947,7 @@ describe('the Actions sheet', () => {
       markComplete(1);
 
       const going = storedSchedule().rounds[1].courts[0].team1[0].name;
-      action(/^Remove a Player$/);
+      action(/^Remove Player$/);
       clickButton(new RegExp(`^${going}`), sheet());
       clickButton(/^Remove$/, sheet());
 
@@ -2968,7 +2968,7 @@ describe('the Actions sheet', () => {
       mount();
       generate();
 
-      action(/^Remove a Player$/);
+      action(/^Remove Player$/);
       clickButton(new RegExp(`^${storedSchedule().rounds[0].courts[0].team1[0].name}`), sheet());
       expect(text(sheet())).toContain('This drops to 1 court');
       expect(text(sheet())).toContain('1 player sits out each round');
@@ -2979,7 +2979,7 @@ describe('the Actions sheet', () => {
       mount();
       generate();
 
-      action(/^Remove a Player$/);
+      action(/^Remove Player$/);
       clickButton(new RegExp(`^${storedSchedule().rounds[0].courts[0].team1[0].name}`), sheet());
       expect(text(sheet())).not.toContain('This drops to');
     });
@@ -2990,20 +2990,20 @@ describe('the Actions sheet', () => {
       generate();
 
       clickButton(/^Actions$/);
-      const card = buttons(/^Remove a Player$/, sheet())[0] as HTMLButtonElement;
+      const card = buttons(/^Remove Player$/, sheet())[0] as HTMLButtonElement;
       expect(card.disabled).toBe(true);
       expect(card.title).toContain('fewer than 4');
     });
   });
 
-  describe('Add a Guest', () => {
+  describe('Add Guest', () => {
     beforeEach(() => seed(9, 9, 2));
 
     it('plays this session without ever joining the group', () => {
       mount();
       generate();
 
-      action(/^Add a Guest$/);
+      action(/^Add Guest$/);
       typeInto(nameBox(), 'Sam');
       clickButton(/^Add Guest$/, sheet());
 
@@ -3025,11 +3025,24 @@ describe('the Actions sheet', () => {
       }
     });
 
+    it('names the field for who is being added', () => {
+      mount();
+      generate();
+
+      action(/^Add Guest$/);
+
+      // The panel borrows Add Player's form, and calling the box Player Name
+      // on it asks for the one thing a guest is not.
+      const labels = [...sheet().querySelectorAll('label')].map((el) => text(el));
+      expect(labels).toContain('Guest Name');
+      expect(labels).not.toContain('Player Name');
+    });
+
     it('goes when the session goes', () => {
       mount();
       generate();
 
-      action(/^Add a Guest$/);
+      action(/^Add Guest$/);
       typeInto(nameBox(), 'Sam');
       clickButton(/^Add Guest$/, sheet());
       expect(storedGuests()).toHaveLength(1);
@@ -3040,7 +3053,7 @@ describe('the Actions sheet', () => {
     });
   });
 
-  describe('Add a Player', () => {
+  describe('Add Player', () => {
     beforeEach(() => seed(9, 9, 2));
 
     it('takes somebody nobody has met into the group and the session', () => {
@@ -3048,7 +3061,7 @@ describe('the Actions sheet', () => {
       generate();
 
       clickButton(/^Actions$/);
-      clickButton(/^Add a Player$/, sheet());
+      clickButton(/^Add Player$/, sheet());
       clickButton(/^Someone New$/, sheet());
       typeInto(nameBox(), 'Nia');
       clickButton(/^Add to Group and Session$/, sheet());
@@ -5044,7 +5057,7 @@ describe('a linked player', () => {
     // Removing anybody rebuilds every round still to be played, and a selection
     // is a place rather than a person. Left standing, the pencil reappears on
     // whoever the rebuild put in that place, and opens their panel.
-    action(/^Remove a Player$/);
+    action(/^Remove Player$/);
     clickButton(/^Cara/, sheet());
     clickButton(/^Remove$/, sheet());
 

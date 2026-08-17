@@ -52,7 +52,7 @@ function BadgeMark({ minus = false }: { minus?: boolean }) {
   );
 }
 
-/** A court with a plus at its corner. Add a Court. */
+/** A court with a plus at its corner. Add Court. */
 export function AddCourtIcon({ className }: { className?: string }) {
   return (
     <Badged
@@ -63,7 +63,7 @@ export function AddCourtIcon({ className }: { className?: string }) {
   );
 }
 
-/** The same court with a minus. Remove a Court. */
+/** The same court with a minus. Remove Court. */
 export function RemoveCourtIcon({ className }: { className?: string }) {
   return (
     <Badged

@@ -36,14 +36,19 @@ const CACHE_NAME = injected.__CACHE_NAME__ ?? 'pbrr-dev';
 export const CACHE_PREFIX = 'pbrr-';
 
 /**
- * Cached the first time somebody looks at them rather than on install.
+ * Cached the first time somebody reaches for them rather than on install.
  *
- * These are the panel illustrations. Together they are about 320 KB, which is a
- * real cost on a phone at a court, and most people never open Donate at all.
+ * The panel illustrations, and the six alarm tones that are not the default.
+ * Together they are the best part of a megabyte, which is a real cost on a
+ * phone at a court, and most people never open Donate or change their alarm.
  * Caching on sight means the ones you use are there next time and the ones you
  * do not cost nothing.
+ *
+ * The audio matters more than the pictures here. A tone is only ever played
+ * from the picker, which is where it is chosen, so being fetched is the same
+ * event as being wanted — and from then on it rings with no network.
  */
-const RUNTIME_IMAGES = /\.(png|jpg|jpeg|webp|svg)$/;
+const RUNTIME_ASSETS = /\.(png|jpg|jpeg|webp|svg|mp3)$/;
 
 /**
  * The share banner is 957 KB and no user ever sees it. It exists for the
@@ -110,7 +115,7 @@ export function route(input: {
 
   const key = cacheKey(parsed.pathname);
   if (input.precache.includes(key)) return 'shell';
-  if (!NEVER_CACHE.has(key) && RUNTIME_IMAGES.test(key)) return 'image';
+  if (!NEVER_CACHE.has(key) && RUNTIME_ASSETS.test(key)) return 'image';
 
   // Anything else is a real 404 on this host. Vercel serves the filesystem and
   // refuses the rest, and the app has no router, so there is deliberately no

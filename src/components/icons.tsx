@@ -647,7 +647,7 @@ export function SuccessIcon({ className }: { className?: string }) {
 
 /**
  * Two people, one above the other, with a path leading down from one and back up
- * from the other. `INBOX/people.svg`, on its own 32 grid. Sub a Player, where
+ * from the other. `INBOX/people.svg`, on its own 32 grid. Sub Player, where
  * somebody steps off and somebody steps on.
  */
 export function SwapPeopleIcon({ className }: { className?: string }) {
@@ -679,7 +679,7 @@ export function PersonIcon({ className }: { className?: string }) {
   );
 }
 
-/** A person with a star at their shoulder. `INBOX/guest.svg`. Add a Guest. */
+/** A person with a star at their shoulder. `INBOX/guest.svg`. Add Guest. */
 export function GuestIcon({ className }: { className?: string }) {
   return (
     <Solid className={className}>
@@ -749,7 +749,7 @@ export function ReplayIcon({ className }: { className?: string }) {
   );
 }
 
-/** A row with a plus above it. `INBOX/row.svg`. Add a Round. */
+/** A row with a plus above it. `INBOX/row.svg`. Add Round. */
 export function AddRowIcon({ className }: { className?: string }) {
   return (
     <Solid className={className}>

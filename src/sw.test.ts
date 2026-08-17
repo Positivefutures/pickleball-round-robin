@@ -112,6 +112,13 @@ describe('what the worker serves offline', () => {
     expect(ask(`${ORIGIN}/account-top.png`)).toBe('image');
   });
 
+  it('stores an alarm tone the first time it is played', () => {
+    // Picking a tone plays it, so this is the one fetch it ever gets. Miss it
+    // and the alarm is fine at home and silent at a court with no signal.
+    expect(ask(`${ORIGIN}/alarms/police-whistle.mp3`)).toBe('image');
+    expect(ask(`${ORIGIN}/alarms/marimba-ringtone.mp3`)).toBe('image');
+  });
+
   it('treats a bare slash and index.html as one entry', () => {
     // Without this the cache stores the app under one address and is asked for
     // it under the other, which is a miss, which offline is a blank page.

@@ -37,7 +37,7 @@ export interface ScheduleActions {
   /**
    * Somebody new: joins the group and this session.
    *
-   * `replacingId` is Sub a Player reaching the same form. The new player takes
+   * `replacingId` is Sub Player reaching the same form. The new player takes
    * that person's place rather than being added on top, which is the difference
    * between subbing somebody on and putting a fifth on the court.
    */
@@ -75,7 +75,7 @@ type View =
   | 'done';
 
 /**
- * Where the sheet opens. The sit-out row's own button opens Add a Player,
+ * Where the sheet opens. The sit-out row's own button opens Add Player,
  * coming back from My Account opens the card that sent you there, and Sub
  * Someone In on a player's own panel opens the second half of subbing with
  * that player already chosen.
@@ -107,13 +107,13 @@ interface Card {
 }
 
 const CARDS: Card[] = [
-  { view: 'add-player', label: 'Add a Player', Icon: AddPlayerSolidIcon, color: TEAL },
+  { view: 'add-player', label: 'Add Player', Icon: AddPlayerSolidIcon, color: TEAL },
   // Subbing has no card. It is one player's business rather than the session's,
   // so it is reached by tapping that player on the schedule; the view is still
   // here and the sheet still opens straight onto it. What stands in its place
   // is the other half of somebody leaving: they go and nobody replaces them.
-  { view: 'remove-player', label: 'Remove a Player', Icon: RemovePlayerSolidIcon, color: RED },
-  { view: 'add-guest', label: 'Add a Guest', Icon: GuestIcon, color: TEAL },
+  { view: 'remove-player', label: 'Remove Player', Icon: RemovePlayerSolidIcon, color: RED },
+  { view: 'add-guest', label: 'Add Guest', Icon: GuestIcon, color: TEAL },
   // No Edit Player Rating card. Tapping somebody on the schedule and pressing
   // the pencil edits their name, rating and gender in one panel, which is both
   // fewer taps and the place a host is already looking when they notice.
@@ -123,9 +123,9 @@ const CARDS: Card[] = [
   // Three words is what fits a third of a phone without wrapping to three lines;
   // the panel has the room to say the whole thing.
   { view: 'share-live', label: 'Share Session', Icon: ShareIcon, color: ORANGE },
-  { view: 'add-round', label: 'Add a Round', Icon: AddRowIcon, color: TEAL },
-  { view: 'add-court', label: 'Add a Court', Icon: AddCourtIcon, color: TEAL },
-  { view: 'remove-court', label: 'Remove a Court', Icon: RemoveCourtIcon, color: RED },
+  { view: 'add-round', label: 'Add Round', Icon: AddRowIcon, color: TEAL },
+  { view: 'add-court', label: 'Add Court', Icon: AddCourtIcon, color: TEAL },
+  { view: 'remove-court', label: 'Remove Court', Icon: RemoveCourtIcon, color: RED },
 ];
 
 /**
@@ -137,7 +137,7 @@ const CARDS: Card[] = [
  * takes its colour like the rest.
  */
 const PANEL_GLYPHS = new Map(CARDS.map((c) => [c.view as View, c]));
-// Reached from Add a Player rather than from the grid, so it has no card of its
+// Reached from Add Player rather than from the grid, so it has no card of its
 // own, but it is the same job and wants the same glyph.
 PANEL_GLYPHS.set('new-player', {
   view: 'add-player',
@@ -145,11 +145,11 @@ PANEL_GLYPHS.set('new-player', {
   Icon: AddPlayerSolidIcon,
   color: TEAL,
 });
-// Subbing lost its card when Remove a Player took the place, but not its panel:
+// Subbing lost its card when Remove Player took the place, but not its panel:
 // it is opened from a player on the schedule instead.
 PANEL_GLYPHS.set('add-sub', {
   view: 'add-sub',
-  label: 'Sub a Player',
+  label: 'Sub Player',
   Icon: SwapPeopleIcon,
   color: TEAL,
 });
@@ -162,19 +162,19 @@ const accountsPossible = () => ACCOUNTS_ENABLED && isSupabaseConfigured();
 
 const HEADINGS: Record<View, { title: string; sub?: string }> = {
   menu: { title: 'Actions', sub: 'Quick changes for this session' },
-  'add-player': { title: 'Add a Player', sub: 'Who is joining?' },
+  'add-player': { title: 'Add Player', sub: 'Who is joining?' },
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
-  'add-sub': { title: 'Sub a Player' },
-  'remove-player': { title: 'Remove a Player', sub: 'Who is going home?' },
-  'add-guest': { title: 'Add a Guest', sub: 'Plays today only, never saved to the group' },
+  'add-sub': { title: 'Sub Player' },
+  'remove-player': { title: 'Remove Player', sub: 'Who is going home?' },
+  'add-guest': { title: 'Add Guest', sub: 'Plays today only, never saved to the group' },
   // No sub here. Reshuffle's counts what it is about to rebuild, so it is put
   // together at render time and set larger than the rest: on this panel the line
   // under the title is the question being asked, not a caption on it.
   reshuffle: { title: 'Reshuffle' },
   'new-session': { title: 'New Round Robin?' },
-  'add-round': { title: 'Add a Round', sub: 'Planned around the games already scheduled' },
-  'add-court': { title: 'Add a Court' },
-  'remove-court': { title: 'Remove a Court', sub: 'Which court is going?' },
+  'add-round': { title: 'Add Round', sub: 'Planned around the games already scheduled' },
+  'add-court': { title: 'Add Court' },
+  'remove-court': { title: 'Remove Court', sub: 'Which court is going?' },
   'share-live': {
     title: 'Share Live Session',
     sub: 'Let others see the schedule, with live updates, on their phone.',
@@ -273,10 +273,10 @@ const RESHUFFLE_LINE = 'text-[1.0625rem] leading-snug';
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Which view to land on. The sit-out row's own button opens Add a Player. */
+  /** Which view to land on. The sit-out row's own button opens Add Player. */
   entry?: ActionsEntry;
   /**
-   * Who is coming off, when the sheet was opened on Sub a Player from that
+   * Who is coming off, when the sheet was opened on Sub Player from that
    * player's own panel. It skips the first of the two questions, which has
    * already been answered by tapping them.
    */
@@ -326,7 +326,7 @@ export function ActionsSheet({
   const [subOut, setSubOut] = useState<Player | null>(
     () => players.find((p) => p.id === subOutId) ?? null
   );
-  /** Who Remove a Player is about to send home, once they have been picked. */
+  /** Who Remove Player is about to send home, once they have been picked. */
   const [removing, setRemoving] = useState<Player | null>(null);
   /** The type the round about to be added will be played as. */
   const [addType, setAddType] = useState<RoundType | null>(null);
@@ -438,7 +438,7 @@ export function ActionsSheet({
 
   function back() {
     // New Player is reached from two lists now, so it goes back to the one it
-    // came from. subOut is the tell: it is only ever set inside Sub a Player.
+    // came from. subOut is the tell: it is only ever set inside Sub Player.
     if (view === 'new-player') setView(subOut ? 'add-sub' : 'add-player');
     // Back out of the second question to the first, except where the first was
     // answered by tapping somebody on the schedule: there is no list behind it
@@ -728,7 +728,7 @@ export function ActionsSheet({
                       subOut ? `Add and Sub In for ${subOut.name}` : 'Add to Group and Session'
                     }
                     onSubmit={(name, rating, gender) => {
-                      // Reached from Sub a Player, this is one move rather than
+                      // Reached from Sub Player, this is one move rather than
                       // two: the new player takes the outgoing one's place
                       // instead of being added on top of a full court.
                       actions.onCreatePlayer(name, rating, gender, subOut?.id);
@@ -772,7 +772,7 @@ export function ActionsSheet({
                         <span className="text-gray-500">{p.rating.toFixed(1)}</span>
                       </button>
                     ))}
-                    {/* The same way out this list has on Add a Player. Whoever
+                    {/* The same way out this list has on Add Player. Whoever
                         is taking the place of somebody going home is as likely
                         to be a newcomer here as there, and without this the
                         answer was to back out and start again. */}
@@ -864,6 +864,7 @@ export function ActionsSheet({
                 {view === 'add-guest' && (
                   <PlayerForm
                     defaultRating={defaultRating}
+                    nameLabel="Guest Name"
                     submitLabel="Add Guest"
                     onSubmit={(name, rating, gender) => {
                       actions.onAddGuest(name, rating, gender);

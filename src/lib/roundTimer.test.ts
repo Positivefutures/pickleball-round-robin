@@ -15,7 +15,7 @@ import type { Schedule } from '../types';
 import {
   openRoundTimer, closeRoundTimerPanel, startTimer, stopTimer, resetTimer,
   stopAndResetIfRound, clearRoundTimerForNewSchedule, setMinutes,
-  timerPanelOpen, liveRemainingMs, __testing,
+  timerPanelOpen, liveRemainingMs, DEFAULT_ROUND_TIMER_STATE, __testing,
 } from './roundTimer';
 
 vi.mock('./alarmSounds', () => ({
@@ -23,6 +23,9 @@ vi.mock('./alarmSounds', () => ({
   startAlarmLoop: vi.fn(),
   stopAlarmLoop: vi.fn(),
   isAlarmLoopActive: vi.fn(() => false),
+  // Not a function, but roundTimerState reads it for the default timer state,
+  // which stores.ts seeds its key with before any of this runs.
+  DEFAULT_ALARM_TONE: 'clear-announce',
 }));
 
 function scheduleWithRounds(...roundNumbers: number[]): Schedule {
@@ -244,7 +247,7 @@ describe('the watchdog', () => {
     __testing.recompute();
 
     expect(stores.roundTimer.get().phase).toBe('alarming');
-    expect(alarmSounds.startAlarmLoop).toHaveBeenCalledWith('bell');
+    expect(alarmSounds.startAlarmLoop).toHaveBeenCalledWith(DEFAULT_ROUND_TIMER_STATE.alarmTone);
     vi.useRealTimers();
   });
 
@@ -271,7 +274,7 @@ describe('the watchdog', () => {
 
     __testing.recompute();
 
-    expect(alarmSounds.startAlarmLoop).toHaveBeenCalledWith('bell');
+    expect(alarmSounds.startAlarmLoop).toHaveBeenCalledWith(DEFAULT_ROUND_TIMER_STATE.alarmTone);
   });
 
   it('releases a timer pinned to a round the schedule no longer has', () => {

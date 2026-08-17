@@ -35,7 +35,7 @@ export function PlayerMenu({
 }: {
   player: Player;
   onEdit: () => void;
-  /** Opens the sheet on Sub a Player, with this one already coming off. */
+  /** Opens the sheet on Sub Player, with this one already coming off. */
   onSub: () => void;
   onRemove: () => void;
   onCancel: () => void;

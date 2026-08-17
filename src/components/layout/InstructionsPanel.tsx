@@ -361,15 +361,15 @@ function Actions() {
       </P>
       <Shot
         name="actions"
-        alt="The Actions sheet: nine cards including Add a Player, Reshuffle, and Share Session"
+        alt="The Actions sheet: nine cards including Add Player, Reshuffle, and Share Session"
         caption="Every mid-session change, one sheet."
       />
-      <Item term="Add a Player">brings somebody from the group into the session.</Item>
-      <Item term="Remove a Player">
+      <Item term="Add Player">brings somebody from the group into the session.</Item>
+      <Item term="Remove Player">
         takes somebody out of the rounds still to play. Tap a player on the
         schedule instead to sub somebody in for them.
       </Item>
-      <Item term="Add a Guest">
+      <Item term="Add Guest">
         somebody playing today only. Guests are never saved to the group.
       </Item>
       <Item term="Share Session">
@@ -379,10 +379,10 @@ function Actions() {
       <Item term="New Round Robin">
         clears the schedule but keeps the same crowd selected for the next one.
       </Item>
-      <Item term="Add a Round">
+      <Item term="Add Round">
         one more round, planned around the games already scheduled.
       </Item>
-      <Item term="Add / Remove a Court">
+      <Item term="Add / Remove Court">
         a court opened up, or the centre took one back.
       </Item>
       <Tip>
