@@ -7,15 +7,24 @@ import { TypeGlyphs } from './typeGlyphs';
 
 /**
  * One round in the Set Game Types list, painted the way the Schedule tab paints
- * that round's card: the same blue, the same 2px edge, ROUND N in the same
- * white heading. The host is setting up the thing they will be looking at in
- * ten minutes, and it should already look like it.
+ * that round's card: the same blue, the same edge, ROUND N in the same white
+ * heading. The host is setting up the thing they will be looking at in ten
+ * minutes, and it should already look like it.
  *
  * A round already played renders no handle at all and a plain `<span>` where
  * the pill would be. The lock is in the markup rather than in a disabled
  * attribute, so there is nothing to focus, nothing to press, and nothing to
  * grab hold of by accident at the side of a court.
+ *
+ * It is also drawn out of the blue and into grey, and says DONE after its
+ * number. Without that the only sign it was different was the absence of two
+ * controls, which is a thing you notice by trying to use them.
  */
+
+/** A round already played: grey, with a dark edge and dark ink to match. */
+const DONE_FILL = '#D1D5DB';
+const DONE_EDGE = '#4B5563';
+const DONE_TEXT = '#374151';
 
 interface HandleProps {
   ref: Ref<HTMLButtonElement>;
@@ -65,7 +74,11 @@ export function RoundPlanRow({
   return (
     <div
       ref={rowRef}
-      style={{ ...rowStyle, backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+      style={{
+        ...rowStyle,
+        backgroundColor: locked ? DONE_FILL : ROUND_FILL,
+        borderColor: locked ? DONE_EDGE : ROUND_EDGE,
+      }}
       className={`flex items-center gap-2 rounded-lg border px-2 py-[3px] ${dragging ? 'shadow-lg' : 'shadow'}`}
     >
       {locked ? (
@@ -88,8 +101,12 @@ export function RoundPlanRow({
           phone lying on a bench at arm's length. This is a list being read at
           reading distance, so it sits at Keep Score's size, level with the
           other things on the panel that are being set. */}
-      <h4 className="min-w-0 flex-1 whitespace-nowrap text-lg font-extrabold uppercase text-white">
+      <h4
+        className="min-w-0 flex-1 whitespace-nowrap text-lg font-extrabold uppercase"
+        style={{ color: locked ? DONE_TEXT : '#FFFFFF' }}
+      >
         Round {roundNumber}
+        {locked && ' - Done'}
       </h4>
 
       {locked ? (

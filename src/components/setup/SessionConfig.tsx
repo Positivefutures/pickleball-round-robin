@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RoundPlan } from '../../types';
 import { clearPlan, planHasTypes } from '../../lib/roundPlan';
 import { BallIcon, ChevronDownIcon, InfoIcon } from '../icons';
@@ -155,11 +155,46 @@ export function SessionConfig({
     setResetNonce((n) => n + 1);
   }
 
-  /** Shutting the list throws its draft away, the same as it always did. */
+  /**
+   * Shutting the list keeps what was set, exactly as Done does.
+   *
+   * The draft was never a decision waiting to be confirmed. It exists so the
+   * Schedule tab does not blink on every pill tap, and throwing it away on the
+   * way out made the title button a way to lose work by tapping the same thing
+   * twice. Done and this now differ only in which one is obvious.
+   */
   function handleToggle() {
+    if (expanded && openDraft) onPlanCommit(openDraft);
     setOpenDraft(null);
     onToggleExpanded();
   }
+
+  /**
+   * Walking off the Setup tab with the list open keeps what was set too.
+   *
+   * Leaving is the third way of closing the list, and the host has no reason to
+   * think it means anything different from the other two. This whole page goes
+   * when the step changes, so the last draft has to be caught on the way out.
+   *
+   * Both refs are written from effects rather than during render, which is what
+   * `react-hooks/refs` is about, and read only in the cleanup. `onPlanCommit`
+   * is one of them because it is rebuilt on most renders and the cleanup would
+   * otherwise be holding whichever one it closed over on mount.
+   */
+  const pending = useRef<RoundPlan | null>(null);
+  const commit = useRef(onPlanCommit);
+  useEffect(() => {
+    pending.current = openDraft;
+  }, [openDraft]);
+  useEffect(() => {
+    commit.current = onPlanCommit;
+  }, [onPlanCommit]);
+  useEffect(
+    () => () => {
+      if (pending.current) commit.current(pending.current);
+    },
+    []
+  );
 
   return (
     <div className="space-y-4">

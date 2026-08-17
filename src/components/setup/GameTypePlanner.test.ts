@@ -69,9 +69,12 @@ function rows(): HTMLElement[] {
   return [...container.querySelectorAll('h4')].map((h) => h.parentElement as HTMLElement);
 }
 
+/** A round already played says so after its number, so match either. */
+const heading = (n: number) => new RegExp(`^Round ${n}( - Done)?$`);
+
 /** The pill on a row, whether it is a button or a locked span. */
 function pill(n: number): Element {
-  const row = rows().find((r) => text(r.querySelector('h4')) === `Round ${n}`);
+  const row = rows().find((r) => heading(n).test(text(r.querySelector('h4'))));
   if (!row) throw new Error(`no row for Round ${n}`);
   return row.lastElementChild!;
 }

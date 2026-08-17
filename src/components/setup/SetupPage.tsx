@@ -6,6 +6,8 @@ import { PartnerPlayNotice } from './PartnerPlayNotice';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
 import { GameTypesInfoPanel } from './GameTypesInfoPanel';
+import { DiscardScheduleDialog } from '../schedule/DiscardScheduleDialog';
+import { PLAN_REBUILD_WARNING } from '../../lib/steps';
 import { LinkIcon } from '../icons';
 import { resolvePairs } from '../../lib/partnerships';
 import { minPlayersForCourts } from '../../lib/assign';
@@ -33,6 +35,16 @@ interface Props {
   onRoundsChange: (n: number) => void;
   /** Done on the game types list: the whole plan, once, from the draft. */
   onPlanCommit: (next: RoundPlan) => void;
+  /**
+   * Whether there is an afternoon on the board: scores written down, players
+   * moved by hand, rounds marked complete. App works it out, because two of
+   * the three are its own state.
+   *
+   * Opening the game types list is what gets the warning, rather than Done.
+   * By Done the host has chosen, and a dialog then is telling them the cost of
+   * something they have already decided to do.
+   */
+  workAtStake?: boolean;
   /**
    * Set when the host has just pressed a Schedule tab that could not take them
    * there. The setup has moved on from the schedule they made, so the only way
@@ -62,6 +74,7 @@ export function SetupPage({
   onCourtsChange,
   onRoundsChange,
   onPlanCommit,
+  workAtStake = false,
   promptGenerate = false,
   onGenerate,
 }: Props) {
@@ -77,6 +90,21 @@ export function SetupPage({
    * so leaving the tab unmounts it and this goes with it.
    */
   const [plannerOpen, setPlannerOpen] = useState(false);
+  /** The host has tapped Set Game Types and is being told what it will cost. */
+  const [confirmPlanning, setConfirmPlanning] = useState(false);
+
+  /**
+   * Opening the list mid-session rebuilds every round still to be played, so
+   * the host is told before they are looking at it rather than after they have
+   * set one. Shutting it never asks: nothing is at stake in putting it away.
+   */
+  function togglePlanner() {
+    if (!plannerOpen && workAtStake) {
+      setConfirmPlanning(true);
+      return;
+    }
+    setPlannerOpen((open) => !open);
+  }
 
   // Hold the page still behind the panel, so Setup is exactly where it was
   // when Done closes it. Not for the list, which is inline and has to scroll
@@ -215,7 +243,7 @@ export function SetupPage({
             roundPlan={roundPlan}
             lockedRounds={completedRounds}
             expanded={plannerOpen}
-            onToggleExpanded={() => setPlannerOpen((open) => !open)}
+            onToggleExpanded={togglePlanner}
             onOpenInfo={() => setInfoOpen(true)}
             onPlanCommit={onPlanCommit}
             scoringEnabled={scoringEnabled}
@@ -285,6 +313,24 @@ export function SetupPage({
       {makeButtonRow()}
 
       {infoOpen && <GameTypesInfoPanel onClose={() => setInfoOpen(false)} />}
+
+      {confirmPlanning && (
+        <DiscardScheduleDialog
+          heading="Change game types?"
+          body={PLAN_REBUILD_WARNING}
+          cancelLabel="Cancel"
+          confirmLabel="Continue"
+          // Not red. Nothing is being thrown away that the host will miss: the
+          // rounds already played keep their games and their scores, and the
+          // rest were only ever a plan.
+          tone="primary"
+          onConfirm={() => {
+            setConfirmPlanning(false);
+            setPlannerOpen(true);
+          }}
+          onCancel={() => setConfirmPlanning(false)}
+        />
+      )}
     </div>
   );
 }

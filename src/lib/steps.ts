@@ -26,3 +26,15 @@ export function stepLabel(step: Step): string {
 export const DISCARD_WARNING =
   "This will discard the current schedule including any swaps you've made " +
   "and rounds you've marked complete.";
+
+/**
+ * Opening Set Game Types on a session that is already under way.
+ *
+ * Not DISCARD_WARNING, which is about losing the schedule. This one keeps the
+ * rounds already played, scores and all, and rebuilds only what is left, so
+ * saying it would discard the schedule would be frightening the host off a
+ * change that costs them very little.
+ */
+export const PLAN_REBUILD_WARNING =
+  'Every round still to be played will be rebuilt. The ones already done keep ' +
+  'their games and scores.';

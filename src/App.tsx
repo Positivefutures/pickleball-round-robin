@@ -1510,6 +1510,7 @@ function App() {
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
             onPlanCommit={handlePlanCommit}
+            workAtStake={workAtStake}
             promptGenerate={promptGenerate}
             onGenerate={requestGenerate}
           />

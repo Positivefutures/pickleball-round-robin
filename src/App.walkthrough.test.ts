@@ -49,6 +49,33 @@ function seed(inGroup: number, selected: number, courts: number, scoring = false
   runMigrations();
 }
 
+/**
+ * Writes a score into the first board on screen, which is round 1. Needs a
+ * session seeded with scoring on.
+ *
+ * At module scope because two things want it: the Reshuffle warning, and the
+ * one before Set Game Types opens. Both turn on there being real work on the
+ * board, and a score is the cheapest way to put some there.
+ */
+function scoreFirstCourt(left: string, right: string) {
+  const board = [...container.querySelectorAll('button[aria-haspopup="dialog"]')].find((b) =>
+    (b.getAttribute('aria-label') ?? '').includes('score')
+  );
+  if (!board) throw new Error('no scoreboard on screen; is scoring on?');
+  click(board as HTMLElement);
+
+  const box = container.querySelector('[role="dialog"][aria-label*="score"]') as HTMLElement;
+  const key = (face: string) => {
+    const pad = box.querySelector('[aria-label="Score keypad"]')!;
+    click([...pad.querySelectorAll('button')].find((b) => text(b) === face)!);
+  };
+  key('Clear');
+  for (const d of left) key(d);
+  click([...box.querySelectorAll('[aria-label^="Score for"]')][1] as HTMLElement);
+  for (const d of right) key(d);
+  clickButton(/^Save$/, box);
+}
+
 let root: Root;
 let container: HTMLElement;
 
@@ -994,20 +1021,33 @@ describe('Set Game Types', () => {
     return found as HTMLButtonElement;
   }
 
-  /** Opens the inline list. It is closed every time Setup is arrived at. */
+  /**
+   * Opens the inline list. It is closed every time Setup is arrived at.
+   *
+   * Mid-session the list asks before it opens, because opening it is what
+   * rebuilds the rounds still to be played. Answering it is part of opening,
+   * so every test that just wants the list gets past it here; the dialog has
+   * tests of its own below.
+   */
   function openPlanner() {
     clickButton(/^Set Game Types$/);
+    if (/Change game types\?/.test(container.textContent ?? '')) {
+      clickButton(/^Continue$/);
+    }
   }
+
+  /** A round already played says so after its number, so match either. */
+  const planHeading = (n: number | string) => new RegExp(`^Round ${n}( - Done)?$`);
 
   /** Every row in the list, in the order they are drawn. */
   function planRows(): HTMLElement[] {
     return [...container.querySelectorAll('h4')]
-      .filter((h) => /^Round \d+$/.test(text(h)))
+      .filter((h) => planHeading('\\d+').test(text(h)))
       .map((h) => h.parentElement as HTMLElement);
   }
 
   function planRow(n: number): HTMLElement {
-    const row = planRows().find((r) => text(r.querySelector('h4')!) === `Round ${n}`);
+    const row = planRows().find((r) => planHeading(n).test(text(r.querySelector('h4')!)));
     if (!row) throw new Error(`no plan row for Round ${n}`);
     return row;
   }
@@ -1321,6 +1361,234 @@ describe('Set Game Types', () => {
     // And the rest of the afternoon is still the host's to set.
     expect(handle(3)).toBeDefined();
     expect(pill(3).tagName).toBe('BUTTON');
+  });
+
+  /**
+   * A locked round used to be told apart only by two controls not being there,
+   * which is something you find out by trying to use them. It says so now, and
+   * is drawn out of the blue the playable rounds wear.
+   */
+  it('says DONE on a round already played, and draws it grey', () => {
+    mount();
+    generate();
+    markComplete(1);
+
+    click(stepTab(/^2\. Setup$/));
+    openPlanner();
+
+    expect(text(planRow(1).querySelector('h4')!)).toBe('Round 1 - Done');
+    expect(text(planRow(2).querySelector('h4')!)).toBe('Round 2');
+
+    const done = planRow(1).style.backgroundColor;
+    const open = planRow(2).style.backgroundColor;
+    expect(done).not.toBe('');
+    expect(done).not.toBe(open);
+    expect(planRow(1).style.borderColor).not.toBe(planRow(2).style.borderColor);
+    // White on grey would be unreadable, so the ink moves with the fill.
+    const ink = (planRow(1).querySelector('h4') as HTMLElement).style.color;
+    expect(ink).not.toBe('rgb(255, 255, 255)');
+  });
+
+  /**
+   * Opening the list mid-session is what rebuilds the rounds still to come, so
+   * the host is told before they are looking at it. Told once, at the door,
+   * rather than at Done, by which point they have already decided.
+   */
+  describe('the warning before it opens', () => {
+    const asked = () => /Change game types\?/.test(container.textContent ?? '');
+
+    it('says nothing before a schedule exists', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      clickButton(/^Set Game Types$/);
+
+      expect(asked()).toBe(false);
+      expect(planRows()).toHaveLength(8);
+    });
+
+    it('says nothing about a schedule nobody has touched', () => {
+      mount();
+      generate();
+      click(stepTab(/^2\. Setup$/));
+      clickButton(/^Set Game Types$/);
+
+      // Generated and left alone. Rebuilding it costs nothing worth a dialog,
+      // which is the same rule Generate itself goes by.
+      expect(asked()).toBe(false);
+      expect(planRows()).toHaveLength(8);
+    });
+
+    it('asks once a round has been played', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      clickButton(/^Set Game Types$/);
+
+      expect(asked()).toBe(true);
+      expect(container.textContent).toContain('Every round still to be played will be rebuilt');
+      // The rounds already played are not what is at risk, and the dialog says so.
+      expect(container.textContent).toContain('keep their games and scores');
+      // And the list is not open behind it.
+      expect(planRows()).toHaveLength(0);
+    });
+
+    // The other arm of the same question: nothing is marked complete, but an
+    // afternoon has started and a rebuild would take that score with it.
+    it('asks once a score has been written down', () => {
+      seed(10, 10, 2, true);
+      mount();
+      generate();
+      scoreFirstCourt('11', '7');
+
+      click(stepTab(/^2\. Setup$/));
+      clickButton(/^Set Game Types$/);
+      expect(asked()).toBe(true);
+    });
+
+    it('opens on Continue', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      clickButton(/^Set Game Types$/);
+      clickButton(/^Continue$/);
+
+      expect(asked()).toBe(false);
+      expect(planRows()).toHaveLength(8);
+    });
+
+    it('stays shut on Cancel', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      clickButton(/^Set Game Types$/);
+      clickButton(/^Cancel$/);
+
+      expect(asked()).toBe(false);
+      expect(planRows()).toHaveLength(0);
+    });
+
+    it('does not ask on the way out', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      expect(planRows()).toHaveLength(8);
+
+      clickButton(/^Set Game Types$/);
+      expect(asked()).toBe(false);
+      expect(planRows()).toHaveLength(0);
+    });
+  });
+
+  /**
+   * The title button used to be a way to lose work by tapping the same thing
+   * twice. The draft exists so the Schedule tab does not blink on every pill
+   * tap, not as a decision waiting to be confirmed.
+   */
+  describe('shutting the list without Done', () => {
+    it('keeps what was set', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      openPlanner();
+      setRoundType(3, 'Equal Skill Round');
+
+      // Shut it by the title, not by Done.
+      clickButton(/^Set Game Types$/);
+      expect(planRows()).toHaveLength(0);
+      expect(JSON.parse(window.localStorage.getItem('pb-round-plan')!)[2]).toBe('skill');
+
+      // And it is still there when the list is opened again.
+      openPlanner();
+      expect(text(pill(3))).toBe('Equal Skill');
+    });
+
+    it('rebuilds the afternoon just as Done would', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      setRoundType(4, 'Gendered Round');
+      clickButton(/^Set Game Types$/);
+
+      expect(storedSchedule().rounds[3].roundType).toBe('gendered');
+      expect(completedRounds()).toEqual([1]);
+    });
+
+    it('commits nothing when nothing was touched', () => {
+      mount();
+      generate();
+      const before = storedSchedule().rounds.map(fingerprint);
+
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      clickButton(/^Set Game Types$/);
+
+      expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+    });
+
+    /**
+     * Leaving is the third way of closing the list, and it has to mean the same
+     * as the other two. The whole page goes with the step, so the draft is
+     * caught on the way out.
+     */
+    it('keeps what was set when the host walks off the tab', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      openPlanner();
+      setRoundType(2, 'Mixed Round');
+
+      click(stepTab(/^1\. Players$/));
+      expect(JSON.parse(window.localStorage.getItem('pb-round-plan')!)[1]).toBe('mixed');
+
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      expect(text(pill(2))).toBe('Mixed');
+    });
+
+    /**
+     * The awkward one: the rebuild lands while the host is on their way to the
+     * schedule. It has to arrive built, and the tab must not shut behind them,
+     * which is the basisKey hazard the plan named.
+     */
+    it('rebuilds on the way to the Schedule tab, and the tab stays open', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      setRoundType(4, 'Gendered Round');
+
+      click(stepTab(/^3\. Schedule$/));
+
+      expect(storedSchedule().rounds[3].roundType).toBe('gendered');
+      expect(completedRounds()).toEqual([1]);
+      // Landed on the schedule rather than being sent back to Generate.
+      expect(container.textContent).toContain('Actions');
+
+      // And the basis went with it: back on Setup the Schedule tab is still a
+      // door. A tab is never listed as available while you are standing on it,
+      // so this is the only place the question can be asked.
+      click(stepTab(/^2\. Setup$/));
+      expect(stepTab(/^3\. Schedule$/).disabled).toBe(false);
+      expect(container.textContent).not.toContain('Tap Generate Schedule');
+    });
+
+    it('leaves the afternoon alone when the host walks off having set nothing', () => {
+      mount();
+      generate();
+      const before = storedSchedule().rounds.map(fingerprint);
+
+      click(stepTab(/^2\. Setup$/));
+      openPlanner();
+      click(stepTab(/^1\. Players$/));
+
+      expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+    });
   });
 
   /**
@@ -2499,25 +2767,6 @@ describe('the Actions sheet', () => {
   describe('the warning about losing scores', () => {
     const WARNING = 'Scores in incomplete rounds will be deleted';
 
-    /** Writes a score into the first board on screen, which is round 1. */
-    function scoreFirstCourt(left: string, right: string) {
-      const board = [...container.querySelectorAll('button[aria-haspopup="dialog"]')].find((b) =>
-        (b.getAttribute('aria-label') ?? '').includes('score')
-      );
-      if (!board) throw new Error('no scoreboard on screen; is scoring on?');
-      click(board as HTMLElement);
-
-      const box = container.querySelector('[role="dialog"][aria-label*="score"]') as HTMLElement;
-      const key = (face: string) => {
-        const pad = box.querySelector('[aria-label="Score keypad"]')!;
-        click([...pad.querySelectorAll('button')].find((b) => text(b) === face)!);
-      };
-      key('Clear');
-      for (const d of left) key(d);
-      click([...box.querySelectorAll('[aria-label^="Score for"]')][1] as HTMLElement);
-      for (const d of right) key(d);
-      clickButton(/^Save$/, box);
-    }
 
     it('stays away when nothing has been scored, even with scoring switched on', () => {
       seed(9, 9, 2, true);
