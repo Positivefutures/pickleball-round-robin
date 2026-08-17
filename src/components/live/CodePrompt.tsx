@@ -110,7 +110,7 @@ export function CodePrompt({ shareKey, onUnlocked, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+          className="w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-300"
         >
           Cancel
         </button>

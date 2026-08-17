@@ -68,7 +68,7 @@ function allText(): string {
   for (const topic of TOPICS) {
     click(topic);
     text += container.textContent ?? '';
-    click('All topics');
+    click('All Topics');
   }
   return text;
 }
@@ -89,7 +89,7 @@ describe('the topic list', () => {
       // reference), never most of them.
       expect(shown.length).toBeLessThan(3);
 
-      click('All topics');
+      click('All Topics');
       for (const t of TOPICS) expect(container.textContent).toContain(t);
     }
   });
@@ -102,7 +102,7 @@ describe('the topic list', () => {
       expect(container.querySelector('h3')?.textContent).toContain(topic);
     }
     // The last chapter offers the way back instead.
-    click('Back to all topics');
+    click('Back to All Topics');
     expect(container.textContent).toContain(TOPICS[0]);
   });
 });
@@ -135,7 +135,7 @@ describe('the pictures', () => {
         expect(img.getAttribute('loading')).toBe('lazy');
         expect(img.getAttribute('alt')).toBeTruthy();
       }
-      click('All topics');
+      click('All Topics');
     }
   });
 });

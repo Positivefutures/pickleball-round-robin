@@ -153,7 +153,7 @@ function SettingsItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left font-medium transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left font-bold transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
       {icon}
       <span>{label}</span>

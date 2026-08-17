@@ -177,7 +177,7 @@ function SignedIn({
             disabled={busy}
             className={`mt-4 ${primary}`}
           >
-            {busy ? 'Sending...' : 'Send confirmation'}
+            {busy ? 'Sending...' : 'Send Confirmation'}
           </button>
           <button
             type="button"
@@ -225,7 +225,7 @@ function SignedIn({
             >
               <SignOutIcon className={rowIcon} />
               <span>
-                <span className={rowTitle}>{busy ? 'Signing out...' : 'Sign Out'}</span>
+                <span className={rowTitle}>{busy ? 'Signing Out...' : 'Sign Out'}</span>
                 <span className={rowNote}>Your data stays safe on this device</span>
               </span>
             </button>

@@ -1,7 +1,9 @@
+import type { ReactElement } from 'react';
 import { DISCARD_WARNING } from '../../lib/steps';
-import { WarningIcon } from '../icons';
+import { CloseIcon, WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
+import { TileButton, TILE_ROW } from '../TileButton';
 
 interface Props {
   heading: string;
@@ -13,6 +15,8 @@ interface Props {
   body?: string;
   cancelLabel: string;
   confirmLabel: string;
+  /** The shape on the confirm tile. Every tile in the app carries one. */
+  confirmIcon: (props: { className?: string }) => ReactElement;
   /**
    * How hard the confirm button pushes back. Red is the default and means the
    * schedule is going; teal is for a change that costs less than it sounds,
@@ -23,22 +27,22 @@ interface Props {
   onCancel: () => void;
 }
 
-const CONFIRM_TONE = {
-  destructive: 'bg-red-600 hover:bg-red-700',
-  primary: 'bg-brand-teal hover:bg-brand-teal-dark',
-} as const;
-
 /**
  * Standing between the host and work they cannot get back. Each door names
  * itself in the heading and in its buttons, and says underneath what it costs:
  * by default the warning in lib/steps, which New Round Robin in the Actions
  * sheet says too.
+ *
+ * Answered with the same tiles as its twin on the Actions sheet. New Round Robin
+ * asks this question there and Generate asks it here, and a host who has met one
+ * of them should recognise the other.
  */
 export function DiscardScheduleDialog({
   heading,
   body = DISCARD_WARNING,
   cancelLabel,
   confirmLabel,
+  confirmIcon,
   tone = 'destructive',
   onConfirm,
   onCancel,
@@ -51,19 +55,14 @@ export function DiscardScheduleDialog({
             being asked. */}
         <PanelHeading icon={WarningIcon} title={heading} />
         <p className="mt-2 mb-4 text-sm text-gray-600 text-center">{body}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-          >
-            {cancelLabel}
-          </button>
-          <button
+        <div className={TILE_ROW}>
+          <TileButton tone="quiet" Icon={CloseIcon} label={cancelLabel} onClick={onCancel} />
+          <TileButton
+            tone={tone === 'destructive' ? 'red' : 'teal'}
+            Icon={confirmIcon}
+            label={confirmLabel}
             onClick={onConfirm}
-            className={`flex-1 px-4 py-2.5 text-white rounded-md transition-colors font-medium ${CONFIRM_TONE[tone]}`}
-          >
-            {confirmLabel}
-          </button>
+          />
         </div>
       </div>
     </div>

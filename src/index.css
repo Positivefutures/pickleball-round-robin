@@ -183,6 +183,24 @@ body {
   animation: seat-swapped 2s ease-out;
 }
 
+/* The round timer's full-height sheet, and the one place in the app where the
+   difference between the two viewport units matters.
+
+   `vh` on iOS Safari is the height the page would have if the browser's own
+   toolbars were out of the way — they are not, so a sheet 94vh tall anchored to
+   the bottom of the screen puts its top edge up behind the address bar. On an
+   iPhone 11 that swallowed the clock glyph and the close key with it. `dvh` is
+   the viewport as it actually is at this moment, toolbars included, which is
+   the thing this sheet is trying to be a fraction of.
+
+   Both are written, in this order, on purpose: a browser that has never heard
+   of dvh keeps the vh line, and every one that has takes the second. Not a
+   media query and not @supports — the cascade already does this correctly. */
+.timer-sheet {
+  height: 94vh;
+  height: 94dvh;
+}
+
 /* The Actions sheet is the one thing in the app that moves. Somebody who has
    asked their system not to animate gets it where it is going without the
    travel, rather than not at all. */

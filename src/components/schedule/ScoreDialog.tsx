@@ -181,14 +181,14 @@ export function ScoreDialog({ court, onDone, onCancel, allowClear = true }: Prop
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+            className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-300"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!canSave}
-            className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-bold text-white transition-colors hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save
           </button>

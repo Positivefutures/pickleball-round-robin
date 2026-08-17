@@ -118,7 +118,7 @@ export function StandingsPanel({
           <button
             type="button"
             onClick={onBackToTop}
-            className="flex shrink-0 items-center gap-1 text-sm font-medium text-brand-teal transition-colors hover:text-brand-teal-dark no-print"
+            className="flex shrink-0 items-center gap-1 text-sm font-bold text-brand-teal transition-colors hover:text-brand-teal-dark no-print"
           >
             Back to Top
             <ChevronDownIcon className="h-4 w-4 rotate-180" />

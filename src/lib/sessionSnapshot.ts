@@ -40,8 +40,21 @@ export interface SharedRoundTimer {
   endsAt: number | null;
   /** Frozen ms left while paused, 0 while alarming. Ignored while running. */
   remainingMs: number;
-  /** Whether reaching zero flashes the screen, so every phone does the same thing. */
+  /**
+   * What the host chose for reaching zero, which is where every watching phone
+   * starts. Not what it has to do: a watcher can turn the sound off on their
+   * own phone, or pick another tone, for the rest of the afternoon. See
+   * watchAlerts in stores.ts.
+   *
+   * `flashOn` was published from the beginning; the other two were added later,
+   * and a document without them is read as the host's own defaults rather than
+   * as silence. That is deliberately not a version bump — an older app ignores
+   * fields it has never heard of, and this one supplies what an older document
+   * does not carry.
+   */
   flashOn: boolean;
+  soundOn?: boolean;
+  alarmTone?: string;
 }
 
 /**
@@ -56,6 +69,26 @@ export function sharedRemainingMs(timer: SharedRoundTimer, now = Date.now()): nu
   if (timer.phase === 'running') return Math.max(0, (timer.endsAt ?? now) - now);
   if (timer.phase === 'alarming') return 0;
   return timer.remainingMs;
+}
+
+/**
+ * Whether a phone watching this timer should be treating the round as over.
+ *
+ * Zero on the reader's own clock is time up, whether or not the host has
+ * published the fact yet. Waiting for that would be a countdown sat on 0:00 for
+ * the length of a poll, and an alarm that went off after the point had already
+ * been played.
+ *
+ * Beside sharedRemainingMs because it is the same idea one step on, and because
+ * two places need the same answer from it: the sheet, which draws TIME'S UP,
+ * and the page, which sounds the alarm for a phone whose owner never opened the
+ * sheet at all.
+ */
+export function sharedAlarming(
+  timer: SharedRoundTimer,
+  remaining = sharedRemainingMs(timer)
+): boolean {
+  return timer.phase === 'alarming' || (timer.phase === 'running' && remaining === 0);
 }
 
 export interface SessionSnapshot {

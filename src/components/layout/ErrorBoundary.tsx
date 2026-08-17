@@ -121,16 +121,16 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-teal-dark"
+              className="flex-1 rounded-md bg-brand-teal px-4 py-2.5 font-bold text-white transition-colors hover:bg-brand-teal-dark"
             >
               Reload
             </button>
             <button
               type="button"
               onClick={this.handleReport}
-              className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
+              className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-bold text-white transition-colors hover:bg-brand-orange-dark"
             >
-              Tell me what happened
+              Tell Me What Happened
             </button>
           </div>
 

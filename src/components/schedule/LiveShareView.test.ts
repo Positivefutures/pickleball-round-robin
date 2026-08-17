@@ -105,7 +105,7 @@ describe('the card the host holds up', () => {
     expect(row.className).toContain('flex');
 
     const tiles = [...row.querySelectorAll('button')];
-    expect(tiles.map((b) => b.textContent)).toEqual(['Copy link', 'Stop Sharing']);
+    expect(tiles.map((b) => b.textContent)).toEqual(['Copy Link', 'Stop Sharing']);
     for (const b of tiles) {
       // basis-0 is what makes them split the row evenly whether there are two
       // of them or three; flex-col is the glyph over the label.
@@ -114,7 +114,7 @@ describe('the card the host holds up', () => {
     }
   });
 
-  it('offers Share link as a third tile where the phone has a share sheet', () => {
+  it('offers Share Link as a third tile where the phone has a share sheet', () => {
     const share = vi.fn();
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     try {
@@ -122,7 +122,7 @@ describe('the card the host holds up', () => {
       const row = container.querySelector('button')!.parentElement!;
       const tiles = [...row.querySelectorAll('button')];
       expect(tiles.map((b) => b.textContent)).toEqual([
-        'Share link', 'Copy link', 'Stop Sharing',
+        'Share Link', 'Copy Link', 'Stop Sharing',
       ]);
     } finally {
       Reflect.deleteProperty(navigator, 'share');

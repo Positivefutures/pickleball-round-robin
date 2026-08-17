@@ -19,9 +19,9 @@ const INK = '#051829';
  * The same component at both ends on purpose: finishing something should look
  * like the thing that started it.
  *
- * There is no Skip here. The opener's Continue is the only button because the
- * tour behind it carries a Skip on every card, and the closer's Done is the only
- * button because by then there is nothing left to skip.
+ * The opener carries a Skip Tutorial link under Continue, because a sheet with
+ * one button and no way past it is a sheet somebody has to take. The closer's
+ * Done is on its own, because by then there is nothing left to skip.
  *
  * Mounted by App outside `.app-panel`, and it takes no scroll lock of its own —
  * App's single aggregate holds it, because a second lock on a pinned body reads
@@ -32,11 +32,14 @@ export function TourSheet({
   children,
   buttonLabel,
   onPress,
+  onSkip,
 }: {
   title: string;
   children: ReactNode;
   buttonLabel: string;
   onPress: () => void;
+  /** Given by the opener only. Left off, no link is drawn. */
+  onSkip?: () => void;
 }) {
   // Off the bottom for the first frame, then let the transition carry it up.
   // Setting both in one render would leave nothing to animate between.
@@ -104,6 +107,20 @@ export function TourSheet({
           >
             {buttonLabel}
           </button>
+
+          {/* A link rather than a second button, in the app's orange so it is
+              plainly the other thing this sheet offers. The cards ask before
+              they end a tour that is already running. Here there is nothing to
+              lose yet, so declining takes one press. */}
+          {onSkip && (
+            <button
+              type="button"
+              onClick={onSkip}
+              className="mt-4 text-base font-bold text-brand-orange underline underline-offset-4 transition-colors hover:text-brand-orange-dark"
+            >
+              Skip Tutorial
+            </button>
+          )}
         </div>
       </div>
     </div>

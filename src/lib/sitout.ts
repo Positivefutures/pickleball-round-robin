@@ -23,6 +23,25 @@ function loneEmptyPlace(round: Round): { courtIdx: number; team: 'team1' | 'team
 }
 
 /**
+ * Whether this round has no seat left on any court.
+ *
+ * The condition under which somebody arriving mid-session goes to the bench and
+ * stays there: addToRemainingRounds only walks a player onto a court through
+ * loneEmptyPlace, and a full round has no place to offer it. Add Player says so
+ * before the tap rather than leaving the host to find their new arrival at the
+ * bottom of the screen under Sitting Out.
+ *
+ * Two spare places is also a bench, but for the opposite reason — there is room
+ * and the app will not guess who partners whom — so it is not this, and the
+ * sentence about full courts would be false on it.
+ */
+export function courtsAreFull(round: Round): boolean {
+  return round.courts.every(
+    (court) => court.team1.length >= 2 && court.team2.length >= 2
+  );
+}
+
+/**
  * Puts somebody arriving mid-session into every round still to be played,
  * leaving the rounds already played exactly as they are.
  *

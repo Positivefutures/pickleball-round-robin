@@ -40,7 +40,7 @@ import { DonatePanel } from './components/layout/DonatePanel';
 import { SharePanel } from './components/layout/SharePanel';
 import { AccountPanel } from './components/layout/AccountPanel';
 import { isSupabaseConfigured, hasAuthCallback, hasStoredSession, linkNotice } from './lib/supabase';
-import { authStore } from './lib/auth';
+import { authStore, dismissPendingSignIn, signInInterrupted } from './lib/auth';
 import { startSync } from './lib/sync';
 import { startLive } from './lib/liveSession';
 import { startRoundTimerWatchdog, clearRoundTimerForNewSchedule } from './lib/roundTimer';
@@ -51,7 +51,7 @@ import { TutorialOverlay } from './components/tour/TutorialOverlay';
 import {
   OPENER_DELAY_MS, TOUR_COURTS_START, TOUR_COURTS_TARGET, TOUR_ROUNDS_START,
   TOUR_ROUNDS_TARGET, armOpener, backCard, completeTour, dismissComplete, getTourView,
-  nextCard, resumeTour, startTour, subscribeTour, tourStartSelection,
+  nextCard, resumeTour, skipTour, startTour, subscribeTour, tourStartSelection,
 } from './lib/tour';
 import { InstallBanner } from './components/layout/InstallBanner';
 import { SignInBanner } from './components/layout/SignInBanner';
@@ -72,6 +72,7 @@ import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import type { ActionsEntry } from './components/schedule/ActionsSheet';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
+import { EditPageIcon } from './components/icons';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
 // Shown in the banner on the Players step, and as the settings drawer's heading.
@@ -141,6 +142,16 @@ function App() {
    * leaving the schedule keeps it, and pressing Generate is what writes over it.
    */
   const [pendingGenerate, setPendingGenerate] = useState(false);
+  /**
+   * The Set Round Types list's draft while it is open, or null when it is shut.
+   *
+   * The list holds its choices back until it closes, so that the Schedule tab
+   * does not blink in and out of reach on every pill tap — see handlePlanCommit.
+   * Held up here rather than inside the list, because Generate is on the same
+   * page and has to build from the rounds the host can see, not from the plan
+   * they had before they opened it.
+   */
+  const [planDraft, setPlanDraft] = useState<RoundPlan | null>(null);
   // Change Groups, opened from the group name in the banner.
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   // Manage Groups. It is drawn by RosterPage and opened by the Manage button on
@@ -177,7 +188,15 @@ function App() {
   // Gated as well as the menu item, or someone returning from a magic link
   // they were emailed earlier would land straight in a panel that is supposed
   // to be switched off.
-  const [showAccount, setShowAccount] = useState(() => ACCOUNTS_ENABLED && hasAuthCallback());
+  //
+  // And on the same footing, a code that has been emailed and not typed in yet.
+  // That is a host who left for the mail app and came back to a tab iOS reloaded
+  // while they were gone: the panel they were standing in is component state and
+  // does not survive it, so without this they land on the schedule holding a
+  // code, with nowhere to put it and no reason to think there ever was one.
+  const [showAccount, setShowAccount] = useState(
+    () => ACCOUNTS_ENABLED && (hasAuthCallback() || signInInterrupted())
+  );
   // And what to say once it is open. Held in state rather than read where it is
   // rendered, so closing the panel puts it down for good: it belongs to the
   // arrival that opened this panel, not to every later visit to Sign In.
@@ -359,6 +378,10 @@ function App() {
   function closeAccount() {
     setShowAccount(false);
     setLinkProblem(null);
+    // Closed by hand, so an unused code stops reopening this panel on every
+    // launch. Typing it in is still one tap away, on the screen this leaves
+    // behind: see pendingSignIn in auth.ts.
+    dismissPendingSignIn();
     const back = afterAccount.current;
     afterAccount.current = null;
     back?.();
@@ -609,9 +632,19 @@ function App() {
     const activePartnerships = prunePartnerships(
       partnerships, new Set(attending.map((p) => p.id))
     );
+    // Whatever the round types list is showing, whether or not Done was
+    // pressed. Done is not a save button anywhere else — shutting the list
+    // keeps what was set, and so does walking off the tab — and Generate is the
+    // button directly under it. Written down here as well as built from, so the
+    // plan and the schedule leave this press agreeing with each other.
+    const plan = planDraft ?? roundPlan;
+    if (planDraft) {
+      setRoundPlan(planDraft);
+      setPlanDraft(null);
+    }
     setSchedule(
       generateSchedule(
-        attending, numCourts, numRounds, roundPlan, activePartnerships
+        attending, numCourts, numRounds, plan, activePartnerships
       )
     );
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
@@ -631,8 +664,8 @@ function App() {
     // too few ticked for the courts — leaves the card where it was, with the
     // error underneath it saying why.
     if (tour?.id === 'select-players') nextCard();
-  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, roundPlan,
-      activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds,
+  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, roundPlan, planDraft,
+      activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds, setRoundPlan,
       setScheduleEdited, setScheduleRosterId, setSessionId, setStep, setSubPartnerships]);
 
   const attendingPlayers = sessionPlayers.filter(
@@ -915,6 +948,20 @@ function App() {
   }, [schedule, roundPlan, numRounds, completedRounds, attendingPlayers, sessionPartnerships,
       numCourts, removedIds, activeRosterId, partnerships, setRoundPlan, setSchedule,
       setScheduleBasis, setScheduleEdited]);
+
+  /**
+   * Walking off the Setup tab with the list still open keeps what was set.
+   *
+   * Leaving is one of the ways of closing the list, and the host has no reason
+   * to think it means anything different from Done. Generate is not one of
+   * these: it takes the draft itself, on the press, and leaves nothing here to
+   * commit — which is what stops this rebuilding the schedule it just made.
+   */
+  useEffect(() => {
+    if (step === 'setup' || !planDraft) return;
+    setPlanDraft(null);
+    handlePlanCommit(planDraft);
+  }, [step, planDraft, handlePlanCommit]);
 
   // Brings a latecomer into a session already under way. They land in the
   // sit-outs of every unplayed round, leaving those rounds' courts alone; the
@@ -1510,6 +1557,8 @@ function App() {
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
             onPlanCommit={handlePlanCommit}
+            planDraft={planDraft}
+            onPlanDraft={setPlanDraft}
             workAtStake={workAtStake}
             promptGenerate={promptGenerate}
             onGenerate={requestGenerate}
@@ -1566,6 +1615,9 @@ function App() {
           heading="Replace the current schedule?"
           cancelLabel="Cancel"
           confirmLabel="Generate"
+          // The same shape New Round Robin wears in the Actions sheet: this is
+          // that question asked from the Setup tab.
+          confirmIcon={EditPageIcon}
           onConfirm={() => {
             setPendingGenerate(false);
             handleGenerate();
@@ -1682,7 +1734,12 @@ function App() {
           ancestor becomes the containing block for its fixed children, which
           would carry the spotlight off the screen with it. */}
       {tourView.phase === 'opener' && (
-        <TourSheet title="Quick Start Tutorial" buttonLabel="Continue" onPress={handleTourStart}>
+        <TourSheet
+          title="Quick Start Tutorial"
+          buttonLabel="Continue"
+          onPress={handleTourStart}
+          onSkip={skipTour}
+        >
           <p>Let&rsquo;s create your first round robin!</p>
         </TourSheet>
       )}
@@ -1721,7 +1778,7 @@ function App() {
                 dismissComplete();
                 setShowManageGroups(true);
               }}
-              className="flex shrink-0 items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium"
+              className="flex shrink-0 items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
             >
               Manage
             </button>

@@ -106,7 +106,7 @@ describe('ErrorBoundary', () => {
     // groups are still there before anything else.
     expect(text()).toContain('saved on this device');
     expect(button(/^Reload$/)).toBeTruthy();
-    expect(button(/Tell me what happened/)).toBeTruthy();
+    expect(button(/Tell Me What Happened/)).toBeTruthy();
   });
 
   it('shows the fault and the build, because people send a photo of this', () => {
@@ -135,7 +135,7 @@ describe('ErrorBoundary', () => {
     window.localStorage.setItem('pb-rosters', JSON.stringify([{ id: 'g1', name: 'Tuesday' }]));
     mount(createElement(Boom, { error: new TypeError('x is not a function') }));
 
-    act(() => button(/Tell me what happened/).click());
+    act(() => button(/Tell Me What Happened/).click());
 
     expect(navigations).toHaveLength(1);
     const sent = decodeURIComponent(navigations[0]);
@@ -161,7 +161,7 @@ describe('ErrorBoundary', () => {
     );
     mount(createElement(Boom, { error: new Error('boom') }));
 
-    act(() => button(/Tell me what happened/).click());
+    act(() => button(/Tell Me What Happened/).click());
     expect(decodeURIComponent(navigations[0])).toContain('Players: 2');
   });
 });

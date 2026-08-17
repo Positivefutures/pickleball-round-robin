@@ -3,6 +3,7 @@ import { QrCode } from '../QrCode';
 import { CodeEntry, CODE_LENGTH } from '../CodeEntry';
 import { Toggle } from '../Toggle';
 import { CopyIcon, PersonIcon, ShareIcon, StopIcon } from '../icons';
+import { TileButton, TILE_ROW } from '../TileButton';
 import {
   liveStatusStore,
   sharingAvailable,
@@ -37,18 +38,6 @@ const PRIMARY =
   'w-full rounded-lg bg-[#018D31] px-4 py-3 font-bold text-white transition-colors hover:bg-[#017129] disabled:opacity-40 disabled:hover:bg-[#018D31]';
 const SECONDARY =
   'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
-/**
- * The three things you can do with a live link, side by side and built like the
- * cards on the Actions sheet: the glyph large, the label under it, the whole
- * tile a target. They are one row because they are one decision — how this link
- * gets to people, or that it stops — and stacked full-width they read as three
- * unrelated steps to work through in order.
- */
-const TILE =
-  'flex flex-1 basis-0 flex-col items-center gap-1.5 rounded-lg border px-1 py-3 shadow-sm transition-colors';
-const TILE_QUIET = `${TILE} border-panel-edge bg-white text-[#3D495A] hover:bg-[#F1F3F6]`;
-const TILE_STOP = `${TILE} border-[#F0C3C3] bg-[#FDF2F2] text-[#B42121] hover:bg-[#FBE6E6]`;
-const TILE_LABEL = 'text-center text-sm font-bold leading-tight';
 const QUIET_TEXT = '#636A77';
 
 interface Props {
@@ -131,7 +120,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
         {onCreateAccount ? (
           <button type="button" onClick={onCreateAccount} className={SECONDARY}>
             <PersonIcon className="h-6 w-6" />
-            <span className="font-bold">Create an account</span>
+            <span className="font-bold">Create an Account</span>
           </button>
         ) : (
           // No Supabase in this build, so there is no account to make. Saying
@@ -158,14 +147,17 @@ export function LiveShareView({ onCreateAccount }: Props) {
           <p className="mt-3 text-sm font-medium text-red-700">{status.message}</p>
         )}
 
-        <div className="mt-auto pt-4">
+        {/* Under what it is answering, like every other panel's buttons. It
+            used to be pinned to the foot of a near-full-height sheet, three
+            lines away from the sentence explaining it. */}
+        <div className="pt-6">
           <button
             type="button"
             className={PRIMARY}
             disabled={status.state === 'starting'}
             onClick={begin}
           >
-            {status.state === 'starting' ? 'Making a link…' : 'Share This Session'}
+            {status.state === 'starting' ? 'Making a Link…' : 'Share This Session'}
           </button>
         </div>
       </div>
@@ -183,7 +175,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
         {status.state === 'problem' ? (
           <>
             <p className="mt-3 text-sm font-medium text-red-700">{status.message}</p>
-            <div className="mt-auto pt-4">
+            <div className="pt-6">
               <button type="button" className={PRIMARY} onClick={begin}>
                 Try Again
               </button>
@@ -233,33 +225,30 @@ export function LiveShareView({ onCreateAccount }: Props) {
         </p>
       )}
 
-      <div className="flex gap-2 pt-1">
-        {/* Absent on a browser with no share sheet, and then the row is two
-            tiles wide rather than three. basis-0 on all of them so whichever
-            are there split the width evenly. */}
+      {/* Absent on a browser with no share sheet, and then the row is two tiles
+          wide rather than three. TileButton is basis-0, so whichever are there
+          split the width evenly. */}
+      <div className={`${TILE_ROW} pt-1`}>
         {hasSheet && (
-          <button type="button" onClick={handleShare} className={TILE_QUIET}>
-            <ShareIcon className="h-8 w-8" />
-            <span className={TILE_LABEL}>Share link</span>
-          </button>
+          <TileButton tone="quiet" Icon={ShareIcon} label="Share Link" onClick={handleShare} />
         )}
 
-        <button type="button" onClick={handleCopy} className={TILE_QUIET}>
-          <CopyIcon className="h-8 w-8" />
-          <span className={TILE_LABEL}>{copied ? 'Copied' : 'Copy link'}</span>
-        </button>
+        <TileButton
+          tone="quiet"
+          Icon={CopyIcon}
+          label={copied ? 'Copied' : 'Copy Link'}
+          onClick={handleCopy}
+        />
 
-        <button
-          type="button"
+        <TileButton
+          tone="red"
+          Icon={StopIcon}
+          label="Stop Sharing"
           onClick={() => {
             setStopped(true);
             void stopSharing();
           }}
-          className={TILE_STOP}
-        >
-          <StopIcon className="h-8 w-8" />
-          <span className={TILE_LABEL}>Stop Sharing</span>
-        </button>
+        />
       </div>
 
       <ScoreEditing scoring={scoring} />

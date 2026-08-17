@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Gender, Player, Round, RoundType, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
+import { courtsAreFull } from '../../lib/sitout';
 import { ROUND_TYPES, pillMeta } from '../../lib/roundTypes';
 import { TypeGlyphs } from '../setup/typeGlyphs';
 import { isScored } from '../../lib/standings';
@@ -24,6 +25,7 @@ import {
   WarningIcon,
 } from '../icons';
 import { AddCourtIcon, RemoveCourtIcon } from './actionIcons';
+import { TileButton, TILE_ROW } from '../TileButton';
 import { LiveShareView } from './LiveShareView';
 import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -190,16 +192,6 @@ const DRAG_TO_CLOSE = 80;
 /** Normal first, the same order the round type picker offers them in. */
 const ADD_ROUND_TYPES: (RoundType | null)[] = [null, ...ROUND_TYPES];
 
-const PRIMARY =
-  'w-full px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-40 disabled:hover:bg-brand-teal';
-/** The same button in the lead colour. Reshuffle's Rebuild, which is the one
- *  action on this sheet that both destroys something and is meant to be taken. */
-const PRIMARY_ORANGE =
-  'w-full px-4 py-2.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors font-medium';
-const SECONDARY =
-  'w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium';
-const DESTRUCTIVE =
-  'w-full px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium';
 const ROW =
   'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left transition-colors hover:bg-[#F1F3F6]';
 /**
@@ -212,18 +204,32 @@ const NEW_ROW =
   'flex w-full items-center gap-3 rounded-lg border border-brand-orange bg-brand-orange-light px-4 py-3 text-left font-bold text-brand-orange transition-colors hover:bg-[#ffe6d6]';
 
 /**
- * A view that asks one question and offers one answer. It says its piece at the
- * top and puts the button at the foot, because an action sheet opened to nearly
- * full height with three lines in the middle of it reads as something that has
- * failed to load.
+ * A view that asks one question and offers one answer.
+ *
+ * The buttons used to be pinned to the foot of the sheet, a screen below the
+ * sentence they were answering. They sit under the content now, with a gap
+ * rather than a hole between the two. The sheet is still opened to the same
+ * height as every other one: see `tall` below.
  */
-const CONFIRM = 'flex h-full flex-col gap-6';
+const CONFIRM = 'flex flex-col gap-6';
 /**
- * Every call site wraps one child, so nothing here is ever between two
- * siblings for a `space-y` to space. The two that put a pair of buttons
- * side by side add their own `gap-3` for that.
+ * On top of CONFIRM's own `gap-6`, so the tiles stand a little further off the
+ * content than the content stands off itself. They are the answer to what is
+ * above them, not the last line of it.
  */
-const CONFIRM_FOOT = 'mt-auto pt-6';
+const CONFIRM_FOOT = `${TILE_ROW} pt-2`;
+
+/**
+ * A list of people to look somebody up in, rather than to read.
+ *
+ * Add Player and Remove Player are both "find this person and tap them", and a
+ * list in whatever order the roster happens to hold is one a host has to read
+ * every line of. Copied first: these arrive as the arrays the session is built
+ * from, and sorting one in place would reorder the schedule behind it.
+ */
+function byName(list: Player[]): Player[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function names(round: Round | undefined, courtNumber: number): Player[] {
   const court = round?.courts.find((c) => c.courtNumber === courtNumber);
@@ -369,6 +375,16 @@ export function ActionsSheet({
   // What the extra court would mean. effectiveCourtCount caps a request the
   // roster cannot fill, so this is also the warning that a reshuffle would drop
   // the new court again.
+  /**
+   * Whether somebody added now would go to the bench and stay there.
+   *
+   * Every open round, not just the next one: a player joins all of them, and a
+   * sentence saying they will sit out has to be true of each. One round with a
+   * seat going spare makes it false, and the host would rightly wonder which
+   * round the app meant.
+   */
+  const noRoomOnCourt = hasOpenRound && openRounds.every(courtsAreFull);
+
   const bench = firstOpen ? firstOpen.sitOuts.length : 0;
   const seating = Math.min(4, bench < 2 ? 0 : bench);
   const courtSticks =
@@ -402,14 +418,28 @@ export function ActionsSheet({
     return () => window.removeEventListener('keydown', onKey);
   }, [requestClose]);
 
-  // The menu and the done flash are as tall as what is in them; an action opens
-  // the sheet up to near full screen.
-  //
-  // Both ends have to be a pixel count for the height to animate between them,
-  // so the short views are measured. The wrapper is only height-constrained on
-  // the tall views, which is what keeps the measurement out of a loop with the
-  // height it is feeding.
+  /**
+   * Every action opens the sheet to the same near full screen height. The menu
+   * and the done flash are as tall as what is in them.
+   *
+   * One height for all of them, whatever is on them: a panel that fitted itself
+   * to its content was a different sheet each time it opened, and the tiles
+   * under the question landed somewhere new on every one. What made the tall
+   * sheet look wrong was the buttons pinned to the bottom of it, three lines
+   * away from what they answered, and that is fixed where it was broken — they
+   * sit under the content now. The room below them is just room.
+   */
   const tall = view !== 'menu' && view !== 'done';
+
+  // Both ends have to be a pixel count for the height to animate between them,
+  // so the short views are measured.
+  //
+  // scrollHeight, and the wrapper carries `overflow-y-auto` when it is not
+  // height-constrained. That is what keeps the measurement out of a loop with
+  // the height it is feeding: a scroll container reports the height of what is
+  // in it whatever height it has itself been given, so a menu that turns out to
+  // be taller than the sheet allows gets clamped by maxHeight and scrolls, and
+  // still measures the same on the next pass.
   useLayoutEffect(() => {
     if (tall) return;
     const el = contentRef.current;
@@ -538,7 +568,14 @@ export function ActionsSheet({
           transition: dragging ? 'none' : `transform ${SLIDE_MS}ms ease-out, height 260ms ease-out`,
         }}
       >
-        <div ref={contentRef} className={tall ? 'flex h-full min-h-0 flex-col' : 'flex flex-col'}>
+        <div
+          ref={contentRef}
+          className={
+            tall
+              ? 'flex h-full min-h-0 flex-col'
+              : 'flex flex-col overflow-y-auto overscroll-contain'
+          }
+        >
           {view === 'done' ? (
             <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
               <SuccessIcon className="h-10 w-10 text-green-600" />
@@ -691,7 +728,54 @@ export function ActionsSheet({
 
                 {view === 'add-player' && (
                   <div className="space-y-2">
-                    {addablePlayers.map((p) => (
+                    {/* Before the list, because it changes what tapping a name
+                        does. Somebody added to a full session lands under
+                        Sitting Out at the foot of the schedule, which is the
+                        one place a host is not looking when they add them. */}
+                    {noRoomOnCourt && (
+                      <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
+                        <span
+                          className="flex shrink-0 items-center"
+                          style={{ color: ORANGE }}
+                          aria-hidden="true"
+                        >
+                          <WarningIcon className="h-9 w-9" />
+                        </span>
+                        <div>
+                          <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
+                            All courts are full.
+                          </p>
+                          <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
+                            New players will be added to the Sitting Out section. Swap
+                            them in manually or{' '}
+                            {/* The shape off the Reshuffle card, so the way out
+                                of this is recognised before the word is read.
+                                Kept on one line with it: an icon orphaned at the
+                                end of a line reads as a bullet. */}
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap font-bold">
+                              <ShuffleIcon className="h-5 w-5" />
+                              Reshuffle
+                            </span>{' '}
+                            to rebuild the remaining rounds.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Above the names, not under them. On a full group the list
+                        is longer than the sheet, and the way to add somebody who
+                        is not on it was below the fold with nothing to say it
+                        was there. */}
+                    <button
+                      type="button"
+                      className={NEW_ROW}
+                      onClick={() => setView('new-player')}
+                    >
+                      <AddPlayerSolidIcon className="h-6 w-6" />
+                      Someone New
+                    </button>
+
+                    {byName(addablePlayers).map((p) => (
                       <button
                         key={p.id}
                         type="button"
@@ -705,14 +789,6 @@ export function ActionsSheet({
                         <span className="text-gray-500">{p.rating.toFixed(1)}</span>
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      className={NEW_ROW}
-                      onClick={() => setView('new-player')}
-                    >
-                      <AddPlayerSolidIcon className="h-6 w-6" />
-                      Someone New
-                    </button>
                     {addablePlayers.length === 0 && (
                       <p className="pt-2 text-sm" style={{ color: QUIET_TEXT }}>
                         Everyone in this group is already playing. Add someone new above.
@@ -789,7 +865,7 @@ export function ActionsSheet({
 
                 {view === 'remove-player' && !removing && (
                   <div className="space-y-2">
-                    {players.map((p) => (
+                    {byName(players).map((p) => (
                       <button
                         key={p.id}
                         type="button"
@@ -839,24 +915,22 @@ export function ActionsSheet({
                       )}
                     </div>
 
-                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
-                      <button
-                        type="button"
-                        className={SECONDARY}
+                    <div className={CONFIRM_FOOT}>
+                      <TileButton
+                        tone="quiet"
+                        Icon={CloseIcon}
+                        label="Cancel"
                         onClick={() => setRemoving(null)}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className={DESTRUCTIVE}
+                      />
+                      <TileButton
+                        tone="red"
+                        Icon={RemovePlayerSolidIcon}
+                        label="Remove"
                         onClick={() => {
                           actions.onRemovePlayer(removing.id);
                           finish(`${removing.name} is out.`);
                         }}
-                      >
-                        Remove
-                      </button>
+                      />
                     </div>
                   </div>
                 )}
@@ -915,57 +989,63 @@ export function ActionsSheet({
                       </div>
                     )}
 
+                    {/* Teal, not the lead orange it used to wear. Orange is what
+                        this panel warns in — the box above says what a rebuild
+                        costs — and the button that does it cannot be the same
+                        colour as the warning against doing it. */}
                     <div className={CONFIRM_FOOT}>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button type="button" className={SECONDARY} onClick={() => setView('menu')}>
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className={PRIMARY_ORANGE}
-                          onClick={() => {
-                            actions.onReshuffle();
-                            finish(`${roundWord(openRounds.length)} reshuffled.`);
-                          }}
-                        >
-                          Rebuild {roundCount(openRounds.length)}
-                        </button>
-                      </div>
+                      <TileButton
+                        tone="quiet"
+                        Icon={CloseIcon}
+                        label="Cancel"
+                        onClick={() => setView('menu')}
+                      />
+                      <TileButton
+                        tone="teal"
+                        Icon={ShuffleIcon}
+                        label={`Rebuild ${roundCount(openRounds.length)}`}
+                        onClick={() => {
+                          actions.onReshuffle();
+                          finish(`${roundWord(openRounds.length)} reshuffled.`);
+                        }}
+                      />
                     </div>
                   </div>
                 )}
 
                 {view === 'new-session' && (
                   <div className={CONFIRM}>
-                    <p className="text-gray-700">
+                    {/* Bold: it is the cost, and the line under it is the
+                        reassurance. Read in that order they are a warning and
+                        its softening; read the other way round they are two
+                        sentences of equal weight about players. */}
+                    <p className="font-bold text-gray-700">
                       This will discard the current schedule including any scores
                       you&rsquo;ve entered.
                     </p>
                     <p className="text-sm" style={{ color: QUIET_TEXT }}>
-                      The same set of players are selected again; however, you can
-                      change them.
+                      The same set of players will be selected again; however, you
+                      can change them.
                     </p>
                     {/* One line, Cancel on the left. The pair reads as a choice
                         rather than as a button with an afterthought under it,
                         and the way out is where a way out belongs. */}
-                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
-                      <button
-                        type="button"
-                        className={SECONDARY}
+                    <div className={CONFIRM_FOOT}>
+                      <TileButton
+                        tone="quiet"
+                        Icon={CloseIcon}
+                        label="Cancel"
                         onClick={() => setView('menu')}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className={DESTRUCTIVE}
+                      />
+                      <TileButton
+                        tone="red"
+                        Icon={EditPageIcon}
+                        label="Yes, Start New"
                         onClick={() => {
                           onClose();
                           actions.onStartNewSession();
                         }}
-                      >
-                        Yes, Start New
-                      </button>
+                      />
                     </div>
                   </div>
                 )}
@@ -1007,24 +1087,22 @@ export function ActionsSheet({
                       })}
                     </div>
 
-                    <div className={`${CONFIRM_FOOT} flex gap-3`}>
-                      <button
-                        type="button"
-                        className={SECONDARY}
+                    <div className={CONFIRM_FOOT}>
+                      <TileButton
+                        tone="quiet"
+                        Icon={CloseIcon}
+                        label="Cancel"
                         onClick={() => setView('menu')}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className={PRIMARY}
+                      />
+                      <TileButton
+                        tone="teal"
+                        Icon={AddRowIcon}
+                        label="Add 1 Round"
                         onClick={() => {
                           actions.onAddRound(addType);
                           finish('1 round added.');
                         }}
-                      >
-                        Add 1 Round
-                      </button>
+                      />
                     </div>
                   </div>
                 )}
@@ -1045,17 +1123,25 @@ export function ActionsSheet({
                         empty, and a reshuffle would drop it again.
                       </p>
                     )}
+                    {/* A way out, which this panel went without while every
+                        other one had one. The back chevron is not it: nothing
+                        says a chevron in the corner is how you decline. */}
                     <div className={CONFIRM_FOOT}>
-                      <button
-                        type="button"
-                        className={PRIMARY}
+                      <TileButton
+                        tone="quiet"
+                        Icon={CloseIcon}
+                        label="Cancel"
+                        onClick={() => setView('menu')}
+                      />
+                      <TileButton
+                        tone="teal"
+                        Icon={AddCourtIcon}
+                        label="Add the Court"
                         onClick={() => {
                           actions.onAddCourt();
                           finish('Court added.');
                         }}
-                      >
-                        Add the Court
-                      </button>
+                      />
                     </div>
                   </div>
                 )}

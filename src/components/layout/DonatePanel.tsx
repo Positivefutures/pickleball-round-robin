@@ -83,7 +83,7 @@ export function DonatePanel({ onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 w-full rounded-xl border border-[#CACBCF] bg-gradient-to-b from-[#F7F7F7] to-[#EFF0F0] px-4 py-3 text-lg font-medium text-gray-600 transition-colors hover:from-[#EDEEEE] hover:to-[#E5E6E6]"
+          className="mt-2 w-full rounded-xl border border-[#CACBCF] bg-gradient-to-b from-[#F7F7F7] to-[#EFF0F0] px-4 py-3 text-lg font-bold text-gray-600 transition-colors hover:from-[#EDEEEE] hover:to-[#E5E6E6]"
         >
           Close
         </button>

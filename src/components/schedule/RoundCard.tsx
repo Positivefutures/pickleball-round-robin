@@ -2,7 +2,8 @@ import type { Round, Player, LockedPair } from '../../types';
 import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
-import { courtMissReason, roundTypeOf } from '../../lib/roundTypes';
+import { courtMissHeadline, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
+import { CourtMissNote } from './CourtMissNote';
 import { ROUND_EDGE, ROUND_FILL, ROUND_HEADING_TEXT } from './roundLook';
 import { ChevronDownIcon } from '../icons';
 import { RoundTimerChip } from './RoundTimerChip';
@@ -271,8 +272,14 @@ export function RoundCard({
                     />
                     {/* Under the court it is about, so the eye reaches the names
                         first and the explanation second. */}
-                    {missReason && (
-                      <p className="mt-1.5 text-sm font-medium text-white no-print">{missReason}</p>
+                    {missReason && roundType && (
+                      <CourtMissNote
+                        headline={courtMissHeadline(
+                          roundType,
+                          courtIdx === round.courts.length - 1
+                        )}
+                        reason={missReason}
+                      />
                     )}
                   </div>
                 );

@@ -1,7 +1,8 @@
 import type { Player } from '../../types';
-import { WarningIcon } from '../icons';
+import { CloseIcon, RemovePlayerSolidIcon, WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
+import { TileButton, TILE_ROW } from '../TileButton';
 
 interface Props {
   player: Player;
@@ -37,9 +38,11 @@ export function RemovePlayerDialog({
               Only {remainingCount} player{remainingCount === 1 ? '' : 's'} would be left, and a
               court needs 4.
             </p>
+            {/* On its own, so not a tile: a single tile stretched across the
+                box is a card, not a button. See TileButton. */}
             <button
               onClick={onCancel}
-              className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+              className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
             >
               Cancel
             </button>
@@ -60,19 +63,18 @@ export function RemovePlayerDialog({
               </p>
             )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={onCancel}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
+            {/* The same pair Remove Player answers with on the Actions sheet.
+                "Remove" rather than "Yes", for the same reason: a tile carries
+                a shape and a verb, and "Yes" beside a person-shaped glyph says
+                nothing about what is about to happen to them. */}
+            <div className={TILE_ROW}>
+              <TileButton tone="quiet" Icon={CloseIcon} label="Cancel" onClick={onCancel} />
+              <TileButton
+                tone="red"
+                Icon={RemovePlayerSolidIcon}
+                label="Remove"
                 onClick={onConfirm}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
-              >
-                Yes
-              </button>
+              />
             </div>
           </>
         )}

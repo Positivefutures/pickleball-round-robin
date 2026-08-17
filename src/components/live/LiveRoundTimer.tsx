@@ -1,9 +1,11 @@
-import { sharedRemainingMs, type SharedRoundTimer } from '../../lib/sessionSnapshot';
+import { sharedAlarming, sharedRemainingMs, type SharedRoundTimer } from '../../lib/sessionSnapshot';
 import { formatMMSS } from '../../lib/roundTimer';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { ROUND_HEADING_TEXT, ROUND_TIMER_CHIP } from '../schedule/roundLook';
 import { TimerIcon } from '../schedule/timerIcons';
 import { TimerSheet } from '../schedule/TimerSheet';
+import { LiveAlertControls } from './LiveAlertControls';
+import type { Alerts } from '../../lib/watchAlerts';
 
 /**
  * The host's round timer on somebody else's phone.
@@ -22,30 +24,35 @@ import { TimerSheet } from '../schedule/TimerSheet';
  */
 export function LiveRoundTimer({
   timer,
+  alerts,
+  onChangeAlerts,
   onClose
 }: {
   timer: SharedRoundTimer;
+  /** The host's choices, with this watcher's own over the top. */
+  alerts: Alerts;
+  onChangeAlerts: (patch: Partial<Alerts>) => void;
   onClose: () => void;
 }) {
   useCountdownTick(timer.phase === 'running');
 
   const remaining = sharedRemainingMs(timer);
-
-  // Zero on this phone's own clock is time up, whether or not the host has
-  // published the fact yet. Waiting for that would be a countdown that sat on
-  // 0:00 for the length of a poll.
-  const alarming = timer.phase === 'alarming' || (timer.phase === 'running' && remaining === 0);
+  const alarming = sharedAlarming(timer, remaining);
 
   return (
     <TimerSheet
       roundNumber={timer.roundNumber}
       alarming={alarming}
       remainingMs={remaining}
-      // Never the white sheet: that half of the host's panel is where the
-      // minutes and the alerts are set, and there is nothing here to set.
+      // Never the white sheet. On the host's panel that is the phase with the
+      // minutes still to set, and a watcher's timer is always counting.
       light={false}
-      flashOn={timer.flashOn}
+      flashOn={alerts.flashOn}
       onClose={onClose}
+      // Three switches rather than none. What the host chose reaches every
+      // phone, which is right, and then the phone gets a say: nine alarms
+      // going off around one court is nine times what anybody asked for.
+      config={<LiveAlertControls alerts={alerts} onChange={onChangeAlerts} />}
     />
   );
 }
@@ -55,7 +62,7 @@ export function LiveRoundTimer({
  * beside it.
  *
  * The host's chip in the same place reads a live store; this one reads a
- * document that may be twenty seconds old. Both come out at the same number,
+ * document that may be a few seconds old. Both come out at the same number,
  * because both subtract an absolute deadline from the clock of the phone
  * drawing them — and both are written from one class string in roundLook, so
  * two people standing next to each other see the same thing.

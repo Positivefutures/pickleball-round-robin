@@ -37,7 +37,7 @@ export function UpdateBanner({ onReload, onDismiss }: Props) {
       <button
         type="button"
         onClick={onReload}
-        className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold text-white transition-colors ${ORANGE}`}
+        className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-bold text-white transition-colors ${ORANGE}`}
       >
         Reload
       </button>

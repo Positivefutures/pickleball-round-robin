@@ -572,7 +572,7 @@ export function InstructionsPanel({ onClose }: Props) {
             className="-ml-1 flex items-center gap-1 rounded-md px-2 py-1 text-lg font-bold transition-colors hover:bg-white/10"
           >
             <ChevronLeftIcon className="h-5 w-5" strokeWidth={3} />
-            All topics
+            All Topics
           </button>
         ) : (
           <h2 className="text-2xl font-bold tracking-tight">Instructions</h2>
@@ -580,7 +580,7 @@ export function InstructionsPanel({ onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md border-2 border-white/80 px-3 py-1 font-medium transition-colors hover:bg-white/10"
+          className="rounded-md border-2 border-white/80 px-3 py-1 font-bold transition-colors hover:bg-white/10"
         >
           Close
         </button>
@@ -616,7 +616,7 @@ export function InstructionsPanel({ onClose }: Props) {
                     className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-4 py-3 font-bold text-gray-900 transition-colors hover:bg-gray-50"
                   >
                     <ChevronLeftIcon className="h-5 w-5 text-gray-400" strokeWidth={2.5} />
-                    Back to all topics
+                    Back to All Topics
                   </button>
                 )}
               </div>

@@ -1,4 +1,5 @@
 import { clearAuthParams, getSupabase, isSupabaseConfigured } from './supabase';
+import * as stores from './stores';
 
 /**
  * Sign-in, and the state of it.
@@ -36,7 +37,74 @@ const listeners = new Set<() => void>();
 
 function setState(next: AuthState) {
   state = next;
+  // Whoever is signed in got there somehow, and a code still on offer is a code
+  // nobody needs. Clearing it here covers the routes verifyCode does not: the
+  // stray emailed link, and a session the SDK refreshes on its own.
+  if (next.status === 'signed-in') stores.pendingSignIn.set(null);
   for (const listener of listeners) listener();
+}
+
+// ------------------------------------------------------- A code in the post
+
+/**
+ * How long after sending a code the app will still open the box to type it in.
+ *
+ * Supabase expires an emailed code after an hour. Past that, reopening the box
+ * would offer somebody a field that cannot accept anything, which is a worse
+ * place to be stranded than the email field they would otherwise see.
+ */
+const CODE_GOOD_FOR_MS = 60 * 60 * 1000;
+
+/**
+ * The address a code was sent to and not yet used, if it is still worth typing.
+ *
+ * This is what survives the trip to the mail app. iOS reloads a backgrounded
+ * Safari tab whenever it wants the memory, and the panel that was on screen is
+ * ordinary component state: it does not come back. So the send is recorded, and
+ * the panel and the app both read this on the way up to put the host back in
+ * front of the box they left.
+ *
+ * Expiry is checked on read rather than on a timer, and a dead one is thrown
+ * away as it is found. Nothing else has to remember to tidy up.
+ */
+export function pendingSignIn(): string | null {
+  return live()?.email ?? null;
+}
+
+/**
+ * Whether the app should open My Account by itself, unasked.
+ *
+ * A code is out, and the host never shut the panel on it. The only way both are
+ * true is that something closed it for them, which on a phone means the reload
+ * they did not ask for. So the panel goes back up.
+ */
+export function signInInterrupted(): boolean {
+  const pending = live();
+  return pending !== null && !pending.dismissed;
+}
+
+/** Closing My Account by hand. The box stays; the app stops offering it. */
+export function dismissPendingSignIn(): void {
+  const pending = live();
+  if (pending && !pending.dismissed) {
+    stores.pendingSignIn.set({ ...pending, dismissed: true });
+  }
+}
+
+/** Use a Different Address, which is somebody saying that code is no good. */
+export function forgetPendingSignIn(): void {
+  stores.pendingSignIn.set(null);
+}
+
+/** The stored record if the code could still work, and nothing once it cannot. */
+function live(): stores.PendingSignIn | null {
+  const pending = stores.pendingSignIn.get();
+  if (!pending) return null;
+  if (Date.now() - pending.sentAt >= CODE_GOOD_FOR_MS) {
+    stores.pendingSignIn.set(null);
+    return null;
+  }
+  return pending;
 }
 
 /**
@@ -196,6 +264,9 @@ export async function sendSignInEmail(email: string): Promise<AuthResult> {
       },
     });
     if (error) return { ok: false, message: friendlyError(error, 'send') };
+    // Recorded before anyone reads it. From here until it is used, this is the
+    // one thing that knows a host is halfway through signing in.
+    stores.pendingSignIn.set({ email: address, sentAt: Date.now() });
     return { ok: true };
   } catch (error) {
     return { ok: false, message: friendlyError(error, 'send') };
@@ -220,6 +291,10 @@ export async function verifyCode(email: string, code: string): Promise<AuthResul
       type: 'email',
     });
     if (error) return { ok: false, message: friendlyError(error) };
+    // Spent. setState clears this too when the session lands, but not before
+    // the panel has re-rendered, and a stale one there would reopen the code
+    // box over the top of somebody who has just got in.
+    stores.pendingSignIn.set(null);
     return { ok: true };
   } catch (error) {
     return { ok: false, message: friendlyError(error) };

@@ -115,6 +115,29 @@ export function clearPlan(plan: RoundPlan, locked: ReadonlySet<number>): RoundPl
   return next.map((type, i) => (locked.has(i + 1) ? type : null));
 }
 
+/**
+ * Which formats this session actually uses, in the order the app lists them.
+ *
+ * Each named once however many rounds are played as it. The Setup panel shows
+ * these under a shut Set Round Types, and the question a host is asking at a
+ * glance is "is there a gendered round this afternoon", not how many — a count
+ * would be a number to work out against a list they can open in one tap.
+ *
+ * Ordinary rounds are not a format and have no pill; the answer for a session
+ * of nothing but those is an empty array, and nothing is drawn.
+ *
+ * Rounds already played are in, unlike planHasTypes below. A gendered round is
+ * a gendered round whether it is still to come or already on the board.
+ */
+export function planTypesUsed(plan: RoundPlan, numRounds: number): RoundType[] {
+  const seen = new Set<RoundType>();
+  for (let n = 1; n <= numRounds; n++) {
+    const type = planAt(plan, n);
+    if (type) seen.add(type);
+  }
+  return ROUND_TYPES.filter((type) => seen.has(type));
+}
+
 /** Is there anything for `clearPlan` to do? */
 export function planHasTypes(
   plan: RoundPlan,

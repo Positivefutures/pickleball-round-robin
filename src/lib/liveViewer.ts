@@ -60,6 +60,53 @@ export async function fetchShared(key: string): Promise<LiveFetch> {
   }
 }
 
+/**
+ * The cheap half of fetchShared: when this session was last published, and
+ * nothing else.
+ *
+ * A watching page asks this every few seconds and only pulls the document when
+ * the answer moves. The document is the whole session — around 8KB — and it was
+ * the size of it that set the twenty second poll, which in turn was why the
+ * host's round timer took about twelve seconds to reach anybody. A timestamp is
+ * tens of bytes, so it can be asked for often enough that the timer arrives
+ * while the host still has their thumb on the button.
+ *
+ * 'unavailable' rather than an error, because the one way this fails in
+ * practice is a database that has not had 0009 run against it yet. The caller
+ * treats that as "no probe here" and goes back to polling the document on the
+ * old cadence, so the two halves can ship in either order.
+ */
+export type LiveProbe =
+  /** Epoch ms of the last publish, to compare against a snapshot's own `at`. */
+  | { state: 'at'; at: number }
+  /** No such key, expired, or stopped. The three are one answer, as always. */
+  | { state: 'gone' }
+  | { state: 'unavailable' };
+
+export async function fetchSharedAt(key: string): Promise<LiveProbe> {
+  if (!isSupabaseConfigured()) return { state: 'unavailable' };
+
+  try {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.rpc('shared_session_at', { key });
+    if (error) throw new Error(error.message);
+    if (data === null || data === undefined) return { state: 'gone' };
+
+    // Postgres hands back a timestamptz, which is not the string the client
+    // sent even though it is the same instant. Compared as instants, not as
+    // text: the column is written from snapshot.at, and both sides survive the
+    // trip at millisecond precision.
+    const at = Date.parse(String(data));
+    if (Number.isNaN(at)) return { state: 'unavailable' };
+    return { state: 'at', at };
+  } catch {
+    // Offline is 'unavailable' too. There is nothing to show for a failed
+    // probe — the document already on screen is the last thing known to be
+    // true — and the fetch that follows has somewhere to say so.
+    return { state: 'unavailable' };
+  }
+}
+
 function looksOffline(text: string): boolean {
   const lower = text.toLowerCase();
   return (
@@ -134,7 +181,15 @@ function readTimer(value: unknown): SharedRoundTimer | null {
     phase: timer.phase,
     endsAt,
     remainingMs: typeof timer.remainingMs === 'number' ? Math.max(0, timer.remainingMs) : 0,
-    flashOn: timer.flashOn === true
+    flashOn: timer.flashOn === true,
+    // Not `=== true`, unlike everything above it. The strict test is right for
+    // a field whose absence should mean off; this one's absence means an older
+    // document that predates it, and the host's own default is on. A watcher
+    // who wants silence has a switch of their own.
+    soundOn: timer.soundOn !== false,
+    // resolveTone at the point of use rather than here, so a tone this build
+    // has never heard of still arrives intact for the picker to fall back from.
+    alarmTone: typeof timer.alarmTone === 'string' ? timer.alarmTone : undefined
   };
 }
 

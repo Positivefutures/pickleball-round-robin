@@ -351,7 +351,7 @@ describe('the round timer', () => {
     expect(timer()).toBeNull();
   });
 
-  it('publishes the deadline once it is started, and not the private settings', async () => {
+  it('publishes the deadline, and the alarm the host set for the court', async () => {
     await startSharing();
     const endsAt = Date.now() + 720_000;
     running(endsAt);
@@ -362,11 +362,25 @@ describe('the round timer', () => {
       phase: 'running',
       endsAt,
       remainingMs: 720_000,
-      flashOn: true
+      // All three of the host's alerts, because a watching phone starts on
+      // them: the host is setting an alarm for a court, not only for the phone
+      // in their hand. What each of those phones then does with it is theirs to
+      // decide, and is decided on the phone. See lib/watchAlerts.ts.
+      soundOn: true,
+      flashOn: true,
+      alarmTone: 'bell'
     });
-    // The tone is the host's own choice on the host's own phone. Nobody
-    // watching can hear it or change it, so it never goes out.
-    expect(JSON.stringify(live().snapshot)).not.toContain('bell');
+  });
+
+  it('leaves the setting that is nobody else’s business at home', async () => {
+    await startSharing();
+    running(Date.now() + 720_000);
+    await vi.advanceTimersByTimeAsync(1500);
+
+    // The configured length is the one thing on that panel that describes the
+    // host's own screen rather than the court's afternoon. What the watchers
+    // need from it is already in the deadline.
+    expect(timer()).not.toHaveProperty('minutes');
   });
 
   it('takes the timer back off when it is reset', async () => {

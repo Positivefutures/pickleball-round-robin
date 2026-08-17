@@ -8,7 +8,7 @@ import { SessionConfig } from './SessionConfig';
 import { RoundTypesInfoPanel } from './RoundTypesInfoPanel';
 import { DiscardScheduleDialog } from '../schedule/DiscardScheduleDialog';
 import { PLAN_REBUILD_WARNING } from '../../lib/steps';
-import { LinkIcon } from '../icons';
+import { CheckIcon, LinkIcon } from '../icons';
 import { resolvePairs } from '../../lib/partnerships';
 import { minPlayersForCourts } from '../../lib/assign';
 import { useScrollLock } from '../../hooks/useScrollLock';
@@ -35,6 +35,12 @@ interface Props {
   onRoundsChange: (n: number) => void;
   /** Done on the round types list: the whole plan, once, from the draft. */
   onPlanCommit: (next: RoundPlan) => void;
+  /**
+   * The open list's draft, held by App so that Generate — which is on this page,
+   * under the list — can build from what the host is looking at.
+   */
+  planDraft: RoundPlan | null;
+  onPlanDraft: (next: RoundPlan | null) => void;
   /**
    * Whether there is an afternoon on the board: scores written down, players
    * moved by hand, rounds marked complete. App works it out, because two of
@@ -74,6 +80,8 @@ export function SetupPage({
   onCourtsChange,
   onRoundsChange,
   onPlanCommit,
+  planDraft,
+  onPlanDraft,
   workAtStake = false,
   promptGenerate = false,
   onGenerate,
@@ -185,7 +193,7 @@ export function SetupPage({
         <button
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
-          className="flex items-center gap-2 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {/* The link belongs to pairing players up. The same button ends that
               mode, where it would be saying the wrong thing. */}
@@ -201,7 +209,7 @@ export function SetupPage({
         <button
           onClick={handleGenerate}
           data-tutorial={tourAnchor ? 'generate-schedule' : undefined}
-          className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
+          className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
         >
           Generate Schedule &rarr;
         </button>
@@ -246,6 +254,8 @@ export function SetupPage({
             onToggleExpanded={togglePlanner}
             onOpenInfo={() => setInfoOpen(true)}
             onPlanCommit={onPlanCommit}
+            planDraft={planDraft}
+            onPlanDraft={onPlanDraft}
             scoringEnabled={scoringEnabled}
             onScoringChange={onScoringChange}
           />
@@ -269,7 +279,7 @@ export function SetupPage({
               </h3>
               <button
                 onClick={onClearPartnerships}
-                className="text-sm text-brand-teal hover:text-brand-teal-dark font-medium"
+                className="text-sm text-brand-teal hover:text-brand-teal-dark font-bold"
               >
                 Unlink All
               </button>
@@ -320,6 +330,7 @@ export function SetupPage({
           body={PLAN_REBUILD_WARNING}
           cancelLabel="Cancel"
           confirmLabel="Continue"
+          confirmIcon={CheckIcon}
           // Not red. Nothing is being thrown away that the host will miss: the
           // rounds already played keep their games and their scores, and the
           // rest were only ever a plan.

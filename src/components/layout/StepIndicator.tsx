@@ -98,7 +98,7 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
               // text mode used to give text-xs here. These three labels are how
               // the app is navigated, so they are worth reading at the setting
               // that made them readable whether or not it is switched on.
-              className={`relative flex-1 flex items-center justify-center gap-1 py-3 px-0.5 rounded-xl text-[1.0125rem] font-semibold transition-colors ${
+              className={`relative flex-1 flex items-center justify-center gap-1 py-3 px-0.5 rounded-xl text-[1.0125rem] font-bold transition-colors ${
                 isActive ? 'bg-white shadow-sm' : ''
               }`}
               style={

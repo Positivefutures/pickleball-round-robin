@@ -53,7 +53,7 @@ function regionRect(region: Region): Rect | null {
  *
  * The screen darkened everywhere except the card's boxes, an orange ring on the
  * ones being pointed at, a bubble beside each with the step's own Back and Next
- * in it, Skip tutorial at the foot of the screen throughout, and clicks stopped
+ * in it, Skip Tutorial at the foot of the screen throughout, and clicks stopped
  * everywhere the card has not left something alive. Every number comes out of
  * tourGeometry.ts; this file measures, calls it, and turns the answers into divs.
  *
@@ -84,7 +84,7 @@ export function TutorialOverlay({
   // disappearing are the same commit and no frame is painted between them. See
   // lib/tourSuspend.
   const suspended = useSyncExternalStore(subscribeSuspend, tourSuspended, tourSuspended);
-  // Whether Skip tutorial has been pressed and is waiting to be meant. It is a
+  // Whether Skip Tutorial has been pressed and is waiting to be meant. It is a
   // small target at the foot of a screen full of things the card wants pressed,
   // and ending the tour by accident cannot be undone.
   const [confirmSkip, setConfirmSkip] = useState(false);
@@ -297,7 +297,7 @@ export function TutorialOverlay({
                   <button
                     type="button"
                     onClick={onBack}
-                    className="font-semibold text-gray-500 underline underline-offset-2 transition-colors hover:text-gray-700"
+                    className="font-bold text-gray-500 underline underline-offset-2 transition-colors hover:text-gray-700"
                   >
                     Back
                   </button>
@@ -319,7 +319,7 @@ export function TutorialOverlay({
         );
       })}
 
-      {/* Skip tutorial, in the same place on every card, at the foot of the
+      {/* Skip Tutorial, in the same place on every card, at the foot of the
           screen the band is kept clear of. In the corner of a bubble it read as
           one of that card's two buttons; down here it is plainly about the tour
           rather than about the step, and no card has to find room for it. */}
@@ -327,10 +327,10 @@ export function TutorialOverlay({
         type="button"
         onClick={() => setConfirmSkip(true)}
         data-tour-skip
-        className="pointer-events-auto fixed left-1/2 -translate-x-1/2 rounded-md border border-brand-orange bg-brand-orange-light px-4 py-1 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-white"
+        className="pointer-events-auto fixed left-1/2 -translate-x-1/2 rounded-md border border-brand-orange bg-brand-orange-light px-4 py-1 text-sm font-bold text-gray-600 shadow-sm transition-colors hover:bg-white"
         style={{ bottom: EDGE }}
       >
-        Skip tutorial
+        Skip Tutorial
       </button>
 
       {/* Asked, because the pill sits at the foot of a screen full of things
@@ -356,14 +356,14 @@ export function TutorialOverlay({
               <button
                 type="button"
                 onClick={() => setConfirmSkip(false)}
-                className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
+                className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-300"
               >
                 Keep Going
               </button>
               <button
                 type="button"
                 onClick={skipTour}
-                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-orange-dark"
+                className="flex-1 rounded-md bg-brand-orange px-4 py-2.5 font-bold text-white transition-colors hover:bg-brand-orange-dark"
               >
                 End Tutorial
               </button>

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { CourtAssignment, Gender, Player, Round } from '../types';
 import {
-  NORMAL_ROUND_META, ROUND_TYPE_META, courtMatchesType, courtMissReason, pillMeta,
+  NORMAL_ROUND_META, ROUND_TYPE_META, courtMatchesType, courtMissHeadline, courtMissReason,
+  pillMeta,
   roundTypeOf,
 } from './roundTypes';
 
@@ -186,6 +187,19 @@ describe('courtMissReason', () => {
     expect(courtMissReason(round([before, swapped], ['F', 'M']), 'gendered', swapped)).toContain(
       '2 men and 4 women left over'
     );
+  });
+});
+
+describe('courtMissHeadline', () => {
+  it('names the format that could not be made', () => {
+    expect(courtMissHeadline('gendered', true)).toBe('Unable to make last game gendered');
+    expect(courtMissHeadline('mixed', true)).toBe('Unable to make last game mixed');
+  });
+
+  it('says "this game" of a court with another one under it', () => {
+    // Two courts the format could not make. Only the bottom one is the last
+    // game, and calling the one above it that would be a plain untruth.
+    expect(courtMissHeadline('mixed', false)).toBe('Unable to make this game mixed');
   });
 });
 

@@ -60,6 +60,10 @@ vi.mock('../../lib/auth', () => ({
   changeEmail: () => Promise.resolve({ ok: true }),
   sendSignInEmail: () => Promise.resolve({ ok: true }),
   verifyCode: () => Promise.resolve({ ok: true }),
+  // No code out. This file is about the panel's routing, and a stored one
+  // would open every signed-out case on the code screen instead.
+  pendingSignIn: () => null,
+  forgetPendingSignIn: () => {},
   authStore: {
     get: () => authState,
     subscribe(listener: () => void) {
@@ -316,7 +320,7 @@ describe('the merge question, seen from the account screen', () => {
     syncState = CHOICE;
     mount();
     await act(async () => {
-      button(/Combine them/).click();
+      button(/Combine Them/).click();
     });
 
     // The store still says 'choice' here, and that is the point: the answer is
@@ -331,7 +335,7 @@ describe('the merge question, seen from the account screen', () => {
     syncState = CHOICE;
     mount();
     await act(async () => {
-      button(/Combine them/).click();
+      button(/Combine Them/).click();
     });
 
     expect(button(/Sign Out/)).toBeTruthy();

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendSignInEmail, verifyCode } from '../../lib/auth';
+import { forgetPendingSignIn, pendingSignIn, sendSignInEmail, verifyCode } from '../../lib/auth';
 import { GroupsIcon, LockIcon, ShieldCheckIcon, SyncDevicesIcon } from '../icons';
 import { AccountShell, Problem } from './AccountShell';
 import { blurb, field, label, muted, note, primary, secondary } from './accountStyles';
@@ -45,7 +45,12 @@ function PromiseRow({ Icon, text }: { Icon: typeof GroupsIcon; text: string }) {
 export function SignInPanel({ onClose, notice }: Props) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  // Opened on the code screen when a code is already out, whether this panel
+  // sent it a moment ago or a previous life of the app did. Fetching a code
+  // means leaving for the mail app, and iOS reloads the tab behind you often
+  // enough that "where did the box go" is the ordinary experience rather than
+  // the unlucky one. See pendingSignIn in auth.ts.
+  const [sentTo, setSentTo] = useState<string | null>(() => pendingSignIn());
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -136,20 +141,24 @@ export function SignInPanel({ onClose, notice }: Props) {
           disabled={busy}
           className={`mt-4 ${primary}`}
         >
-          {busy ? 'Signing in...' : 'Sign in'}
+          {busy ? 'Signing In...' : 'Sign In'}
         </button>
 
         <button
           type="button"
           onClick={() => {
+            // Thrown away, not just hidden. Somebody saying they want a
+            // different address has told us that code is no good, and leaving
+            // it stored would reopen this screen on the next launch.
+            forgetPendingSignIn();
             setSentTo(null);
             setCode('');
             setProblem(null);
           }}
           disabled={busy}
-          className="mt-3 w-full text-[#4B6B45] underline underline-offset-2 hover:text-[#3D7E34]"
+          className="mt-3 w-full font-bold text-[#4B6B45] underline underline-offset-2 hover:text-[#3D7E34]"
         >
-          Use a different address
+          Use a Different Address
         </button>
 
         <button type="button" onClick={onClose} className={`mt-3 ${secondary}`}>
@@ -205,7 +214,7 @@ export function SignInPanel({ onClose, notice }: Props) {
         disabled={busy}
         className={`mt-4 ${primary}`}
       >
-        {busy ? 'Sending...' : 'Email me a login code'}
+        {busy ? 'Sending...' : 'Email Me a Login Code'}
       </button>
 
       <p className="mt-3 text-center leading-snug text-[#495668]">

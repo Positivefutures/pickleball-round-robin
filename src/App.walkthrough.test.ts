@@ -238,8 +238,10 @@ function subIn(name: string, round = 1) {
 /** Takes somebody off the rounds still to be played, confirmation and all. */
 function takeOff(name: string, round = 1) {
   openPlayerMenu(name, round);
-  clickButton(/^Remove from Remaining Rounds$/);
-  clickButton(/^Yes$/);
+  clickButton(/^Remove Player$/);
+  // "Remove", not "Yes": the confirm is a tile with a glyph on it now, and a
+  // tile saying Yes next to a person-shaped icon names nothing.
+  clickButton(/^Remove$/);
 }
 
 /**
@@ -557,7 +559,7 @@ describe('the mark a swap leaves', () => {
  * one-at-a-time rule in App never suppresses this one here.
  */
 describe('the sign-in banner', () => {
-  const LINE = 'A free account keeps them safe';
+  const LINE = 'Create a free account to keep them safe';
 
   /** A build with Supabase configured, which is what production is. */
   function withDatabase(run: () => void) {
@@ -607,7 +609,7 @@ describe('the sign-in banner', () => {
     withDatabase(() => {
       seed(9, 9, 2);
       mount();
-      clickButton(/^Sign in$/);
+      clickButton(/^Sign In$/);
       expect(container.querySelector('img[src="/account-top.png"]')).not.toBeNull();
     });
   });
@@ -738,11 +740,124 @@ describe('the sign-in banner', () => {
         seed(9, 9, 2);
         arriveAt('/');
         mount();
-        clickButton(/^Sign in$/);
+        clickButton(/^Sign In$/);
 
         await settle();
         expect(container.textContent).not.toContain('That link');
       });
+    });
+  });
+
+  /**
+   * The same loop, entered a different way, and the way a real host hit it.
+   *
+   * Reading the emailed code means leaving Safari for the mail app. iOS reloads
+   * the tab while it is away often enough to be the ordinary case, and every
+   * panel the app had open is component state: it does not come back. What came
+   * back was the schedule, with the code on the clipboard and nothing on screen
+   * that had asked for one. Opening My Account again offered the email field,
+   * which sends a second code to exactly the same place.
+   *
+   * Landing back on the code box is the whole fix. The rules the record keeps
+   * are in lib/pendingSignIn.test.ts; this is the App doing it.
+   */
+  describe('coming back to a page that reloaded while the code was being fetched', () => {
+    /** A code sent moments ago, the way a reloaded page finds one waiting. */
+    function codeAlreadySent(email = 'host@example.com') {
+      window.localStorage.setItem(
+        'pb-pending-signin',
+        JSON.stringify({ email, sentAt: Date.now() })
+      );
+    }
+
+    function accountIsOpen() {
+      return container.querySelector('img[src="/account-top.png"]') !== null;
+    }
+
+    it('opens My Account by itself, on the box for the code', () => {
+      seed(9, 9, 2);
+      codeAlreadySent();
+      mount();
+
+      expect(accountIsOpen(), 'My Account did not open').toBe(true);
+      expect(container.textContent).toContain('Check your email');
+      expect(container.querySelector('#acct-code')).not.toBeNull();
+      // The field that sends another one is what the loop was made of.
+      expect(container.querySelector('#acct-email')).toBeNull();
+    });
+
+    it('leaves the app alone when no code is out', () => {
+      seed(9, 9, 2);
+      mount();
+
+      expect(accountIsOpen()).toBe(false);
+    });
+
+    it('leaves the app alone once the code is too old to be worth typing', () => {
+      seed(9, 9, 2);
+      window.localStorage.setItem(
+        'pb-pending-signin',
+        JSON.stringify({
+          email: 'host@example.com',
+          sentAt: Date.now() - 2 * 60 * 60 * 1000
+        })
+      );
+      mount();
+
+      expect(accountIsOpen()).toBe(false);
+    });
+
+    /**
+     * Restoring the panel and nagging with it are different things. Somebody
+     * who shuts it has said they are done for now, and an app that puts it back
+     * up on every launch for the rest of the hour is arguing with them.
+     */
+    it('stops letting itself in once the host has closed it', () => {
+      seed(9, 9, 2);
+      codeAlreadySent();
+      mount();
+      clickButton(/^Close$/);
+
+      expect(accountIsOpen()).toBe(false);
+
+      remount();
+      expect(accountIsOpen(), 'it opened itself again after being closed').toBe(false);
+    });
+
+    /**
+     * The symptom as it was reported: My Account opened from the settings menu
+     * offering the email field, for an address that had a live code sitting in
+     * the inbox. This is the route a host takes once they have given up waiting
+     * for the app to explain itself, so it has to end somewhere useful.
+     */
+    it('still has the code box waiting when they open it themselves', async () => {
+      vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+      vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'sb_publishable_test');
+      try {
+        seed(9, 9, 2);
+        codeAlreadySent();
+        mount();
+        clickButton(/^Close$/);
+        remount();
+
+        // The banner's own button, which is the same panel the settings menu
+        // item opens.
+        clickButton(/^Sign In$/);
+        // The Supabase client is a dynamic import, and the panel says
+        // "Checking..." until it answers.
+        for (let i = 0; i < 10; i++) {
+          await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          });
+        }
+
+        // Closing the panel is not the same as saying the code was no good.
+        // The one thing they came back for is the first thing on it.
+        expect(container.querySelector('#acct-code')).not.toBeNull();
+        expect(container.textContent).toContain('Check your email');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 });
@@ -1115,6 +1230,54 @@ describe('Set Round Types', () => {
     expect(storedSchedule().rounds[0].roundType).toBeUndefined();
   });
 
+  /**
+   * Generate, pressed with the list still open.
+   *
+   * Done is not a save button and never was: shutting the list keeps what was
+   * set, and so does walking off the tab. Generate is the third way out, and it
+   * has to keep it too — it is the button directly under the list, and the one
+   * a host reaches for once the rounds are the way they want them.
+   */
+  it('builds from a round set in the open list, with no Done in between', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    openPlanner();
+    setRoundType(2, 'Gendered Round');
+
+    clickButton(/^Generate Schedule/);
+
+    expect(storedSchedule().rounds[1].roundType).toBe('gendered');
+    expect(text(roundBlock(2))).toContain('Gendered Round');
+    // And the plan the host was left with is the one they set.
+    clickButton(/^2\. Setup$/);
+    openPlanner();
+    expect(text(pill(2))).toBe('Gendered');
+    expect(text(pill(1))).toBe('Normal');
+  });
+
+  /**
+   * The same press, over a schedule that already exists.
+   *
+   * Generate takes the draft here too, and having taken it leaves nothing for
+   * the way out of the tab to commit. Were it left there, the rebuild that
+   * commit runs would be a rebuild of the schedule that was just replaced, and
+   * it would land on top of the new one.
+   */
+  it('replaces a schedule from the open list, and not with the old one', () => {
+    mount();
+    generate();
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    click(stepTab(/^2\. Setup$/));
+    openPlanner();
+    setRoundType(3, 'Gendered Round');
+    clickButton(/^Generate Schedule/);
+
+    expect(storedSchedule().rounds[2].roundType).toBe('gendered');
+    // A new schedule, not the old one handed back with a type painted on.
+    expect(storedSchedule().rounds.map(fingerprint)).not.toEqual(before);
+  });
+
   it('draws one row per round, numbered 1 to N top to bottom', () => {
     mount();
     clickButton(/^Continue to Setup/);
@@ -1203,6 +1366,18 @@ describe('Set Round Types', () => {
       return [...container.querySelectorAll('button')].some((b) => text(b) === 'Reset All');
     }
 
+    /**
+     * The pills under a shut Set Round Types, left to right.
+     *
+     * Read off the panel rather than the whole page so the list's own rows
+     * cannot be mistaken for them: with the list open these do not exist, and a
+     * loose query would find sixteen rows' worth and call the test green.
+     */
+    function shutPills(): string[] {
+      const list = container.querySelector('[aria-label="Round types in this session"]');
+      return list ? [...list.children].map((p) => text(p)) : [];
+    }
+
     /** What each row's pill says, top to bottom. */
     function pillLabels(): string[] {
       return planRows().map((r) => text(r.lastElementChild!));
@@ -1213,7 +1388,7 @@ describe('Set Round Types', () => {
       return JSON.parse(window.localStorage.getItem('pb-round-plan') ?? '[]');
     }
 
-    it('is not on the page until the list is open', () => {
+    it('is not on the page until there is something to reset', () => {
       mount();
       clickButton(/^Continue to Setup/);
       expect(resetShown()).toBe(false);
@@ -1241,16 +1416,104 @@ describe('Set Round Types', () => {
       expect(resetShown()).toBe(true);
     });
 
-    it('goes away again with the list', () => {
+    /**
+     * It used to go away with the list, on the reasoning that a shut list left
+     * nothing on screen for it to act on. The pills under the shut list are
+     * that something now, so the way to undo what they say has to be beside
+     * them rather than one tap further in.
+     */
+    it('stays after the list is shut, beside the pills it would clear', () => {
       mount();
       clickButton(/^Continue to Setup/);
       planRound(2, 'Mixed Round');
-      // Committed, and the list shut behind it. Nothing on screen to act on.
-      expect(storedPlan()[1]).toBe('mixed');
-      expect(resetShown()).toBe(false);
 
-      openPlanner();
+      expect(storedPlan()[1]).toBe('mixed');
       expect(resetShown()).toBe(true);
+    });
+
+    it('clears the pills from the shut panel', () => {
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(2, 'Mixed Round');
+      expect(shutPills()).toEqual(['Mixed']);
+
+      click(resetButton());
+      expect(shutPills()).toEqual([]);
+      expect(resetShown()).toBe(false);
+    });
+
+    /**
+     * What this afternoon is set to play, with the list shut.
+     *
+     * One pill per format used, however many rounds use it. The question a host
+     * is asking at a glance is whether there is a gendered round today, not how
+     * many — a count is a number to check against a list that is one tap away.
+     */
+    describe('the pills under a shut list', () => {
+      it('shows nothing at all when every round is ordinary', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+
+        expect(shutPills()).toEqual([]);
+      });
+
+      it('names a format once, however many rounds are played as it', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+        openPlanner();
+        setRoundType(2, 'Mixed Round');
+        setRoundType(4, 'Mixed Round');
+        setRoundType(6, 'Mixed Round');
+        clickButton(/^Done$/);
+
+        // Not "Mixed x3", and not three pills reading Mixed.
+        expect(shutPills()).toEqual(['Mixed']);
+      });
+
+      it('names each format in play, in the order the app lists them', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+        openPlanner();
+        // Set out of order on purpose: the row must read the same whichever way
+        // round the host happened to choose them.
+        setRoundType(2, 'Equal Skill Round');
+        setRoundType(3, 'Gendered Round');
+        setRoundType(5, 'Mixed Round');
+        clickButton(/^Done$/);
+
+        expect(shutPills()).toEqual(['Gendered', 'Mixed', 'Equal Skill']);
+      });
+
+      it('says nothing about the ordinary rounds among them', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+        planRound(2, 'Gendered Round');
+
+        // Every other round is ordinary, and ordinary is not a format.
+        expect(shutPills()).toEqual(['Gendered']);
+      });
+
+      it('is not drawn while the list is open, where every round says it', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+        planRound(2, 'Mixed Round');
+        expect(shutPills()).toEqual(['Mixed']);
+
+        openPlanner();
+        // The same answer twice, a few pixels apart.
+        expect(shutPills()).toEqual([]);
+      });
+
+      it('carries the shape as well as the word', () => {
+        mount();
+        clickButton(/^Continue to Setup/);
+        planRound(2, 'Gendered Round');
+
+        const list = container.querySelector('[aria-label="Round types in this session"]')!;
+        // Gendered takes two: men playing men and women playing women, which
+        // one symbol can only say half of.
+        expect(list.firstElementChild!.querySelectorAll('svg')).toHaveLength(2);
+      });
     });
 
     it('puts the open list back to Normal', () => {
@@ -1743,19 +2006,63 @@ describe('Set Round Types', () => {
       const gendered = storedSchedule().rounds[1];
       expect(gendered.courts.filter((c) => genderCount(c) > 1)).toHaveLength(1);
 
+      // Shut: the one line saying what could not be done, and no arithmetic.
+      expect(text(roundCard(2))).toContain('Unable to make last game gendered');
+      expect(text(roundCard(2))).not.toContain('A gendered game needs');
+      // One of them, under the one court that missed, not under every court.
+      expect(text(roundCard(2)).match(/Unable to make/g)).toHaveLength(1);
+
+      const toggle = [...roundCard(2).querySelectorAll('button')].find((b) =>
+        text(b).startsWith('Unable to make')
+      );
+      if (!toggle) throw new Error('no miss note on the card');
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+      // And under the court rather than over it: the names first, the note
+      // second, and nothing after it.
+      const note = toggle.parentElement!;
+      expect(text(note.previousElementSibling!)).toContain('COURT');
+      expect(note.nextElementSibling).toBeNull();
+
+      click(toggle);
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
       expect(text(roundCard(2))).toContain(
         'A gendered game needs four men or four women. The 2 men and 2 women left over cannot make one.'
       );
-      // One line, under the one court that missed, not under every court.
-      expect(text(roundCard(2)).match(/A gendered game needs/g)).toHaveLength(1);
 
-      // And under it rather than over it: the names first, the reason second.
-      const note = [...roundCard(2).querySelectorAll('p')].find((p) =>
-        (p.textContent ?? '').startsWith('A gendered game needs')
+      // And it folds away again.
+      click(toggle);
+      expect(text(roundCard(2))).not.toContain('A gendered game needs');
+    });
+
+    it('says nothing about a court that is not the last one on the card', () => {
+      // Ten men and two women: court 1 is the mixed one the format could make,
+      // and both of the others missed. Only the bottom one is the last game.
+      seed(12, 12, 3);
+      window.localStorage.setItem(
+        'pb-roster',
+        JSON.stringify(
+          NAMES.map((name, i) => ({
+            id: `p${i + 1}`,
+            name,
+            rating: 3.5,
+            gender: i < 2 ? 'F' : 'M',
+            rosterIds: ['g1'],
+          }))
+        )
       );
-      if (!note) throw new Error('no reason on the card');
-      expect(text(note.previousElementSibling!)).toContain('COURT');
-      expect(note.nextElementSibling).toBeNull();
+      mount();
+      clickButton(/^Continue to Setup/);
+      planRound(2, 'Mixed Round');
+      clickButton(/^Generate Schedule/);
+
+      const headlines = [...roundCard(2).querySelectorAll('button')]
+        .map((b) => text(b))
+        .filter((t) => t.startsWith('Unable to make'));
+      expect(headlines).toEqual([
+        'Unable to make this game mixed',
+        'Unable to make last game mixed',
+      ]);
     });
 
     it('says nothing on a round where every court is in format', () => {
@@ -1991,7 +2298,7 @@ describe('the step tabs', () => {
       'This will discard the current schedule including any scores you\u2019ve entered.'
     );
     expect(text(sheet())).toContain(
-      'The same set of players are selected again; however, you can change them.'
+      'The same set of players will be selected again; however, you can change them.'
     );
   });
 
@@ -2284,7 +2591,7 @@ describe('Share App', () => {
     openShare();
 
     const panel = sharePanel();
-    expect(buttons(/^Copy link/, panel)).toHaveLength(1);
+    expect(buttons(/^Copy Link/, panel)).toHaveLength(1);
     expect(buttons(/^Share…|^Share\.\.\./, panel)).toHaveLength(0);
   });
 
@@ -2820,7 +3127,7 @@ describe('the Actions sheet', () => {
 
     action(/^Share Session$/);
     expect(text(sheet())).toContain('Accounts are switched off');
-    expect(buttons(/^Create an account$/, sheet())).toHaveLength(0);
+    expect(buttons(/^Create an Account$/, sheet())).toHaveLength(0);
   });
 
   it('offers an account to a signed-out host, and comes back to the card', async () => {
@@ -2837,7 +3144,7 @@ describe('the Actions sheet', () => {
       action(/^Share Session$/);
       expect(text(sheet())).toContain('Sharing a session needs an account');
 
-      clickButton(/^Create an account$/, sheet());
+      clickButton(/^Create an Account$/, sheet());
       // Waited out, so the sheet is really gone rather than mid-slide. Without
       // this the assertion at the end could be reading the old one.
       await act(async () => {
@@ -2856,6 +3163,113 @@ describe('the Actions sheet', () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  /**
+   * How a panel answers its own question: a row of tiles under the content,
+   * each one a glyph over a label, in the tint that says what it costs.
+   *
+   * The buttons used to be pinned to the foot of the sheet, which put the
+   * answer a screen below the question. They sit under the content now. The
+   * sheet is still opened to the same height for every action.
+   */
+  describe('the tiles a panel is answered with', () => {
+    const FULL = () => `${Math.round(window.innerHeight * 0.92)}px`;
+
+    beforeEach(() => {
+      seed(12, 8, 2);
+      mount();
+      generate();
+    });
+
+    /**
+     * One sheet, whatever is on it. A panel sized to its own content is a
+     * different sheet every time it opens, and the tiles answering the question
+     * land somewhere new on each of them.
+     */
+    it('opens every panel to the same height, whatever is on it', () => {
+      clickButton(/^Actions$/);
+      for (const card of [
+        'Add Player',
+        'Add Guest',
+        'New Round Robin',
+        'Reshuffle',
+        'Add Round',
+        'Add Court',
+        'Remove Court',
+      ]) {
+        clickButton(new RegExp(`^${card}$`), sheet());
+        expect(sheet().style.height, card).toBe(FULL());
+        clickLabel('Back to Actions', sheet());
+      }
+
+      // Remove Player is two panels behind one card: the list of who is going
+      // home, then the panel confirming it. Both are the same sheet.
+      clickButton(/^Remove Player$/, sheet());
+      expect(sheet().style.height, 'Remove Player').toBe(FULL());
+      clickButton(/^\w/, sheet());
+      expect(sheet().style.height, 'Remove Player, confirming').toBe(FULL());
+    });
+
+    it('gives every answer a glyph, so none of them is a bare word', () => {
+      clickButton(/^Actions$/);
+      for (const [card, labels] of [
+        ['Add Round', [/^Cancel$/, /^Add 1 Round$/]],
+        ['Add Court', [/^Cancel$/, /^Add the Court$/]],
+        ['New Round Robin', [/^Cancel$/, /^Yes, Start New$/]],
+        // Counts the rounds it is about to rebuild, so it is matched by shape.
+        ['Reshuffle', [/^Cancel$/, /^Rebuild \d+ Rounds?$/]],
+      ] as const) {
+        clickButton(new RegExp(`^${card}$`), sheet());
+        const tiles = labels.map((l) => buttons(l, sheet())[0]);
+        for (const [i, tile] of tiles.entries()) {
+          expect(tile, `${card} / ${labels[i]}`).toBeTruthy();
+          expect(tile.querySelector('svg'), `${card} / ${labels[i]} has no glyph`).toBeTruthy();
+          expect(tile.querySelector('.font-bold'), `${card} / ${labels[i]} is not bold`)
+            .toBeTruthy();
+        }
+        clickLabel('Back to Actions', sheet());
+      }
+    });
+
+    /**
+     * Orange is what the Reshuffle panel warns in: the box above these tiles is
+     * what a rebuild costs. The button that does it cannot wear the colour of
+     * the warning against doing it.
+     */
+    it('draws Rebuild in teal, not in the colour of the warning above it', () => {
+      action(/^Reshuffle$/);
+      const rebuild = buttons(/^Rebuild/, sheet())[0];
+      expect(rebuild.className).toContain('brand-teal');
+      expect(rebuild.className).not.toContain('orange');
+    });
+
+    /** Red, and pale with it, exactly as Stop Sharing is on the live link card. */
+    it('draws the answer that takes something away in the same red throughout', () => {
+      action(/^New Round Robin$/);
+      const start = buttons(/^Yes, Start New$/, sheet())[0];
+      clickLabel('Back to Actions', sheet());
+      clickButton(/^Remove Player$/, sheet());
+      clickButton(/^\w/, sheet());
+      const remove = buttons(/^Remove$/, sheet())[0];
+
+      expect(remove.className).toBe(start.className);
+      // Not a solid fill. The tint is the whole point: these sit beside a
+      // Cancel, and a red slab next to a white one is a dare.
+      expect(start.className).not.toContain('bg-red-600');
+    });
+
+    it('leads New Round Robin with what it costs, in bold', () => {
+      action(/^New Round Robin$/);
+      const cost = [...sheet().querySelectorAll('p')].find((p) =>
+        text(p).startsWith('This will discard')
+      );
+      expect(cost, 'no line saying what it costs').toBeTruthy();
+      expect(cost!.className).toContain('font-bold');
+      expect(text(sheet())).toContain(
+        'The same set of players will be selected again; however, you can change them.'
+      );
+    });
   });
 
   describe('Add Court', () => {
@@ -2906,6 +3320,25 @@ describe('the Actions sheet', () => {
       // Nine players fill two courts and a 2v1. A third has nobody for it.
       action(/^Add Court$/);
       expect(text(sheet())).toContain('a reshuffle would drop it again');
+    });
+
+    /**
+     * This panel went without a Cancel while every other one had one. The back
+     * chevron in the corner is not a way of declining — nothing says it is —
+     * and this is the panel that changes the shape of every remaining round.
+     */
+    it('can be declined, and declining it adds nothing', () => {
+      mount();
+      generate();
+      const before = storedSchedule();
+
+      action(/^Add Court$/);
+      clickButton(/^Cancel$/, sheet());
+
+      // Back on the grid, with the nine cards on it and no court added.
+      expect(buttons(/./, sheet()).map(text)).toContain('Add Court');
+      expect(storedSchedule()).toEqual(before);
+      expect(window.localStorage.getItem('pb-num-courts')).toBe('2');
     });
   });
 
@@ -3326,6 +3759,119 @@ describe('the Actions sheet', () => {
         expect(everyone, `Round ${r.roundNumber}`).toContain('Nia');
       }
     });
+
+    /**
+     * The two lists of people, and what is said over them.
+     *
+     * Both are "find this person and tap them" rather than anything to read in
+     * order, and the roster's own order is the order people were typed in years
+     * ago. The rest is about what a tap on a full session actually does: the
+     * new arrival lands under Sitting Out, at the foot of a schedule the host
+     * is not looking at, and nothing said so.
+     */
+    describe('the list, and the warning over it', () => {
+      /**
+       * Names in the order a roster really grows, which is none. The suite's
+       * own NAMES are alphabetical already, so seeding with those would let an
+       * unsorted list pass.
+       */
+      const SCRAMBLED = [
+        'Nina', 'Cara', 'Zane', 'Beth', 'Yuri', 'Dana', 'Wren', 'Otto',
+        'Abe', 'Milo', 'Kit', 'Gil'
+      ];
+      /**
+       * Eight playing over two courts, which is two full games and nobody
+       * waiting. Not six over two: that builds a 4 and a 1v1, and a singles
+       * court has seats going spare, so the courts are not full.
+       */
+      const PLAYING = ['Beth', 'Cara', 'Dana', 'Nina', 'Otto', 'Wren', 'Yuri', 'Zane'];
+      const ADDABLE = ['Abe', 'Gil', 'Kit', 'Milo'];
+
+      beforeEach(() => {
+        seed(12, 8, 2);
+        const roster = JSON.parse(window.localStorage.getItem('pb-roster')!) as {
+          name: string;
+        }[];
+        roster.forEach((p, i) => (p.name = SCRAMBLED[i]));
+        window.localStorage.setItem('pb-roster', JSON.stringify(roster));
+      });
+
+      /** The names down a list of rows, in the order they are drawn. */
+      function listed(): string[] {
+        return [...sheet().querySelectorAll('span.flex-1')].map((s) =>
+          (s.textContent ?? '').trim()
+        );
+      }
+
+      it('sorts the group alphabetically, so a name can be looked up', () => {
+        mount();
+        generate();
+        action(/^Add Player$/);
+
+        expect(listed()).toEqual(ADDABLE);
+      });
+
+      it('sorts who is playing the same way, on Remove Player', () => {
+        mount();
+        generate();
+        action(/^Remove Player$/);
+
+        expect(listed()).toEqual(PLAYING);
+      });
+
+      it('offers Someone New above the names rather than under them', () => {
+        mount();
+        generate();
+        action(/^Add Player$/);
+
+        const order = [...sheet().querySelectorAll('button')].map((b) => text(b));
+        const newcomer = order.findIndex((t) => /^Someone New$/.test(t));
+        const firstName = order.findIndex((t) => t.startsWith(ADDABLE[0]));
+        expect(newcomer, 'no Someone New button').toBeGreaterThan(-1);
+        // On a full group the list runs past the foot of the sheet, and the way
+        // to add somebody who is not on it was below the fold.
+        expect(newcomer).toBeLessThan(firstName);
+      });
+
+      it('says a full session benches whoever is added, before they are', () => {
+        mount();
+        generate();
+        action(/^Add Player$/);
+
+        const said = text(sheet());
+        expect(said).toContain('All courts are full.');
+        expect(said).toContain('New players will be added to the Sitting Out section.');
+        expect(said).toContain('to rebuild the remaining rounds.');
+      });
+
+      it('draws the Reshuffle shape beside the word, not the word alone', () => {
+        mount();
+        generate();
+        action(/^Add Player$/);
+
+        const marked = [...sheet().querySelectorAll('span')].find(
+          (s) => text(s) === 'Reshuffle' && s.querySelector('svg')
+        );
+        // The way out of a full session is a card on the menu behind this one,
+        // and the shape is what connects the sentence to it.
+        expect(marked, 'Reshuffle is named with no glyph on it').toBeTruthy();
+      });
+
+      /**
+       * An added court stays empty until the host taps people onto it, so the
+       * courts are not full and the sentence would be a lie. They were told
+       * what an empty court means on the panel that made it.
+       */
+      it('says nothing of the sort when a court has seats going spare', () => {
+        mount();
+        generate();
+        action(/^Add Court$/);
+        clickButton(/^Add the Court$/, sheet());
+
+        action(/^Add Player$/);
+        expect(text(sheet())).not.toContain('All courts are full');
+      });
+    });
   });
 });
 
@@ -3592,7 +4138,7 @@ describe('the player menu on a place', () => {
     expect(card.querySelector(`[aria-label="Remove ${victim.name}"]`)).toBeNull();
   });
 
-  it('opens a menu with the three things a host can do to one player', () => {
+  it('opens a menu with the four things a host can do to one player', () => {
     mount();
     generate();
 
@@ -3601,7 +4147,16 @@ describe('the player menu on a place', () => {
     // Subbing is here rather than on the Actions grid, because tapping the
     // player has already answered the question that flow starts with.
     expect(buttons(/^Sub Someone In$/)).toHaveLength(1);
-    expect(buttons(/^Remove from Remaining Rounds$/)).toHaveLength(1);
+    expect(buttons(/^Remove Player$/)).toHaveLength(1);
+    expect(buttons(/^Cancel$/)).toHaveLength(1);
+
+    // Tiles, like every other panel in the app answers with: the glyph large,
+    // the label under it, and the whole square a target.
+    for (const label of [/^Edit Player$/, /^Sub Someone In$/, /^Remove Player$/, /^Cancel$/]) {
+      const tile = buttons(label)[0];
+      expect(tile.querySelector('svg'), `${label} has no glyph`).toBeTruthy();
+      expect(tile.className, `${label} is not a tile`).toContain('flex-col');
+    }
   });
 
   it('opens the sub panel on who is coming on, the first question answered', () => {
@@ -5158,7 +5713,7 @@ describe('a linked player', () => {
     const panel = sheet();
     expect(text(panel)).toContain('Edit Player');
     expect(text(panel)).toContain('Sub Someone In');
-    expect(text(panel)).toContain('Remove from Remaining Rounds');
+    expect(text(panel)).toContain('Remove Player');
   });
 
   it('still cannot be swapped with anybody', () => {

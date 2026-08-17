@@ -57,7 +57,7 @@ const { primary, secondary } = await import('./accountStyles');
 // --------------------------------------------------------------------------
 
 /** The label carries a curly apostrophe, and the copy is not to be reworded. */
-const REPLACE = 'Use the account’s copy';
+const REPLACE = 'Use the Account’s Copy';
 
 let root: Root;
 let container: HTMLElement;
@@ -126,9 +126,9 @@ describe('which answer is offered first', () => {
   it('leads with combining when the account already holds groups', () => {
     mount('server-has-data');
 
-    expect(labels()).toEqual(['Combine them', REPLACE]);
-    expect(button(/Combine them/).className).toBe(primary);
-    expect(button(/^Use the account/).className).toBe(secondary);
+    expect(labels()).toEqual(['Combine Them', REPLACE]);
+    expect(button(/Combine Them/).className).toBe(primary);
+    expect(button(/^Use the Account/).className).toBe(secondary);
   });
 
   it('leads with the account copy when this device belongs to somebody else', () => {
@@ -136,9 +136,9 @@ describe('which answer is offered first', () => {
 
     // Inverted, both in order and in emphasis. Combining two different people
     // is the wrong default when they are probably two different people.
-    expect(labels()).toEqual([REPLACE, 'Combine them']);
-    expect(button(/^Use the account/).className).toBe(primary);
-    expect(button(/Combine them/).className).toBe(secondary);
+    expect(labels()).toEqual([REPLACE, 'Combine Them']);
+    expect(button(/^Use the Account/).className).toBe(primary);
+    expect(button(/Combine Them/).className).toBe(secondary);
   });
 
   it('says which case it is in, rather than asking the same question twice', () => {
@@ -179,7 +179,7 @@ describe('the numbers it puts the question with', () => {
 describe('replacing, which is the answer that loses something', () => {
   it('does not replace on the first tap', () => {
     mount('other-account');
-    act(() => button(/^Use the account/).click());
+    act(() => button(/^Use the Account/).click());
 
     expect(adoptAccountCopy).not.toHaveBeenCalled();
     expect(text()).toContain('Replace what is on this device?');
@@ -188,27 +188,27 @@ describe('replacing, which is the answer that loses something', () => {
 
   it('takes the question away and puts a plain yes in its place', () => {
     mount('other-account');
-    act(() => button(/^Use the account/).click());
+    act(() => button(/^Use the Account/).click());
 
     // The two original answers are gone. Nothing to tap by muscle memory.
-    expect(labels()).toEqual(['Yes, replace', 'Cancel']);
+    expect(labels()).toEqual(['Yes, Replace', 'Cancel']);
   });
 
   it('backs out without acting, and puts the original question back', () => {
     mount('other-account');
-    act(() => button(/^Use the account/).click());
+    act(() => button(/^Use the Account/).click());
     act(() => button(/^Cancel$/).click());
 
     expect(adoptAccountCopy).not.toHaveBeenCalled();
-    expect(labels()).toEqual([REPLACE, 'Combine them']);
+    expect(labels()).toEqual([REPLACE, 'Combine Them']);
     expect(text()).not.toContain('Replace what is on this device?');
   });
 
   it('replaces once it has been asked twice, and reports back', async () => {
     mount('other-account');
-    act(() => button(/^Use the account/).click());
+    act(() => button(/^Use the Account/).click());
     await act(async () => {
-      button(/Yes, replace/).click();
+      button(/Yes, Replace/).click();
       adopting.settle(ADOPTED);
     });
 
@@ -221,7 +221,7 @@ describe('combining', () => {
   it('runs on one tap, since it is the answer that keeps everything', async () => {
     mount('server-has-data');
     await act(async () => {
-      button(/Combine them/).click();
+      button(/Combine Them/).click();
       combining.settle(COMBINED);
     });
 
@@ -231,7 +231,7 @@ describe('combining', () => {
 
   it('says it is working, so nobody assumes the tap missed', () => {
     mount('server-has-data');
-    act(() => button(/Combine them/).click());
+    act(() => button(/Combine Them/).click());
 
     expect(text()).toContain('Combining...');
   });
@@ -240,7 +240,7 @@ describe('combining', () => {
 describe('a second tap while the first is still running', () => {
   it('is refused, on the answer that keeps everything', () => {
     mount('server-has-data');
-    act(() => button(/Combine them/).click());
+    act(() => button(/Combine Them/).click());
 
     // Both, not just the one that was tapped. Answering the question twice two
     // different ways is the worse version of this.
@@ -252,8 +252,8 @@ describe('a second tap while the first is still running', () => {
 
   it('is refused, on the answer that loses something', () => {
     mount('other-account');
-    act(() => button(/^Use the account/).click());
-    act(() => button(/Yes, replace/).click());
+    act(() => button(/^Use the Account/).click());
+    act(() => button(/Yes, Replace/).click());
 
     for (const b of buttons()) expect(b.disabled).toBe(true);
 
@@ -269,7 +269,7 @@ describe('walking away from it', () => {
     // No Close, and the backdrop takes no handler, so tapping outside the card
     // does nothing. This is the one question the app will not answer for you,
     // and the old panel let people walk straight past it.
-    expect(labels()).toEqual(['Combine them', REPLACE]);
+    expect(labels()).toEqual(['Combine Them', REPLACE]);
     expect(text()).not.toContain('Close');
   });
 });

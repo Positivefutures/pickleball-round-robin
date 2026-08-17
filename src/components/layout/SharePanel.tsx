@@ -110,7 +110,7 @@ export function SharePanel({ onClose }: Props) {
         >
           <CopyIcon className="h-6 w-6" />
           <span>
-            <span className="block font-bold">Copy link</span>
+            <span className="block font-bold">Copy Link</span>
             {/* Swapping the second line rather than the title keeps the button
                 from changing width as the confirmation comes and goes. */}
             <span className={`block text-sm ${hasSheet ? 'text-[#6B7684]' : 'text-white/85'}`}>
@@ -122,7 +122,7 @@ export function SharePanel({ onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 w-full rounded-lg border border-panel-edge bg-[#F8F9FB] px-4 py-2.5 font-medium text-[#3D495A] transition-colors hover:bg-[#EDF0F4]"
+          className="mt-3 w-full rounded-lg border border-panel-edge bg-[#F8F9FB] px-4 py-2.5 font-bold text-[#3D495A] transition-colors hover:bg-[#EDF0F4]"
         >
           Close
         </button>

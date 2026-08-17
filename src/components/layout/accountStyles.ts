@@ -40,7 +40,7 @@ export const primary =
   'hover:bg-[#336B2B] disabled:cursor-not-allowed disabled:bg-[#AFC9AA]';
 
 export const secondary =
-  'w-full rounded-lg border border-panel-edge bg-[#F7F7F8] px-4 py-3 text-lg font-medium ' +
+  'w-full rounded-lg border border-panel-edge bg-[#F7F7F8] px-4 py-3 text-lg font-bold ' +
   'text-[#3A4353] transition-colors hover:bg-[#EDF0F4] disabled:cursor-not-allowed disabled:opacity-60';
 
 /**

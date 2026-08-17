@@ -94,7 +94,10 @@ export function TimerSheet({
         role="dialog"
         aria-modal="true"
         aria-label="Round Timer"
-        className={`sheet-panel relative flex flex-col rounded-t-3xl px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out ${
+        // timer-sheet carries the height, in dvh with a vh fallback. See
+        // index.css: 94vh on iOS Safari is measured against a screen with no
+        // address bar on it, so the top of this sheet went up behind one.
+        className={`sheet-panel timer-sheet relative flex flex-col rounded-t-3xl px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out ${
           entering ? 'translate-y-0' : 'translate-y-full'
         }`}
         // background-color deliberately excluded from the transition: the
@@ -102,7 +105,7 @@ export function TimerSheet({
         // the theme swap ride the same transition would fade the strobe above
         // into a low-contrast grey mid-flash instead of a clean cut between
         // full black and full white.
-        style={{ backgroundColor: theme.bg, height: '94vh', transitionProperty: 'transform' }}
+        style={{ backgroundColor: theme.bg, transitionProperty: 'transform' }}
       >
         <div
           className="mx-auto mb-2 h-1.5 w-14 shrink-0 rounded-full"
@@ -114,9 +117,12 @@ export function TimerSheet({
             The close key is taken out of the flow rather than sat beside them,
             or it would shove both off centre.
 
-            mt-4 clears the drag handle above: at the handle's own margin the
-            clock sat almost on the top edge of the sheet. */}
-        <div className="relative mt-4 shrink-0 text-center" style={{ color: theme.icon }}>
+            mt-8 clears the drag handle above, and then some. At mt-4 the glyph
+            and the close key sat close enough to the top edge that iOS Safari's
+            own furniture crowded them, and on an iPhone 11 the top of the clock
+            was cut off outright. The height fix in index.css is the other half
+            of that; this is the breathing room. */}
+        <div className="relative mt-8 shrink-0 text-center" style={{ color: theme.icon }}>
           <TimerIcon className="mx-auto h-12 w-12" />
           <h2 className="mt-1 text-[1.6rem] font-extrabold" style={{ color: theme.ink }}>
             Round {roundNumber} Timer

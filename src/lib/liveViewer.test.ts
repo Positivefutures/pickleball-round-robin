@@ -230,13 +230,27 @@ describe('the host round timer', () => {
 
   it('carries a running timer through as published', () => {
     const endsAt = Date.now() + 300_000;
-    expect(withTimer({ roundNumber: 1, phase: 'running', endsAt, remainingMs: 0, flashOn: true }))
-      .toEqual({ roundNumber: 1, phase: 'running', endsAt, remainingMs: 0, flashOn: true });
+    expect(
+      withTimer({
+        roundNumber: 1, phase: 'running', endsAt, remainingMs: 0,
+        flashOn: true, soundOn: true, alarmTone: 'police-whistle'
+      })
+    ).toEqual({
+      roundNumber: 1, phase: 'running', endsAt, remainingMs: 0,
+      flashOn: true, soundOn: true, alarmTone: 'police-whistle'
+    });
   });
 
   it('carries a paused one, which has time on it but no deadline', () => {
-    expect(withTimer({ roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000, flashOn: false }))
-      .toEqual({ roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000, flashOn: false });
+    expect(
+      withTimer({
+        roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000,
+        flashOn: false, soundOn: false, alarmTone: 'double-beep'
+      })
+    ).toEqual({
+      roundNumber: 2, phase: 'paused', endsAt: null, remainingMs: 42_000,
+      flashOn: false, soundOn: false, alarmTone: 'double-beep'
+    });
   });
 
   it('is null on every session published before the timer existed', () => {
@@ -266,7 +280,35 @@ describe('the host round timer', () => {
   it('will not take a negative remainder, or a flash flag that is merely truthy', () => {
     expect(
       withTimer({ roundNumber: 1, phase: 'paused', endsAt: null, remainingMs: -5000, flashOn: 'yes' })
-    ).toEqual({ roundNumber: 1, phase: 'paused', endsAt: null, remainingMs: 0, flashOn: false });
+    ).toEqual({
+      roundNumber: 1, phase: 'paused', endsAt: null, remainingMs: 0,
+      flashOn: false, soundOn: true, alarmTone: undefined
+    });
+  });
+
+  /**
+   * The one field here whose absence does not mean off.
+   *
+   * Every session published before the watcher had switches of their own
+   * carries a flash flag and neither of the other two. Reading that as silence
+   * would take the sound away from every phone watching a host who is running
+   * an older build, and the host's own default has always been on.
+   */
+  it('reads a document from before these existed as the host defaults', () => {
+    expect(
+      withTimer({ roundNumber: 3, phase: 'paused', endsAt: null, remainingMs: 1000, flashOn: true })
+    ).toEqual({
+      roundNumber: 3, phase: 'paused', endsAt: null, remainingMs: 1000,
+      flashOn: true, soundOn: true, alarmTone: undefined
+    });
+  });
+
+  it('still takes an explicit no to the sound', () => {
+    const got = withTimer({
+      roundNumber: 3, phase: 'paused', endsAt: null, remainingMs: 1000,
+      flashOn: true, soundOn: false
+    });
+    expect(got?.soundOn).toBe(false);
   });
 });
 

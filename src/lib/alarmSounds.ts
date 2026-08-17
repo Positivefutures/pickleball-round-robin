@@ -86,8 +86,18 @@ function kick(): void {
   if (ctx && ctx.state !== 'running') void ctx.resume();
 }
 
-function getCtx(): AudioContext {
+/**
+ * Null where there is no Web Audio at all, rather than throwing.
+ *
+ * Every browser this app is used in has it. What does not is anything else that
+ * loads the page — and the page a stranger loads by pointing a camera at a QR
+ * code is exactly the one that must not go white because a sound could not be
+ * arranged. Each caller below simply does nothing, which is the same outcome as
+ * a phone on silent and needs no explaining to anybody.
+ */
+function getCtx(): AudioContext | null {
   if (!ctx) {
+    if (typeof AudioContext === 'undefined') return null;
     ctx = new AudioContext();
     if (typeof document !== 'undefined' && !listening) {
       listening = true;
@@ -129,6 +139,9 @@ function loadTone(id: AlarmToneId): Promise<AudioBuffer | null> {
   if (inFlight) return inFlight;
 
   const c = getCtx();
+  // No Web Audio here at all. Nothing to decode into, and nothing that could
+  // ever play it, so the fetch is not worth making either.
+  if (!c) return Promise.resolve(null);
   const started = (async () => {
     try {
       const response = await fetch(sourceUrl(id));
@@ -175,6 +188,7 @@ export function preloadTone(id: AlarmToneId): void {
  */
 export function warmUpAudio(tone?: AlarmToneId): void {
   const c = getCtx();
+  if (!c) return;
   try {
     const source = c.createBufferSource();
     source.buffer = c.createBuffer(1, 1, c.sampleRate);
@@ -336,6 +350,11 @@ export function startAlarmLoop(id: AlarmToneId): void {
   const tone = resolveTone(id);
   wanted = tone;
   const c = getCtx();
+  // Silence, and `wanted` deliberately left unset: an alarm nothing can sound
+  // is not an alarm waiting on a suspended context, and isAlarmLoopActive
+  // saying otherwise would have the host's watchdog trying to restart it for
+  // the rest of the round.
+  if (!c) return;
   const startedAt = Date.now();
   void loadTone(tone);
 
@@ -404,6 +423,7 @@ export function previewTone(id: AlarmToneId): void {
   stopAlarmLoop();
   previewing = tone;
   const c = getCtx();
+  if (!c) return;
 
   const begin = (buffer: AudioBuffer) => {
     playBuffer(c, buffer, false);

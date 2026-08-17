@@ -122,14 +122,14 @@ export function PlayerForm({
             setRating(String(defaultRating));
             setGender('M');
           }}
-          className="px-4 py-2 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="px-4 py-2 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
         >
           Cancel
         </button>
       )}
       <button
         type="submit"
-        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium"
+        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
       >
         {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
       </button>
@@ -139,7 +139,7 @@ export function PlayerForm({
         <button
           type="button"
           onClick={onDelete}
-          className="ml-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+          className="ml-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-bold"
         >
           Delete
         </button>
@@ -201,7 +201,7 @@ export function PlayerForm({
           <button
             type="button"
             onClick={() => setGender('M')}
-            className={`px-4 py-2 text-sm font-medium rounded-l-md border transition-colors ${
+            className={`px-4 py-2 text-sm font-bold rounded-l-md border transition-colors ${
               gender === 'M'
                 ? 'bg-brand-teal text-white border-brand-teal'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -212,7 +212,7 @@ export function PlayerForm({
           <button
             type="button"
             onClick={() => setGender('F')}
-            className={`px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 transition-colors ${
+            className={`px-4 py-2 text-sm font-bold rounded-r-md border border-l-0 transition-colors ${
               gender === 'F'
                 ? 'bg-brand-teal text-white border-brand-teal'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'

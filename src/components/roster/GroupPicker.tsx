@@ -114,7 +114,7 @@ export function GroupPicker({
 
         <button
           onClick={onClose}
-          className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
+          className="w-full px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
         >
           Close
         </button>

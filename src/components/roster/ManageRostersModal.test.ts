@@ -254,7 +254,7 @@ describe('deleting a group that would strand somebody', () => {
 
   it('says what Delete would cost, and takes them with it', () => {
     open();
-    click(button('Delete group and 1 player'));
+    click(button('Delete Group and 1 Player'));
     expect(onDelete).toHaveBeenCalledWith('g1', null);
   });
 
@@ -275,7 +275,7 @@ describe('deleting a group that strands nobody', () => {
     // No dropdown, because there is nobody it would move.
     expect(container.querySelector('select')).toBeNull();
     expect(faces()).not.toContain('Move');
-    expect(faces()).toContain('Delete group');
+    expect(faces()).toContain('Delete Group');
   });
 });
 

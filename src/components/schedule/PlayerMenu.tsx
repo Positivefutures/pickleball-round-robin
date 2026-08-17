@@ -1,6 +1,6 @@
 import type { Player } from '../../types';
-import { PencilIcon, SwapPeopleIcon } from '../icons';
-import { TrashIcon } from './icons';
+import { CloseIcon, PencilIcon, RemovePlayerSolidIcon, SwapPeopleIcon } from '../icons';
+import { TileButton, TILE_ROW } from '../TileButton';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { PanelHeading } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
@@ -42,9 +42,6 @@ export function PlayerMenu({
 }) {
   useScrollLock(true);
 
-  const row =
-    'flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left font-medium transition-colors';
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -66,40 +63,34 @@ export function PlayerMenu({
           {player.gender === 'F' ? 'Female' : 'Male'}, Rating: {player.rating.toFixed(1)}
         </p>
 
+        {/* Two by two rather than four across. The tiles are what every panel
+            in the app answers with now, and four of them in a card this wide
+            would put "Sub Someone In" on three lines. Two rows of the same
+            component keep every tile one width, which a grid of mixed rows
+            would not. */}
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={onEdit}
-            className={`${row} border-panel-edge bg-white text-gray-800 hover:bg-[#F1F3F6]`}
-          >
-            <PencilIcon className="h-5 w-5 text-gray-600" />
-            Edit Player
-          </button>
-          <button
-            type="button"
-            onClick={onSub}
-            className={`${row} border-panel-edge bg-white text-gray-800 hover:bg-[#F1F3F6]`}
-          >
-            <SwapPeopleIcon className="h-5 w-5 text-gray-600" />
-            Sub Someone In
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className={`${row} border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}
-          >
-            <TrashIcon className="h-5 w-5" />
-            Remove from Remaining Rounds
-          </button>
+          <div className={TILE_ROW}>
+            <TileButton tone="quiet" Icon={PencilIcon} label="Edit Player" onClick={onEdit} />
+            <TileButton
+              tone="quiet"
+              Icon={SwapPeopleIcon}
+              label="Sub Someone In"
+              onClick={onSub}
+            />
+          </div>
+          <div className={TILE_ROW}>
+            {/* The Actions card for this says "Remove Player" and draws it in
+                this shape. It is the same job from the other end of the app, so
+                it is now the same word and the same glyph, not a bin. */}
+            <TileButton
+              tone="red"
+              Icon={RemovePlayerSolidIcon}
+              label="Remove Player"
+              onClick={onRemove}
+            />
+            <TileButton tone="quiet" Icon={CloseIcon} label="Cancel" onClick={onCancel} />
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-5 w-full rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-300"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );

@@ -45,12 +45,20 @@ const verifyCode = vi.fn<(address: string, code: string) => Promise<Result>>(() 
   Promise.resolve(verifyResult)
 );
 
-vi.mock('../../lib/auth', () => ({
-  sendSignInEmail: (address: string) => sendSignInEmail(address),
-  verifyCode: (address: string, code: string) => verifyCode(address, code)
-}));
+// Only the two that would reach the network. The record of a code already sent
+// is the real one over real storage, because the point of it is surviving a
+// page that has gone, and a stand-in would survive anything.
+vi.mock('../../lib/auth', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/auth')>('../../lib/auth');
+  return {
+    ...actual,
+    sendSignInEmail: (address: string) => sendSignInEmail(address),
+    verifyCode: (address: string, code: string) => verifyCode(address, code)
+  };
+});
 
 const { SignInPanel } = await import('./SignInPanel');
+const stores = await import('../../lib/stores');
 
 // --------------------------------------------------------------------------
 
@@ -103,7 +111,7 @@ async function sent(address = 'host@example.com') {
   mount();
   type('acct-email', address);
   await act(async () => {
-    button(/Email me a login code/).click();
+    button(/Email Me a Login Code/).click();
   });
 }
 
@@ -113,6 +121,8 @@ beforeEach(() => {
   verifyResult = { ok: true };
   sendSignInEmail.mockClear();
   verifyCode.mockClear();
+  window.localStorage.clear();
+  stores.pendingSignIn.set(null);
 });
 
 afterEach(() => {
@@ -128,7 +138,7 @@ describe('the two ways sending fails, which are not the same failure', () => {
     mount();
     type('acct-email', 'host@example.com');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     expect(text()).toContain(COOLDOWN);
@@ -143,7 +153,7 @@ describe('the two ways sending fails, which are not the same failure', () => {
     mount();
     type('acct-email', 'host@example.com');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     expect(text()).toContain(CEILING);
@@ -158,7 +168,7 @@ describe('the two ways sending fails, which are not the same failure', () => {
     mount();
     type('acct-email', 'host@example.com');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     // Confusing these two is the bug the wording was written to fix. A ceiling
@@ -172,7 +182,7 @@ describe('the two ways sending fails, which are not the same failure', () => {
     mount();
     type('acct-email', 'host@example.com');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(CEILING);
@@ -183,7 +193,7 @@ describe('the two ways sending fails, which are not the same failure', () => {
     mount();
     type('acct-email', 'host@example.com');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     expect(text()).toContain('Something went wrong.');
@@ -211,7 +221,7 @@ describe('when a link put someone here', () => {
     mount('That link did not sign you in. Ask for a code below instead.');
 
     expect(field('acct-email')).toBeTruthy();
-    expect(button(/Email me a login code/)).toBeTruthy();
+    expect(button(/Email Me a Login Code/)).toBeTruthy();
   });
 
   // status rather than alert: it is news, not a failure, and nobody did
@@ -235,7 +245,7 @@ describe('when a link put someone here', () => {
 describe('before it asks the server anything', () => {
   it('says what is missing instead of sending an empty address', () => {
     mount();
-    act(() => button(/Email me a login code/).click());
+    act(() => button(/Email Me a Login Code/).click());
 
     expect(sendSignInEmail).not.toHaveBeenCalled();
     expect(text()).toContain('Enter your email address.');
@@ -250,7 +260,7 @@ describe('before it asks the server anything', () => {
     mount();
     type('acct-email', '  host@example.com ');
     await act(async () => {
-      button(/Email me a login code/).click();
+      button(/Email Me a Login Code/).click();
     });
 
     expect(sendSignInEmail).toHaveBeenCalledWith('host@example.com');
@@ -260,7 +270,7 @@ describe('before it asks the server anything', () => {
     await sent();
     type('acct-code', '123');
     await act(async () => {
-      button(/^Sign in$/).click();
+      button(/^Sign In$/).click();
     });
 
     expect(verifyCode).not.toHaveBeenCalled();
@@ -311,7 +321,7 @@ describe('once the email is away', () => {
     await sent('host@example.com');
     type('acct-code', '123456');
     await act(async () => {
-      button(/^Sign in$/).click();
+      button(/^Sign In$/).click();
     });
 
     expect(verifyCode).toHaveBeenCalledWith('host@example.com', '123456');
@@ -322,7 +332,7 @@ describe('once the email is away', () => {
     await sent();
     type('acct-code', '123456');
     await act(async () => {
-      button(/^Sign in$/).click();
+      button(/^Sign In$/).click();
     });
 
     expect(text()).toContain("That code didn't match. Check it and try again.");
@@ -341,11 +351,81 @@ describe('once the email is away', () => {
     await sent();
     type('acct-code', '123456');
     await act(async () => {
-      button(/^Sign in$/).click();
+      button(/^Sign In$/).click();
     });
-    act(() => button(/Use a different address/).click());
+    act(() => button(/Use a Different Address/).click());
 
     expect(text()).toContain('Email address');
     expect(text()).not.toContain("That code didn't match.");
+  });
+});
+
+/**
+ * Coming back to a panel that is not there any more.
+ *
+ * Reading the code means leaving for the mail app, and iOS reloads a
+ * backgrounded tab whenever it feels like it. Everything this panel holds is
+ * component state, so what came back was the first screen again: the email
+ * field, for an address that had already been sent a perfectly good code. The
+ * only move it offered was to send another one and be handed the same screen.
+ *
+ * The record outside the panel is what ends that. See lib/pendingSignIn.test.ts
+ * for the rules it keeps; here it is what the host actually lands on.
+ */
+describe('a panel that has been reloaded out from under somebody', () => {
+  /** A code sent moments ago, the way a reloaded page would find one. */
+  function codeAlreadySent(email = 'host@example.com') {
+    stores.pendingSignIn.set({ email, sentAt: Date.now() });
+  }
+
+  it('opens on the code box, not back at the address it already has', () => {
+    codeAlreadySent();
+    mount();
+
+    expect(text()).toContain('Check your email');
+    expect(field('acct-code')).toBeTruthy();
+  });
+
+  it('names the address again, so it is clear which inbox to look in', () => {
+    codeAlreadySent('someone@elsewhere.org');
+    mount();
+
+    expect(text()).toContain('someone@elsewhere.org');
+  });
+
+  it('takes the code straight, without a second email being sent', async () => {
+    codeAlreadySent();
+    mount();
+    type('acct-code', '123456');
+    await act(async () => {
+      button(/^Sign In$/).click();
+    });
+
+    expect(verifyCode).toHaveBeenCalledWith('host@example.com', '123456');
+    // The whole failure being fixed is a host sending code after code because
+    // the app keeps showing them the field that does it.
+    expect(sendSignInEmail).not.toHaveBeenCalled();
+  });
+
+  it('starts at the address again once the code is too old to work', () => {
+    stores.pendingSignIn.set({
+      email: 'host@example.com',
+      sentAt: Date.now() - 2 * 60 * 60 * 1000
+    });
+    mount();
+
+    expect(field('acct-email')).toBeTruthy();
+    expect(text()).not.toContain('Check your email');
+  });
+
+  it('forgets the code for good when they ask for a different address', () => {
+    codeAlreadySent();
+    mount();
+    act(() => button(/Use a Different Address/).click());
+
+    // Not merely hidden. Left in storage it would put this panel back on the
+    // code screen at the next launch, for an address just rejected.
+    expect(stores.pendingSignIn.get()).toBeNull();
+    expect(field('acct-email')).toBeTruthy();
   });
 });

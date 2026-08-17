@@ -22,17 +22,55 @@ import type { Player, Schedule } from '../../types';
 
 let answer: LiveFetch = { state: 'gone' };
 let asks = 0;
+/** Cheap probes, counted apart from the fetches they save. */
+let probes = 0;
+/** A database without 0009 on it, where there is no probe to ask. */
+let probeUnavailable = false;
 /** What the database says about a code, and about a score sent to it. */
 let codeAnswer = 'ok';
 let editAnswer = 'saved';
 let offered: { key: string; code: string }[] = [];
 let sent: unknown[][] = [];
 
+/** Every start and stop the page asks the alarm layer for, in order. */
+let alarms: string[] = [];
+
+// Only the three that would reach the audio hardware. happy-dom has no
+// AudioContext, and what is being checked here is whether this page asks for a
+// noise at all — which it never used to.
+vi.mock('../../lib/alarmSounds', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../lib/alarmSounds')>('../../lib/alarmSounds');
+  return {
+    ...actual,
+    startAlarmLoop: (id: string) => void alarms.push(`start:${id}`),
+    stopAlarmLoop: () => void alarms.push('stop'),
+    warmUpAudio: () => {},
+    previewTone: () => {}
+  };
+});
+
 vi.mock('../../lib/liveViewer', () => ({
   fetchShared: (key: string) => {
     asks += 1;
     void key;
     return Promise.resolve(answer);
+  },
+  /**
+   * The cheap probe, answering off the same `answer` the fetch does — which is
+   * the database, as far as this file is concerned. So a test that swaps in a
+   * new snapshot moves the timestamp and the page pulls it, and a test that
+   * does not leaves it still and the page pulls nothing. That second half is
+   * the behaviour worth having a stand-in for at all.
+   */
+  fetchSharedAt: () => {
+    probes += 1;
+    if (probeUnavailable) return Promise.resolve({ state: 'unavailable' as const });
+    return Promise.resolve(
+      answer.state === 'ok'
+        ? { state: 'at' as const, at: Date.parse(answer.snapshot.at) }
+        : { state: 'gone' as const }
+    );
   },
   checkCode: (key: string, code: string) => {
     offered.push({ key, code });
@@ -128,11 +166,15 @@ const text = () => container.textContent ?? '';
 
 beforeEach(() => {
   asks = 0;
+  probes = 0;
+  probeUnavailable = false;
   answer = { state: 'gone' };
   codeAnswer = 'ok';
   editAnswer = 'saved';
   offered = [];
   sent = [];
+  alarms = [];
+  window.localStorage.clear();
 });
 
 // ------------------------------------------ reaching a score from this page --
@@ -609,10 +651,87 @@ describe('keeping up', () => {
     await open();
     expect(text()).toContain('COURT 7');
 
+    // A publish a moment later, so the document really is a later one. The page
+    // asks whether anything changed before it fetches now, and two snapshots
+    // stamped the same millisecond have not.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
     answer = shared({ team1: 11, team2: 7 });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
     });
+    const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels).toContain('11');
+  });
+
+  /**
+   * What the whole arrangement is for.
+   *
+   * The session document is around 8KB, and its size is what set the twenty
+   * second poll: asking for it every three seconds all afternoon would be
+   * somebody else's data allowance. So the page asks a question that costs one
+   * timestamp instead, and only fetches when the answer moves. That is what
+   * lets the host's round timer land in about three seconds rather than twelve.
+   */
+  it('asks whether anything changed far more often than it fetches', async () => {
+    vi.useFakeTimers();
+    answer = shared();
+    await open();
+    const fetched = asks;
+    const asked = probes;
+
+    // A minute of a session where the host does nothing at all.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    // Many cheap questions...
+    expect(probes - asked).toBeGreaterThan(10);
+    // ...and the document itself only on the backstop, which is the polling
+    // this page did before any of this existed.
+    expect(asks - fetched).toBeLessThanOrEqual(3);
+  });
+
+  it('picks up a change within a few seconds, not within twenty', async () => {
+    vi.useFakeTimers();
+    answer = shared();
+    await open();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    answer = shared({ team1: 11, team2: 7 });
+    // Well inside the old poll, and the whole point of the exercise: this is
+    // the host pressing START and everybody else finding out.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+
+    const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
+    expect(panels).toContain('11');
+  });
+
+  /**
+   * The probe is an optimisation, not a dependency. A database that has not had
+   * 0009 run against it answers 'unavailable', and this page has to go on
+   * working exactly as it did — which is also what makes the migration and the
+   * client safe to deploy in either order.
+   */
+  it('falls back to polling the document when there is no probe to ask', async () => {
+    vi.useFakeTimers();
+    probeUnavailable = true;
+    answer = shared();
+    await open();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    answer = shared({ team1: 11, team2: 7 });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(21_000);
+    });
+
     const panels = [...container.querySelectorAll('span.tabular-nums')].map((p) => p.textContent);
     expect(panels).toContain('11');
   });
@@ -726,6 +845,145 @@ describe('the round timer', () => {
     expect(clocks()[0].textContent?.trim()).toBe('5:05');
     // Icon first, digits second, the same way round as the host's card.
     expect(clocks()[0].firstElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+
+  /**
+   * The three things a watcher decides for their own phone.
+   *
+   * There is still nothing here that changes the session: the round is as long
+   * as the host said, starts when they start it and ends when they end it. What
+   * this adds is the part that was never the host's to decide — whether the
+   * phone in somebody else's hand makes a noise about it.
+   */
+  describe('the alerts a watcher sets for their own phone', () => {
+    async function openTimer(over: Partial<SharedRoundTimer> = {}) {
+      answer = shared(undefined, false, { ...timing(1, 60_000), ...over });
+      await open();
+      await act(async () => {
+        clocks()[0].click();
+      });
+    }
+
+    /** A switch on the sheet, by the words beside it. */
+    function toggle(label: string): HTMLButtonElement {
+      const found = sheet()!.querySelector(`[aria-label="${label}"]`);
+      if (!found) throw new Error(`no switch labelled ${label}`);
+      return found as HTMLButtonElement;
+    }
+
+    it('offers Play Sound, Flash Screen and a tone', async () => {
+      await openTimer();
+
+      const said = sheet()!.textContent ?? '';
+      expect(said).toContain('Play Sound');
+      expect(said).toContain('Flash Screen');
+      // Whose phone this is, said out loud. Without it these read as controls
+      // over the session, and a player quietly silencing a court full of people
+      // is the one thing this must never look like.
+      expect(said).toContain('On this phone');
+    });
+
+    it('still offers nothing that changes the session itself', async () => {
+      await openTimer();
+
+      const words = [...sheet()!.querySelectorAll('button')].map((b) => b.textContent?.trim());
+      expect(words.join(' ')).not.toMatch(/START|STOP|RESET/);
+      expect(sheet()!.querySelector('[aria-label="Fewer minutes"]')).toBeNull();
+    });
+
+    it('starts on whatever the host chose', async () => {
+      await openTimer({ soundOn: false, flashOn: true, alarmTone: 'police-whistle' });
+
+      expect(toggle('Play Sound').getAttribute('aria-checked')).toBe('false');
+      expect(toggle('Flash Screen').getAttribute('aria-checked')).toBe('true');
+      expect(sheet()!.textContent).toContain('Police Whistle');
+    });
+
+    it('takes a watcher’s answer over the host’s, and remembers it', async () => {
+      await openTimer({ soundOn: true });
+      await act(async () => {
+        toggle('Play Sound').click();
+      });
+
+      expect(toggle('Play Sound').getAttribute('aria-checked')).toBe('false');
+      // Written down, because it is for the rest of the afternoon rather than
+      // until the next poll lands the host's choice on top of it again.
+      expect(window.localStorage.getItem('pb-watch-alerts')).toContain('sess-1');
+    });
+
+    it('leaves the switches they did not touch following the host', async () => {
+      await openTimer({ soundOn: true, flashOn: true });
+      await act(async () => {
+        toggle('Play Sound').click();
+      });
+
+      expect(toggle('Flash Screen').getAttribute('aria-checked')).toBe('true');
+    });
+  });
+
+  /**
+   * A watcher's page used to be silent at the end of a round, whatever the host
+   * had set. It counted down, it said TIME'S UP, and it made no noise: the
+   * publisher never sent the sound setting or the tone, and nothing on this side
+   * asked the alarm layer for anything.
+   *
+   * Whether it can be heard is still iOS's decision — an AudioContext will not
+   * sound until a real gesture has unlocked it — but that is a phone's answer
+   * to a request that is now actually made.
+   */
+  describe('the alarm on a watching phone', () => {
+    it('sounds the host’s tone when the round runs out', async () => {
+      answer = shared(undefined, false, {
+        ...timing(1, -1000),
+        soundOn: true,
+        alarmTone: 'police-whistle'
+      });
+      await open();
+
+      expect(alarms).toContain('start:police-whistle');
+    });
+
+    it('sounds it without the sheet ever having been opened', async () => {
+      // The case it is most for. Somebody put their phone in a pocket at the
+      // start of the round, which is not a request to be excused from the end
+      // of it, and the sheet is not mounted when it comes.
+      answer = shared(undefined, false, { ...timing(1, -1000), soundOn: true });
+      await open();
+
+      expect(sheet()).toBeNull();
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(true);
+    });
+
+    it('stays quiet while the round is still running', async () => {
+      answer = shared(undefined, false, { ...timing(1, 60_000), soundOn: true });
+      await open();
+
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
+
+    it('stays quiet when the host asked for no sound', async () => {
+      answer = shared(undefined, false, { ...timing(1, -1000), soundOn: false });
+      await open();
+
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
+
+    it('is silenced the moment this watcher turns the sound off mid-ring', async () => {
+      answer = shared(undefined, false, { ...timing(1, -1000), soundOn: true });
+      await open();
+      await act(async () => {
+        clocks()[0].click();
+      });
+      alarms = [];
+
+      const off = sheet()!.querySelector('[aria-label="Play Sound"]') as HTMLButtonElement;
+      await act(async () => off.click());
+
+      // The moment somebody most wants that switch is while it is going off in
+      // their hand, so it has to take effect there and then.
+      expect(alarms).toContain('stop');
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
   });
 });
 

@@ -66,7 +66,7 @@ export function MergeChoicePanel({
       disabled={busy !== null}
       className={reason === 'server-has-data' ? primary : secondary}
     >
-      {busy === 'combine' ? 'Combining...' : 'Combine them'}
+      {busy === 'combine' ? 'Combining...' : 'Combine Them'}
     </button>
   );
 
@@ -77,7 +77,7 @@ export function MergeChoicePanel({
       disabled={busy !== null}
       className={reason === 'server-has-data' ? secondary : primary}
     >
-      Use the account&rsquo;s copy
+      Use the Account&rsquo;s Copy
     </button>
   );
 
@@ -114,7 +114,7 @@ export function MergeChoicePanel({
               disabled={busy !== null}
               className={primary}
             >
-              {busy === 'replace' ? 'Replacing...' : 'Yes, replace'}
+              {busy === 'replace' ? 'Replacing...' : 'Yes, Replace'}
             </button>
             <button
               type="button"

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchShared, submitScoreEdit, type LiveFetch } from '../../lib/liveViewer';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { fetchShared, fetchSharedAt, submitScoreEdit, type LiveFetch } from '../../lib/liveViewer';
 import type { SessionSnapshot } from '../../lib/sessionSnapshot';
 import type { CourtScore } from '../../types';
 import { APP_URL } from '../../lib/appInfo';
@@ -18,6 +18,12 @@ import { ChevronDownIcon } from '../icons';
 import { CodePrompt } from './CodePrompt';
 import { LiveCourt } from './LiveCourt';
 import { LiveRoundTimer, LiveTimerChip } from './LiveRoundTimer';
+import * as stores from '../../lib/stores';
+import { alertsFor, setOwnAlert } from '../../lib/watchAlerts';
+import { sharedAlarming } from '../../lib/sessionSnapshot';
+import { DEFAULT_ALARM_TONE } from '../../lib/alarmSounds';
+import { useCountdownTick } from '../../hooks/useCountdownTick';
+import { useSharedAlarm } from '../../hooks/useSharedAlarm';
 import { MakeYourOwn } from './MakeYourOwn';
 
 /**
@@ -36,7 +42,27 @@ import { MakeYourOwn } from './MakeYourOwn';
  * was careful to leave free of stores.
  */
 
-/** Long enough not to hammer, short enough that a score lands while people look. */
+/**
+ * How often to ask whether anything has changed.
+ *
+ * Not how often the session is fetched. That question costs one timestamp —
+ * see fetchSharedAt — so it can be asked at a cadence that suits the thing
+ * people are actually waiting on, which is the host's round timer appearing.
+ * Three seconds is under a second and a half of waiting on average, on top of
+ * the second and a half the host spends batching the publish.
+ */
+const PROBE_MS = 3_000;
+
+/**
+ * How often to fetch the whole session regardless.
+ *
+ * Two jobs. On a database without 0009 the probe is unavailable, and this is
+ * the polling the page did before any of this existed, unchanged. And even
+ * where the probe works, a fetch this far apart is the backstop for the one
+ * failure a probe cannot report: a document that changed without its timestamp
+ * moving. That should not happen — the column is written from the snapshot's
+ * own `at` — but twenty seconds of insurance costs one request.
+ */
 const POLL_MS = 20_000;
 
 /**
@@ -168,24 +194,58 @@ export function LiveSessionPage({ shareKey }: Props) {
 
   useEffect(() => {
     let live = true;
+    /**
+     * The `at` of the document on screen, as epoch ms, so a probe can be
+     * compared against it. Kept here rather than read off `result`, which this
+     * effect deliberately does not depend on: re-running it on every poll would
+     * restart the interval and the page would never settle into a cadence.
+     */
+    let showing: number | null = null;
+    /** When the whole session was last pulled, for the POLL_MS backstop. */
+    let pulledAt = 0;
 
-    async function poll() {
-      // A tab in the background is a phone in a pocket. Asking every twenty
-      // seconds all afternoon would be somebody else's battery.
-      if (document.visibilityState !== 'visible') return;
+    async function full() {
       const got = await fetchShared(shareKey);
       if (!live) return;
+      pulledAt = Date.now();
       setResult(got);
       if (got.state === 'ok') {
+        showing = Date.parse(got.snapshot.at);
         setSeenAt(new Date());
         setPending((prev) => settled(prev, got.snapshot, Date.now()));
+      } else {
+        // Gone, outdated or offline. Nothing on screen to compare a probe
+        // against, so the next pass fetches rather than probes.
+        showing = null;
       }
     }
 
+    async function poll() {
+      // A tab in the background is a phone in a pocket. Asking all afternoon
+      // would be somebody else's battery.
+      if (document.visibilityState !== 'visible') return;
+
+      const due = Date.now() - pulledAt >= POLL_MS;
+      if (showing === null || due) {
+        await full();
+        return;
+      }
+
+      const probe = await fetchSharedAt(shareKey);
+      if (!live) return;
+      // 'unavailable' is a database without 0009, or a probe that failed. Both
+      // are answered the same way: say nothing, and let the POLL_MS backstop
+      // above fetch the document as this page always used to.
+      if (probe.state === 'unavailable') return;
+      // 'gone' still goes through fetchShared, so that the session ending is
+      // reported by the one function that knows how to say it.
+      if (probe.state === 'gone' || probe.at !== showing) await full();
+    }
+
     void poll();
-    const timer = setInterval(() => void poll(), POLL_MS);
-    // Straight away on coming back, rather than up to twenty seconds later
-    // looking at a stale court.
+    const timer = setInterval(() => void poll(), PROBE_MS);
+    // Straight away on coming back, rather than a poll later looking at a
+    // stale court.
     const wake = () => {
       if (document.visibilityState === 'visible') void poll();
     };
@@ -330,6 +390,7 @@ export function LiveSessionPage({ shareKey }: Props) {
         {snapshot && (
           <Session
             snapshot={snapshot}
+            shareKey={shareKey}
             seenAt={seenAt}
             onEditScore={editable ? tapScore : undefined}
           />
@@ -391,10 +452,13 @@ function Trouble({ message, onDone }: { message: string; onDone: () => void }) {
 
 function Session({
   snapshot,
+  shareKey,
   seenAt,
   onEditScore
 }: {
   snapshot: Extract<LiveFetch, { state: 'ok' }>['snapshot'];
+  /** Names this afternoon when the schedule predates sessions having names. */
+  shareKey: string;
   seenAt: Date | null;
   /** Absent when nobody may change anything, which is most sessions. */
   onEditScore?: (at: Where) => void;
@@ -414,6 +478,32 @@ function Session({
    */
   const [timerOpen, setTimerOpen] = useState(false);
   const timer = snapshot.roundTimer;
+
+  /**
+   * Which afternoon this is, so a decision about the alarm lasts exactly as
+   * long as the session it was made during. The share key stands in for a
+   * schedule generated before sessions were named, the same substitution the
+   * publisher makes when it writes the row.
+   */
+  const session = snapshot.sessionId ?? shareKey;
+  // Subscribed rather than read once: turning the sound off has to redraw the
+  // switch that was just pressed.
+  const own = useSyncExternalStore(
+    stores.watchAlerts.subscribe,
+    stores.watchAlerts.get,
+    stores.watchAlerts.get
+  );
+  const alerts = timer ? alertsFor(timer, session, own) : null;
+
+  // Counted here rather than in the sheet, because the sheet is only mounted
+  // when somebody has opened it and the alarm is most for the phone that has
+  // been put down. The tick is what makes zero arrive at zero.
+  useCountdownTick(timer?.phase === 'running');
+  useSharedAlarm(
+    timer !== null && alerts !== null && sharedAlarming(timer),
+    alerts?.soundOn ?? false,
+    alerts?.alarmTone ?? DEFAULT_ALARM_TONE
+  );
 
   // Where View Standings on every round goes.
   const standingsRef = useRef<HTMLDivElement>(null);
@@ -589,8 +679,13 @@ function Session({
 
       {/* Goes on its own when the host resets or clears their timer: the field
           is gone from the next poll, and there is nothing left to count. */}
-      {timerOpen && timer && (
-        <LiveRoundTimer timer={timer} onClose={() => setTimerOpen(false)} />
+      {timerOpen && timer && alerts && (
+        <LiveRoundTimer
+          timer={timer}
+          alerts={alerts}
+          onChangeAlerts={(patch) => setOwnAlert(session, patch)}
+          onClose={() => setTimerOpen(false)}
+        />
       )}
     </>
   );
@@ -616,9 +711,9 @@ function Notice({
           type="button"
           onClick={onRetry}
           disabled={retrying}
-          className="mt-4 rounded-md bg-brand-teal px-4 py-2 font-medium text-white transition-colors hover:bg-brand-teal-dark disabled:opacity-40"
+          className="mt-4 rounded-md bg-brand-teal px-4 py-2 font-bold text-white transition-colors hover:bg-brand-teal-dark disabled:opacity-40"
         >
-          {retrying ? 'Trying…' : 'Try again'}
+          {retrying ? 'Trying…' : 'Try Again'}
         </button>
       )}
       <p className="mt-6">

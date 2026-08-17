@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RoundPlan } from '../../types';
-import { clearPlan, planHasTypes } from '../../lib/roundPlan';
+import { clearPlan, planHasTypes, planTypesUsed } from '../../lib/roundPlan';
+import { pillMeta } from '../../lib/roundTypes';
 import { BallIcon, ChevronDownIcon, InfoIcon } from '../icons';
 import { Toggle } from '../Toggle';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { RoundTypePlanner } from './RoundTypePlanner';
+import { TypeGlyphs } from './typeGlyphs';
 
 /**
  * The Setup Round Robin panel, drawn from `INBOX/Setup-Round-Robin.png`.
@@ -110,6 +112,19 @@ interface Props {
   onToggleExpanded: () => void;
   onOpenInfo: () => void;
   onPlanCommit: (next: RoundPlan) => void;
+  /**
+   * The open list's draft, or null when the list is shut.
+   *
+   * The list keeps its choices back until it closes, so that the Schedule tab
+   * does not blink while the host is still choosing. Two other things need to
+   * see it in the meantime, which is why it is held above this panel rather
+   * than inside it: Reset All, on the title line, which would otherwise be
+   * reading the committed plan and sit greyed out over a list full of rounds
+   * the host had just set; and Generate, further down the page, which has to
+   * build the schedule the host is looking at.
+   */
+  planDraft: RoundPlan | null;
+  onPlanDraft: (next: RoundPlan | null) => void;
   scoringEnabled: boolean;
   onScoringChange: (on: boolean) => void;
 }
@@ -125,22 +140,21 @@ export function SessionConfig({
   onToggleExpanded,
   onOpenInfo,
   onPlanCommit,
+  planDraft,
+  onPlanDraft,
   scoringEnabled,
   onScoringChange,
 }: Props) {
   const locked = useMemo(() => new Set(lockedRounds), [lockedRounds]);
 
+  const canReset = planHasTypes(planDraft ?? roundPlan, numRounds, locked);
+
   /**
-   * The open list's draft, or null when the list is shut.
-   *
-   * The list keeps its own draft and hands nothing back until Done, so that the
-   * Schedule tab does not blink while the host is still choosing. Reset All is
-   * outside that: it is on the title line and works in both states. Without
-   * this it would be reading the committed plan, and would sit greyed out over
-   * a list full of the rounds the host had just set.
+   * The formats in play, for the pills under a shut list. Read off the
+   * committed plan rather than the draft: with the list open there are no pills
+   * to draw, and the draft is only ever set while it is.
    */
-  const [openDraft, setOpenDraft] = useState<RoundPlan | null>(null);
-  const canReset = planHasTypes(openDraft ?? roundPlan, numRounds, locked);
+  const used = useMemo(() => planTypesUsed(roundPlan, numRounds), [roundPlan, numRounds]);
 
   /**
    * Bumped by Reset All to remount the list, which is what a key is for. The
@@ -151,7 +165,7 @@ export function SessionConfig({
 
   function handleReset() {
     onPlanCommit(clearPlan(roundPlan, locked));
-    setOpenDraft(null);
+    onPlanDraft(null);
     setResetNonce((n) => n + 1);
   }
 
@@ -164,37 +178,10 @@ export function SessionConfig({
    * twice. Done and this now differ only in which one is obvious.
    */
   function handleToggle() {
-    if (expanded && openDraft) onPlanCommit(openDraft);
-    setOpenDraft(null);
+    if (expanded && planDraft) onPlanCommit(planDraft);
+    onPlanDraft(null);
     onToggleExpanded();
   }
-
-  /**
-   * Walking off the Setup tab with the list open keeps what was set too.
-   *
-   * Leaving is the third way of closing the list, and the host has no reason to
-   * think it means anything different from the other two. This whole page goes
-   * when the step changes, so the last draft has to be caught on the way out.
-   *
-   * Both refs are written from effects rather than during render, which is what
-   * `react-hooks/refs` is about, and read only in the cleanup. `onPlanCommit`
-   * is one of them because it is rebuilt on most renders and the cleanup would
-   * otherwise be holding whichever one it closed over on mount.
-   */
-  const pending = useRef<RoundPlan | null>(null);
-  const commit = useRef(onPlanCommit);
-  useEffect(() => {
-    pending.current = openDraft;
-  }, [openDraft]);
-  useEffect(() => {
-    commit.current = onPlanCommit;
-  }, [onPlanCommit]);
-  useEffect(
-    () => () => {
-      if (pending.current) commit.current(pending.current);
-    },
-    []
-  );
 
   return (
     <div className="space-y-4">
@@ -289,16 +276,52 @@ export function SessionConfig({
               A round already played keeps what it was played as. Nothing is
               going to rebuild it, and clearing it would only make the list lie
               about what happened on court. */}
-          {expanded && canReset && (
+          {canReset && (
             <button
               type="button"
               onClick={handleReset}
-              className="ml-auto shrink-0 px-1 text-sm font-medium text-brand-teal transition-colors hover:text-brand-teal-dark"
+              className="ml-auto shrink-0 px-1 text-sm font-bold text-brand-teal transition-colors hover:text-brand-teal-dark"
             >
               Reset All
             </button>
           )}
         </div>
+
+        {/* What this afternoon is set to play, with the list shut.
+            One pill per format used, however many rounds use it: the question
+            somebody is asking at a glance is whether there is a gendered round
+            today, and a count is a number to check against a list they can open
+            in one tap. Nothing for an ordinary round, which is not a format.
+
+            Hidden while the list is open, where every round says this for
+            itself a few pixels below and the pills would be the same answer
+            twice. */}
+        {!expanded && used.length > 0 && (
+          /* A list, and labelled as one. Read aloud, a row of pills with
+             nothing in front of it is three words with no subject. */
+          /* Tighter than the pills inside the list: all three have to sit on one
+             line on a 390px phone, and at the list's own padding "Equal Skill"
+             dropped to a second row. flex-wrap stays as the floor rather than
+             the plan — in large-text mode they will wrap, and wrapping is a
+             better answer there than three pills running off the panel. */
+          <ul
+            aria-label="Round types in this session"
+            className="mt-2 flex flex-wrap items-center gap-1"
+          >
+            {used.map((type) => {
+              const meta = pillMeta(type);
+              return (
+                <li
+                  key={type}
+                  className={`flex items-center gap-1 rounded-full border-2 px-1.5 py-1 text-xs font-bold ${meta.badgeClass} ${meta.badgeEdgeClass}`}
+                >
+                  <TypeGlyphs type={type} size="badge" />
+                  {meta.shortName}
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
         {expanded && (
           <RoundTypePlanner
@@ -306,10 +329,10 @@ export function SessionConfig({
             numRounds={numRounds}
             plan={roundPlan}
             lockedRounds={lockedRounds}
-            onDraftChange={setOpenDraft}
+            onDraftChange={onPlanDraft}
             onCommit={(next) => {
               onPlanCommit(next);
-              setOpenDraft(null);
+              onPlanDraft(null);
               onToggleExpanded();
             }}
           />

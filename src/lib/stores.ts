@@ -4,6 +4,7 @@ import type { Step } from './steps';
 import type { GroupSession } from './groupSessions';
 import type { ExampleMeta } from './exampleGroup';
 import type { RoundTimerState } from './roundTimerState';
+import type { AlarmToneId } from './alarmSounds';
 import { createStoredValue } from './store';
 import { DEFAULT_COURTS } from './assign';
 import { KEYS, EMPTY_GROUP_NAME } from './migrations';
@@ -267,6 +268,63 @@ export const installDismissed = createStoredValue('pb-install-dismissed', false)
  * before they have an account, so there is nowhere else to keep it.
  */
 export const signInDismissed = createStoredValue('pb-signin-dismissed', false);
+
+/**
+ * A sign in code that has been emailed and not typed in yet: the address it
+ * went to, and when it went.
+ *
+ * Stored rather than kept in the panel, because fetching the code means leaving
+ * the app and iOS discards a backgrounded tab whenever it likes. Coming back to
+ * a page that reloaded itself, with the code on the clipboard and no box to put
+ * it in, is where a new host gives up: the way back in starts at the email
+ * field, so the only move they can see is to send a second code and be handed
+ * the same dead end again. auth.ts owns this; see pendingSignIn there.
+ *
+ * Device, and never synced. It describes one phone halfway through something.
+ */
+export interface PendingSignIn {
+  email: string;
+  /** Epoch ms. The code expires and so does this. */
+  sentAt: number;
+  /**
+   * Set when the host shut My Account themselves with the code still unused.
+   * The box is still waiting for them next time they open the panel; what stops
+   * is the app opening it for them. They have said once that they are done for
+   * now, and a panel that lets itself in on every launch for an hour is the app
+   * arguing with them.
+   */
+  dismissed?: boolean;
+}
+
+export const pendingSignIn = createStoredValue<PendingSignIn | null>(
+  'pb-pending-signin',
+  null
+);
+
+/**
+ * What one watching phone has decided to do when the host's timer reaches zero.
+ *
+ * The host sets the alarm for a court, so every phone starts on their choices.
+ * But the phone on the bench belongs to somebody sitting next to the person
+ * running it, and nine phones sounding at once is nine times the alarm anybody
+ * asked for. So any of the three can be overridden here, on this phone only,
+ * and anything left unset goes on following the host live.
+ *
+ * `session` is what makes it "for the rest of the session" rather than forever:
+ * a record belonging to another afternoon is ignored and overwritten, so
+ * scanning a new code starts from the host again. Written by lib/watchAlerts.ts,
+ * which is the only thing that reads it.
+ *
+ * Device, and the one store the watcher's page writes at all.
+ */
+export interface WatchAlerts {
+  session: string;
+  soundOn?: boolean;
+  flashOn?: boolean;
+  alarmTone?: AlarmToneId;
+}
+
+export const watchAlerts = createStoredValue<WatchAlerts | null>('pb-watch-alerts', null);
 
 /**
  * Whether the host has waved away the line telling them how to swap two

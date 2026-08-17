@@ -166,6 +166,23 @@ export function courtMissReason(
     : `${needs} This round has ${countOfPeople(men, women)}.`;
 }
 
+/**
+ * The headline over `courtMissReason`: what could not be done, in one line, for
+ * a host reading a card at arm's length. The reason itself is folded away
+ * underneath it — it is four numbers and a rule, and it is only read by
+ * somebody who has already asked why.
+ *
+ * "Last game" whenever this is the last court in the round, which is where a
+ * leftover court almost always is: the format fills the courts it can and what
+ * will not divide falls to the end. A round with two courts it could not make
+ * says "this game" on the earlier one, because there it is not the last.
+ */
+export function courtMissHeadline(type: RoundType, isLastCourt: boolean): string {
+  return `Unable to make ${isLastCourt ? 'last' : 'this'} game ${
+    type === 'gendered' ? 'gendered' : 'mixed'
+  }`;
+}
+
 export function courtMatchesType(court: CourtAssignment, type: RoundType): boolean {
   const teams = [court.team1, court.team2];
   // A court the roster could not fill plays an ordinary game whatever the round

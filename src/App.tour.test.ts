@@ -98,9 +98,9 @@ function overlay(): HTMLElement | null {
  */
 const overlayHidden = () => document.querySelector('[data-tour-hidden]') !== null;
 
-/** Skip tutorial, and then mean it. */
+/** Skip Tutorial, and then mean it. */
 function skipTheTour() {
-  clickButton(/^Skip tutorial$/);
+  clickButton(/^Skip Tutorial$/);
   clickButton(/^End Tutorial$/);
 }
 
@@ -222,13 +222,24 @@ describe('who gets greeted', () => {
     expect(openerShowing()).toBe(false);
   });
 
-  it('has no Skip on the greeting itself', () => {
-    // One button, because the tour behind it carries a Skip on every card.
+  it('lets the greeting be declined in one press', () => {
+    // The cards ask before they end a running tour. Nothing has started here,
+    // so Skip Tutorial takes no confirming, and it still counts as answered:
+    // the device is done, and the greeting never comes back.
     freshInstall();
     mount();
     waitForOpener();
-    expect(has(/^Skip/)).toBe(false);
+
+    clickButton(/^Skip Tutorial$/);
+    expect(openerShowing()).toBe(false);
+    expect(overlay()).toBeNull();
+    expect(stage()).toBe('done');
+
+    remount();
+    waitForOpener();
+    expect(openerShowing()).toBe(false);
   });
+
 });
 
 describe('what Continue sets up', () => {
@@ -258,7 +269,7 @@ describe('the cards that hand over a real control', () => {
     begin();
     expect(has(/^Next$/)).toBe(false);
     expect(has(/^Back$/)).toBe(false);
-    expect(has(/^Skip tutorial$/)).toBe(true);
+    expect(has(/^Skip Tutorial$/)).toBe(true);
 
     clickButton(/^Continue to Setup/);
     expect(cardNumber()).toBe(2);
@@ -364,6 +375,10 @@ describe('the last card', () => {
     expect(body()).toContain('thanks for being an organizer');
     expect(overlay()).toBeNull();
     expect(stage()).toBe('done');
+
+    // Done on its own. The greeting offers a way past it; this sheet has
+    // nothing left to skip.
+    expect(has(/^Skip/)).toBe(false);
   });
 
   it('leaves the app alone once Done is pressed', () => {
@@ -457,7 +472,7 @@ describe('Back and Skip', () => {
     // The pill is a small target at the foot of a screen full of things the
     // card wants pressed, and there is no way back into a tour that has ended.
     begin();
-    clickButton(/^Skip tutorial$/);
+    clickButton(/^Skip Tutorial$/);
 
     expect(body()).toContain('End the tutorial?');
     expect(overlay()).not.toBeNull();
@@ -572,14 +587,14 @@ describe('what the overlay draws', () => {
     expect(body()).toContain('Step 1 of 8');
   });
 
-  it('keeps Skip tutorial out of the bubbles and at the foot of the screen', () => {
+  it('keeps Skip Tutorial out of the bubbles and at the foot of the screen', () => {
     // In the corner of a bubble it read as one of that card's two buttons. It
     // is not: it is the way out of the whole tour, so it sits somewhere fixed
     // that no card owns, and every card has to be able to find it.
     begin();
     const skip = overlay()!.querySelector('[data-tour-skip]');
     expect(skip).not.toBeNull();
-    expect(text(skip!)).toBe('Skip tutorial');
+    expect(text(skip!)).toBe('Skip Tutorial');
 
     const bubbles = [...overlay()!.querySelectorAll('div')].filter((d) =>
       /Click Continue to Setup/.test(text(d))

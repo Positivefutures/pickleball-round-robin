@@ -23,11 +23,11 @@ interface Props {
 // three screens below, and a red Delete that is a different red from the last
 // red Delete is the kind of thing nobody notices until it is pointed out.
 const PRIMARY =
-  'px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed';
+  'px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
 const GREY =
-  'px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed';
+  'px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
 const DANGER =
-  'px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed';
+  'px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
 
 const FIELD =
   'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent';
@@ -183,8 +183,8 @@ export function ManageRostersModal({
             className={`w-full ${DANGER}`}
           >
             {count > 0
-              ? `Delete group and ${count} player${count === 1 ? '' : 's'}`
-              : 'Delete group'}
+              ? `Delete Group and ${count} Player${count === 1 ? '' : 's'}`
+              : 'Delete Group'}
           </button>
           <button
             type="button"

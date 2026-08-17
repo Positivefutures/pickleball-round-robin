@@ -30,14 +30,14 @@ export function PlayerSelector({
         <div className="flex gap-2">
           <button
             onClick={onSelectAll}
-            className="text-sm text-brand-teal hover:text-brand-teal-dark font-medium"
+            className="text-sm text-brand-teal hover:text-brand-teal-dark font-bold"
           >
             Select All
           </button>
           <span className="text-gray-300">|</span>
           <button
             onClick={onDeselectAll}
-            className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+            className="text-sm text-gray-500 hover:text-gray-700 font-bold"
           >
             Deselect All
           </button>

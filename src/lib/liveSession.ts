@@ -165,7 +165,12 @@ function sharedRoundTimer(): SharedRoundTimer | null {
     phase: timer.phase,
     endsAt: timer.endsAt,
     remainingMs: timer.remainingMs,
-    flashOn: timer.flashOn
+    flashOn: timer.flashOn,
+    // What the watchers start from. The host is setting the alarm for a court,
+    // not only for their own phone, so the phone on the bench should ring the
+    // same way — and then anybody who wants it to stop can say so on theirs.
+    soundOn: timer.soundOn,
+    alarmTone: timer.alarmTone
   };
 }
 
@@ -428,7 +433,14 @@ function onTimerChange() {
   const next = JSON.stringify(sharedRoundTimer());
   if (next === lastTimer) return;
   lastTimer = next;
-  onChange();
+  // Straight out, without the debounce the rest of the session publishes on.
+  // That delay exists to make a burst of taps one upload, and this is not a
+  // burst: what gets here is START, STOP, RESET and reaching zero, each of them
+  // one deliberate press, already filtered to what would actually go on the
+  // wire. It is also the one change on the sheet that a court full of people
+  // is waiting on, so a second and a half is a second and a half of everybody
+  // looking at a phone that has not caught up yet.
+  onChange(0);
 }
 
 function startTracking() {
@@ -453,7 +465,7 @@ function stopTracking() {
   drainTimer = null;
 }
 
-function onChange() {
+function onChange(delay = PUBLISH_DELAY_MS) {
   if (key === null) return;
   // The session is over, however it ended: New Round Robin, a group switch, a
   // deleted group, or sync adopting an account copy. All four null the schedule,
@@ -463,7 +475,7 @@ function onChange() {
     return;
   }
   syncDraining();
-  schedulePublish();
+  schedulePublish(delay);
 }
 
 // ------------------------------------------------------------- the switches --
