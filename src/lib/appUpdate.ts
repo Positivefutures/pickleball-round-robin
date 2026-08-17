@@ -17,6 +17,15 @@
  * open, and on a phone that is forever. So a build that has been waiting is
  * also let in when somebody comes back to the app after a real absence, which
  * stands in for the cold start a home-screen icon never gets.
+ *
+ * And a build is let in the moment it lands, if nobody is looking when it
+ * does. That closes a gap that made the paragraph above take two trips rather
+ * than one. A return after an absence finds nothing waiting yet, because the
+ * deploy happened while the app was away; it starts the download instead, and
+ * the build that arrives seconds later only raised the banner. Nothing
+ * reconsidered it, so the swap waited on another absence and another return.
+ * See `unattended` for what counts as nobody looking. A host actually using
+ * the app is still never reloaded from under.
  */
 
 /** `ready` means a new build is downloaded and waiting to be let in. */
@@ -56,8 +65,22 @@ let reloading = false;
  */
 const AWAY_BEFORE_SWAP_MS = 60_000;
 
+/**
+ * How long a return keeps counting as the cold start it stood in for.
+ *
+ * A return after a real absence is what sends the app looking for a new build,
+ * and the answer takes as long as the network takes. Inside this window that
+ * build is still the one the return went for, and goes in without asking.
+ * Outside it, somebody has settled in and gets the banner instead.
+ */
+const RETURN_GRACE_MS = 30_000;
+
 /** 0 means the app has not been away yet this run. */
 let hiddenAt = 0;
+
+/** When the app last came back from an absence long enough to count. 0 once it
+ *  goes away again, so this only ever describes the run now in the foreground. */
+let returnedAt = 0;
 
 /**
  * Started once, however many times it is asked. A second call would leave two
@@ -80,9 +103,40 @@ function alreadyControlled(): boolean {
   return navigator.serviceWorker.controller !== null;
 }
 
+/**
+ * Whether a build that has just finished downloading can be let straight in.
+ *
+ * Two ways to be sure nobody is mid-anything. The app is in the background,
+ * where a reload is not observable at all. Or it came back a moment ago from an
+ * absence long enough to count as a cold start, and this is the build that
+ * return went looking for, arriving a few seconds later than it would have if
+ * the network were instant.
+ *
+ * Anything else is somebody using the app, and they get the banner instead.
+ * Nothing is lost by reloading in either case here: the schedule, the completed
+ * rounds and the round timer's deadline are all in storage, so the app comes
+ * back where it was. What is protected is a host mid-tap, not the data.
+ */
+function unattended(): boolean {
+  if (typeof document === 'undefined') return false;
+  if (document.visibilityState !== 'visible') return true;
+  return returnedAt > 0 && Date.now() - returnedAt < RETURN_GRACE_MS;
+}
+
 function watch(installing: ServiceWorker) {
   installing.addEventListener('statechange', () => {
-    if (installing.state === 'installed' && alreadyControlled()) setState('ready');
+    if (installing.state !== 'installed' || !alreadyControlled()) return;
+
+    // Straight in, rather than only raising the banner and leaving the swap to
+    // a second trip away and back. `installing` rather than
+    // `registration.waiting`, which is not reliably set at the instant this
+    // fires and is the same worker either way.
+    if (unattended()) {
+      swapTo(installing);
+      return;
+    }
+
+    setState('ready');
   });
 }
 
@@ -108,8 +162,15 @@ export function startAppUpdates(): void {
       onVisible = () => {
         if (document.visibilityState !== 'visible') {
           hiddenAt = Date.now();
+          returnedAt = 0;
           return;
         }
+
+        const backFromAbsence = hiddenAt > 0 && Date.now() - hiddenAt >= AWAY_BEFORE_SWAP_MS;
+        // Remembered before the check below, because the build this return is
+        // about to go looking for may take seconds to arrive, and `unattended`
+        // is what still recognises it as this return's when it does.
+        if (backFromAbsence) returnedAt = Date.now();
 
         // Coming back is the only chance a waiting build ever gets.
         //
@@ -121,7 +182,7 @@ export function startAppUpdates(): void {
         // as close to opening it cold as a home-screen icon ever comes, so the
         // build that downloaded days ago is let in here rather than waiting for
         // a tap that is never going to come.
-        if (reg.waiting && hiddenAt > 0 && Date.now() - hiddenAt >= AWAY_BEFORE_SWAP_MS) {
+        if (reg.waiting && backFromAbsence) {
           applyUpdate();
           return;
         }
@@ -140,15 +201,14 @@ export function startAppUpdates(): void {
 }
 
 /**
- * Lets the waiting build in, then reloads onto it.
+ * Lets one build in, then reloads onto it.
  *
  * The listener is attached here rather than at startup on purpose. `activate`
  * claims open pages, so a permanently attached `controllerchange` handler would
  * reload the page during the very first install, and then again, and again.
  */
-export function applyUpdate(): void {
-  const waiting = registration?.waiting;
-  if (!waiting) return;
+function swapTo(worker: ServiceWorker | null): void {
+  if (!worker) return;
 
   navigator.serviceWorker.addEventListener(
     'controllerchange',
@@ -160,7 +220,15 @@ export function applyUpdate(): void {
     { once: true }
   );
 
-  waiting.postMessage({ type: 'skip-waiting' });
+  worker.postMessage({ type: 'skip-waiting' });
+}
+
+/**
+ * Lets the waiting build in. The Reload button on the update line, and the
+ * return-from-absence path that finds one already downloaded.
+ */
+export function applyUpdate(): void {
+  swapTo(registration?.waiting ?? null);
 }
 
 /** Test seam, matching the one in sync.ts. */
@@ -171,9 +239,11 @@ export const __testing = {
     registration = null;
     reloading = false;
     hiddenAt = 0;
+    returnedAt = 0;
     started = false;
     if (onVisible) document.removeEventListener('visibilitychange', onVisible);
     onVisible = null;
   },
-  AWAY_BEFORE_SWAP_MS
+  AWAY_BEFORE_SWAP_MS,
+  RETURN_GRACE_MS
 };

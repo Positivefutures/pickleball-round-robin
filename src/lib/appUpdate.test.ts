@@ -330,6 +330,99 @@ describe('coming back to the app after a while', () => {
 
     expect(waiting.posted).toEqual([]);
   });
+
+  /**
+   * The build that arrives a moment after the return that went looking for it.
+   *
+   * This is the whole reason a deploy used to take two trips away and back.
+   * Nothing is waiting when somebody returns, because the deploy happened while
+   * the app was in their pocket. The return starts the download instead, and
+   * what lands seconds later only raised the banner: no absence had passed
+   * since, so the swap sat there waiting for another one.
+   */
+  describe('and the build lands a moment later', () => {
+    async function returnFromAbsence(seconds: number) {
+      container.controller = {};
+      startAppUpdates();
+      await settle();
+      away(seconds);
+    }
+
+    it('goes straight in, without waiting for another trip away', async () => {
+      await returnFromAbsence(__testing.AWAY_BEFORE_SWAP_MS / 1000 + 1);
+      // The return found nothing waiting and asked, which is the ordinary case
+      // right after a deploy.
+      expect(container.registration.checks).toBe(1);
+
+      const arriving = container.registration.startInstalling();
+      arriving.reach('installed');
+
+      expect(arriving.posted).toEqual([{ type: 'skip-waiting' }]);
+      expect(updateStore.get()).toBe('none');
+    });
+
+    it('reloads onto it once it has taken over', async () => {
+      await returnFromAbsence(120);
+      container.registration.startInstalling().reach('installed');
+
+      container.handOver();
+
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for the tap once somebody has settled in', async () => {
+      await returnFromAbsence(120);
+      // Long enough after coming back that this is no longer the cold start
+      // the return stood in for. Reloading now would be under their thumb.
+      now += __testing.RETURN_GRACE_MS + 1;
+
+      const arriving = container.registration.startInstalling();
+      arriving.reach('installed');
+
+      expect(arriving.posted).toEqual([]);
+      expect(updateStore.get()).toBe('ready');
+    });
+
+    it('waits for the tap when the trip away was only a glance', async () => {
+      await returnFromAbsence(5);
+
+      const arriving = container.registration.startInstalling();
+      arriving.reach('installed');
+
+      expect(arriving.posted).toEqual([]);
+      expect(updateStore.get()).toBe('ready');
+    });
+
+    it('forgets the return once the app goes away again', async () => {
+      await returnFromAbsence(120);
+      // Away and back inside the threshold. That short trip is not a cold
+      // start, and it must not inherit one from the trip before it.
+      away(5);
+
+      const arriving = container.registration.startInstalling();
+      arriving.reach('installed');
+
+      expect(arriving.posted).toEqual([]);
+      expect(updateStore.get()).toBe('ready');
+    });
+  });
+
+  describe('and the app is in the background when it lands', () => {
+    it('goes straight in, because there is nobody to reload under', async () => {
+      container.controller = {};
+      startAppUpdates();
+      await settle();
+
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      const arriving = container.registration.startInstalling();
+      arriving.reach('installed');
+
+      expect(arriving.posted).toEqual([{ type: 'skip-waiting' }]);
+      expect(updateStore.get()).toBe('none');
+    });
+  });
 });
 
 describe('when there is no worker to be had', () => {
