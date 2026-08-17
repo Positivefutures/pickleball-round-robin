@@ -374,8 +374,11 @@ function Trouble({ message, onDone }: { message: string; onDone: () => void }) {
     return () => clearTimeout(timer);
   }, [onDone]);
 
+  // The bottom offset clears the home indicator. `viewport-fit=cover` in
+  // index.html put the bottom safe area inside the viewport, so a flat bottom-4
+  // would sit this notice half under the bar on a phone.
   return (
-    <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
+    <div className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex justify-center px-4">
       <p
         role="status"
         className="max-w-sm rounded-lg bg-[#B42121] px-4 py-3 text-center text-sm font-medium text-white shadow-lg"
