@@ -15,9 +15,12 @@ const ORANGE = 'bg-[#FA5D02] hover:bg-[#DE5202]';
  * housekeeping, which is not what this is: a fix somebody asked for is sitting
  * behind it. Green stays with the install banner, so the two never look alike.
  *
- * Dismissing it does not refuse the update, only the interruption. A build that
- * is waiting is let in on its own the next time somebody comes back to the app
- * after a minute away, so the choice here is when, not whether.
+ * Dismissing it does not refuse the update, only the interruption: it comes
+ * back the next time the app is picked up. That matters more than it used to.
+ * A waiting build was once let in on its own after a real absence, and is not
+ * any more — Reload is the only way through — so the cross has to be a "not
+ * now" rather than an answer, or one tap would leave somebody on an old build
+ * with nothing left to ask them.
  */
 export function UpdateBanner({ onReload, onDismiss }: Props) {
   return (

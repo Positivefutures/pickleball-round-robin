@@ -220,6 +220,26 @@ function App() {
   // the right behaviour: the next deploy is entitled to ask again.
   const updateReady = useSyncExternalStore(updateStore.subscribe, updateStore.get) === 'ready';
   const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  /**
+   * A dismissal lasts until the app is put down and picked up again.
+   *
+   * Nothing lets a build in on its own any more — the Reload button is the only
+   * way through — so a refusal that stuck would be a host on last month's build
+   * having tapped one small cross once, and no way back to the offer. Coming
+   * back to the app is also when the worker goes looking for a new build, so
+   * this is the same moment the banner would appear for the first time anyway.
+   *
+   * "Not now" rather than "no": the cross is there to get the line out of the
+   * way of whatever is happening on court, not to answer for next Tuesday.
+   */
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') setUpdateDismissed(false);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
   const { canPrompt, promptInstall } = useInstallPrompt();
 
   /**

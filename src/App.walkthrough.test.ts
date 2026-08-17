@@ -14,6 +14,39 @@ import { sharePayload } from './lib/share';
 import { __robinTesting as robinTesting } from './lib/robins';
 import type { Schedule, Round, CourtAssignment } from './types';
 
+/**
+ * The service worker's update store, under this file's control.
+ *
+ * vi.hoisted because vi.mock is lifted above the imports, and the factory would
+ * otherwise close over a binding that has not been initialised when App is
+ * first pulled in. Idle by default, so the other 270 tests in this file see
+ * exactly what they saw before: no banner, and nothing ever applied.
+ */
+const swUpdate = vi.hoisted(() => {
+  let state: 'none' | 'ready' = 'none';
+  const listeners = new Set<() => void>();
+  return {
+    applied: { count: 0 },
+    store: {
+      get: () => state,
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => void listeners.delete(listener);
+      }
+    },
+    set(next: 'none' | 'ready') {
+      state = next;
+      for (const listener of listeners) listener();
+    }
+  };
+});
+
+vi.mock('./lib/appUpdate', () => ({
+  updateStore: swUpdate.store,
+  applyUpdate: () => void (swUpdate.applied.count += 1),
+  startAppUpdates: () => {}
+}));
+
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
@@ -5976,5 +6009,101 @@ describe('a padlock clicked on by hand', () => {
     for (const round of storedSchedule().rounds) {
       expect(padlockedNames(round.roundNumber), `round ${round.roundNumber}`).toEqual([]);
     }
+  });
+});
+
+/**
+ * The orange line that says a new version is out.
+ *
+ * A build used to be let in on its own — in the background, or just after a
+ * return from a long enough absence — and between those two the banner was
+ * almost never on screen when anybody was looking at it. Reload is the only way
+ * through now, so the line has to actually reach somebody, and it has to still
+ * be reachable after they have waved it away once.
+ */
+describe('the new version banner', () => {
+  const LINE = 'New version ready';
+
+  function shown(): boolean {
+    return (container.textContent ?? '').includes(LINE);
+  }
+
+  /** The app going into a pocket and coming back out of it. */
+  function pickUpAgain() {
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  }
+
+  beforeEach(() => {
+    swUpdate.set('none');
+    swUpdate.applied.count = 0;
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    seed(9, 9, 2);
+  });
+
+  it('says nothing while there is no new build', () => {
+    mount();
+    expect(shown()).toBe(false);
+  });
+
+  it('appears the moment a build is ready, without a reload to find out', () => {
+    mount();
+    expect(shown()).toBe(false);
+
+    act(() => swUpdate.set('ready'));
+
+    expect(shown()).toBe(true);
+  });
+
+  it('reloads onto the new build when the button is pressed', () => {
+    mount();
+    act(() => swUpdate.set('ready'));
+
+    clickButton(/^Reload$/);
+
+    // The only way in there is now, which is the whole point of the line.
+    expect(swUpdate.applied.count).toBe(1);
+  });
+
+  it('goes away when it is waved off', () => {
+    mount();
+    act(() => swUpdate.set('ready'));
+    clickLabel('Not now');
+
+    expect(shown()).toBe(false);
+    expect(swUpdate.applied.count).toBe(0);
+  });
+
+  /**
+   * The half that matters now that nothing lets a build in on its own. A
+   * refusal that stuck would be somebody on last month's build having tapped
+   * one small cross once, with nothing left to ask them again.
+   */
+  it('comes back the next time the app is picked up', () => {
+    mount();
+    act(() => swUpdate.set('ready'));
+    clickLabel('Not now');
+    expect(shown()).toBe(false);
+
+    pickUpAgain();
+
+    expect(shown()).toBe(true);
+  });
+
+  it('stays away while they are still using the app', () => {
+    mount();
+    act(() => swUpdate.set('ready'));
+    clickLabel('Not now');
+
+    // The tab never went anywhere. Walking around the app is not picking it
+    // up again, and the line must not spring back under somebody mid-round.
+    clickButton(/^Continue to Setup/);
+    clickButton(/^1\. Players$/);
+
+    expect(shown()).toBe(false);
   });
 });

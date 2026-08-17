@@ -225,14 +225,20 @@ describe('letting it in', () => {
 });
 
 /**
- * The failure this exists for: a dismissed banner used to be the end of it.
+ * The banner, and getting it in front of somebody.
  *
  * A waiting worker takes over when every page it would replace has gone away,
- * and a home-screen app never lets one go. So somebody could dismiss the banner
- * once and read the same version number off the footer a fortnight and two
- * deploys later, with nothing at all going wrong.
+ * and a home-screen app never lets one go. So without something asking on its
+ * behalf, a host reads the same version number off the footer a fortnight and
+ * two deploys later with nothing at all going wrong.
+ *
+ * Two releases answered that by letting the build in on its own, in the
+ * background or just after a return. It worked, and it meant nobody ever saw
+ * the orange line: the ordinary way to meet a new build is to pick the phone up
+ * after the deploy, and by then the swap had already happened. What asks now is
+ * the check on coming back to the foreground, and what answers is the host.
  */
-describe('coming back to the app after a while', () => {
+describe('coming back to the app', () => {
   function away(seconds: number) {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
@@ -258,87 +264,60 @@ describe('coming back to the app after a while', () => {
     return waiting;
   }
 
-  it('lets a build that has been waiting in, without being asked', async () => {
+  it('says a build is ready rather than letting it in', async () => {
     const waiting = await withOneWaiting();
 
-    away(__testing.AWAY_BEFORE_SWAP_MS / 1000 + 1);
+    away(600);
 
-    expect(waiting.posted).toEqual([{ type: 'skip-waiting' }]);
-  });
-
-  it('reloads onto it once the new build has taken over', async () => {
-    await withOneWaiting();
-
-    away(120);
-    container.handOver();
-
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
-
-  it('leaves the app alone when somebody only glanced away', async () => {
-    // Reading a message and coming straight back is not a cold start, and
-    // reloading under someone's thumb mid-round would be worse than a stale
-    // version number.
-    const waiting = await withOneWaiting();
-
-    away(5);
-
+    // The whole point. Ten minutes away used to be enough to be reloaded onto
+    // a build nobody had mentioned.
     expect(waiting.posted).toEqual([]);
     expect(reload).not.toHaveBeenCalled();
+    expect(updateStore.get()).toBe('ready');
   });
 
-  it('still looks for a new build on the short trips', async () => {
+  it('goes looking on every trip back, long or short', async () => {
     await withOneWaiting();
     const before = container.registration.checks;
 
     away(5);
+    away(600);
 
-    expect(container.registration.checks).toBe(before + 1);
+    // This is what finds the deploy that happened while the phone was in a
+    // pocket. Without it the banner has nothing to announce.
+    expect(container.registration.checks).toBe(before + 2);
   });
 
-  it('swaps nothing when there is nothing waiting', async () => {
+  it('says nothing when there is nothing waiting', async () => {
     container.controller = {};
     startAppUpdates();
     await settle();
-    const before = container.registration.checks;
 
     away(600);
 
     expect(reload).not.toHaveBeenCalled();
-    expect(container.registration.checks).toBe(before + 1);
+    expect(updateStore.get()).toBe('none');
   });
 
   it('listens once, however many times it is started', async () => {
-    // Two listeners would check twice on every return and try to swap the build
-    // twice. sync.ts had exactly this, and one event ran the whole recovery
-    // twice over.
-    const waiting = await withOneWaiting();
+    // Two listeners would check twice on every return. sync.ts had exactly
+    // this, and one event ran the whole recovery twice over.
+    await withOneWaiting();
     startAppUpdates();
     startAppUpdates();
     await settle();
+    const before = container.registration.checks;
 
     away(600);
 
-    expect(waiting.posted).toEqual([{ type: 'skip-waiting' }]);
-  });
-
-  it('does not count never having left as having been away', async () => {
-    // hiddenAt starts at zero, and zero is a long time ago.
-    const waiting = await withOneWaiting();
-
-    document.dispatchEvent(new Event('visibilitychange'));
-
-    expect(waiting.posted).toEqual([]);
+    expect(container.registration.checks).toBe(before + 1);
   });
 
   /**
-   * The build that arrives a moment after the return that went looking for it.
-   *
-   * This is the whole reason a deploy used to take two trips away and back.
-   * Nothing is waiting when somebody returns, because the deploy happened while
-   * the app was in their pocket. The return starts the download instead, and
-   * what lands seconds later only raised the banner: no absence had passed
-   * since, so the swap sat there waiting for another one.
+   * The build that arrives a moment after the return that went looking for it,
+   * which is the ordinary case right after a deploy: nothing was waiting when
+   * the host picked the phone up, because the deploy happened while it was in
+   * their pocket.
    */
   describe('and the build lands a moment later', () => {
     async function returnFromAbsence(seconds: number) {
@@ -348,67 +327,32 @@ describe('coming back to the app after a while', () => {
       away(seconds);
     }
 
-    it('goes straight in, without waiting for another trip away', async () => {
-      await returnFromAbsence(__testing.AWAY_BEFORE_SWAP_MS / 1000 + 1);
-      // The return found nothing waiting and asked, which is the ordinary case
-      // right after a deploy.
+    it('raises the banner rather than going straight in', async () => {
+      await returnFromAbsence(600);
       expect(container.registration.checks).toBe(1);
 
       const arriving = container.registration.startInstalling();
       arriving.reach('installed');
 
-      expect(arriving.posted).toEqual([{ type: 'skip-waiting' }]);
-      expect(updateStore.get()).toBe('none');
-    });
-
-    it('reloads onto it once it has taken over', async () => {
-      await returnFromAbsence(120);
-      container.registration.startInstalling().reach('installed');
-
-      container.handOver();
-
-      expect(reload).toHaveBeenCalledTimes(1);
-    });
-
-    it('waits for the tap once somebody has settled in', async () => {
-      await returnFromAbsence(120);
-      // Long enough after coming back that this is no longer the cold start
-      // the return stood in for. Reloading now would be under their thumb.
-      now += __testing.RETURN_GRACE_MS + 1;
-
-      const arriving = container.registration.startInstalling();
-      arriving.reach('installed');
-
       expect(arriving.posted).toEqual([]);
       expect(updateStore.get()).toBe('ready');
+      expect(reload).not.toHaveBeenCalled();
     });
 
-    it('waits for the tap when the trip away was only a glance', async () => {
+    it('does the same after a glance away as after an afternoon', async () => {
       await returnFromAbsence(5);
 
-      const arriving = container.registration.startInstalling();
-      arriving.reach('installed');
+      container.registration.startInstalling().reach('installed');
 
-      expect(arriving.posted).toEqual([]);
+      // How long somebody was away used to decide whether they were told or
+      // simply moved. It decides nothing now.
       expect(updateStore.get()).toBe('ready');
-    });
-
-    it('forgets the return once the app goes away again', async () => {
-      await returnFromAbsence(120);
-      // Away and back inside the threshold. That short trip is not a cold
-      // start, and it must not inherit one from the trip before it.
-      away(5);
-
-      const arriving = container.registration.startInstalling();
-      arriving.reach('installed');
-
-      expect(arriving.posted).toEqual([]);
-      expect(updateStore.get()).toBe('ready');
+      expect(reload).not.toHaveBeenCalled();
     });
   });
 
   describe('and the app is in the background when it lands', () => {
-    it('goes straight in, because there is nobody to reload under', async () => {
+    it('has it waiting with the banner up when they look again', async () => {
       container.controller = {};
       startAppUpdates();
       await settle();
@@ -419,8 +363,11 @@ describe('coming back to the app after a while', () => {
       const arriving = container.registration.startInstalling();
       arriving.reach('installed');
 
-      expect(arriving.posted).toEqual([{ type: 'skip-waiting' }]);
-      expect(updateStore.get()).toBe('none');
+      // Nobody is looking, which used to be the licence to swap it in unasked.
+      // The state is what greets them instead.
+      expect(arriving.posted).toEqual([]);
+      expect(updateStore.get()).toBe('ready');
+      expect(reload).not.toHaveBeenCalled();
     });
   });
 });
