@@ -4,7 +4,7 @@ import { clearPlan, planHasTypes } from '../../lib/roundPlan';
 import { BallIcon, ChevronDownIcon, InfoIcon } from '../icons';
 import { Toggle } from '../Toggle';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
-import { GameTypePlanner } from './GameTypePlanner';
+import { RoundTypePlanner } from './RoundTypePlanner';
 
 /**
  * The Setup Round Robin panel, drawn from `INBOX/Setup-Round-Robin.png`.
@@ -228,7 +228,7 @@ export function SessionConfig({
       {/* Closes off the two numbers being set from everything they decide. */}
       <hr className="border-0 border-t" style={{ borderColor: RULE }} />
 
-      {/* Above the game types now. It is one switch with one answer, and it was
+      {/* Above the round types now. It is one switch with one answer, and it was
           sitting under a list that can be sixteen rounds long. */}
       <div className="flex items-center gap-4">
         <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
@@ -255,7 +255,7 @@ export function SessionConfig({
             <BallIcon className="h-6 w-6 shrink-0" />
             {/* One line. Reset All arrived at the other end of this row and
                 took just enough width to break the title in half. */}
-            <span className="whitespace-nowrap font-bold">Set Game Types</span>
+            <span className="whitespace-nowrap font-bold">Set Round Types</span>
             {/* Down when there is something to open, up when it is open.
                 Not the chevron that points on to another panel: what this
                 opens is right underneath it. */}
@@ -270,7 +270,7 @@ export function SessionConfig({
           <button
             type="button"
             onClick={onOpenInfo}
-            aria-label="About game types"
+            aria-label="About round types"
             className="flex h-11 w-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#F1F8F9]"
             style={{ color: TEAL }}
           >
@@ -301,7 +301,7 @@ export function SessionConfig({
         </div>
 
         {expanded && (
-          <GameTypePlanner
+          <RoundTypePlanner
             key={resetNonce}
             numRounds={numRounds}
             plan={roundPlan}

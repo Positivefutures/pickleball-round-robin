@@ -22,7 +22,7 @@ const SKILL_ITERATIONS = 300;
 
 /**
  * Whether a couple can stay together in a round of this type. A pair that does
- * not fit is split for this round only — the special game type is the point of
+ * not fit is split for this round only — the special round type is the point of
  * the round, and Set Partners gives way to it.
  */
 export function partnershipFitsType(p1: Player, p2: Player, type: RoundType): boolean {

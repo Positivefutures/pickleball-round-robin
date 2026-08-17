@@ -178,7 +178,7 @@ describe('equal skill rounds', () => {
   });
 });
 
-describe('Set Partners against a special game type', () => {
+describe('Set Partners against a special round type', () => {
   const couple = (a: number, b: number): Partnership[] => [
     { player1Id: `p${a}`, player2Id: `p${b}` },
   ];

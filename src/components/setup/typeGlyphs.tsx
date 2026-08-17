@@ -3,7 +3,7 @@ import type { RoundType } from '../../types';
 import { EqualSkillIcon, MenGamesIcon, MixedGamesIcon, WomenGamesIcon } from '../icons';
 
 /**
- * Jeff's artwork for the three game types, at the three sizes the app draws it.
+ * Jeff's artwork for the three round types, at the three sizes the app draws it.
  *
  * Gendered takes two symbols, because the format is men playing men and women
  * playing women and one symbol can only say half of that.

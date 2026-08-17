@@ -137,11 +137,11 @@ function buildRound(
   const roundLocks = opts.roundLocks ?? [];
   const partnerships = opts.partnerships ?? [];
   const hasLocks = roundLocks.length > 0;
-  // A padlock is the host pinning this round by hand, which beats a game type
+  // A padlock is the host pinning this round by hand, which beats a round type
   // they set once back on Setup.
   const roundType = hasLocks ? null : opts.roundType;
 
-  // A special game type overrules Set Partners, but only for the couples it has
+  // A special round type overrules Set Partners, but only for the couples it has
   // to: two men stay together on a gendered round, a man and a woman stay
   // together on a mixed one. The rest are split for this round alone.
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -169,7 +169,7 @@ function buildRound(
   // plays, so it also decides who sits, and determineSitOuts never runs.
   //
   // It stands down for a round the host has taken charge of. A padlock pins this
-  // round by hand and a special game type splits the couples it does not suit,
+  // round by hand and a special round type splits the couples it does not suit,
   // and in both cases the round is outside the sequence: it spends no fixtures
   // and the round robin picks up where it left off afterwards.
   const partnerPlay = !roundType && !hasLocks
@@ -332,7 +332,7 @@ export function generateSchedule(
 // ones untouched. Completed rounds can be any subset (the host may play them out
 // of order), so they're identified by round number rather than by position.
 // The pairing history from every completed round is replayed first, so partner/
-// opponent variety, the sit-out rotation and who is owed a special game type all
+// opponent variety, the sit-out rotation and who is owed a special round type all
 // carry forward instead of restarting.
 // The returned schedule keeps rounds in their original numeric order.
 //

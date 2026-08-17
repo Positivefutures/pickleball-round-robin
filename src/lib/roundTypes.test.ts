@@ -44,7 +44,7 @@ describe('roundTypeOf', () => {
     expect(roundTypeOf({ ...bare, roundType: 'mixed' })).toBe('mixed');
   });
 
-  it('reads a schedule saved before game types were named', () => {
+  it('reads a schedule saved before round types were named', () => {
     expect(roundTypeOf({ ...bare, isGendered: true })).toBe('gendered');
   });
 

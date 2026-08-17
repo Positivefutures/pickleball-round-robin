@@ -21,7 +21,7 @@ interface Props {
  * host who wants four gendered rounds taps four rows, which is four taps
  * against a rule they then have to hold in their head.
  *
- * No portal. It sits where the old Game Types panel sat, which already clears
+ * No portal. It sits where the old Round Types panel sat, which already clears
  * `.app-panel`'s z-10.
  */
 export function RoundTypePicker({ roundNumber, current, onPick, onClose }: Props) {
@@ -33,7 +33,7 @@ export function RoundTypePicker({ roundNumber, current, onPick, onClose }: Props
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Game type for Round ${roundNumber}`}
+        aria-label={`Round type for Round ${roundNumber}`}
         className={`mx-4 max-h-[90vh] w-full max-w-xs overflow-y-auto overscroll-contain ${panelCard} bg-white p-5`}
         onClick={(e) => e.stopPropagation()}
       >

@@ -238,11 +238,20 @@ async function shootSetup() {
   await page.context().close();
 }
 
-async function shootSpecialTypes() {
+async function shootRoundTypes() {
   const page = await openPage(seed({ 'pb-step': 'setup' }));
-  await page.getByText('Special Game Types').first().click();
+  await page.getByRole('button', { name: 'Set Round Types' }).click();
+  // The list is inline rather than a panel, so wait for a row to exist and
+  // set two of them: a picture of eight rows all saying Normal would not show
+  // what the chapter is describing.
+  await page.waitForSelector('[aria-label="Move Round 1"]');
+  for (const [n, label] of [[2, 'Mixed Round'], [5, 'Gendered Round']]) {
+    const row = page.locator('h4', { hasText: new RegExp(`^Round ${n}$`) }).locator('..');
+    await row.locator('button').last().click();
+    await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click();
+  }
   await settle(page);
-  await fullShot(page, 'special-types');
+  await fullShot(page, 'round-types');
   await page.context().close();
 }
 
@@ -398,7 +407,7 @@ const ALL = [
   shootPlayers,
   shootPlayerEdit,
   shootSetup,
-  shootSpecialTypes,
+  shootRoundTypes,
   shootPartners,
   shootQuickSchedule,
   shootRoundCard,

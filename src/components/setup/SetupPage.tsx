@@ -5,7 +5,7 @@ import { PartnerPairing } from './PartnerPairing';
 import { PartnerPlayNotice } from './PartnerPlayNotice';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
-import { GameTypesInfoPanel } from './GameTypesInfoPanel';
+import { RoundTypesInfoPanel } from './RoundTypesInfoPanel';
 import { DiscardScheduleDialog } from '../schedule/DiscardScheduleDialog';
 import { PLAN_REBUILD_WARNING } from '../../lib/steps';
 import { LinkIcon } from '../icons';
@@ -33,14 +33,14 @@ interface Props {
   onClearPartnerships: () => void;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
-  /** Done on the game types list: the whole plan, once, from the draft. */
+  /** Done on the round types list: the whole plan, once, from the draft. */
   onPlanCommit: (next: RoundPlan) => void;
   /**
    * Whether there is an afternoon on the board: scores written down, players
    * moved by hand, rounds marked complete. App works it out, because two of
    * the three are its own state.
    *
-   * Opening the game types list is what gets the warning, rather than Done.
+   * Opening the round types list is what gets the warning, rather than Done.
    * By Done the host has chosen, and a dialog then is telling them the cost of
    * something they have already decided to do.
    */
@@ -83,14 +83,14 @@ export function SetupPage({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   /**
-   * Whether the game types list is open.
+   * Whether the round types list is open.
    *
    * Here rather than in a store, which is what makes "collapsed again when they
    * come back" free: App mounts this page only while the Setup tab is showing,
    * so leaving the tab unmounts it and this goes with it.
    */
   const [plannerOpen, setPlannerOpen] = useState(false);
-  /** The host has tapped Set Game Types and is being told what it will cost. */
+  /** The host has tapped Set Round Types and is being told what it will cost. */
   const [confirmPlanning, setConfirmPlanning] = useState(false);
 
   /**
@@ -312,11 +312,11 @@ export function SetupPage({
 
       {makeButtonRow()}
 
-      {infoOpen && <GameTypesInfoPanel onClose={() => setInfoOpen(false)} />}
+      {infoOpen && <RoundTypesInfoPanel onClose={() => setInfoOpen(false)} />}
 
       {confirmPlanning && (
         <DiscardScheduleDialog
-          heading="Change game types?"
+          heading="Change round types?"
           body={PLAN_REBUILD_WARNING}
           cancelLabel="Cancel"
           confirmLabel="Continue"

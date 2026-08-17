@@ -862,7 +862,7 @@ function App() {
       removedIds, setSchedule, setScheduleEdited]);
 
   /**
-   * Done, on the Set Game Types list.
+   * Done, on the Set Round Types list.
    *
    * The planner holds a draft and this is the only thing that writes it down.
    * That is not tidiness: `scheduleStale` is recomputed every render from

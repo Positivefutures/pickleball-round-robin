@@ -21,7 +21,7 @@ import { DefaultRatingPanel } from './layout/DefaultRatingPanel';
 import { ImportExportPanel } from './layout/ImportExportPanel';
 import { InstallPanel } from './layout/InstallPanel';
 import { SettingsPanel } from './layout/SettingsPanel';
-import { GameTypesInfoPanel } from './setup/GameTypesInfoPanel';
+import { RoundTypesInfoPanel } from './setup/RoundTypesInfoPanel';
 import { PartnerPairing } from './setup/PartnerPairing';
 import { CourtIcon, LinkIcon, StarIcon, TwoArrowsIcon } from './icons';
 import type { Player } from '../types';
@@ -101,17 +101,17 @@ describe('Import / Export Groups', () => {
   });
 });
 
-describe('Game Types', () => {
+describe('Round Types', () => {
   it('opens with the court', () => {
     mount(
-      createElement(GameTypesInfoPanel, { onClose: noop })
+      createElement(RoundTypesInfoPanel, { onClose: noop })
     );
     expect(draws(CourtIcon)).toBe(true);
   });
 
   it('lays that court on its side, so it is not the one on the buttons', () => {
     mount(
-      createElement(GameTypesInfoPanel, { onClose: noop })
+      createElement(RoundTypesInfoPanel, { onClose: noop })
     );
     expect(opener()?.getAttribute('class')).toContain('rotate-90');
   });
@@ -205,10 +205,10 @@ describe('the glyph itself', () => {
  * glyphs in here are the pill's own size — `picker` in `typeGlyphs`, not the
  * larger `panel` row this panel used when it had headings of its own.
  */
-describe('the game type symbols', () => {
+describe('the round type symbols', () => {
   function heading(title: string): Element {
     mount(
-      createElement(GameTypesInfoPanel, { onClose: noop })
+      createElement(RoundTypesInfoPanel, { onClose: noop })
     );
     const found = [...container.querySelectorAll('h3')].find((h) =>
       (h.textContent ?? '').includes(title)

@@ -22,7 +22,7 @@ import {
  */
 
 /**
- * The same artwork the Special Game Types panel uses, at a size that sits with
+ * The same artwork the Round Types panel uses, at a size that sits with
  * small text instead of a heading.
  *
  * Gendered takes two, because the format is men playing men and women playing

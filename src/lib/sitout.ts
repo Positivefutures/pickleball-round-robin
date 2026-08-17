@@ -112,7 +112,7 @@ interface SitOutUnit {
   players: Player[];
   avgGames: number;
   prevSat: boolean; // any member sat out the previous round
-  misses: number; // rounds of this round's game type the unit has missed
+  misses: number; // rounds of this round's type the unit has missed
   cyclePos: number; // earliest member's place in the sit-out cycle
   rand: number; // pre-assigned tie-break, drawn once so the sort stays unbiased
 }
@@ -120,7 +120,7 @@ interface SitOutUnit {
 /**
  * @param missCounts On a special round, how many rounds of that type each player
  *   has already missed. Used only to break ties that fair rotation leaves open,
- *   so someone owed the game type keeps their place on court.
+ *   so someone owed the round type keeps their place on court.
  */
 export function determineSitOuts(
   players: Player[],
@@ -172,7 +172,7 @@ export function determineSitOuts(
         if (aPrev !== bPrev) return aPrev - bPrev; // non-previous first
       }
 
-      // Everything else equal, sit whoever has already had this game type
+      // Everything else equal, sit whoever has already had this round type
       if (missCounts && missed(a) !== missed(b)) return missed(a) - missed(b);
 
       // Keep the established cycle order; players yet to sit rank last
@@ -227,7 +227,7 @@ export function determineSitOuts(
   }
 
   // Highest games-played sits first; avoid back-to-back sit-outs; then sit
-  // whoever has already had this round's game type; then keep the cycle order;
+  // whoever has already had this round's type; then keep the cycle order;
   // pre-assigned random tie-break.
   units.sort((a, b) => {
     if (b.avgGames !== a.avgGames) return b.avgGames - a.avgGames;

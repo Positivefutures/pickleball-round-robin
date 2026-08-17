@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  *
- * The accessibility contract of the Set Game Types list.
+ * The accessibility contract of the Set Round Types list.
  *
  * The old panel chose up and down arrows over a drag on purpose, and a drag
  * handle appearing does not make that reasoning go away: the host is on a phone
@@ -18,7 +18,7 @@ import { createElement, act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { RoundPlan } from '../../types';
 import { emptyPlan, setPlanType } from '../../lib/roundPlan';
-import { GameTypePlanner } from './GameTypePlanner';
+import { RoundTypePlanner } from './RoundTypePlanner';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -46,7 +46,7 @@ function mount({
   root = createRoot(container);
   act(() =>
     root.render(
-      createElement(GameTypePlanner, { numRounds, plan, lockedRounds, onCommit }) as ReactElement
+      createElement(RoundTypePlanner, { numRounds, plan, lockedRounds, onCommit }) as ReactElement
     )
   );
   return container;
@@ -201,7 +201,7 @@ describe('the picker', () => {
     mount();
     const dialog = open(3);
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.getAttribute('aria-label')).toBe('Game type for Round 3');
+    expect(dialog.getAttribute('aria-label')).toBe('Round type for Round 3');
   });
 
   it('offers the four, and no fifth thing to set', () => {

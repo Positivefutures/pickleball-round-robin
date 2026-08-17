@@ -261,7 +261,7 @@ describe('rebuilding a partner-play session', () => {
 });
 
 describe('what partner play stands down for', () => {
-  it('lets a special game type overrule it, without spending a fixture', () => {
+  it('lets a special round type overrule it, without spending a fixture', () => {
     const players = makePlayers(16);
     const partnerships = pairEveryone(players);
 

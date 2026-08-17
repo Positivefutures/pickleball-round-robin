@@ -39,8 +39,10 @@ export function PartnerPlayNotice({
           Partner play: {partnerPlay.teams.length} teams
         </p>
         <p className="mt-0.5 text-sm text-[#3730a3]">
-          Partners stay together all session except for{' '}
-          <strong className="font-bold">Special Game Type</strong> rounds like a{' '}
+          {/* "Special Round Type rounds" would say round twice in four words,
+              so the noun after it goes. */}
+          Partners stay together all session except for a{' '}
+          <strong className="font-bold">Special Round Type</strong> like a{' '}
           <strong className="font-bold">Gendered</strong> round.
         </p>
       </div>

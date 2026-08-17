@@ -6,7 +6,7 @@ import { DragHandleIcon } from '../icons';
 import { TypeGlyphs } from './typeGlyphs';
 
 /**
- * One round in the Set Game Types list, painted the way the Schedule tab paints
+ * One round in the Set Round Types list, painted the way the Schedule tab paints
  * that round's card: the same blue, the same edge, ROUND N in the same white
  * heading. The host is setting up the thing they will be looking at in ten
  * minutes, and it should already look like it.
@@ -118,7 +118,7 @@ export function RoundPlanRow({
         <button
           type="button"
           onClick={onOpenPicker}
-          aria-label={`Game type for Round ${roundNumber}: ${meta.shortName}`}
+          aria-label={`Round type for Round ${roundNumber}: ${meta.shortName}`}
           className={`${pillClass} transition-transform active:scale-95`}
         >
           <TypeGlyphs type={type} size="badge" />

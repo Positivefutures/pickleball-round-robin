@@ -54,7 +54,7 @@ function seed(inGroup: number, selected: number, courts: number, scoring = false
  * session seeded with scoring on.
  *
  * At module scope because two things want it: the Reshuffle warning, and the
- * one before Set Game Types opens. Both turn on there being real work on the
+ * one before Set Round Types opens. Both turn on there being real work on the
  * board, and a score is the cheapest way to put some there.
  */
 function scoreFirstCourt(left: string, right: string) {
@@ -1011,7 +1011,7 @@ describe('step 6 — every step starts at the top', () => {
   });
 });
 
-describe('Set Game Types', () => {
+describe('Set Round Types', () => {
   beforeEach(() => seed(10, 10, 2));
 
   /** A step tab, for the trips between Setup and the schedule. */
@@ -1030,8 +1030,8 @@ describe('Set Game Types', () => {
    * tests of its own below.
    */
   function openPlanner() {
-    clickButton(/^Set Game Types$/);
-    if (/Change game types\?/.test(container.textContent ?? '')) {
+    clickButton(/^Set Round Types$/);
+    if (/Change round types\?/.test(container.textContent ?? '')) {
       clickButton(/^Continue$/);
     }
   }
@@ -1068,7 +1068,7 @@ describe('Set Game Types', () => {
   function setRoundType(n: number, label: string) {
     click(pill(n));
     const picker = container.querySelector('[role="dialog"][aria-modal="true"]');
-    if (!picker) throw new Error('the game type picker is not open');
+    if (!picker) throw new Error('the round type picker is not open');
     clickButton(new RegExp(`^${label}$`), picker);
   }
 
@@ -1098,7 +1098,7 @@ describe('Set Game Types', () => {
 
     // Nothing set yet: the title, and a list that has to be opened to say
     // anything. Setup itself does not summarise what is in it.
-    expect(container.textContent).toContain('Set Game Types');
+    expect(container.textContent).toContain('Set Round Types');
     expect(container.querySelector('h4')).toBeNull();
 
     planRound(2, 'Mixed Round');
@@ -1129,7 +1129,7 @@ describe('Set Game Types', () => {
   });
 
   /**
-   * The decision this whole list is built on. Dragging moves the game type
+   * The decision this whole list is built on. Dragging moves the round type
    * into a different round; it never renumbers the rounds, because a round is
    * where it is in the afternoon and the host cannot move that.
    */
@@ -1277,7 +1277,7 @@ describe('Set Game Types', () => {
       expect(pillLabels().every((l) => l === 'Normal')).toBe(true);
 
       // And it stays cleared when the list is shut and opened again.
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       openPlanner();
       expect(pillLabels().every((l) => l === 'Normal')).toBe(true);
     });
@@ -1324,16 +1324,19 @@ describe('Set Game Types', () => {
   it('opens an information panel that sets nothing', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    click(container.querySelector('[aria-label="About game types"]')!);
+    click(container.querySelector('[aria-label="About round types"]')!);
 
     const panel = container.querySelector('.fixed.inset-0')!;
-    expect(text(panel)).toContain('Game Types');
+    expect(text(panel)).toContain('Round Types');
     // Named by the pill the host meets on a round card, not by a heading only
     // this panel uses.
     expect(text(panel)).toContain('Equal Skill Round');
     expect(text(panel)).toContain('You play with and against people near your own level.');
-    // The one thing about game types a host cannot work out by looking.
-    expect(text(panel)).toContain('A pair from Set Partners is split for that round only');
+    // The one thing about round types a host cannot work out by looking.
+    expect(text(panel)).toContain('Special round types come first');
+    expect(text(panel)).toContain('A pair from Set Partners is split for that one round');
+    // The old name is gone from the words the host reads, here and everywhere.
+    expect(text(panel)).not.toContain('game type');
 
     expect(panel.querySelector('button[role="switch"]')).toBeNull();
     expect(panel.querySelector('select')).toBeNull();
@@ -1395,12 +1398,12 @@ describe('Set Game Types', () => {
    * rather than at Done, by which point they have already decided.
    */
   describe('the warning before it opens', () => {
-    const asked = () => /Change game types\?/.test(container.textContent ?? '');
+    const asked = () => /Change round types\?/.test(container.textContent ?? '');
 
     it('says nothing before a schedule exists', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
 
       expect(asked()).toBe(false);
       expect(planRows()).toHaveLength(8);
@@ -1410,7 +1413,7 @@ describe('Set Game Types', () => {
       mount();
       generate();
       click(stepTab(/^2\. Setup$/));
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
 
       // Generated and left alone. Rebuilding it costs nothing worth a dialog,
       // which is the same rule Generate itself goes by.
@@ -1423,7 +1426,7 @@ describe('Set Game Types', () => {
       generate();
       markComplete(1);
       click(stepTab(/^2\. Setup$/));
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
 
       expect(asked()).toBe(true);
       expect(container.textContent).toContain('Every round still to be played will be rebuilt');
@@ -1442,7 +1445,7 @@ describe('Set Game Types', () => {
       scoreFirstCourt('11', '7');
 
       click(stepTab(/^2\. Setup$/));
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       expect(asked()).toBe(true);
     });
 
@@ -1451,7 +1454,7 @@ describe('Set Game Types', () => {
       generate();
       markComplete(1);
       click(stepTab(/^2\. Setup$/));
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       clickButton(/^Continue$/);
 
       expect(asked()).toBe(false);
@@ -1463,7 +1466,7 @@ describe('Set Game Types', () => {
       generate();
       markComplete(1);
       click(stepTab(/^2\. Setup$/));
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       clickButton(/^Cancel$/);
 
       expect(asked()).toBe(false);
@@ -1478,7 +1481,7 @@ describe('Set Game Types', () => {
       openPlanner();
       expect(planRows()).toHaveLength(8);
 
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       expect(asked()).toBe(false);
       expect(planRows()).toHaveLength(0);
     });
@@ -1497,7 +1500,7 @@ describe('Set Game Types', () => {
       setRoundType(3, 'Equal Skill Round');
 
       // Shut it by the title, not by Done.
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
       expect(planRows()).toHaveLength(0);
       expect(JSON.parse(window.localStorage.getItem('pb-round-plan')!)[2]).toBe('skill');
 
@@ -1513,7 +1516,7 @@ describe('Set Game Types', () => {
       click(stepTab(/^2\. Setup$/));
       openPlanner();
       setRoundType(4, 'Gendered Round');
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
 
       expect(storedSchedule().rounds[3].roundType).toBe('gendered');
       expect(completedRounds()).toEqual([1]);
@@ -1526,7 +1529,7 @@ describe('Set Game Types', () => {
 
       click(stepTab(/^2\. Setup$/));
       openPlanner();
-      clickButton(/^Set Game Types$/);
+      clickButton(/^Set Round Types$/);
 
       expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
     });
@@ -1592,7 +1595,7 @@ describe('Set Game Types', () => {
   });
 
   /**
-   * The headline. Come back to Setup mid-afternoon, move a game type, press
+   * The headline. Come back to Setup mid-afternoon, move a round type, press
    * Done: the rounds already played keep their scores and their pairings,
    * everything still to come is rebuilt, nothing asks a question, and the
    * Schedule tab is still a door back.
@@ -1667,7 +1670,7 @@ describe('Set Game Types', () => {
     expect(tab.className).toContain('justify-center');
 
     const badge = tab.firstElementChild!;
-    // The same drawing the Game Types panel marks the format with, and an edge
+    // The same drawing the Round Types panel marks the format with, and an edge
     // in the fill's own colour several steps down.
     expect(badge.querySelector('svg')).not.toBeNull();
     expect(badge.className).toContain('bg-teal-100');
@@ -2371,12 +2374,12 @@ describe('a roster short of a full set of courts', () => {
    * Full width it read as the main thing on the panel, which the two numbers
    * above it are.
    */
-  it('keeps the Set Game Types title to its own words, at the left', () => {
+  it('keeps the Set Round Types title to its own words, at the left', () => {
     seed(9, 9, 2);
     mount();
     clickButton(/^Continue to Setup/);
 
-    const button = buttons(/^Set Game Types$/)[0];
+    const button = buttons(/^Set Round Types$/)[0];
     expect(button.className).not.toContain('w-full');
     // Nothing inside it stretches to fill a row either.
     expect(button.querySelector('span')!.className).not.toContain('flex-1');
@@ -2984,7 +2987,7 @@ describe('the Actions sheet', () => {
       expect(sheet().querySelector('[aria-label="Fewer rounds"]')).toBeNull();
     });
 
-    it('offers the four game types, Normal first', () => {
+    it('offers the four round types, Normal first', () => {
       mount();
       generate();
       action(/^Add Round$/);

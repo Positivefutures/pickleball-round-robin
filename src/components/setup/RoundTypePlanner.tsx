@@ -8,7 +8,7 @@ import { RoundPlanRow } from './RoundPlanRow';
 import { RoundTypePicker } from './RoundTypePicker';
 
 /**
- * The Set Game Types list: one row per round, and what each round is played as.
+ * The Set Round Types list: one row per round, and what each round is played as.
  *
  * It holds a **draft**. Every pill tap and every drag touches that and nothing
  * else, and Done is the only thing that hands a plan back. The reason is in
@@ -43,7 +43,7 @@ function nameOf(type: RoundType | null): string {
   return type ? ROUND_TYPE_META[type].shortName : NORMAL_ROUND_META.shortName;
 }
 
-export function GameTypePlanner({
+export function RoundTypePlanner({
   numRounds,
   plan,
   lockedRounds,

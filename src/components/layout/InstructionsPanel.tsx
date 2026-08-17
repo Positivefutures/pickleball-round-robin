@@ -241,18 +241,18 @@ function Setup() {
     <>
       <Sub>Courts and rounds</Sub>
       <P>
-        Set how many courts you have and how many rounds to play. Watch the{' '}
-        <strong>Spots Filled</strong> line: it tells you how many players you need, and
-        how many will sit out each round.
+        Set how many courts you have and how many rounds to play. Everything under
+        these two follows from them.
       </P>
       <Sub>Who's playing</Sub>
       <P>
         Tick everyone who turned up. Select All and Deselect All are there for a fast
-        start.
+        start, and the <strong>Spots Filled</strong> line above the names says how many
+        people the courts hold and how many will sit out each round.
       </P>
       <Shot
         name="setup"
-        alt="The Setup page: courts, rounds, Spots Filled, Special Game Types, and Keep Score"
+        alt="The Setup page: courts, rounds, Keep Score, and Set Round Types"
         caption="The whole session on one page."
       />
       <Sub>Keep Score?</Sub>
@@ -271,23 +271,34 @@ function Setup() {
         alt="Set Partners: one linked pair listed above the player list"
         caption="A pair stays a team for the whole session."
       />
-      <Sub>Special game types</Sub>
+      <Sub>Round types</Sub>
       <P>
-        <strong>Special Game Types</strong> opens three formats you can drop into the
-        session: <strong>Gendered</strong> (men against men, women against women),
-        <strong> Mixed</strong> (a man and a woman on each team) and{' '}
-        <strong>Equal Skill</strong> (grouped by rating). Say Yes to any of them and
-        choose how often it comes round. Everything else stays a normal round robin.
+        <strong>Set Round Types</strong> opens a list with a row for every round. Tap
+        the pill on a row to choose what that round is played as:{' '}
+        <strong>Gendered</strong> (men against men, women against women),{' '}
+        <strong>Mixed</strong> (a man and a woman on each team) or{' '}
+        <strong>Equal Skill</strong> (grouped by rating). Rows left on{' '}
+        <strong>Normal</strong> are an ordinary round robin.
+      </P>
+      <P>
+        Drag a row by its handle to move a type to a different round, and press Done
+        when the list reads the way you want the afternoon to go. The ⓘ beside the
+        title explains the formats without setting any of them.
       </P>
       <P>
         A special round beats Set Partners, but only where it has to. A pair is split
         for that round alone if they do not suit the format, then they are back
         together.
       </P>
+      <P>
+        Changing this once the session is under way rebuilds every round still to be
+        played. The rounds already done are marked <strong>DONE</strong> in the list
+        and keep their games and scores.
+      </P>
       <Shot
-        name="special-types"
-        alt="The Special Game Types panel: Gendered, Mixed, and Equal Skill, each with a switch"
-        caption="Three formats, each with its own frequency."
+        name="round-types"
+        alt="The Set Round Types list: a row per round, each with a pill naming its format"
+        caption="One row per round, and one tap to set it."
       />
     </>
   );

@@ -28,7 +28,7 @@ export const DISCARD_WARNING =
   "and rounds you've marked complete.";
 
 /**
- * Opening Set Game Types on a session that is already under way.
+ * Opening Set Round Types on a session that is already under way.
  *
  * Not DISCARD_WARNING, which is about losing the schedule. This one keeps the
  * rounds already played, scores and all, and rebuilds only what is left, so

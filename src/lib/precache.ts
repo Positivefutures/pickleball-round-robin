@@ -114,9 +114,9 @@ export const RUNTIME_CACHED_PUBLIC = [
   '/instructions/players.webp',
   '/instructions/quick-schedule.webp',
   '/instructions/round-card.webp',
+  '/instructions/round-types.webp',
   '/instructions/setup.webp',
   '/instructions/share-qr.webp',
-  '/instructions/special-types.webp',
   '/instructions/standings.webp',
   // The six alarm tones that are not the default, about 400 KB of which the
   // marimba is 300 KB on its own. Precaching the set would quadruple what an

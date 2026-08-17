@@ -7,7 +7,7 @@ interface Props {
   heading: string;
   /**
    * What is about to be lost. Defaults to the whole schedule, which is what
-   * every door out of one costs; Set Game Types passes its own, because it
+   * every door out of one costs; Set Round Types passes its own, because it
    * keeps the rounds already played and only rebuilds the rest.
    */
   body?: string;

@@ -4,9 +4,7 @@ import type { CourtAssignment, Round, RoundType } from '../types';
 export const ROUND_TYPES: RoundType[] = ['gendered', 'mixed', 'skill'];
 
 interface RoundTypeMeta {
-  /** Heading in the Game Types panel. */
-  title: string;
-  /** One line under the heading saying what the format is. */
+  /** One line under the pill saying what the format is. */
   description: string;
   /** Read-only summary on Setup, and the badge on the schedule. */
   shortName: string;
@@ -26,7 +24,6 @@ interface RoundTypeMeta {
 
 export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
   gendered: {
-    title: 'Gendered Games',
     description: 'Men play men and women play women.',
     shortName: 'Gendered',
     badge: 'Gendered Round',
@@ -35,7 +32,6 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     printColor: '#7e22ce',
   },
   mixed: {
-    title: 'Mixed Games',
     description: 'One man and one woman on each team.',
     shortName: 'Mixed',
     badge: 'Mixed Round',
@@ -44,7 +40,6 @@ export const ROUND_TYPE_META: Record<RoundType, RoundTypeMeta> = {
     printColor: '#0f766e',
   },
   skill: {
-    title: 'Equal Skill Games',
     description: 'You play with and against people near your own level.',
     shortName: 'Equal Skill',
     badge: 'Equal Skill Round',
