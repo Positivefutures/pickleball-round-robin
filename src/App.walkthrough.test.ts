@@ -3160,7 +3160,7 @@ describe('the Actions sheet', () => {
 
     action(/^Share Session$/);
     expect(text(sheet())).toContain('Accounts are switched off');
-    expect(buttons(/^Create an Account$/, sheet())).toHaveLength(0);
+    expect(buttons(/^Create an Account/, sheet())).toHaveLength(0);
   });
 
   it('offers an account to a signed-out host, and comes back to the card', async () => {
@@ -3177,7 +3177,7 @@ describe('the Actions sheet', () => {
       action(/^Share Session$/);
       expect(text(sheet())).toContain('Sharing a session needs an account');
 
-      clickButton(/^Create an Account$/, sheet());
+      clickButton(/^Create an Account/, sheet());
       // Waited out, so the sheet is really gone rather than mid-slide. Without
       // this the assertion at the end could be reading the old one.
       await act(async () => {
@@ -3193,6 +3193,17 @@ describe('the Actions sheet', () => {
       click(hero!.closest('div')!.parentElement!);
 
       expect(text(sheet())).toContain('Sharing a session needs an account');
+
+      // And the page moves again afterwards. This route holds two scroll locks
+      // at once — the sheet is still sliding out when My Account opens — and
+      // releases them in the order it took them, which used to leave the body
+      // pinned with position:fixed and nothing left to unpin it. The app was
+      // then unscrollable on every tab until it was reloaded.
+      click(container.querySelector('[aria-label="Close Actions"]')!);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SHEET_GONE_MS));
+      });
+      expect(document.body.style.position).toBe('');
     } finally {
       vi.unstubAllEnvs();
     }

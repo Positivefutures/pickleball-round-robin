@@ -58,6 +58,51 @@
   --color-panel-edge: #a2a7ab;
 }
 
+/**
+ * The flat cream strip above the banner, and the only defence against iOS 26's
+ * scroll edge effect.
+ *
+ * What the effect does: over a home screen web app it samples the page's own top
+ * rows, blurs and lightens them, and paints the result back down over them and
+ * up under the clock. The banner puts an orange wedge and a teal court on its
+ * first row, so what arrived was a smear of both across the status bar and on
+ * down over the robin. There is no way to switch it off from a web page. The
+ * only lever is what it has to blur, because a blur of a flat colour is that
+ * flat colour.
+ *
+ * **Why the height is a plain 40px and not the safe-area inset.** The first two
+ * attempts sized this off `env(safe-area-inset-top)`, and both shipped a band of
+ * exactly zero. This app has no `apple-mobile-web-app-status-bar-style`, so iOS
+ * runs the opaque status bar and hands the web view a viewport that already
+ * starts below it — the inset inside the page is 0, and no arithmetic on 0 makes
+ * a band. Measured off `INBOX/Tutorial-Off.png` (iPhone 16 Pro Max, 1320x2868):
+ * the artwork does not reach its true `#FD4B01` until device row 294, which is
+ * 98pt down the screen, 62pt of which is the status bar. So the effect reaches
+ * 36pt into the page, and 40px covers it with a little to spare.
+ *
+ * The `env()` term is kept and added to, not relied on. The day this app takes
+ * the translucent status bar the inset becomes real, the viewport grows upward
+ * by it, and the band has to grow by the same amount to stay in front.
+ *
+ * **Why it is behind an attribute rather than a media query.** Forty blank
+ * pixels at the top of the page is a real cost, and it buys nothing anywhere
+ * except an installed iOS app. `data-home-screen` is set once at startup by
+ * lib/homeScreen.ts; everywhere else this rule collapses to nothing.
+ *
+ * The proof that this is the whole story, and worth repeating against any
+ * screenshot that says the blur is back: with the tutorial open the effect does
+ * not happen at all, because the tour locks scrolling. Rows 0 to 186 of
+ * `INBOX/Tutorial-On.png` are flat #FBFAF6 to the byte, with the banner starting
+ * sharp underneath.
+ */
+.top-band {
+  height: 0;
+}
+
+html[data-home-screen] .top-band {
+  height: calc(env(safe-area-inset-top, 0px) + 40px);
+}
+
 /* No rubber banding, and no pull to refresh.
    Dragging past the top or the bottom on a phone used to haul the whole app
    with it and show the settings drawer sitting behind, which is a fixed panel

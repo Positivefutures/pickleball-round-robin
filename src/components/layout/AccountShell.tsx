@@ -3,7 +3,7 @@ import { backdrop, card, heading, status } from './accountStyles';
 
 /**
  * The card every My Account screen sits in: backdrop, hero, title, and an
- * optional green status line.
+ * optional teal status line.
  *
  * `onClose` is optional on purpose. The merge decision passes nothing, so that
  * screen has no way out except answering it — tapping the backdrop or hitting

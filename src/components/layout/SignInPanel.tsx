@@ -28,8 +28,8 @@ function PromiseRow({ Icon, text }: { Icon: typeof GroupsIcon; text: string }) {
   return (
     <li className="flex items-center gap-4">
       {/* No disc behind these. The mockup drew one and Jeff cut it, so the icon
-          carries the green on its own. */}
-      <Icon className="h-8 w-8 shrink-0 text-[#3D7E34]" />
+          carries the colour on its own. */}
+      <Icon className="h-8 w-8 shrink-0 text-brand-teal" />
       <span className="text-lg leading-snug text-[#1F293D]">{text}</span>
     </li>
   );
@@ -72,7 +72,7 @@ export function SignInPanel({ onClose, notice }: Props) {
 
   async function handleSend() {
     const address = email.trim();
-    // Checked here rather than by disabling the button. A green button that
+    // Checked here rather than by disabling the button. A teal button that
     // greys itself out before anyone has typed reads as broken, and the mockup
     // draws it solid.
     if (!address) {
@@ -156,7 +156,7 @@ export function SignInPanel({ onClose, notice }: Props) {
             setProblem(null);
           }}
           disabled={busy}
-          className="mt-3 w-full font-bold text-[#4B6B45] underline underline-offset-2 hover:text-[#3D7E34]"
+          className="mt-3 w-full font-bold text-[#3F5F63] underline underline-offset-2 hover:text-brand-teal"
         >
           Use a Different Address
         </button>

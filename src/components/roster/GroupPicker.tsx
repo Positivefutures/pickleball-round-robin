@@ -72,7 +72,7 @@ export function GroupPicker({
             wrong scores to everyone holding the link. */}
         {(live.state === 'live' || live.state === 'publishing') && (
           <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Sharing stops when you change groups. Start it again from the new session.
+            You are sharing this session. Changing groups will stop sharing.
           </p>
         )}
 

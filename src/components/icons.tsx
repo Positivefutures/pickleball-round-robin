@@ -435,20 +435,17 @@ export function BallIcon({ className }: { className?: string }) {
 }
 
 /**
- * A disc with a heart knocked out of it, closing the Share panel's pitch.
+ * A heart, closing the Share panel's pitch.
  *
- * `INBOX/green-heart.svg` verbatim on its 254000 grid. The heart is a second
- * subpath, so `fillRule="evenodd"` is what makes it a hole rather than filling
- * solid — drop it and the icon becomes a plain circle. The hole shows the card
- * through it, so this only reads correctly on a plain background.
+ * `INBOX/like.svg` verbatim on its 512 grid. It replaced a disc with a heart
+ * knocked out of it, which only read on a plain background — the hole showed
+ * the card through, so the glyph could never sit on a tint or a button. This
+ * one is a solid shape and takes its colour from `currentColor` like the rest.
  */
-export function GreenHeartIcon({ className }: { className?: string }) {
+export function HeartIcon({ className }: { className?: string }) {
   return (
-    <Solid className={className} viewBox="0 0 254000 254000">
-      <path
-        fillRule="evenodd"
-        d="m127000 0c-70140 0-127000 56860-127000 127000s56860 127000 127000 127000 127000-56860 127000-127000-56860-127000-127000-127000zm-75526 90035c-7151 50957 43994 74242 75526 105773 31532-31531 82677-54816 75526-105773-4919-39462-58913-40135-75526-13617-16613-26518-70607-25845-75526 13617z"
-      />
+    <Solid className={className} viewBox="0 0 512 512">
+      <path d="M376,30c-27.783,0-53.255,8.804-75.707,26.168c-21.525,16.647-35.856,37.85-44.293,53.268c-8.437-15.419-22.768-36.621-44.293-53.268C189.255,38.804,163.783,30,136,30C58.468,30,0,93.417,0,177.514c0,90.854,72.943,153.015,183.369,247.118c18.752,15.981,40.007,34.095,62.099,53.414C248.38,480.596,252.12,482,256,482s7.62-1.404,10.532-3.953c22.094-19.322,43.348-37.435,62.111-53.425C439.057,330.529,512,268.368,512,177.514C512,93.417,453.532,30,376,30z" />
     </Solid>
   );
 }

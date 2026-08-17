@@ -121,9 +121,9 @@ export function LiveShareView({ onCreateAccount }: Props) {
         {onCreateAccount ? (
           <div className={`${TILE_ALONE} pt-3`}>
             <TileButton
-              tone="teal"
+              tone="quiet"
               Icon={PersonIcon}
-              label="Create an Account"
+              label="Create an Account or Sign In"
               onClick={onCreateAccount}
             />
           </div>

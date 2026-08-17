@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { formatMMSS } from '../../lib/roundTimer';
 import { CloseIcon } from '../icons';
 import { TimerIcon } from './timerIcons';
@@ -22,6 +22,15 @@ import { TimerIcon } from './timerIcons';
  *  full-screen high-contrast strobe needs to respect. Don't tighten this
  *  without checking that guidance again. */
 const FLASH_INTERVAL_MS = 250;
+
+/**
+ * How far the sheet has to be pulled down before letting go closes it.
+ *
+ * Short enough that a real flick gets there, long enough that the nudge a thumb
+ * gives the handle on the way to the START button does not. Anything under it
+ * springs back, which is the answer to "did I just do something".
+ */
+const DISMISS_PX = 90;
 
 const LIGHT = { bg: '#FFFFFF', ink: '#0D1F44', sub: '#6B7280', icon: '#007d88', handle: '#C4C8CF' };
 const DARK = { bg: '#000000', ink: '#FFFFFF', sub: '#9CA3AF', icon: '#FFFFFF', handle: '#333333' };
@@ -80,6 +89,37 @@ export function TimerSheet({
 
   const theme = light || (alarming && flashOn && strobeLight) ? LIGHT : DARK;
 
+  // How far the handle has been pulled down, in pixels. Null while nobody is
+  // holding it, which is what hands the transform back to the entrance
+  // animation's classes — an inline transform would otherwise pin the sheet
+  // wherever the last drag left it.
+  const [pulled, setPulled] = useState<number | null>(null);
+  const from = useRef(0);
+
+  function grab(e: PointerEvent<HTMLDivElement>) {
+    // Captured, so the sheet keeps hearing the finger after it has slid off the
+    // handle — which on a pull of any length it always has. Optional because
+    // not every environment that can dispatch a pointer event implements it.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    from.current = e.clientY;
+    setPulled(0);
+  }
+
+  function drag(e: PointerEvent<HTMLDivElement>) {
+    if (pulled === null) return;
+    // Downward only. A sheet already at the top of its travel has nowhere to go
+    // up, and letting it stretch there makes the handle feel broken the other
+    // way round.
+    setPulled(Math.max(0, e.clientY - from.current));
+  }
+
+  function letGo() {
+    if (pulled === null) return;
+    const far = pulled >= DISMISS_PX;
+    setPulled(null);
+    if (far) onClose();
+  }
+
   return (
     <div className="no-print fixed inset-0 z-50 flex flex-col justify-end">
       <button
@@ -105,12 +145,36 @@ export function TimerSheet({
         // the theme swap ride the same transition would fade the strobe above
         // into a low-contrast grey mid-flash instead of a clean cut between
         // full black and full white.
-        style={{ backgroundColor: theme.bg, transitionProperty: 'transform' }}
+        //
+        // While the handle is held the transform is set here instead, and the
+        // transition is off: a 300ms ease on every pointermove is a sheet that
+        // lags a finger by a third of a second.
+        style={{
+          backgroundColor: theme.bg,
+          transitionProperty: pulled === null ? 'transform' : 'none',
+          ...(pulled === null ? {} : { transform: `translateY(${pulled}px)` }),
+        }}
       >
+        {/* The handle, and enough room around it to be caught by a thumb: the
+            bar itself is six pixels tall, and a target that size is one nobody
+            can hit. Pull it down past DISMISS_PX and letting go closes the
+            timer; let go short of that and it springs back. It had been drawn
+            here since the sheet existed and did nothing at all, which is worse
+            than no handle — it says "pull me" and then ignores a pull.
+
+            aria-hidden, and no keyboard role. Everything this does the Close
+            button below already does, and a second control saying so would be
+            two ways out of the sheet to read past. */}
         <div
-          className="mx-auto mb-2 h-1.5 w-14 shrink-0 rounded-full"
-          style={{ backgroundColor: theme.handle }}
-        />
+          aria-hidden="true"
+          onPointerDown={grab}
+          onPointerMove={drag}
+          onPointerUp={letGo}
+          onPointerCancel={letGo}
+          className="-mx-6 -mt-3 flex shrink-0 cursor-grab touch-none justify-center px-6 pb-2 pt-3 active:cursor-grabbing"
+        >
+          <div className="h-1.5 w-14 rounded-full" style={{ backgroundColor: theme.handle }} />
+        </div>
 
         {/* The clock is the thing the round's header was tapped on, so it leads
             here too, centred over a title that names the round it belongs to.

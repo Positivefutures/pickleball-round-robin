@@ -1,31 +1,58 @@
+import { panelCard } from '../panelStyles';
+
 /**
  * The My Account panels share one look, so their class strings live here rather
  * than being copied three ways and drifting.
  *
- * Every colour is sampled from `INBOX/my-account-mockup.png` rather than picked
- * by eye: the green is #3D7E34, taken from the button fill and confirmed against
- * the icon glyphs at #3E7A33. The card is #FEFEFE, which is also the background
- * `account-top.png` was exported against — that image ships opaque, so tinting
- * the card any further shows the hero as a rectangle.
+ * It was built in a green of its own, sampled from `INBOX/my-account-mockup.png`
+ * back when the app had no settled palette. It has one now — teal confirms,
+ * orange leads — and a family of panels in a green nothing else uses was the
+ * last place the old scheme was still on show. So the green is gone: the button
+ * that does the thing, the switchboard of pale fills and the line that says
+ * you are signed in are all in `--color-brand-teal` and its two neighbours.
+ *
+ * The card is #FEFEFE, which is also the background `account-top.png` was
+ * exported against — that image ships opaque, so tinting the card any further
+ * shows the hero as a rectangle. The same is true of `share-top.png` and
+ * `donate-top.png`, which is why all three cards are the same near-white.
  *
  * Strings only, no components: this file is imported by three panels, and a .tsx
  * that exports both would trip react-refresh/only-export-components.
  */
 
-export const GREEN = '#3D7E34';
+export const TEAL = 'var(--color-brand-teal)';
 
-/** The card itself. Border matches DonatePanel's, which is the same family. */
+/**
+ * The pale teal a tile is filled with, and its edge.
+ *
+ * Written out rather than imported from TileButton, which owns them as part of
+ * a button and not as a palette. They are the same two values on purpose: a
+ * quiet teal panel here and a teal tile on the Actions sheet should be the same
+ * quiet teal.
+ */
+export const TEAL_FILL = 'border-[#A6D1D5] bg-brand-teal-light';
+
+/** The card itself. Its edge is the one every panel in the app is drawn with. */
 export const card =
-  'mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl ' +
-  'border-2 border-[#B7DBB8] bg-[#FEFEFE] px-6 py-6 shadow-xl';
+  `mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto overscroll-contain ${panelCard} ` +
+  'bg-[#FEFEFE] px-6 py-6';
 
 export const backdrop =
   'no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40';
 
 export const heading = 'mt-1 text-center text-4xl font-extrabold tracking-tight text-[#111F1F]';
 
-/** The one-line status under the heading. Green because it is never bad news. */
-export const status = 'mt-1 text-center text-xl font-bold text-[#3D7E34]';
+/** The one-line status under the heading. Teal because it is never bad news. */
+export const status = 'mt-1 text-center text-xl font-bold text-brand-teal';
+
+/**
+ * A note that is good news: a code sent, a file saved, an account made.
+ *
+ * Four panels were each writing `border-green-200 bg-green-50 text-green-900`
+ * out for themselves, which is how the green survived a repaint the first time.
+ * One name now, in the teal that means the same thing everywhere else.
+ */
+export const good = `${TEAL_FILL} text-[#04565D]`;
 
 export const blurb = 'mt-2 text-center text-lg leading-snug text-[#495668]';
 
@@ -33,11 +60,13 @@ export const label = 'mb-1.5 block text-sm font-bold text-[#1F293D]';
 
 export const field =
   'w-full rounded-lg border border-panel-edge bg-white px-3.5 py-3 text-lg text-[#1F293D] ' +
-  'placeholder:text-[#7F8497] focus:border-[#3D7E34] focus:outline-none focus:ring-2 focus:ring-[#3D7E34]/30';
+  'placeholder:text-[#7F8497] focus:border-brand-teal focus:outline-none focus:ring-2 ' +
+  'focus:ring-brand-teal/30';
 
+/** Solid, unlike the tiles: it is the one thing these panels are open to do. */
 export const primary =
-  'w-full rounded-lg bg-[#3D7E34] px-4 py-3.5 text-lg font-bold text-white transition-colors ' +
-  'hover:bg-[#336B2B] disabled:cursor-not-allowed disabled:bg-[#AFC9AA]';
+  'w-full rounded-lg bg-brand-teal px-4 py-3.5 text-lg font-bold text-white transition-colors ' +
+  'hover:bg-brand-teal-dark disabled:cursor-not-allowed disabled:bg-[#9DC3C7]';
 
 export const secondary =
   'w-full rounded-lg border border-panel-edge bg-[#F7F7F8] px-4 py-3 text-lg font-bold ' +

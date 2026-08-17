@@ -10,6 +10,7 @@ import { SignInPanel } from './SignInPanel';
 import {
   blurb,
   field,
+  good,
   label,
   note,
   primary,
@@ -46,7 +47,7 @@ function SyncNote({ report }: { report: SyncReport | null }) {
 
   if (report) {
     return (
-      <div className={`${note} border-green-200 bg-green-50 text-green-900`}>
+      <div className={`${note} ${good}`}>
         <p className="font-bold">{report.title}</p>
         {report.details.map((line) => (
           <p key={line} className="mt-1">
@@ -59,7 +60,7 @@ function SyncNote({ report }: { report: SyncReport | null }) {
 
   if (sync.state === 'saved') {
     return (
-      <p className={`${note} border-green-200 bg-green-50 text-green-900`}>
+      <p className={`${note} ${good}`}>
         Your groups and players have been saved to your account.
       </p>
     );
@@ -147,7 +148,7 @@ function SignedIn({
       <SyncNote report={report} />
 
       {notice && (
-        <p className={`${note} border-green-200 bg-green-50 text-green-900`}>{notice}</p>
+        <p className={`${note} ${good}`}>{notice}</p>
       )}
 
       {changing ? (

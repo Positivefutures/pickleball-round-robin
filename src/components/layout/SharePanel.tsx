@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { APP_URL } from '../../lib/appInfo';
 import { canShare, shareApp } from '../../lib/share';
-import { CopyIcon, GreenHeartIcon, PaddleIcon, ShareIcon, StarIcon } from '../icons';
+import { CopyIcon, HeartIcon, PaddleIcon, ShareIcon, StarIcon } from '../icons';
 import { panelCard } from '../panelStyles';
 
 interface Props {
@@ -67,9 +67,12 @@ export function SharePanel({ onClose }: Props) {
 
         <p className="mt-2 text-center text-lg leading-snug text-[#495668]">
           Help more pickleball players run better round robins.{' '}
-          <span className="font-medium text-[#029130]">
+          {/* Teal words, orange heart. Both are the app's own colours, and the
+              heart is the one thing on the panel that is decoration rather than
+              a control, so it is the one place the accent belongs. */}
+          <span className="font-medium text-brand-teal">
             Thanks for spreading the word!
-            <GreenHeartIcon className="ml-1 inline-block h-4 w-4 align-[-0.15em]" />
+            <HeartIcon className="ml-1.5 inline-block h-4 w-4 align-[-0.1em] text-brand-orange" />
           </span>
         </p>
 
@@ -82,7 +85,7 @@ export function SharePanel({ onClose }: Props) {
           <button
             type="button"
             onClick={handleShare}
-            className="mt-3 flex w-full items-center gap-3 rounded-lg bg-[#018D31] px-4 py-3 text-left text-white transition-colors hover:bg-[#017129]"
+            className="mt-3 flex w-full items-center gap-3 rounded-lg bg-brand-teal px-4 py-3 text-left text-white transition-colors hover:bg-brand-teal-dark"
           >
             <ShareIcon className="h-6 w-6" />
             <span>
@@ -94,7 +97,7 @@ export function SharePanel({ onClose }: Props) {
           </button>
         )}
 
-        {/* Green only when it is the one action on offer. Alongside Share… it
+        {/* Teal only when it is the one action on offer. Alongside Share… it
             steps back to secondary, so the panel never shows two primaries.
             Set the text colour once per branch: listing `text-white` in the base
             and overriding it here would leave both classes in play, and which
@@ -105,7 +108,7 @@ export function SharePanel({ onClose }: Props) {
           className={`mt-3 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors ${
             hasSheet
               ? 'border border-panel-edge bg-white text-[#3D495A] hover:bg-[#F1F3F6]'
-              : 'bg-[#018D31] text-white hover:bg-[#017129]'
+              : 'bg-brand-teal text-white hover:bg-brand-teal-dark'
           }`}
         >
           <CopyIcon className="h-6 w-6" />
@@ -128,9 +131,9 @@ export function SharePanel({ onClose }: Props) {
         </button>
 
         <p className="mt-4 flex items-center justify-center gap-2 text-center text-[13px] leading-snug text-[#717A87]">
-          <StarIcon className="h-4 w-4 shrink-0 text-[#009424]" />
+          <StarIcon className="h-4 w-4 shrink-0 text-brand-teal" />
           Thanks for being part of the pickleball community!
-          <PaddleIcon className="h-4 w-4 shrink-0 text-[#009424]" />
+          <PaddleIcon className="h-4 w-4 shrink-0 text-brand-teal" />
         </p>
       </div>
     </div>

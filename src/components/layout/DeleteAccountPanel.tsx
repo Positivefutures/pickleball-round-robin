@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { deleteMyAccount } from '../../lib/account';
 import { AccountShell, Problem } from './AccountShell';
 import { DownloadMyData } from './DownloadMyData';
-import { danger, field, label, note, secondary } from './accountStyles';
+import { danger, field, good, label, note, secondary } from './accountStyles';
 
 /** Case and stray spaces forgiven. A phone that capitalises is not a wrong answer. */
 const CONFIRM_WORD = 'DELETE';
@@ -69,7 +69,7 @@ export function DeleteAccountPanel({
         </p>
       </div>
 
-      <div className={`${note} border-green-200 bg-green-50 text-green-900`}>
+      <div className={`${note} ${good}`}>
         <p className="font-bold">What stays</p>
         <p className="mt-1">
           Your groups and players stay on this device. The app carries on working the way it did

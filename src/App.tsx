@@ -276,9 +276,9 @@ function App() {
 
   // The panel must sit still while it's slid aside, so the settings button stays
   // exactly where the user left it — including after closing a settings dialog.
-  // One aggregate, never a second useScrollLock elsewhere: the body is pinned
-  // with position:fixed, so a lock taken while another is held reads the scroll
-  // offset as zero and releases the page to the top.
+  // One aggregate for everything this component puts on top, so the page is not
+  // let go and re-taken between two of them. Overlays elsewhere hold their own
+  // lock; useScrollLock counts its holders, so overlapping ones compose.
   useScrollLock(
     settingsOpen || showInstructions || showDefaultRating || showImportExport ||
     !!feedbackKind || showDonate || showShare || showAccount || showInstall ||

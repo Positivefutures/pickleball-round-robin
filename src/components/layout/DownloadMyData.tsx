@@ -3,7 +3,7 @@ import { buildMyDataFile } from '../../lib/account';
 import { downloadTextFile } from '../../utils/download';
 import { DownloadIcon } from '../icons';
 import { Problem } from './AccountShell';
-import { note, row, rowIcon, rowNote, rowTitle, secondary } from './accountStyles';
+import { good, note, row, rowIcon, rowNote, rowTitle, secondary } from './accountStyles';
 
 /**
  * Take a copy of everything the account holds.
@@ -60,7 +60,7 @@ export function DownloadMyData({ variant }: { variant: 'row' | 'button' }) {
 
       {problem && <Problem>{problem}</Problem>}
       {saved && (
-        <p className={`${note} border-green-200 bg-green-50 text-green-900`}>
+        <p className={`${note} ${good}`}>
           Saved as {saved}. Look in your downloads.
         </p>
       )}

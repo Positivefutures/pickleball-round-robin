@@ -42,23 +42,6 @@ const CREAM = '#FBFAF6';
 const NAVY = '#051829';
 
 /**
- * Height of the flat cream strip above the banner.
- *
- * The safe-area inset alone is not enough, which is what the first attempt at
- * this used and why the blur came back. Measured off a screenshot from an
- * iPhone 16 Pro Max: the inset is 62pt, and iOS was still redrawing the page
- * down to 96pt. So it runs at full strength over the inset and then feathers
- * for another 34pt, and the banner's first 34pt were being blurred with it —
- * enough to drag the wedge's orange back up over the clock.
- *
- * 36px covers the feather with a little to spare. The second term is the inset
- * again, multiplied far past 36 and then clamped back to it, which is how you
- * write "36px, but only where there is an inset at all" in one expression.
- * Anywhere without one the whole calc is 0 and the band is a zero-height div.
- */
-const BAND = 'calc(env(safe-area-inset-top, 0px) + min(36px, 100 * env(safe-area-inset-top, 0px)))';
-
-/**
  * A hairline closing the banner off at both ends.
  *
  * The cream runs almost the same value as the page behind the tabs, so without
@@ -116,29 +99,14 @@ export function Header({
 
   return (
     <>
-      {/* The strip behind the clock and the battery, in flat cream.
-
-          iOS 26 stopped leaving that strip to the system. It draws Liquid Glass
-          there instead, which samples the page's own top rows, blurs and
-          lightens them, and feathers the result about 35pt down into the page.
-          This banner puts its orange wedge and its teal court on its first row,
-          so what arrived was a smear of both across the clock and on down over
-          the robin.
-
-          The effect cannot be turned off from a web page. What it blurs can be
-          changed, though, and a blur of flat cream is flat cream. So
-          `viewport-fit=cover` in index.html takes the strip back, and this fills
-          it with the colour the banner already sits on. The banner starts below
-          everything iOS touches, and stays sharp.
-
-          How far down that reaches is the whole trick, and it is further than
-          the clock: see BAND. Nothing moves anywhere else, because off iOS the
-          band has no height. */}
-      <div
-        aria-hidden="true"
-        className="no-print"
-        style={{ height: BAND, backgroundColor: CREAM }}
-      />
+      {/* Blank cream, so that the thing iOS 26 blurs over the top of an
+          installed app is a flat colour and the blur of it is that colour. The
+          banner then starts below everything the effect touches and stays
+          sharp. Its height, why it is a fixed forty pixels rather than anything
+          measured off the safe area, and why it is worth spending only on an
+          iPhone home screen are all in `.top-band` in index.css. Everywhere
+          else this is a div of no height. */}
+      <div aria-hidden="true" className="top-band no-print" style={{ backgroundColor: CREAM }} />
 
       <header
         className="relative isolate overflow-hidden no-print"

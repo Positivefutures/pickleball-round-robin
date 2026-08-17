@@ -10,19 +10,19 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#FBFAF6" />
     <!--
-      `viewport-fit=cover` hands the page the whole screen, safe areas included,
-      and turns on the `env(safe-area-inset-*)` values that were reporting 0
-      without it.
+      `viewport-fit=cover` hands the page the whole screen where the browser is
+      drawing behind the notch and the home indicator, and turns on the
+      `env(safe-area-inset-*)` values that report 0 without it.
 
-      It is here because of what iOS 26 does to the top of a home screen web
-      app. It runs Liquid Glass over that edge now: the page's own top rows are
-      sampled, blurred and lightened behind the clock, then feathered around
-      35pt down into the page. On this app that smeared the banner's orange
-      wedge and teal court, both of which reach its very first row. There is no
-      switch for the effect — Apple gives native apps `scrollEdgeEffectStyle`
-      and gives the web nothing — so the only lever is what it has to blur.
-      Header.tsx fills the reclaimed strip with flat cream, and blurred flat
-      cream is just cream.
+      It does NOT reclaim the strip behind the clock on a home screen app, which
+      is what it was added believing. Without an
+      `apple-mobile-web-app-status-bar-style` of `black-translucent` — see below,
+      it is deliberate that there is none — iOS runs the opaque status bar and
+      hands the page a viewport that already starts underneath it. Measured on
+      an iPhone 16 Pro Max: `env(safe-area-inset-top)` inside this app is 0. Two
+      releases of the fix for iOS 26's blurred top edge were sized off that
+      value and were therefore zero pixels tall. What actually holds the effect
+      off is `.top-band` in index.css, whose height is a plain number.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
@@ -34,9 +34,16 @@
       The two capable flags are for iOS old enough to predate Safari reading
       `display` out of the manifest. Modern Safari ignores them.
 
-      Still no black-translucent status bar. `viewport-fit=cover` above is what
-      reclaims the strip behind the clock now, and it does it without reaching
-      for a value Apple has marked for removal.
+      Still no black-translucent status bar, and that is a decision rather than
+      an omission. It is a value Apple has marked for removal, and it would put
+      the clock on top of the page: on iOS 15 and later the text colour follows
+      the system appearance, so in dark mode it would be white type over this
+      app's cream band and unreadable. The opaque bar it leaves in place is
+      painted with the theme-color above, which is that same cream.
+
+      The cost is that `env(safe-area-inset-top)` is 0 inside this app. See the
+      viewport note above and `.top-band` in index.css, which is written to
+      survive this being changed either way.
     -->
     <meta name="apple-mobile-web-app-title" content="Round Robin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

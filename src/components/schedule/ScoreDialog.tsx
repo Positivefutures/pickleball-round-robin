@@ -177,6 +177,11 @@ export function ScoreDialog({ court, onDone, onCancel, allowClear = true }: Prop
           extraKey={{ face: 'Clear', onPress: clearBoth }}
         />
 
+        {/* Nothing under these buttons. A half-filled panel used to say "Both
+            sides need a number." and it was the only thing on the app that told
+            somebody off for being halfway through typing — the second number was
+            usually already on its way. The greyed-out Save says the same thing
+            and says it without a voice. */}
         <div className="mt-5 flex gap-3">
           <button
             type="button"
@@ -193,11 +198,6 @@ export function ScoreDialog({ court, onDone, onCancel, allowClear = true }: Prop
             Save
           </button>
         </div>
-        {!canSave && (
-          <p className="mt-2 text-center text-sm text-amber-600">
-            Both sides need a number.
-          </p>
-        )}
       </form>
     </div>
   );
