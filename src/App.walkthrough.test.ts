@@ -11,7 +11,6 @@ import { runMigrations } from './lib/migrations';
 import { __testing as supabaseTesting } from './lib/supabase';
 import { APP_URL } from './lib/appInfo';
 import { sharePayload } from './lib/share';
-import { ROUND_TYPE_META } from './lib/roundTypes';
 import { __robinTesting as robinTesting } from './lib/robins';
 import type { Schedule, Round, CourtAssignment } from './types';
 
@@ -985,65 +984,266 @@ describe('step 6 — every step starts at the top', () => {
   });
 });
 
-describe('Special Game Types', () => {
+describe('Set Game Types', () => {
   beforeEach(() => seed(10, 10, 2));
 
-  /** The Yes radio for one of the three types, inside the open panel. */
-  /**
-   * Switches a type on. A switch, not a pair of radios, so this has to check
-   * the state first: clicking one that is already on turns it off.
-   */
-  function sayYes(type: string) {
-    const meta = ROUND_TYPE_META[type as keyof typeof ROUND_TYPE_META];
-    if (!meta) throw new Error(`no such round type: ${type}`);
-    const sw = container.querySelector(
-      `button[role="switch"][aria-label="Play ${meta.title}"]`
-    ) as HTMLButtonElement | null;
-    if (!sw) throw new Error(`no ${type} switch; panel not open?`);
-    if (sw.getAttribute('aria-checked') !== 'true') click(sw);
+  /** A step tab, for the trips between Setup and the schedule. */
+  function stepTab(label: RegExp): HTMLButtonElement {
+    const found = [...container.querySelectorAll('nav button')].find((b) => label.test(text(b)));
+    if (!found) throw new Error(`no step tab matching ${label}`);
+    return found as HTMLButtonElement;
   }
 
-  /** The reorder arrows carry an aria-label; their text is just an arrow. */
-  function move(label: string) {
-    const button = container.querySelector(`[aria-label="${label}"]`);
-    if (!button) throw new Error(`no button labelled "${label}"`);
-    click(button);
+  /** Opens the inline list. It is closed every time Setup is arrived at. */
+  function openPlanner() {
+    clickButton(/^Set Game Types$/);
   }
 
-  it('runs from the button to a badge on the schedule', () => {
+  /** Every row in the list, in the order they are drawn. */
+  function planRows(): HTMLElement[] {
+    return [...container.querySelectorAll('h4')]
+      .filter((h) => /^Round \d+$/.test(text(h)))
+      .map((h) => h.parentElement as HTMLElement);
+  }
+
+  function planRow(n: number): HTMLElement {
+    const row = planRows().find((r) => text(r.querySelector('h4')!) === `Round ${n}`);
+    if (!row) throw new Error(`no plan row for Round ${n}`);
+    return row;
+  }
+
+  /** What the list says each round is, top to bottom. */
+  function rowLabels(): string[] {
+    return planRows().map((r) => text(r.querySelector('h4')!));
+  }
+
+  /** The pill on a row, whether it is a button or a locked span. */
+  function pill(n: number): Element {
+    const found = planRow(n).lastElementChild;
+    if (!found) throw new Error(`no pill on Round ${n}`);
+    return found;
+  }
+
+  /** Taps a row's pill and picks one of the four. */
+  function setRoundType(n: number, label: string) {
+    click(pill(n));
+    const picker = container.querySelector('[role="dialog"][aria-modal="true"]');
+    if (!picker) throw new Error('the game type picker is not open');
+    clickButton(new RegExp(`^${label}$`), picker);
+  }
+
+  /** Open, set one round, Done. The whole gesture, which most tests want. */
+  function planRound(n: number, label: string) {
+    openPlanner();
+    setRoundType(n, label);
+    clickButton(/^Done$/);
+  }
+
+  function handle(n: number): Element {
+    const found = planRow(n).querySelector(`[aria-label="Move Round ${n}"]`);
+    if (!found) throw new Error(`Round ${n} has no drag handle`);
+    return found;
+  }
+
+  /** An arrow key on a handle, the path a pointer drag cannot be tested on. */
+  function press(el: Element, key: string) {
+    act(() => {
+      el.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true }));
+    });
+  }
+
+  it('runs from the title to a badge on the schedule', () => {
     mount();
     clickButton(/^Continue to Setup/);
 
-    // Nothing chosen yet, so Setup shows the button and no summary.
-    expect(container.textContent).toContain('Special Game Types');
-    expect(container.textContent).not.toContain('Mixed every');
+    // Nothing set yet, so Setup shows the title and no chips.
+    expect(container.textContent).toContain('Set Game Types');
+    expect(container.textContent).not.toContain('R2 Mixed');
 
-    clickButton(/^Special Game Types$/);
-    expect(container.textContent).toContain('Equal Skill Games');
-    sayYes('mixed');
-    clickButton(/^Done$/);
+    planRound(2, 'Mixed Round');
 
-    // Back on Setup, the choice shown as a chip under the button it was made
-    // from. Which rounds it lands on is no longer previewed here; the schedule
-    // says it per round, which is where it is read.
-    expect(container.textContent).toContain('Mixed every 2 rounds');
-    expect(container.textContent).not.toContain('rounds 1, 3, 5, 7');
-    expect(container.textContent).toContain('Special Game Types');
+    // Back on Setup, the choice shown as a chip under the title it was made
+    // from, naming the round it is on.
+    expect(container.textContent).toContain('R2 Mixed');
 
     clickButton(/^Generate Schedule/);
-    // Every 2 rounds means the second one. Round 1 waits.
     expect(text(roundBlock(2))).toContain('Mixed Round');
     expect(text(roundBlock(1))).not.toContain('Mixed Round');
     expect(storedSchedule().rounds[1].roundType).toBe('mixed');
     expect(storedSchedule().rounds[0].roundType).toBeUndefined();
   });
 
+  it('draws one row per round, numbered 1 to N top to bottom', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    openPlanner();
+
+    expect(rowLabels()).toEqual([
+      'Round 1', 'Round 2', 'Round 3', 'Round 4',
+      'Round 5', 'Round 6', 'Round 7', 'Round 8',
+    ]);
+    // Every one of them says what it is, ordinary rounds included.
+    expect(text(pill(1))).toBe('Normal');
+  });
+
+  /**
+   * The decision this whole list is built on. Dragging moves the game type
+   * into a different round; it never renumbers the rounds, because a round is
+   * where it is in the afternoon and the host cannot move that.
+   */
+  it('keeps the round number with the position when a row moves', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    openPlanner();
+    setRoundType(2, 'Mixed Round');
+
+    press(handle(2), 'ArrowUp');
+
+    expect(rowLabels()).toEqual([
+      'Round 1', 'Round 2', 'Round 3', 'Round 4',
+      'Round 5', 'Round 6', 'Round 7', 'Round 8',
+    ]);
+    expect(text(pill(1))).toBe('Mixed');
+    expect(text(pill(2))).toBe('Normal');
+  });
+
+  it('says out loud what moved and where it went', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    openPlanner();
+    setRoundType(2, 'Mixed Round');
+    press(handle(2), 'ArrowUp');
+
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(text(live!)).toBe('Mixed moved to Round 1.');
+  });
+
+  it('collapses on Done, and is closed again on the way back', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    openPlanner();
+    expect(planRows()).toHaveLength(8);
+
+    clickButton(/^Done$/);
+    expect(planRows()).toHaveLength(0);
+
+    // Open it, walk away, come back: closed. It is a list you finish with, not
+    // a panel that stays where you left it.
+    openPlanner();
+    expect(planRows()).toHaveLength(8);
+    click(stepTab(/^1\. Players$/));
+    click(stepTab(/^2\. Setup$/));
+    expect(planRows()).toHaveLength(0);
+  });
+
+  /**
+   * The ⓘ explains the three formats and changes nothing. Everything that was
+   * a setting on the old panel has gone to the list.
+   */
+  it('opens an information panel that sets nothing', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    click(container.querySelector('[aria-label="About game types"]')!);
+
+    const panel = container.querySelector('.fixed.inset-0')!;
+    expect(text(panel)).toContain('Game Types');
+    expect(text(panel)).toContain('Equal Skill Games');
+    expect(text(panel)).toContain('You play with and against people near your own level.');
+    // The one thing about game types a host cannot work out by looking.
+    expect(text(panel)).toContain('A pair from Set Partners is split for that round only');
+
+    expect(panel.querySelector('button[role="switch"]')).toBeNull();
+    expect(panel.querySelector('select')).toBeNull();
+    expect(panel.querySelector('[aria-label^="Move "]')).toBeNull();
+    expect(text(panel)).not.toContain('Every 4 rounds means');
+  });
+
+  /**
+   * Mid-session, the rounds already played are the afternoon. They are in the
+   * list so the host can see where they are, and they cannot be touched.
+   */
+  it('locks the rounds already played', () => {
+    mount();
+    generate();
+    markComplete(1);
+    markComplete(2);
+
+    click(stepTab(/^2\. Setup$/));
+    openPlanner();
+
+    for (const n of [1, 2]) {
+      expect(planRow(n).querySelector(`[aria-label="Move Round ${n}"]`)).toBeNull();
+      expect(pill(n).tagName).toBe('SPAN');
+    }
+    // And the rest of the afternoon is still the host's to set.
+    expect(handle(3)).toBeDefined();
+    expect(pill(3).tagName).toBe('BUTTON');
+  });
+
+  /**
+   * The headline. Come back to Setup mid-afternoon, move a game type, press
+   * Done: the rounds already played keep their scores and their pairings,
+   * everything still to come is rebuilt, nothing asks a question, and the
+   * Schedule tab is still a door back.
+   */
+  it('rebuilds only what has not been played, and keeps the tab open', () => {
+    mount();
+    generate();
+    markComplete(1);
+    const before = fingerprint(storedSchedule().rounds[0]);
+
+    click(stepTab(/^2\. Setup$/));
+    planRound(4, 'Gendered Round');
+
+    // Nothing was asked, and nothing was thrown away.
+    expect(container.textContent).not.toContain('Replace');
+    expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+    expect(completedRounds()).toEqual([1]);
+    expect(storedSchedule().rounds[3].roundType).toBe('gendered');
+
+    // Done does not navigate. The tab does, and it is open.
+    expect(container.textContent).toContain('Generate Schedule');
+    expect(stepTab(/^3\. Schedule$/).disabled).toBe(false);
+    click(stepTab(/^3\. Schedule$/));
+    expect(container.textContent).toContain('Actions');
+    expect(completedRounds()).toEqual([1]);
+  });
+
+  it('leaves the afternoon alone when Done changes nothing', () => {
+    mount();
+    generate();
+    markComplete(1);
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    click(stepTab(/^2\. Setup$/));
+    openPlanner();
+    clickButton(/^Done$/);
+
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+    expect(stepTab(/^3\. Schedule$/).disabled).toBe(false);
+  });
+
+  it('leaves a round already played as it was played', () => {
+    mount();
+    generate();
+    markComplete(1);
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    click(stepTab(/^2\. Setup$/));
+    openPlanner();
+    // Round 1 is locked, so there is nothing to press on it. Setting a round
+    // still to come and putting it straight back is the same no-op.
+    setRoundType(3, 'Mixed Round');
+    setRoundType(3, 'Normal Round');
+    clickButton(/^Done$/);
+
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+  });
+
   it('sits the format on a tab above the card, with the icon for that format', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Special Game Types$/);
-    sayYes('mixed');
-    clickButton(/^Done$/);
+    planRound(2, 'Mixed Round');
     clickButton(/^Generate Schedule/);
 
     const card = roundCard(2);
@@ -1055,60 +1255,33 @@ describe('Special Game Types', () => {
     expect(tab.nextElementSibling).toBe(card);
     expect(tab.className).toContain('justify-center');
 
-    const pill = tab.firstElementChild!;
-    // The same drawing the Special Game Types panel marks the format with, and
-    // an edge in the fill's own colour several steps down.
-    expect(pill.querySelector('svg')).not.toBeNull();
-    expect(pill.className).toContain('bg-teal-100');
-    expect(pill.className).toContain('border-teal-400');
+    const badge = tab.firstElementChild!;
+    // The same drawing the Game Types panel marks the format with, and an edge
+    // in the fill's own colour several steps down.
+    expect(badge.querySelector('svg')).not.toBeNull();
+    expect(badge.className).toContain('bg-teal-100');
+    expect(badge.className).toContain('border-teal-400');
   });
 
   it('marks a gendered round with both symbols, since the format is two things', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Special Game Types$/);
-    sayYes('gendered');
-    clickButton(/^Done$/);
+    planRound(2, 'Gendered Round');
     clickButton(/^Generate Schedule/);
 
     const tab = [...roundBlock(2).children].find((el) => text(el).includes('Gendered Round'))!;
     expect(tab.firstElementChild!.querySelectorAll('svg')).toHaveLength(2);
   });
 
-  it('gives the first special round to a type when two are switched on', () => {
+  it('lets the host give every round the same type, one tap at a time', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    clickButton(/^Special Game Types$/);
-    sayYes('gendered');
-    sayYes('mixed');
+    openPlanner();
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) setRoundType(n, 'Mixed Round');
     clickButton(/^Done$/);
-
-    // Both keep their own frequency, and they take turns once they fall due.
-    expect(container.textContent).toContain('Gendered every 2 rounds');
-    expect(container.textContent).toContain('Mixed every 2 rounds');
-
     clickButton(/^Generate Schedule/);
-    const types = storedSchedule().rounds.map((r) => r.roundType);
-    expect(types[0]).toBeUndefined();
-    expect(types[1]).toBe('gendered');
-    expect(types[2]).toBe('mixed');
-    expect(types.filter((t) => t === 'gendered').length).toBeGreaterThan(0);
-    expect(types.filter((t) => t === 'mixed').length).toBeGreaterThan(0);
-  });
 
-  it('lets the host reorder the types, changing which takes the first one', () => {
-    mount();
-    clickButton(/^Continue to Setup/);
-    clickButton(/^Special Game Types$/);
-    sayYes('gendered');
-    sayYes('mixed');
-    move('Move Mixed Games up');
-    clickButton(/^Done$/);
-
-    clickButton(/^Generate Schedule/);
-    const types = storedSchedule().rounds.map((r) => r.roundType);
-    expect(types[1]).toBe('mixed');
-    expect(types[2]).toBe('gendered');
+    expect(storedSchedule().rounds.map((r) => r.roundType)).toEqual(Array(8).fill('mixed'));
   });
 
   // 12 players, six of each gender, on 3 courts. Four men fill one court and
@@ -1130,12 +1303,9 @@ describe('Special Game Types', () => {
     it('marks the leftover court on paper and leaves the screen alone', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('gendered');
-      clickButton(/^Done$/);
+      planRound(2, 'Gendered Round');
       clickButton(/^Generate Schedule/);
 
-      // Gendered every 2 rounds, so the second one is the gendered one.
       const gendered = storedSchedule().rounds[1];
       expect(gendered.roundType).toBe('gendered');
       expect(gendered.courts).toHaveLength(3);
@@ -1151,9 +1321,7 @@ describe('Special Game Types', () => {
     it('says on the card why the leftover court is not a gendered game', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('gendered');
-      clickButton(/^Done$/);
+      planRound(2, 'Gendered Round');
       clickButton(/^Generate Schedule/);
 
       // Six men and six women on three courts: one men's court, one women's,
@@ -1179,9 +1347,8 @@ describe('Special Game Types', () => {
     it('says nothing on a round where every court is in format', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('mixed'); // six of each gender fills all three mixed courts
-      clickButton(/^Done$/);
+      // Six of each gender fills all three mixed courts.
+      planRound(2, 'Mixed Round');
       clickButton(/^Generate Schedule/);
 
       expect(storedSchedule().rounds[1].roundType).toBe('mixed');
@@ -1191,12 +1358,9 @@ describe('Special Game Types', () => {
     it('says nothing on an ordinary round, which is not trying to be a format', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('gendered');
-      clickButton(/^Done$/);
+      planRound(2, 'Gendered Round');
       clickButton(/^Generate Schedule/);
 
-      // Gendered every two rounds, so round 1 is an ordinary one.
       expect(storedSchedule().rounds[0].roundType).toBeUndefined();
       expect(text(roundCard(1))).not.toContain('A gendered game needs');
     });
@@ -1204,9 +1368,7 @@ describe('Special Game Types', () => {
     it('says nothing on paper either when every court is in format', () => {
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('mixed'); // six of each gender fills all three mixed courts
-      clickButton(/^Done$/);
+      planRound(2, 'Mixed Round');
       clickButton(/^Generate Schedule/);
 
       expect(storedSchedule().rounds[1].roundType).toBe('mixed');
@@ -1220,9 +1382,7 @@ describe('Special Game Types', () => {
       seed(9, 9, 2); // eight playing, one waiting
       mount();
       clickButton(/^Continue to Setup/);
-      clickButton(/^Special Game Types$/);
-      sayYes('gendered');
-      clickButton(/^Done$/);
+      planRound(2, 'Gendered Round');
       clickButton(/^Generate Schedule/);
 
       expect(storedSchedule().rounds[1].roundType).toBe('gendered');
@@ -1800,12 +1960,12 @@ describe('a roster short of a full set of courts', () => {
    * Full width it read as the main thing on the panel, which the two numbers
    * above it are.
    */
-  it('keeps the Special Game Types button to its own words, at the left', () => {
+  it('keeps the Set Game Types title to its own words, at the left', () => {
     seed(9, 9, 2);
     mount();
     clickButton(/^Continue to Setup/);
 
-    const button = buttons(/^Special Game Types$/)[0];
+    const button = buttons(/^Set Game Types$/)[0];
     expect(button.className).not.toContain('w-full');
     // Nothing inside it stretches to fill a row either.
     expect(button.querySelector('span')!.className).not.toContain('flex-1');

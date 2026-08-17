@@ -1,6 +1,7 @@
-import type { Player, Partnership, Schedule, SpecialGameTypes } from '../types';
+import type { Player, Partnership, RoundPlan, Schedule } from '../types';
 import type { Step } from './steps';
 import * as stores from './stores';
+import { normalizeRoundPlan } from './roundPlan';
 import { stopSharing } from './liveSession';
 import { clearRoundTimerForNewSchedule } from './roundTimer';
 
@@ -46,7 +47,13 @@ export interface GroupSession {
   sessionId: string | null;
   numCourts: number;
   numRounds: number;
-  specialTypes: SpecialGameTypes;
+  /**
+   * What each round of this group's session is played as. Optional because a
+   * group parked by a build before the planner existed has none, and read back
+   * through normalizeRoundPlan so a missing one is an ordinary afternoon rather
+   * than sixteen undefineds.
+   */
+  roundPlan?: RoundPlan;
   scoringEnabled: boolean;
 }
 
@@ -80,7 +87,7 @@ function live(): GroupSession {
     sessionId: stores.sessionId.get(),
     numCourts: stores.numCourts.get(),
     numRounds: stores.numRounds.get(),
-    specialTypes: stores.specialTypes.get(),
+    roundPlan: stores.roundPlan.get(),
     scoringEnabled: stores.scoringEnabled.get()
   };
 }
@@ -137,7 +144,7 @@ function fill(saved: GroupSession, rosterId: string): void {
   stores.scheduleRosterId.set(saved.schedule ? rosterId : null);
   stores.numCourts.set(saved.numCourts);
   stores.numRounds.set(saved.numRounds);
-  stores.specialTypes.set(saved.specialTypes);
+  stores.roundPlan.set(normalizeRoundPlan(saved.roundPlan));
   stores.scoringEnabled.set(saved.scoringEnabled);
   stores.setupSeen.set(saved.setupSeen);
   stores.step.set(saved.step);

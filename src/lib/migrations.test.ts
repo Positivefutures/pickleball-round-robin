@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { runMigrations, KEYS, EMPTY_GROUP_NAME } from './migrations';
-import type { Player, SpecialGameTypes } from '../types';
-import { ROUND_TYPES, orderedTypes } from './roundTypes';
+import type { Player, RoundPlan } from '../types';
+import { ROUND_TYPES } from './roundTypes';
+import type { SpecialGameTypes } from './legacySpecialTypes';
+import { orderedTypes } from './legacySpecialTypes';
+import { PLAN_SLOTS } from './roundPlan';
 
 const seed = (obj: Record<string, unknown>) => {
   localStorage.clear();
@@ -199,5 +202,104 @@ describe('runMigrations — special game types', () => {
     runMigrations();
     const cfg = read<SpecialGameTypes>(KEYS.specialTypes);
     expect(orderedTypes(cfg)).toEqual(['mixed', 'skill', 'gendered']);
+  });
+});
+
+/**
+ * The frequencies above are now this migration's input, not its output. What a
+ * host actually gets is a plan: one entry per round saying what that round is
+ * played as, derived once from whatever they had already set, so nobody's
+ * session changes shape on upgrade.
+ */
+describe('runMigrations — the round plan', () => {
+  it('lays a legacy frequency out over the rounds it would have landed on', () => {
+    seed({
+      [KEYS.numRounds]: 8,
+      [KEYS.specialTypes]: {
+        gendered: { enabled: true, frequency: 2, order: 0 },
+        mixed: { enabled: false, frequency: 2, order: 1 },
+        skill: { enabled: false, frequency: 2, order: 2 },
+      },
+    });
+    runMigrations();
+    expect(read<RoundPlan>(KEYS.roundPlan).slice(0, 8)).toEqual([
+      null, 'gendered', null, 'gendered', null, 'gendered', null, 'gendered',
+    ]);
+  });
+
+  // Sixteen whatever the session's length, because the stepper goes to 16 and
+  // the plan is never truncated. Planning further ahead than the host asked
+  // for is safe: the old machine only ever looked forwards.
+  it('plans all sixteen slots for a session of eight rounds', () => {
+    seed({
+      [KEYS.numRounds]: 8,
+      [KEYS.specialTypes]: {
+        gendered: { enabled: true, frequency: 4, order: 0 },
+        mixed: { enabled: false, frequency: 2, order: 1 },
+        skill: { enabled: false, frequency: 2, order: 2 },
+      },
+    });
+    runMigrations();
+    const plan = read<RoundPlan>(KEYS.roundPlan);
+    expect(plan).toHaveLength(PLAN_SLOTS);
+    expect(plan[11]).toBe('gendered');
+  });
+
+  it('gives a first-time user sixteen ordinary rounds', () => {
+    runMigrations();
+    expect(read<RoundPlan>(KEYS.roundPlan)).toEqual(Array(PLAN_SLOTS).fill(null));
+  });
+
+  it('leaves a plan the host already has alone', () => {
+    const mine: RoundPlan = ['mixed', null, null, null];
+    seed({ [KEYS.roundPlan]: mine });
+    runMigrations();
+    expect(read<RoundPlan>(KEYS.roundPlan)).toEqual(mine);
+  });
+
+  /**
+   * A parked group carries its own courts, rounds and round types, so a group
+   * restored without a plan would quietly become all-ordinary however the host
+   * had set it up. Each one's plan comes off its own settings and its own
+   * round count, not the live slot's.
+   */
+  it('gives every parked group a plan off its own settings', () => {
+    seed({
+      [KEYS.numRounds]: 8,
+      [KEYS.specialTypes]: {
+        gendered: { enabled: false, frequency: 2, order: 0 },
+        mixed: { enabled: false, frequency: 2, order: 1 },
+        skill: { enabled: false, frequency: 2, order: 2 },
+      },
+      [KEYS.groupSessions]: {
+        tuesday: {
+          numRounds: 6,
+          specialTypes: {
+            gendered: { enabled: false, frequency: 2, order: 0 },
+            mixed: { enabled: true, frequency: 3, order: 1 },
+            skill: { enabled: false, frequency: 2, order: 2 },
+          },
+        },
+      },
+    });
+    runMigrations();
+
+    const parked = read<Record<string, { roundPlan: RoundPlan }>>(KEYS.groupSessions);
+    expect(parked.tuesday.roundPlan.slice(0, 6)).toEqual([
+      null, null, 'mixed', null, null, 'mixed',
+    ]);
+    // And the live slot kept its own answer, which is nothing at all.
+    expect(read<RoundPlan>(KEYS.roundPlan)).toEqual(Array(PLAN_SLOTS).fill(null));
+  });
+
+  it('leaves a parked group that already has a plan alone', () => {
+    seed({
+      [KEYS.groupSessions]: {
+        tuesday: { numRounds: 6, roundPlan: ['skill', null] },
+      },
+    });
+    runMigrations();
+    const parked = read<Record<string, { roundPlan: RoundPlan }>>(KEYS.groupSessions);
+    expect(parked.tuesday.roundPlan).toEqual(['skill', null]);
   });
 });

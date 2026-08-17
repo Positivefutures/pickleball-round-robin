@@ -1,12 +1,11 @@
 import type {
   Player, CourtAssignment, Round, Schedule, PairingHistory, LockedPair, Partnership,
-  RoundType, SpecialGameTypes,
+  RoundType, RoundPlan,
 } from '../types';
 import { determineSitOuts } from './sitout';
 import { partnerKey } from './partnerships';
-import {
-  ROUND_TYPES, DEFAULT_SPECIAL_TYPES, courtMatchesType, planRoundTypes, roundTypeOf,
-} from './roundTypes';
+import { ROUND_TYPES, courtMatchesType, roundTypeOf } from './roundTypes';
+import { planAt } from './roundPlan';
 import { findSpecialAssignment, partnershipFitsType } from './specialRounds';
 import {
   fixtureList,
@@ -308,18 +307,17 @@ export function generateSchedule(
   players: Player[],
   numCourts: number,
   numRounds: number,
-  specialTypes: SpecialGameTypes = DEFAULT_SPECIAL_TYPES,
+  plan: RoundPlan = [],
   partnerships: Partnership[] = []
 ): Schedule {
   const history = initHistory(players);
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
-  const plan = planRoundTypes(specialTypes, numRounds);
   const rounds: Round[] = [];
   let previousSitOutIds: Set<string> | undefined;
 
   for (let r = 1; r <= numRounds; r++) {
     const round = buildRound(r, players, effectiveCourts, history, {
-      roundType: plan[r - 1],
+      roundType: planAt(plan, r),
       partnerships,
       previousSitOutIds,
     });
@@ -346,7 +344,7 @@ export function regenerateRemaining(
   numCourts: number,
   allRounds: Round[],
   completedRoundNumbers: number[],
-  specialTypes: SpecialGameTypes = DEFAULT_SPECIAL_TYPES,
+  plan: RoundPlan = [],
   partnerships: Partnership[] = [],
   locks: Record<number, LockedPair[]> = {},
   brokenPairs: Record<number, string[]> = {}
@@ -383,7 +381,6 @@ export function regenerateRemaining(
     : undefined;
 
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
-  const plan = planRoundTypes(specialTypes, allRounds.length);
 
   const rounds = allRounds.map((r, roundIdx) => {
     if (completedSet.has(r.roundNumber)) return r; // keep verbatim
@@ -395,7 +392,7 @@ export function regenerateRemaining(
     );
 
     const round = buildRound(r.roundNumber, players, effectiveCourts, history, {
-      roundType: plan[r.roundNumber - 1] ?? null,
+      roundType: planAt(plan, r.roundNumber),
       roundLocks: locks[roundIdx] || [],
       partnerships: roundPartnerships,
       previousSitOutIds,
@@ -416,16 +413,21 @@ export function regenerateRemaining(
  * nine carries on from round eight rather than starting the morning again.
  *
  * It is regenerateRemaining() with every existing round declared complete, which
- * is exactly what "leave those alone and plan around them" means here. Special
- * round types line up because planRoundTypes() only ever looks forwards, so
- * planning for ten rounds agrees with planning for eight on the first eight.
+ * is exactly what "leave those alone and plan around them" means here.
+ *
+ * There is nothing to reconcile about the round types any more. The plan says
+ * what each round number is played as and the new rounds read the slots at
+ * their own numbers, so round nine is whatever the host set round nine to —
+ * ordinary, unless they have said otherwise. The old frequency machine would
+ * have carried a cadence forward and could make round nine gendered on its own;
+ * an explicit plan cannot, and should not.
  */
 export function extendSchedule(
   players: Player[],
   numCourts: number,
   rounds: Round[],
   extraRounds: number,
-  specialTypes: SpecialGameTypes = DEFAULT_SPECIAL_TYPES,
+  plan: RoundPlan = [],
   partnerships: Partnership[] = []
 ): Schedule {
   if (extraRounds < 1) return { rounds };
@@ -441,7 +443,7 @@ export function extendSchedule(
     numCourts,
     [...rounds, ...stubs],
     rounds.map((r) => r.roundNumber),
-    specialTypes,
+    plan,
     partnerships
   );
 }

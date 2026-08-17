@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Player, Roster, SpecialGameTypes } from '../types';
+import type { Player, Roster } from '../types';
 import { ACCOUNTS_ENABLED } from './appInfo';
 import { authStore, initAuth } from './auth';
 import { EMPTY_GROUP_NAME } from './migrations';
@@ -18,6 +18,7 @@ import {
   type Row,
   type SyncTable
 } from './outbox';
+import { normalizeRoundPlan } from './roundPlan';
 import { createStoredValue, type StoredValue } from './store';
 import * as stores from './stores';
 import { planMerge, remapSession, remapParked, type Snapshot } from './syncMerge';
@@ -178,7 +179,14 @@ function preferencesRow(at: string): Row {
     num_courts: stores.numCourts.get(),
     num_rounds: stores.numRounds.get(),
     large_text: stores.largeText.get(),
-    special_types: stores.specialTypes.get(),
+    // Still sent, never read back. See stores.legacySpecialTypes: it keeps the
+    // account's copy of the retired frequency settings current for one release,
+    // so a build rolled back to the old panel finds them where it left them.
+    special_types: stores.legacySpecialTypes.get(),
+    // What each round is played as. Added by
+    // supabase/migrations/0008_round_plan.sql, and subject to exactly the
+    // PGRST204 hazard described below it.
+    round_plan: stores.roundPlan.get(),
     // Held back from the scoring release on purpose: preferences has fixed
     // columns, so this needed an alter table run before any client could send
     // it. That SQL is supabase/migrations/0005_live_sessions.sql. Sending this
@@ -263,7 +271,7 @@ function startTracking() {
     stores.numCourts,
     stores.numRounds,
     stores.largeText,
-    stores.specialTypes,
+    stores.roundPlan,
     // Both of these were being sent in the row but not watched, so changing one
     // on its own pushed nothing: it sat on the device until some other
     // preference happened to change and carried it along. For scoring that is
@@ -636,7 +644,7 @@ function applyPreferences(row: Row, starting = false) {
     num_courts,
     num_rounds,
     large_text,
-    special_types,
+    round_plan,
     scoring_enabled,
     swap_hint_dismissed
   } = row;
@@ -666,8 +674,11 @@ function applyPreferences(row: Row, starting = false) {
   if (typeof num_courts === 'number') stores.numCourts.set(num_courts);
   if (typeof num_rounds === 'number') stores.numRounds.set(num_rounds);
   if (typeof scoring_enabled === 'boolean') stores.scoringEnabled.set(scoring_enabled);
-  if (special_types && typeof special_types === 'object') {
-    stores.specialTypes.set(special_types as SpecialGameTypes);
+  // Array.isArray rather than a truthiness check: this arrives from an account
+  // another device wrote, and normalizeRoundPlan can only defend the entries
+  // once it has a list to walk.
+  if (Array.isArray(round_plan)) {
+    stores.roundPlan.set(normalizeRoundPlan(round_plan));
   }
 }
 

@@ -525,6 +525,41 @@ export function TipIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * An i in a circle. Marks a button that only explains something.
+ *
+ * Not TipIcon, which is a lit bulb and says "here is an idea you might not have
+ * had". This one sits beside a heading the host is about to use and offers the
+ * definitions behind it, which is a different promise.
+ */
+export function InfoIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1.1 2.6a1.35 1.35 0 1 1 2.2 0 1.35 1.35 0 0 1-2.2 0zM11 10.5h2v7h-2z" />
+    </Solid>
+  );
+}
+
+/**
+ * Six dots in two columns: the grip on a row that can be dragged.
+ *
+ * The one thing on this app anybody picks up and moves, so it is worth the
+ * convention rather than an arrow of its own invention. It is decoration — the
+ * button around it carries the label and the keys.
+ */
+export function DragHandleIcon({ className }: { className?: string }) {
+  return (
+    <Solid className={className}>
+      <circle cx="9" cy="6" r="1.6" />
+      <circle cx="15" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" />
+      <circle cx="15" cy="18" r="1.6" />
+    </Solid>
+  );
+}
+
 /** A chevron pointing down. Marks a control that opens something. */
 export function ChevronDownIcon({ className }: { className?: string }) {
   return (

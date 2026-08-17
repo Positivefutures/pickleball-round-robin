@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import type { Player, Partnership, RoundType, SpecialGameTypes, SpecialTypeSetting } from '../../types';
+import type { Player, Partnership, RoundPlan } from '../../types';
 import { PlayerSelector } from './PlayerSelector';
 import { PartnerPairing } from './PartnerPairing';
 import { PartnerPlayNotice } from './PartnerPlayNotice';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
-import { SpecialTypesPanel } from './SpecialTypesPanel';
+import { GameTypesInfoPanel } from './GameTypesInfoPanel';
 import { LinkIcon } from '../icons';
 import { resolvePairs } from '../../lib/partnerships';
 import { minPlayersForCourts } from '../../lib/assign';
@@ -17,7 +17,9 @@ interface Props {
   partnerships: Partnership[];
   numCourts: number;
   numRounds: number;
-  specialTypes: SpecialGameTypes;
+  roundPlan: RoundPlan;
+  /** Rounds already marked complete, which the planner locks. */
+  completedRounds: number[];
   scoringEnabled: boolean;
   onScoringChange: (on: boolean) => void;
   onTogglePlayer: (id: string) => void;
@@ -29,8 +31,8 @@ interface Props {
   onClearPartnerships: () => void;
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
-  onSpecialTypeChange: (type: RoundType, patch: Partial<SpecialTypeSetting>) => void;
-  onSpecialTypeMove: (type: RoundType, direction: -1 | 1) => void;
+  /** Done on the game types list: the whole plan, once, from the draft. */
+  onPlanCommit: (next: RoundPlan) => void;
   /**
    * Set when the host has just pressed a Schedule tab that could not take them
    * there. The setup has moved on from the schedule they made, so the only way
@@ -47,7 +49,8 @@ export function SetupPage({
   partnerships,
   numCourts,
   numRounds,
-  specialTypes,
+  roundPlan,
+  completedRounds,
   scoringEnabled,
   onScoringChange,
   onTogglePlayer,
@@ -58,19 +61,27 @@ export function SetupPage({
   onClearPartnerships,
   onCourtsChange,
   onRoundsChange,
-  onSpecialTypeChange,
-  onSpecialTypeMove,
+  onPlanCommit,
   promptGenerate = false,
   onGenerate,
 }: Props) {
   const [showError, setShowError] = useState(false);
   const [mode, setMode] = useState<'select' | 'pair'>('select');
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [specialTypesOpen, setSpecialTypesOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  /**
+   * Whether the game types list is open.
+   *
+   * Here rather than in a store, which is what makes "collapsed again when they
+   * come back" free: App mounts this page only while the Setup tab is showing,
+   * so leaving the tab unmounts it and this goes with it.
+   */
+  const [plannerOpen, setPlannerOpen] = useState(false);
 
   // Hold the page still behind the panel, so Setup is exactly where it was
-  // when Done closes it.
-  useScrollLock(specialTypesOpen);
+  // when Done closes it. Not for the list, which is inline and has to scroll
+  // with the page — sixteen rounds are taller than a phone.
+  useScrollLock(infoOpen);
 
   // Not four a court any more: the last court will play a 2v1 or a game of
   // singles rather than send anybody home. What it will not do is put one person
@@ -202,8 +213,12 @@ export function SetupPage({
             onCourtsChange={onCourtsChange}
             onRoundsChange={onRoundsChange}
             numPlayers={selectedIds.length}
-            specialTypes={specialTypes}
-            onOpenSpecialTypes={() => setSpecialTypesOpen(true)}
+            roundPlan={roundPlan}
+            lockedRounds={completedRounds}
+            expanded={plannerOpen}
+            onToggleExpanded={() => setPlannerOpen((open) => !open)}
+            onOpenInfo={() => setInfoOpen(true)}
+            onPlanCommit={onPlanCommit}
             scoringEnabled={scoringEnabled}
             onScoringChange={onScoringChange}
           />
@@ -269,14 +284,7 @@ export function SetupPage({
 
       {makeButtonRow()}
 
-      {specialTypesOpen && (
-        <SpecialTypesPanel
-          specialTypes={specialTypes}
-          onChange={onSpecialTypeChange}
-          onMove={onSpecialTypeMove}
-          onClose={() => setSpecialTypesOpen(false)}
-        />
-      )}
+      {infoOpen && <GameTypesInfoPanel onClose={() => setInfoOpen(false)} />}
     </div>
   );
 }

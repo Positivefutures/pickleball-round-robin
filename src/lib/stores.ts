@@ -1,4 +1,5 @@
-import type { Player, Roster, Schedule, Partnership, SpecialGameTypes } from '../types';
+import type { Player, Roster, Schedule, Partnership, RoundPlan } from '../types';
+import type { SpecialGameTypes } from './legacySpecialTypes';
 import type { Step } from './steps';
 import type { GroupSession } from './groupSessions';
 import type { ExampleMeta } from './exampleGroup';
@@ -6,7 +7,8 @@ import type { RoundTimerState } from './roundTimerState';
 import { createStoredValue } from './store';
 import { DEFAULT_COURTS } from './assign';
 import { KEYS, EMPTY_GROUP_NAME } from './migrations';
-import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
+import { DEFAULT_SPECIAL_TYPES } from './legacySpecialTypes';
+import { emptyPlan } from './roundPlan';
 // From roundTimerState rather than from roundTimer, which imports this file:
 // a cycle here seeds the store with `undefined` whenever the graph happens to
 // reach the timer first. See roundTimerState.ts.
@@ -56,7 +58,7 @@ export const largeText = createStoredValue<boolean>('pb-large-text', false);
 // is here, which is the last thing the host used.
 
 export const numCourts = createStoredValue('pb-num-courts', DEFAULT_COURTS);
-export const numRounds = createStoredValue('pb-num-rounds', 8);
+export const numRounds = createStoredValue(KEYS.numRounds, 8);
 
 /**
  * Whether courts carry a scoreboard.
@@ -66,8 +68,29 @@ export const numRounds = createStoredValue('pb-num-rounds', 8);
  */
 export const scoringEnabled = createStoredValue<boolean>('pb-scoring-enabled', false);
 
-/** Gendered, mixed and equal-skill rounds, each with its own frequency. */
-export const specialTypes = createStoredValue<SpecialGameTypes>(
+/**
+ * What each round is played as: gendered, mixed, equal-skill, or an ordinary
+ * round robin. One entry per round from round 1, set by the host in Setup.
+ *
+ * Sixteen slots whether the session is four rounds or sixteen. The list only
+ * ever draws as many as the session has, and keeping the rest means a host who
+ * shortens the afternoon and changes their mind gets their plan back rather
+ * than a row of blanks. See lib/roundPlan.ts.
+ */
+export const roundPlan = createStoredValue<RoundPlan>(KEYS.roundPlan, emptyPlan);
+
+/**
+ * The retired frequency settings, kept only so a rollback lands somewhere.
+ *
+ * Nothing in the app writes this any more — the plan above replaced it, and
+ * runMigrations() reads this one to derive a host's first plan. It survives
+ * here because sync still sends the column for this release: dropping it from
+ * the row would leave the account's copy at whatever it held, but a build
+ * rolled back to the old panel would then read a stale config and quietly plan
+ * a different afternoon. Delete this, the column and the key together, one
+ * release after the planner has stuck.
+ */
+export const legacySpecialTypes = createStoredValue<SpecialGameTypes>(
   KEYS.specialTypes,
   DEFAULT_SPECIAL_TYPES
 );

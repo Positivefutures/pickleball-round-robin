@@ -1,6 +1,12 @@
-import type { Player, Roster, SpecialGameTypes } from '../types';
+import type { Player, Roster } from '../types';
+import type { SpecialGameTypes } from './legacySpecialTypes';
 import { generateId } from '../utils/helpers';
-import { DEFAULT_SPECIAL_TYPES, normalizeSpecialTypes } from './roundTypes';
+import {
+  DEFAULT_SPECIAL_TYPES,
+  normalizeSpecialTypes,
+  planRoundTypes,
+} from './legacySpecialTypes';
+import { PLAN_SLOTS, normalizeRoundPlan } from './roundPlan';
 import { EXAMPLE_GROUP_NAME, buildExamplePlayers } from './exampleGroup';
 
 export const KEYS = {
@@ -12,7 +18,10 @@ export const KEYS = {
   completedRounds: 'pb-completed-rounds',
   legacyCompletedThrough: 'pb-completed-through',
   partnerships: 'pb-partnerships',
+  numRounds: 'pb-num-rounds',
+  roundPlan: 'pb-round-plan',
   specialTypes: 'pb-special-types',
+  groupSessions: 'pb-group-sessions',
   legacyGenderedEnabled: 'pb-gendered-enabled',
   legacyGenderedFrequency: 'pb-gendered-frequency',
   exampleMeta: 'pb-example-meta',
@@ -134,4 +143,60 @@ export function runMigrations() {
     const stored = read<SpecialGameTypes>(KEYS.specialTypes, DEFAULT_SPECIAL_TYPES);
     write(KEYS.specialTypes, normalizeSpecialTypes({ ...DEFAULT_SPECIAL_TYPES, ...stored }));
   }
+
+  // The three frequencies above are now only an input. What the host sets is a
+  // plan: one entry per round saying what that round is played as. Derive their
+  // first one from the frequencies they had already chosen, so nobody's session
+  // changes shape on upgrade — every round that was going to be gendered still
+  // is, on the same round number.
+  //
+  // Planned for 16 slots whatever the session's length, because the plan is
+  // never truncated and the stepper stops at 16. Planning further ahead than
+  // the host asked for is safe: planRoundTypes only ever looks forwards, which
+  // is what extendSchedule already relied on.
+  if (window.localStorage.getItem(KEYS.roundPlan) === null) {
+    write(
+      KEYS.roundPlan,
+      planFrom(
+        read<SpecialGameTypes>(KEYS.specialTypes, DEFAULT_SPECIAL_TYPES),
+        read<number>(KEYS.numRounds, 8)
+      )
+    );
+  }
+
+  migrateParkedGroups();
+}
+
+/** One host's frequency settings, as the plan they were describing. */
+function planFrom(raw: Partial<SpecialGameTypes> | undefined, numRounds: number) {
+  const cfg = normalizeSpecialTypes({ ...DEFAULT_SPECIAL_TYPES, ...(raw ?? {}) });
+  return normalizeRoundPlan(planRoundTypes(cfg, Math.max(PLAN_SLOTS, numRounds)));
+}
+
+/**
+ * The same pass over every group the host is not looking at.
+ *
+ * Each parked group carries its own courts, rounds and round types — see
+ * groupSessions.ts — so a group restored without a plan of its own would
+ * quietly become all-ordinary, however the host had set it up. Each one's plan
+ * comes from its own settings and its own round count, not the live slot's.
+ */
+function migrateParkedGroups() {
+  const parked = read<Record<string, Record<string, unknown>>>(KEYS.groupSessions, {});
+  let changed = false;
+  const next: Record<string, Record<string, unknown>> = {};
+  for (const [id, session] of Object.entries(parked)) {
+    if (!session || typeof session !== 'object' || Array.isArray(session)) continue;
+    if (session.roundPlan !== undefined) {
+      next[id] = session;
+      continue;
+    }
+    changed = true;
+    const rounds = typeof session.numRounds === 'number' ? session.numRounds : 8;
+    next[id] = {
+      ...session,
+      roundPlan: planFrom(session.specialTypes as Partial<SpecialGameTypes> | undefined, rounds),
+    };
+  }
+  if (changed) write(KEYS.groupSessions, next);
 }

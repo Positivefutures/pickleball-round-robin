@@ -55,18 +55,17 @@ export interface CourtAssignment {
 // robin. A round is at most one of them.
 export type RoundType = 'gendered' | 'mixed' | 'skill';
 
-export interface SpecialTypeSetting {
-  enabled: boolean;
-  /** Play this type on round 1 and every N rounds after. */
-  frequency: number;
-  /**
-   * Where the host has placed this type in the panel, 0 first. Settles which
-   * type takes a round two of them both fall due on.
-   */
-  order: number;
-}
-
-export type SpecialGameTypes = Record<RoundType, SpecialTypeSetting>;
+/**
+ * What each round is played as, indexed from 0 for round 1. `null` is an
+ * ordinary round robin.
+ *
+ * A plain array, because the host reorders this list by dragging a round up or
+ * down and an array *is* a permutation. It is kept at a fixed 16 slots and
+ * never truncated to the session's length — dropping to 4 rounds and back to 8
+ * restores rounds 5-8 exactly, because the tail was never thrown away. Read it
+ * through `planAt` in lib/roundPlan.ts, which answers `null` off the end.
+ */
+export type RoundPlan = (RoundType | null)[];
 
 export interface Round {
   roundNumber: number;

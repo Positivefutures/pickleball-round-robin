@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule } from './pairing';
 import { partnershipFitsType } from './specialRounds';
-import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
+import { PLAN_SLOTS } from './roundPlan';
 import type {
-  CourtAssignment, Gender, Partnership, Player, Round, RoundType, SpecialGameTypes,
+  CourtAssignment, Gender, Partnership, Player, Round, RoundPlan, RoundType,
 } from '../types';
 
 /** Every round is this type, so a short schedule exercises it repeatedly. */
-function everyRound(type: RoundType): SpecialGameTypes {
-  return { ...DEFAULT_SPECIAL_TYPES, [type]: { enabled: true, frequency: 1 } };
+function everyRound(type: RoundType): RoundPlan {
+  return Array<RoundType | null>(PLAN_SLOTS).fill(type);
 }
 
 /** `men` men then `women` women, all on the same rating unless one is given. */
@@ -210,13 +210,10 @@ describe('Set Partners against a special game type', () => {
   });
 
   it('puts a couple back together on the ordinary rounds either side', () => {
-    const specials: SpecialGameTypes = {
-      ...DEFAULT_SPECIAL_TYPES,
-      gendered: { enabled: true, frequency: 2 },
-    };
-    // Every 2 rounds means the second one, so gendered lands on 2 and 4 and the
-    // ordinary rounds either side of it are 1 and 3.
-    const s = generateSchedule(roster(8, 8), 4, 4, specials, couple(0, 8));
+    // Gendered on rounds 2 and 4, so the ordinary rounds either side of the
+    // first one are 1 and 3.
+    const plan: RoundPlan = [null, 'gendered', null, 'gendered'];
+    const s = generateSchedule(roster(8, 8), 4, 4, plan, couple(0, 8));
     expect(s.rounds[1].roundType).toBe('gendered');
     expect(s.rounds[0].roundType).toBeUndefined();
     expect(together(s.rounds[0], 'p0', 'p8')).toBe(true);

@@ -38,9 +38,9 @@
 import { appendFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
 import { generateSchedule } from './pairing';
-import { DEFAULT_SPECIAL_TYPES, courtMatchesType, roundTypeOf } from './roundTypes';
+import { courtMatchesType, roundTypeOf } from './roundTypes';
 import type {
-  Player, Round, RoundType, Schedule, SpecialGameTypes, Partnership,
+  Player, Round, RoundPlan, RoundType, Schedule, Partnership,
 } from '../types';
 
 const PER_CONFIG = 25;
@@ -60,12 +60,16 @@ function makeLevelPlayers(n: number): Player[] {
 
 const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
-function specials(cfg: Partial<Record<RoundType, number>>): SpecialGameTypes {
-  const out = structuredClone(DEFAULT_SPECIAL_TYPES);
-  for (const [t, freq] of Object.entries(cfg)) {
-    out[t as RoundType] = { ...out[t as RoundType], enabled: true, frequency: freq };
-  }
-  return out;
+/**
+ * Rounds n, 2n, 3n and so on played as `type`, the rest ordinary.
+ *
+ * The configs below used to be written as frequencies and turned into a plan by
+ * the app. The app takes the plan itself now, so the harness spells it out —
+ * and these spell out exactly what the old frequencies produced, because the
+ * numbers in `MEASURE.md` are only comparable if the schedules are.
+ */
+function everyNth(type: RoundType, n: number, rounds: number): RoundPlan {
+  return Array.from({ length: rounds }, (_, i) => ((i + 1) % n === 0 ? type : null));
 }
 
 interface RepeatStats {
@@ -233,9 +237,20 @@ interface Config {
   players: Player[];
   courts: number;
   rounds: number;
-  types?: SpecialGameTypes;
+  plan?: RoundPlan;
   partnerships?: Partnership[];
 }
+
+/**
+ * Gendered every 2 with equal skill every 3, as the retired frequency machine
+ * laid it out: the rarer type took a round they both fell due on and the other
+ * slid to the next one. Written out because nothing works it out any more, and
+ * this run has to stay the same run.
+ */
+const GENDERED_Q2_SKILL_Q3: RoundPlan = [
+  null, 'gendered', 'skill', 'gendered', null, 'skill',
+  'gendered', null, 'skill', 'gendered', null, 'skill',
+];
 
 const CONFIGS: Config[] = [
   { label: '12p/3c/12r normal', players: makePlayers(12), courts: 3, rounds: 12 },
@@ -247,9 +262,9 @@ const CONFIGS: Config[] = [
   { label: '16p/4c/8r normal', players: makePlayers(16), courts: 4, rounds: 8 },
   // Added after the baseline run: exercises the 2v1 short court.
   { label: '11p/3c/12r short court', players: makePlayers(11), courts: 3, rounds: 12 },
-  { label: '12p/3c/12r gendered q2', players: makePlayers(12), courts: 3, rounds: 12, types: specials({ gendered: 2 }) },
-  { label: '13p/3c/12r mixed q2', players: makePlayers(13), courts: 3, rounds: 12, types: specials({ mixed: 2 }) },
-  { label: '12p/3c/12r gendered q2 + skill q3', players: makePlayers(12), courts: 3, rounds: 12, types: specials({ gendered: 2, skill: 3 }) },
+  { label: '12p/3c/12r gendered q2', players: makePlayers(12), courts: 3, rounds: 12, plan: everyNth('gendered', 2, 12) },
+  { label: '13p/3c/12r mixed q2', players: makePlayers(13), courts: 3, rounds: 12, plan: everyNth('mixed', 2, 12) },
+  { label: '12p/3c/12r gendered q2 + skill q3', players: makePlayers(12), courts: 3, rounds: 12, plan: GENDERED_Q2_SKILL_Q3 },
   {
     label: '12p/3c/8r two couples',
     players: makePlayers(12),
@@ -279,7 +294,7 @@ describe.runIf(process.env.MEASURE === '1')('schedule quality measurement', () =
       for (let i = 0; i < PER_CONFIG; i++) {
         schedules.push(generateSchedule(
           cfg.players, cfg.courts, cfg.rounds,
-          cfg.types ?? DEFAULT_SPECIAL_TYPES, cfg.partnerships ?? []
+          cfg.plan ?? [], cfg.partnerships ?? []
         ));
       }
 

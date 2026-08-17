@@ -21,10 +21,9 @@ import { DefaultRatingPanel } from './layout/DefaultRatingPanel';
 import { ImportExportPanel } from './layout/ImportExportPanel';
 import { InstallPanel } from './layout/InstallPanel';
 import { SettingsPanel } from './layout/SettingsPanel';
-import { SpecialTypesPanel } from './setup/SpecialTypesPanel';
+import { GameTypesInfoPanel } from './setup/GameTypesInfoPanel';
 import { PartnerPairing } from './setup/PartnerPairing';
 import { CourtIcon, LinkIcon, StarIcon, TwoArrowsIcon } from './icons';
-import { DEFAULT_SPECIAL_TYPES } from '../lib/roundTypes';
 import type { Player } from '../types';
 
 declare global {
@@ -102,27 +101,17 @@ describe('Import / Export Groups', () => {
   });
 });
 
-describe('Special Game Types', () => {
+describe('Game Types', () => {
   it('opens with the court', () => {
     mount(
-      createElement(SpecialTypesPanel, {
-        specialTypes: DEFAULT_SPECIAL_TYPES,
-        onChange: noop,
-        onMove: noop,
-        onClose: noop,
-      })
+      createElement(GameTypesInfoPanel, { onClose: noop })
     );
     expect(draws(CourtIcon)).toBe(true);
   });
 
   it('lays that court on its side, so it is not the one on the buttons', () => {
     mount(
-      createElement(SpecialTypesPanel, {
-        specialTypes: DEFAULT_SPECIAL_TYPES,
-        onChange: noop,
-        onMove: noop,
-        onClose: noop,
-      })
+      createElement(GameTypesInfoPanel, { onClose: noop })
     );
     expect(opener()?.getAttribute('class')).toContain('rotate-90');
   });
@@ -215,12 +204,7 @@ describe('the glyph itself', () => {
 describe('the game type symbols', () => {
   function heading(title: string): Element {
     mount(
-      createElement(SpecialTypesPanel, {
-        specialTypes: DEFAULT_SPECIAL_TYPES,
-        onChange: noop,
-        onMove: noop,
-        onClose: noop,
-      })
+      createElement(GameTypesInfoPanel, { onClose: noop })
     );
     const found = [...container.querySelectorAll('h3')].find((h) =>
       (h.textContent ?? '').includes(title)

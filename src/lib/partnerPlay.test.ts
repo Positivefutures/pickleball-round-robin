@@ -272,11 +272,7 @@ describe('what partner play stands down for', () => {
       players,
       4,
       8,
-      {
-        gendered: { enabled: true, frequency: 8, order: 0 },
-        mixed: { enabled: false, frequency: 2, order: 1 },
-        skill: { enabled: false, frequency: 2, order: 2 },
-      },
+      [null, null, null, null, null, null, null, 'gendered'],
       partnerships
     );
 

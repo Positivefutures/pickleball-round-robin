@@ -1,5 +1,6 @@
-import type { Partnership, Player, Schedule, SpecialGameTypes } from '../types';
+import type { Partnership, Player, RoundPlan, Schedule } from '../types';
 import { roundTypeOf } from './roundTypes';
+import { planKey } from './roundPlan';
 import { prunePartnerships } from './partnerships';
 
 /**
@@ -27,7 +28,7 @@ export interface BasisInput {
   partnerships: Partnership[];
   numCourts: number;
   numRounds: number;
-  specialTypes: SpecialGameTypes;
+  roundPlan: RoundPlan;
   schedule: Schedule | null;
 }
 
@@ -54,17 +55,6 @@ function couples(partnerships: Partnership[], attending: Player[]): string {
   return prunePartnerships(partnerships, playing)
     .map((p) => [p.player1Id, p.player2Id].sort().join('+'))
     .sort()
-    .join(',');
-}
-
-/** Every round type and its setting, in a fixed order rather than key order. */
-function formats(types: SpecialGameTypes): string {
-  return Object.keys(types)
-    .sort()
-    .map((k) => {
-      const setting = types[k as keyof SpecialGameTypes];
-      return `${k}:${JSON.stringify(setting)}`;
-    })
     .join(',');
 }
 
@@ -121,7 +111,10 @@ export function basisKey(input: BasisInput): string {
     couples(input.partnerships, input.attending),
     String(input.numCourts),
     String(input.numRounds),
-    formats(input.specialTypes),
+    // Only as far as the session runs. A type left sitting in slot 10 of an
+    // eight-round session is a round nobody can see, and counting it here would
+    // shut the Schedule tab over a round the host cannot even look at.
+    planKey(input.roundPlan, input.numRounds),
     genders(input.attending, input.schedule),
   ].join('\n');
 }

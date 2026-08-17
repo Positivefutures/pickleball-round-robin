@@ -1,8 +1,10 @@
-import type { SpecialGameTypes } from '../../types';
-import { ROUND_TYPE_META, specialSummary } from '../../lib/roundTypes';
-import { BallIcon, ChevronLeftIcon, StepPlayersIcon } from '../icons';
+import type { RoundPlan } from '../../types';
+import { planChips } from '../../lib/roundPlan';
+import { ROUND_TYPE_META } from '../../lib/roundTypes';
+import { BallIcon, ChevronDownIcon, InfoIcon, StepPlayersIcon } from '../icons';
 import { Toggle } from '../Toggle';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
+import { GameTypePlanner } from './GameTypePlanner';
 
 /**
  * The Setup Round Robin panel, drawn from `INBOX/Setup-Round-Robin.png`.
@@ -102,8 +104,13 @@ interface Props {
   onCourtsChange: (n: number) => void;
   onRoundsChange: (n: number) => void;
   numPlayers: number;
-  specialTypes: SpecialGameTypes;
-  onOpenSpecialTypes: () => void;
+  roundPlan: RoundPlan;
+  /** Rounds already played. Locked in the list, and never rebuilt. */
+  lockedRounds: number[];
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onOpenInfo: () => void;
+  onPlanCommit: (next: RoundPlan) => void;
   scoringEnabled: boolean;
   onScoringChange: (on: boolean) => void;
 }
@@ -114,14 +121,18 @@ export function SessionConfig({
   onCourtsChange,
   onRoundsChange,
   numPlayers,
-  specialTypes,
-  onOpenSpecialTypes,
+  roundPlan,
+  lockedRounds,
+  expanded,
+  onToggleExpanded,
+  onOpenInfo,
+  onPlanCommit,
   scoringEnabled,
   onScoringChange,
 }: Props) {
   const spotsNeeded = numCourts * 4;
   const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
-  const specials = specialSummary(specialTypes, numRounds);
+  const chips = planChips(roundPlan, numRounds);
 
   return (
     <div className="space-y-4">
@@ -177,45 +188,77 @@ export function SessionConfig({
         </div>
       </div>
 
-      <div>
-        {/* Full width with the chevron at its right end, so it reads as a way
-            through to another panel rather than as something that happens here.
-            The old blue pill said neither. */}
-        {/* As wide as its own words, at the left. Full width it read as the
-            main thing on the panel, which the two numbers above it are. */}
-        <button
-          type="button"
-          onClick={onOpenSpecialTypes}
-          className="flex items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
-          style={{ borderColor: TEAL, color: TEAL }}
-        >
-          <BallIcon className="h-6 w-6" />
-          <span className="min-w-0 font-bold">Special Game Types</span>
-          <ChevronLeftIcon className="h-5 w-5 rotate-180" />
-        </button>
+      {/* Above the game types now. It is one switch with one answer, and it was
+          sitting under a list that can be sixteen rounds long. */}
+      <div className="flex items-center gap-4">
+        <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
+        <Toggle checked={scoringEnabled} onChange={onScoringChange} label="Keep Score?" />
+      </div>
 
-        {/* The chosen formats, in the same chips the round cards use for them,
-            so the same thing is the same colour in both places. No heading over
-            them: the button they sit under has already said what they are. The
-            rounds each one lands on are not listed here — that belongs to the
-            schedule, which is one tap away and says it per round. */}
-        {specials.length > 0 && (
+      <div>
+        <div className="flex items-center gap-1">
+          {/* As wide as its own words, at the left. Full width it read as the
+              main thing on the panel, which the two numbers above it are. The
+              chevron turns rather than pointing on: what it opens is right
+              here, not another panel. */}
+          <button
+            type="button"
+            onClick={onToggleExpanded}
+            aria-expanded={expanded}
+            className="flex items-center gap-3 rounded-xl border bg-[#FAFCFC] px-4 py-3 text-left transition-colors hover:bg-[#F1F8F9]"
+            style={{ borderColor: TEAL, color: TEAL }}
+          >
+            <BallIcon className="h-6 w-6" />
+            <span className="min-w-0 font-bold">Set Game Types</span>
+            {/* Down when there is something to open, up when it is open.
+                Not the chevron that points on to another panel: what this
+                opens is right underneath it. */}
+            <ChevronDownIcon
+              className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {/* Its own button, not part of the title: it explains the formats and
+              changes nothing, so pressing it must never be a way to open the
+              list by accident. 44px of target around a 20px glyph. */}
+          <button
+            type="button"
+            onClick={onOpenInfo}
+            aria-label="About game types"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#F1F8F9]"
+            style={{ color: TEAL }}
+          >
+            <InfoIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Which rounds are special, in the same chips the round cards use for
+            them, so the same thing is the same colour in both places. Only
+            worth saying while the list is shut: open, every row says it. */}
+        {!expanded && chips.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {specials.map((s) => (
+            {chips.map((chip) => (
               <span
-                key={s.type}
-                className={`rounded px-2 py-0.5 text-xs font-medium ${ROUND_TYPE_META[s.type].badgeClass}`}
+                key={chip.roundNumber}
+                className={`rounded px-2 py-0.5 text-xs font-medium ${ROUND_TYPE_META[chip.type].badgeClass}`}
               >
-                {s.headline}
+                {chip.label}
               </span>
             ))}
           </div>
         )}
-      </div>
 
-      <div className="flex items-center gap-4">
-        <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
-        <Toggle checked={scoringEnabled} onChange={onScoringChange} label="Keep Score?" />
+        {expanded && (
+          <GameTypePlanner
+            numRounds={numRounds}
+            plan={roundPlan}
+            lockedRounds={lockedRounds}
+            onCommit={(next) => {
+              onPlanCommit(next);
+              onToggleExpanded();
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import {
   useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore,
 } from 'react';
-import type { Gender, Player, Schedule, LockedPair, RoundType, SpecialTypeSetting } from './types';
+import type { Gender, Player, Schedule, LockedPair, RoundPlan } from './types';
 import { usePlayers } from './hooks/usePlayers';
 import { useRosters } from './hooks/useRosters';
 import { useStoredValue } from './hooks/useStoredValue';
@@ -16,7 +16,7 @@ import {
   prunePartnerships, arePartners, withSubbedPairs, transferPartnership,
 } from './lib/partnerships';
 import { basisKey, scheduleIsStale } from './lib/scheduleBasis';
-import { moveType, normalizeSpecialTypes } from './lib/roundTypes';
+import { normalizeRoundPlan, unplayedChanged } from './lib/roundPlan';
 import { PLAIN_ROBIN, openedSettings, warmRobin } from './lib/robins';
 import {
   toCsv, toGroupsCsv, parseGroupsCsv, uniqueGroupName, fileNameStem, toFileName,
@@ -107,7 +107,7 @@ function App() {
   const [defaultRating, setDefaultRating] = useStoredValue(stores.defaultRating);
   const [numCourts, setNumCourts] = useStoredValue(stores.numCourts);
   const [numRounds, setNumRounds] = useStoredValue(stores.numRounds);
-  const [specialTypes, setSpecialTypes] = useStoredValue(stores.specialTypes);
+  const [roundPlan, setRoundPlan] = useStoredValue(stores.roundPlan);
   const [scoringEnabled, setScoringEnabled] = useStoredValue(stores.scoringEnabled);
 
   // Live session state — persisted so a refresh mid-session doesn't lose the
@@ -542,24 +542,6 @@ function App() {
     [addRoster, allPlayers, addPlayersToRosters]
   );
 
-  const updateSpecialType = useCallback(
-    (type: RoundType, patch: Partial<SpecialTypeSetting>) => {
-      setSpecialTypes((prev) =>
-        normalizeSpecialTypes({ ...prev, [type]: { ...prev[type], ...patch } })
-      );
-    },
-    [setSpecialTypes]
-  );
-
-  // Where the host puts a type in the panel decides which of two that both fall
-  // due on the same round gets it.
-  const moveSpecialType = useCallback(
-    (type: RoundType, direction: -1 | 1) => {
-      setSpecialTypes((prev) => moveType(prev, type, direction));
-    },
-    [setSpecialTypes]
-  );
-
   /**
    * Everything the tour changes about the app, in one place.
    *
@@ -629,7 +611,7 @@ function App() {
     );
     setSchedule(
       generateSchedule(
-        attending, numCourts, numRounds, specialTypes, activePartnerships
+        attending, numCourts, numRounds, roundPlan, activePartnerships
       )
     );
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
@@ -649,7 +631,7 @@ function App() {
     // too few ticked for the courts — leaves the card where it was, with the
     // error underneath it saying why.
     if (tour?.id === 'select-players') nextCard();
-  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, specialTypes,
+  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, roundPlan,
       activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds,
       setScheduleEdited, setScheduleRosterId, setSessionId, setStep, setSubPartnerships]);
 
@@ -664,7 +646,7 @@ function App() {
     partnerships,
     numCourts,
     numRounds,
-    specialTypes,
+    roundPlan,
     schedule,
   };
 
@@ -685,7 +667,7 @@ function App() {
     // liveBasis is rebuilt every render from the values listed here
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, schedule, activeRosterId, selectedIds, removedIds, guests, allPlayers,
-      partnerships, numCourts, numRounds, specialTypes, scheduleBasis, setScheduleBasis]);
+      partnerships, numCourts, numRounds, roundPlan, scheduleBasis, setScheduleBasis]);
 
   /**
    * Whether the schedule still matches the session, and so whether the Schedule
@@ -784,7 +766,7 @@ function App() {
         schedule.rounds,
         regenerateRemaining(
           remaining, numCourts, schedule.rounds, completedRounds,
-          specialTypes, activePartnerships
+          roundPlan, activePartnerships
         ).rounds
       ),
     });
@@ -796,7 +778,7 @@ function App() {
       prev.filter((p) => p.player1Id !== playerId && p.player2Id !== playerId)
     );
     setScheduleEdited(true);
-  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, roundPlan,
       setSchedule, setRemovedIds, setScheduleEdited, setSubPartnerships]);
 
   /**
@@ -829,7 +811,7 @@ function App() {
           schedule.rounds,
           regenerateRemaining(
             remaining, numCourts, schedule.rounds, completedRounds,
-            specialTypes, activePartnerships
+            roundPlan, activePartnerships
           ).rounds
         ),
       };
@@ -845,7 +827,7 @@ function App() {
     deletePlayer(playerId);
     // liveBasis is rebuilt every render from values already in this list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, roundPlan,
       activeRosterId, numRounds, deletePlayer, setSchedule, setRemovedIds, setScheduleEdited,
       setScheduleBasis, setSubPartnerships]);
 
@@ -869,15 +851,70 @@ function App() {
         schedule.rounds,
         regenerateRemaining(
           attendingPlayers, numCourts, schedule.rounds, completedRounds,
-          specialTypes, activePartnerships, locks, brokenPairs
+          roundPlan, activePartnerships, locks, brokenPairs
         ).rounds
       ),
     });
     // The remaining rounds are machine-built again, so swaps are gone — but a
     // removal is still work that going back to Setup would throw away.
     setScheduleEdited(removedIds.length > 0);
-  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, specialTypes,
+  }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, roundPlan,
       removedIds, setSchedule, setScheduleEdited]);
+
+  /**
+   * Done, on the Set Game Types list.
+   *
+   * The planner holds a draft and this is the only thing that writes it down.
+   * That is not tidiness: `scheduleStale` is recomputed every render from
+   * `liveBasis`, so writing the store on each pill tap would drop the Schedule
+   * tab out of the tabs the host can reach and put it back on Done. They would
+   * watch their tab blink while they were choosing.
+   *
+   * Mid-session it rebuilds, and only the rounds nobody has played. Rounds
+   * marked complete are kept verbatim by regenerateRemaining, scores and all,
+   * so moving the gendered round from six to five costs nothing that has
+   * already happened. There is no "Replace the schedule?" question on this
+   * path, because the answer would always be yes: it is the change the host
+   * just made, not a rebuild they might not have meant.
+   *
+   * It does not go to the Schedule tab either. Returning to the schedule is the
+   * host tapping the tab, which this has just made sure is still open to them.
+   */
+  const handlePlanCommit = useCallback((next: RoundPlan) => {
+    setRoundPlan(next);
+    if (!schedule) return;
+    // Opened the list, had a look, pressed Done. The afternoon must not
+    // reshuffle for that, and neither must a change to a round already played.
+    if (!unplayedChanged(roundPlan, next, numRounds, completedRounds)) return;
+    if (attendingPlayers.length < 4) return;
+
+    const activePartnerships = prunePartnerships(
+      sessionPartnerships, new Set(attendingPlayers.map((p) => p.id))
+    );
+    const rebuilt = {
+      rounds: carryCourtNumbers(
+        schedule.rounds,
+        regenerateRemaining(
+          attendingPlayers, numCourts, schedule.rounds, completedRounds,
+          next, activePartnerships
+        ).rounds
+      ),
+    };
+    setSchedule(rebuilt);
+    // `next`, not the closed-over roundPlan: setRoundPlan above has not
+    // re-rendered yet, so the state in scope is still the plan the host
+    // started from. Write that key and it would disagree with the very next
+    // render's, and the Schedule tab would shut on a host mid-session — the
+    // same trick handleRosterDeletePlayer plays with `attending: remaining`.
+    setScheduleBasis(basisKey({ ...liveBasis, roundPlan: next, schedule: rebuilt }));
+    // The rounds still to come are machine-built again, so swaps are gone. A
+    // removal is still work, exactly as after a reshuffle.
+    setScheduleEdited(removedIds.length > 0);
+    // liveBasis is rebuilt every render from values already in this list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, roundPlan, numRounds, completedRounds, attendingPlayers, sessionPartnerships,
+      numCourts, removedIds, activeRosterId, partnerships, setRoundPlan, setSchedule,
+      setScheduleBasis, setScheduleEdited]);
 
   // Brings a latecomer into a session already under way. They land in the
   // sit-outs of every unplayed round, leaving those rounds' courts alone; the
@@ -1097,12 +1134,17 @@ function App() {
     );
     setSchedule(
       extendSchedule(
-        attendingPlayers, numCourts, schedule.rounds, count, specialTypes, activePartnerships
+        attendingPlayers, numCourts, schedule.rounds, count, roundPlan, activePartnerships
       )
     );
     setNumRounds(numRounds + count);
-  }, [schedule, attendingPlayers, sessionPartnerships, numCourts, numRounds, specialTypes,
-      setNumRounds, setSchedule]);
+    // The plan is sixteen slots and this is the one path that can take a
+    // session past them. Grown here so the new rounds have a row apiece in the
+    // planner rather than falling off the end of it; they are ordinary rounds
+    // until the host says otherwise.
+    setRoundPlan((prev) => normalizeRoundPlan(prev, numRounds + count));
+  }, [schedule, attendingPlayers, sessionPartnerships, numCourts, numRounds, roundPlan,
+      setNumRounds, setRoundPlan, setSchedule]);
 
   // Players who aren't in this session yet — including anyone removed from it
   // earlier or subbed off, since a player who left may well come back, and a
@@ -1443,7 +1485,8 @@ function App() {
             partnerships={partnerships}
             numCourts={numCourts}
             numRounds={numRounds}
-            specialTypes={specialTypes}
+            roundPlan={roundPlan}
+            completedRounds={completedRounds}
             scoringEnabled={scoringEnabled}
             onScoringChange={setScoringEnabled}
             onTogglePlayer={togglePlayer}
@@ -1454,8 +1497,7 @@ function App() {
             onClearPartnerships={clearPartnerships}
             onCourtsChange={setNumCourts}
             onRoundsChange={setNumRounds}
-            onSpecialTypeChange={updateSpecialType}
-            onSpecialTypeMove={moveSpecialType}
+            onPlanCommit={handlePlanCommit}
             promptGenerate={promptGenerate}
             onGenerate={requestGenerate}
           />

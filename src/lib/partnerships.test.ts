@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule, regenerateRemaining } from './pairing';
-import { DEFAULT_SPECIAL_TYPES } from './roundTypes';
 import {
   arePartners, partnerKey, prunePartnerships, partneredIds,
   withSubbedPairs, transferPartnership,
@@ -90,14 +89,14 @@ describe('generateSchedule with partnerships', () => {
   it('keeps every couple on the same team in every round', () => {
     const players = makePlayers(12);
     const partnerships = pairFirst(3); // 3 couples + 6 singles
-    const s = generateSchedule(players, 3, 8, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 3, 8, [], partnerships);
     expect(couplesAlwaysIntact(s, partnerships)).toBe(true);
   });
 
   it('all-couples night keeps everyone paired every round', () => {
     const players = makePlayers(12);
     const partnerships = pairFirst(6); // 6 couples, no singles
-    const s = generateSchedule(players, 3, 8, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 3, 8, [], partnerships);
     expect(couplesAlwaysIntact(s, partnerships)).toBe(true);
     for (const r of s.rounds) {
       expect(r.courts).toHaveLength(3);
@@ -110,7 +109,7 @@ describe('generateSchedule with partnerships', () => {
     const players = makePlayers(13);
     const partnerships = pairFirst(6);
     const single = players[12];
-    const s = generateSchedule(players, 3, 8, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 3, 8, [], partnerships);
     for (const r of s.rounds) {
       expect(r.sitOuts).toHaveLength(1);
       expect(r.sitOuts[0].id).toBe(single.id);
@@ -122,7 +121,7 @@ describe('generateSchedule with partnerships', () => {
     // 14 players: 5 couples + 4 singles, 3 courts -> 2 sit each round.
     const players = makePlayers(14);
     const partnerships = pairFirst(5);
-    const s = generateSchedule(players, 3, 8, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 3, 8, [], partnerships);
     for (const r of s.rounds) expect(r.sitOuts).toHaveLength(2);
     expect(couplesSitAsUnit(s, partnerships)).toBe(true);
     expect(couplesAlwaysIntact(s, partnerships)).toBe(true);
@@ -132,7 +131,7 @@ describe('generateSchedule with partnerships', () => {
     // 1 court (2 team slots), 8 players = 4 couples -> 2 couples play, 2 sit.
     const players = makePlayers(8);
     const partnerships = pairFirst(4);
-    const s = generateSchedule(players, 1, 6, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 1, 6, [], partnerships);
     for (const r of s.rounds) {
       expect(r.courts).toHaveLength(1);
       expect(r.sitOuts).toHaveLength(4);
@@ -145,7 +144,7 @@ describe('generateSchedule with partnerships', () => {
     // 14 players, 5 couples, 2 sit each round -> couples should rotate.
     const players = makePlayers(14);
     const partnerships = pairFirst(5);
-    const s = generateSchedule(players, 3, 10, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 3, 10, [], partnerships);
     const coupleSit = new Map(partnerships.map((p) => [partnerKey(p.player1Id, p.player2Id), 0]));
     for (const r of s.rounds) {
       const sitIds = new Set(r.sitOuts.map((p) => p.id));
@@ -163,11 +162,11 @@ describe('generateSchedule with partnerships', () => {
   it('keeps couples intact through mid-session regeneration', () => {
     const players = makePlayers(12);
     const partnerships = pairFirst(3);
-    const original = generateSchedule(players, 3, 8, DEFAULT_SPECIAL_TYPES, partnerships);
+    const original = generateSchedule(players, 3, 8, [], partnerships);
     // Remove an unpaired player (p6..p11 are singles here).
     const remaining = players.filter((p) => p.id !== 'p11');
     const active = prunePartnerships(partnerships, new Set(remaining.map((p) => p.id)));
-    const regen = regenerateRemaining(remaining, 3, original.rounds, [1, 2, 3], DEFAULT_SPECIAL_TYPES, active);
+    const regen = regenerateRemaining(remaining, 3, original.rounds, [1, 2, 3], [], active);
     expect(couplesAlwaysIntact(regen, active)).toBe(true);
   });
 });
@@ -264,7 +263,7 @@ describe('stand-ins', () => {
       const inForce = withSubbedPairs(base, stand);
       const playing = players.filter((p) => p.id !== 'p0');
       const built = generateSchedule(
-        playing, 2, 6, DEFAULT_SPECIAL_TYPES,
+        playing, 2, 6, [],
         prunePartnerships(inForce, new Set(playing.map((p) => p.id)))
       );
       expect(couplesAlwaysIntact(built, [{ player1Id: 'p11', player2Id: 'p1' }])).toBe(true);

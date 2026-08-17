@@ -19,10 +19,11 @@ import {
   pickShortSplit,
   planCourtSizes,
 } from './assign';
-import { courtMatchesType, DEFAULT_SPECIAL_TYPES } from './roundTypes';
+import { courtMatchesType } from './roundTypes';
+import { PLAN_SLOTS } from './roundPlan';
 import { partnerKey } from './partnerships';
 import { courtRatingDiff } from '../utils/helpers';
-import type { PairingHistory, Player, Round, SpecialGameTypes } from '../types';
+import type { PairingHistory, Player, Round, RoundPlan, RoundType } from '../types';
 
 function makePlayers(n: number): Player[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -250,10 +251,8 @@ describe('the short game rotates', () => {
 });
 
 describe('a short court on a special round', () => {
-  const everyRound = (type: keyof SpecialGameTypes): SpecialGameTypes => ({
-    ...DEFAULT_SPECIAL_TYPES,
-    [type]: { enabled: true, frequency: 1, order: 0 },
-  });
+  const everyRound = (type: RoundType): RoundPlan =>
+    Array<RoundType | null>(PLAN_SLOTS).fill(type);
 
   it('plays an ordinary game and is marked as one', () => {
     for (const type of ['gendered', 'mixed', 'skill'] as const) {
@@ -322,7 +321,7 @@ describe('partnerships alongside a short court', () => {
       { player1Id: 'p0', player2Id: 'p1' },
       { player1Id: 'p2', player2Id: 'p3' },
     ];
-    const s = generateSchedule(players, 4, 6, DEFAULT_SPECIAL_TYPES, partnerships);
+    const s = generateSchedule(players, 4, 6, [], partnerships);
     for (const r of s.rounds) {
       for (const pr of partnerships) {
         const together = r.courts.some((c) =>

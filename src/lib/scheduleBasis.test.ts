@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { basisKey, scheduleIsStale, hasGenderedRound } from './scheduleBasis';
 import type { BasisInput } from './scheduleBasis';
-import type { Player, Schedule, SpecialGameTypes, RoundType } from '../types';
+import type { Player, RoundPlan, Schedule, RoundType } from '../types';
 
 function player(id: string, gender: 'M' | 'F' = 'M', rating = 3.5): Player {
   return { id, name: `Player ${id}`, rating, gender, rosterIds: ['g1'] };
@@ -18,11 +18,8 @@ function player(id: string, gender: 'M' | 'F' = 'M', rating = 3.5): Player {
 
 const four = [player('a'), player('b'), player('c', 'F'), player('d', 'F')];
 
-const types: SpecialGameTypes = {
-  gendered: { enabled: false, frequency: 4, order: 0 },
-  mixed: { enabled: false, frequency: 4, order: 1 },
-  skill: { enabled: false, frequency: 4, order: 2 },
-};
+/** Sixteen slots, every round ordinary: what a host who has set nothing has. */
+const plan: RoundPlan = Array<RoundType | null>(16).fill(null);
 
 function schedule(roundType?: RoundType): Schedule {
   return {
@@ -51,7 +48,7 @@ function basis(over: Partial<BasisInput> = {}): BasisInput {
     partnerships: [],
     numCourts: 1,
     numRounds: 1,
-    specialTypes: types,
+    roundPlan: plan,
     schedule: schedule(),
     ...over,
   };
@@ -111,14 +108,23 @@ describe('changes that cost the schedule', () => {
     expect(stale({ numRounds: 8 })).toBe(true);
   });
 
-  it('a round type switched on', () => {
-    const on = { ...types, gendered: { ...types.gendered, enabled: true } };
-    expect(stale({ specialTypes: on })).toBe(true);
+  it('a round given a format', () => {
+    const gendered = [...plan];
+    gendered[0] = 'gendered';
+    expect(stale({ roundPlan: gendered })).toBe(true);
   });
 
-  it('a round type played more often', () => {
-    const often = { ...types, gendered: { ...types.gendered, frequency: 2 } };
-    expect(stale({ specialTypes: often })).toBe(true);
+  it("two rounds' formats swapped", () => {
+    const before = [...plan];
+    before[0] = 'gendered';
+    before[1] = 'mixed';
+    const after = [...plan];
+    after[0] = 'mixed';
+    after[1] = 'gendered';
+    const twoRounds = { numRounds: 2, roundPlan: before };
+    expect(
+      scheduleIsStale(basisKey(basis(twoRounds)), basis({ ...twoRounds, roundPlan: after }))
+    ).toBe(true);
   });
 
   it('a different group', () => {
@@ -127,6 +133,21 @@ describe('changes that cost the schedule', () => {
 });
 
 describe('changes the schedule survives', () => {
+  /**
+   * The plan is sixteen slots however long the session is, so a host who sets
+   * round 10 gendered and then shortens the afternoon to one round has a type
+   * sitting in a slot nobody can see. Counting it here would shut the Schedule
+   * tab over a round that is not on the screen and cannot be got back to
+   * without the stepper. This is what `planKey` truncating to `numRounds` is
+   * for, and it is the one guarantee in this file that is about the plan
+   * itself rather than about the session.
+   */
+  it('a type in a slot past the end of the session', () => {
+    const far = [...plan];
+    far[9] = 'gendered';
+    expect(stale({ roundPlan: far })).toBe(false);
+  });
+
   it('somebody renamed', () => {
     const renamed = four.map((p) => ({ ...p, name: 'Corrected' }));
     expect(stale({ attending: renamed })).toBe(false);
