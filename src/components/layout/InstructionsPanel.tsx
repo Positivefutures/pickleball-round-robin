@@ -414,12 +414,16 @@ function Share() {
       </P>
       <Shot
         name="share-qr"
-        alt="The Share Live Session sheet: a QR code, the link, and a Stop Sharing button"
-        caption="Have people scan this QR code, or send the link."
+        alt="The Share Live Session sheet: a QR code, two switches, the link, and a Stop Sharing button"
+        caption="The code, the switches and the link, on one card."
       />
       <P>
         Names, courts and scores are shared. Player ratings are not. Watching needs no
         app and no account, just the link.
+      </P>
+      <P>
+        <strong>Share Standings</strong> starts on. Switch it off and the standings
+        table leaves the page they are watching, along with every link to it.
       </P>
       <P>
         The link stops working after 24 hours, and <strong>Stop Sharing</strong> takes

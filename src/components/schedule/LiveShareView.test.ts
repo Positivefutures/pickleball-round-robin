@@ -58,10 +58,29 @@ afterEach(() => {
   stores.scoringEnabled.set(false);
   stores.scoreEditingAllowed.set(false);
   stores.scoreEditCode.set(null);
+  // Cleared rather than set back to true, so the test that says this switch
+  // starts on is reading the store's own default. Setting it would make that
+  // test pass against a default of false, which is exactly the mistake it is
+  // there to catch. Safe because nothing is subscribed between tests: with no
+  // listeners a store re-reads storage, and an absent key is the fallback.
+  window.localStorage.removeItem(stores.standingsShared.key);
 });
 
-const switchEl = () => container.querySelector('[role="switch"]');
+/**
+ * The two switches, in the order the card offers them. Named rather than
+ * indexed at each call site: they used to be one switch and a test that reached
+ * for "the switch" would now get whichever happened to be drawn first.
+ */
+const switches = () => [...container.querySelectorAll('[role="switch"]')];
+const standingsSwitch = () =>
+  container.querySelector('[role="switch"][aria-label="Share Standings"]');
+const switchEl = () =>
+  container.querySelector('[role="switch"][aria-label="Allow Editing Scores"]');
 const codeBoxes = () => [...container.querySelectorAll('input')];
+/** The row of tiles, found by the one tile that is on every version of it. */
+const tileRow = () =>
+  [...container.querySelectorAll('button')].find((b) => b.textContent === 'Stop Sharing')!
+    .parentElement!;
 
 function click(el: Element) {
   act(() => (el as HTMLElement).click());
@@ -85,9 +104,12 @@ describe('the card the host holds up', () => {
     expect(said).toContain(url);
   });
 
-  it('tells them what to do with the code, and what the link is worth', () => {
+  it('says what the link is worth, without telling them to scan their own code', () => {
+    // The line about scanning went with the redesign. The host is holding the
+    // code up; they know what a QR code is for, and the room under it is worth
+    // more to the two switches that decide what the code opens on.
     const said = open(true);
-    expect(said).toContain('Have people scan this QR code, or send the link.');
+    expect(said).not.toContain('Have people scan this QR code');
     expect(said).toContain(
       'Changes you make appear on their phones. The link stops working after 24 hours.'
     );
@@ -101,7 +123,7 @@ describe('the card the host holds up', () => {
     // environment, which is the same answer a desktop browser gives, and the
     // row is built to divide by however many it has.
     open(true);
-    const row = container.querySelector('button')!.parentElement!;
+    const row = tileRow();
     expect(row.className).toContain('flex');
 
     const tiles = [...row.querySelectorAll('button')];
@@ -119,8 +141,7 @@ describe('the card the host holds up', () => {
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     try {
       open(true);
-      const row = container.querySelector('button')!.parentElement!;
-      const tiles = [...row.querySelectorAll('button')];
+      const tiles = [...tileRow().querySelectorAll('button')];
       expect(tiles.map((b) => b.textContent)).toEqual([
         'Share Link', 'Copy Link', 'Stop Sharing',
       ]);
@@ -175,21 +196,31 @@ describe('allowing the watchers to edit scores', () => {
     expect(reveal.className).not.toContain('invisible');
     expect(codeBoxes()).toHaveLength(4);
     expect(container.textContent).toContain(
-      'Set a code, then tell it to whoever you want changing scores.'
+      'Tell this code to anyone you’d like to be a scorekeeper.'
     );
   });
 
-  it('says what is still missing, then what the code is worth', () => {
+  it('asks for the digits above the boxes and explains them below', () => {
+    // The order Jeff set: the instruction where somebody reading down the panel
+    // meets it before the boxes, and what the code is for underneath, which is
+    // the part that matters once it has been typed.
     open(true);
     click(switchEl()!);
-    expect(container.textContent).toContain('Enter four digits.');
 
-    stores.scoreEditCode.set('4719');
-    act(() => {
-      root.render(createElement(LiveShareView, {}));
-    });
-    expect(container.textContent).toContain('Anyone with this code can change any score.');
-    expect(container.textContent).not.toContain('Enter four digits.');
+    const said = container.textContent ?? '';
+    const asks = said.indexOf('Enter four digits');
+    const tells = said.indexOf('Tell this code to anyone');
+    expect(asks).toBeGreaterThan(-1);
+    expect(tells).toBeGreaterThan(asks);
+
+    // And the boxes really are between the two, rather than the two lines
+    // happening to be in that order somewhere else on the card.
+    const first = codeBoxes()[0];
+    const positions = [...container.querySelectorAll('p, input')];
+    const asksAt = positions.findIndex((el) => el.textContent === 'Enter four digits');
+    expect(positions.indexOf(first)).toBeGreaterThan(asksAt);
+    expect(positions.findIndex((el) => el.textContent?.startsWith('Tell this code')))
+      .toBeGreaterThan(positions.indexOf(codeBoxes()[3]));
   });
 
   it('throws the code away when it is switched off again', () => {
@@ -212,5 +243,80 @@ describe('allowing the watchers to edit scores', () => {
     open(true);
     expect(switchEl()!.getAttribute('aria-checked')).toBe('true');
     expect(codeBoxes().map((b) => (b as HTMLInputElement).value)).toEqual(['4', '7', '1', '9']);
+  });
+});
+
+/**
+ * Sharing the standings.
+ *
+ * The one switch on this card that is on before anybody touches it, because the
+ * table is most of what people ask for once a round has been played. What is
+ * guarded here is that default, that moving it is what the publisher reads, and
+ * that it is not offered on a session with no table to share.
+ */
+describe('sharing the standings', () => {
+  it('is on before the host has touched anything', () => {
+    const said = open(true);
+    expect(said).toContain('Share Standings');
+    expect(said).toContain('(leaderboard)');
+    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('is the first of the two switches, above the tiles', () => {
+    open(true);
+    const all = switches();
+    expect(all.map((s) => s.getAttribute('aria-label'))).toEqual([
+      'Share Standings',
+      'Allow Editing Scores',
+    ]);
+    // Both decide what the link opens on, so both are read before the buttons
+    // that hand the link out.
+    expect(all[1].compareDocumentPosition(tileRow())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('writes the answer where the publisher reads it', () => {
+    // The switch is the store. Nothing else would reach the document, and a
+    // host who moved it would have moved nothing.
+    open(true);
+    click(standingsSwitch()!);
+    expect(stores.standingsShared.get()).toBe(false);
+    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('is not offered on a session with no standings to share', () => {
+    // Scoring off means there is no table on anybody's page, whatever this
+    // switch said, and offering it would promise a page that does not exist.
+    open(false);
+    expect(standingsSwitch()).toBeNull();
+    expect(switches()).toHaveLength(0);
+  });
+});
+
+/**
+ * The panels that answer with one button.
+ *
+ * They kept an ordinary full-width button while every other panel in the sheet
+ * had moved to tiles, and the one after Stop Sharing was still in the old solid
+ * green. A lone tile is capped and centred rather than stretched, which is the
+ * whole reason those panels had been left alone.
+ */
+describe('the one-button panels', () => {
+  it('offers a centred teal tile to start again, not a solid green button', () => {
+    open(true);
+    click([...container.querySelectorAll('button')].find((b) => b.textContent === 'Stop Sharing')!);
+
+    const button = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Share This Session'
+    )!;
+    expect(button).toBeDefined();
+    // Teal, and pale: the solid fill it used to wear is the one thing on a card
+    // of tiles that reads as the only real button.
+    expect(button.className).toContain('bg-brand-teal-light');
+    expect(button.className).not.toContain('bg-[#018D31]');
+    // The tile's own shape — glyph over label — and a row that is capped and
+    // centred rather than the width of the sheet.
+    expect(button.className).toContain('flex-col');
+    expect(button.parentElement!.className).toContain('mx-auto');
+    expect(button.parentElement!.className).toContain('max-w-[11rem]');
   });
 });

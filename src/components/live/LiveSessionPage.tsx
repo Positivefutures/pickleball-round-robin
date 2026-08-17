@@ -508,6 +508,19 @@ function Session({
   // Where View Standings on every round goes.
   const standingsRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Whether this page has a standings table at all.
+   *
+   * Two things have to be true: the session keeps score, and the host has left
+   * the switch on the Share card where it starts. One answer, worked out once,
+   * because the table and every link down to it must appear and disappear
+   * together — a link that scrolls to nothing is worse than no link.
+   */
+  // `!== false` rather than a plain read, the same way liveViewer takes the
+  // field off the wire: only a host who has moved the switch takes the table
+  // away, and a document that predates the switch keeps it.
+  const showStandings = snapshot.scoringEnabled && snapshot.standingsShared !== false;
+
   function toggleFold(roundNumber: number) {
     setFolded((cur) => {
       const next = new Set(cur);
@@ -608,7 +621,7 @@ function Session({
                       of the SITTING OUT line, or its own row on a round where
                       nobody is sitting out. Only when there is a table to go to. */}
                   {(() => {
-                    const link = snapshot.scoringEnabled ? (
+                    const link = showStandings ? (
                       <button
                         type="button"
                         onClick={() =>
@@ -658,7 +671,7 @@ function Session({
         );
       })}
 
-      {snapshot.scoringEnabled && (
+      {showStandings && (
         <StandingsPanel
           schedule={snapshot.schedule}
           players={snapshot.players}

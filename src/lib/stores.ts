@@ -173,6 +173,21 @@ export const scoreEditingAllowed = createStoredValue<boolean>(
 );
 
 /**
+ * Whether the people watching this session get the standings table.
+ *
+ * On unless the host says otherwise, because the table is most of what people
+ * ask for once a round is played, and a host who has never thought about it
+ * should not find it missing. Turning it off takes the panel off the watchers'
+ * page and every link to it with it; the schedule and the scores stay exactly
+ * as they were.
+ *
+ * Unlike scoreEditingAllowed above, this survives the end of a session. It is
+ * a preference about what this host shares, not a decision about one afternoon
+ * and one code told to one group of people.
+ */
+export const standingsShared = createStoredValue<boolean>('pb-standings-shared', true);
+
+/**
  * The four digits a watcher must type before they can change a score, or null
  * while editing is off.
  *

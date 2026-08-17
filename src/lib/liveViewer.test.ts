@@ -215,6 +215,25 @@ describe('checking what came back', () => {
     if (got.state !== 'ok') throw new Error('not ok');
     expect(got.snapshot.scoreEditing).toBe(true);
   });
+
+  it('takes a missing standings flag as shared, the other way from the one above', () => {
+    // The asymmetry is the point. An absent editing flag is a host who never
+    // switched it on; an absent standings flag is a document published before
+    // the switch existed, and every one of those carried the table.
+    const older = JSON.parse(JSON.stringify(published));
+    delete older.standingsShared;
+    const got = read(older);
+    if (got.state !== 'ok') throw new Error('not ok');
+    expect(got.snapshot.standingsShared).toBe(true);
+  });
+
+  it('takes the standings away only when the host actually said so', () => {
+    const off = JSON.parse(JSON.stringify(published));
+    off.standingsShared = false;
+    const got = read(off);
+    if (got.state !== 'ok') throw new Error('not ok');
+    expect(got.snapshot.standingsShared).toBe(false);
+  });
 });
 
 // -------------------------------------------------------- the round timer --

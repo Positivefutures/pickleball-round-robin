@@ -195,13 +195,18 @@ const ADD_ROUND_TYPES: (RoundType | null)[] = [null, ...ROUND_TYPES];
 const ROW =
   'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left transition-colors hover:bg-[#F1F3F6]';
 /**
- * Somebody who is not in the group yet, offered at the foot of a list of people
- * who are. In the lead colour throughout — border, glyph and label — on the pale
- * orange that goes with it, because it is the one row that is not a name and the
- * only way out of a list that does not contain who you are looking for.
+ * Somebody who is not in the group yet, offered at the top of a list of people
+ * who are. Tinted throughout — border, glyph and label — because it is the one
+ * row that is not a name and the only way out of a list that does not contain
+ * who you are looking for.
+ *
+ * Teal, the same tone a TileButton wears for the thing you came to do. It is
+ * still a row rather than a tile: it stands in a list of people and has to be
+ * the size and shape of the boxes it stands among. Orange is the lead colour
+ * and this is not the lead action on the panel — the names under it are.
  */
 const NEW_ROW =
-  'flex w-full items-center gap-3 rounded-lg border border-brand-orange bg-brand-orange-light px-4 py-3 text-left font-bold text-brand-orange transition-colors hover:bg-[#ffe6d6]';
+  'flex w-full items-center gap-3 rounded-lg border border-[#A6D1D5] bg-brand-teal-light px-4 py-3 text-left font-bold text-brand-teal transition-colors hover:bg-[#D5F0F2]';
 
 /**
  * A view that asks one question and offers one answer.

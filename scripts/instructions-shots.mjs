@@ -369,7 +369,14 @@ async function shootShareQr() {
       window.localStorage.setItem(authKey, JSON.stringify(session));
       window.localStorage.setItem('pb-demo-seeded', '1');
     },
-    { data: seed({ 'pb-step': 'setup' }), authKey: auth.key, session: auth.session }
+    {
+      // Keeping score, so the card shows both switches. With scoring off the
+      // panel hides Share Standings and Allow Editing Scores, and the manual's
+      // picture would leave out half of what the page describes.
+      data: seed({ 'pb-step': 'setup', 'pb-scoring-enabled': true }),
+      authKey: auth.key,
+      session: auth.session,
+    }
   );
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await generate(page);

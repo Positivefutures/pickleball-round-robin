@@ -143,6 +143,7 @@ function currentSnapshot(): SessionSnapshot | null {
     players,
     scoringEnabled: stores.scoringEnabled.get(),
     scoreEditing: editingOn(),
+    standingsShared: stores.standingsShared.get(),
     roundTimer: sharedRoundTimer()
   });
 }
@@ -413,7 +414,11 @@ const WATCHED = [
   stores.players,
   stores.scoringEnabled,
   stores.scoreEditingAllowed,
-  stores.scoreEditCode
+  stores.scoreEditCode,
+  // Watched for the same reason as the two above it: it is published on the
+  // document, so a host who moves the switch and is never republished has
+  // taken the standings off nobody's phone.
+  stores.standingsShared
 ];
 
 /**

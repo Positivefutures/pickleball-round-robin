@@ -163,6 +163,10 @@ function seed() {
   stores.completedRounds.set([]);
   stores.sessionId.set('sess-1');
   stores.scoringEnabled.set(true);
+  // Set rather than left to its default, like every other line here: the store
+  // caches, so a test that switches it off would hand the next one a host who
+  // had already decided.
+  stores.standingsShared.set(true);
   stores.shareKey.set(null);
   stores.schedule.set(schedule());
 }
@@ -307,6 +311,18 @@ describe('keeping it up to date', () => {
     stores.schedule.set(schedule({ team1: 11, team2: 7 }));
     await vi.advanceTimersByTimeAsync(1500);
     expect(writes.length - before).toBe(1);
+  });
+
+  it('publishes the standings switch, and republishes when it moves', async () => {
+    // The switch is only worth anything if it reaches the watchers. A host who
+    // turned the standings off and was never republished would have taken them
+    // off nobody's phone, which is the failure the WATCHED list exists to stop.
+    await startSharing();
+    expect((live().snapshot as { standingsShared: boolean }).standingsShared).toBe(true);
+
+    stores.standingsShared.set(false);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect((live().snapshot as { standingsShared: boolean }).standingsShared).toBe(false);
   });
 
   it('does not publish anything after Stop', async () => {

@@ -233,6 +233,12 @@ export function read(value: unknown): LiveFetch {
       // strictly true, so a field that arrives as a string or a number does
       // not open a prompt.
       scoreEditing: document.scoreEditing === true,
+      // Not `=== true`, unlike the two above it, and for the same reason
+      // soundOn on the timer is not: this field's absence means an older
+      // document rather than a decision, and every one of those shared the
+      // standings. Only a host who has actually moved the switch takes them
+      // away.
+      standingsShared: document.standingsShared !== false,
       roundTimer: readTimer(document.roundTimer)
     }
   };

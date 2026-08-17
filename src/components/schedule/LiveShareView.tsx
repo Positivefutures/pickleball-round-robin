@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
-import { CodeEntry, CODE_LENGTH } from '../CodeEntry';
+import { CodeEntry } from '../CodeEntry';
 import { Toggle } from '../Toggle';
-import { CopyIcon, PersonIcon, ShareIcon, StopIcon } from '../icons';
-import { TileButton, TILE_ROW } from '../TileButton';
+import { CopyIcon, PersonIcon, ReplayIcon, ShareIcon, StopIcon } from '../icons';
+import { TileButton, TILE_ALONE, TILE_ROW } from '../TileButton';
 import {
   liveStatusStore,
   sharingAvailable,
@@ -34,11 +34,12 @@ import { useStoredValue } from '../../hooks/useStoredValue';
  * a new one, and the guard below is what stops it making one unasked.
  */
 
-const PRIMARY =
-  'w-full rounded-lg bg-[#018D31] px-4 py-3 font-bold text-white transition-colors hover:bg-[#017129] disabled:opacity-40 disabled:hover:bg-[#018D31]';
-const SECONDARY =
-  'flex w-full items-center gap-3 rounded-lg border border-panel-edge bg-white px-4 py-3 text-left text-[#3D495A] transition-colors hover:bg-[#F1F3F6]';
 const QUIET_TEXT = '#636A77';
+
+/** Both switches on the card, so the two rows cannot drift apart. */
+const SWITCH_ROW = 'flex items-center justify-between gap-4';
+/** Sized as Keep Score? on the Setup panel, which is the switch these follow. */
+const SWITCH_LABEL = 'text-lg font-semibold text-gray-800';
 
 interface Props {
   /**
@@ -118,10 +119,14 @@ export function LiveShareView({ onCreateAccount }: Props) {
           your phone.
         </p>
         {onCreateAccount ? (
-          <button type="button" onClick={onCreateAccount} className={SECONDARY}>
-            <PersonIcon className="h-6 w-6" />
-            <span className="font-bold">Create an Account</span>
-          </button>
+          <div className={`${TILE_ALONE} pt-3`}>
+            <TileButton
+              tone="teal"
+              Icon={PersonIcon}
+              label="Create an Account"
+              onClick={onCreateAccount}
+            />
+          </div>
         ) : (
           // No Supabase in this build, so there is no account to make. Saying
           // where to go would send them to a menu item that is not there.
@@ -149,16 +154,20 @@ export function LiveShareView({ onCreateAccount }: Props) {
 
         {/* Under what it is answering, like every other panel's buttons. It
             used to be pinned to the foot of a near-full-height sheet, three
-            lines away from the sentence explaining it. */}
-        <div className="pt-6">
-          <button
-            type="button"
-            className={PRIMARY}
+            lines away from the sentence explaining it.
+
+            A tile in the lead teal, not the solid green it wore before it. A
+            solid fill beside the pale tiles on the live card reads as the one
+            button on this panel that is really a button, and this is the same
+            decision as the Share Link tile it replaces on the way back. */}
+        <div className={`${TILE_ALONE} pt-6`}>
+          <TileButton
+            tone="teal"
+            Icon={ShareIcon}
+            label={status.state === 'starting' ? 'Making a Link…' : 'Share This Session'}
             disabled={status.state === 'starting'}
             onClick={begin}
-          >
-            {status.state === 'starting' ? 'Making a Link…' : 'Share This Session'}
-          </button>
+          />
         </div>
       </div>
     );
@@ -175,10 +184,8 @@ export function LiveShareView({ onCreateAccount }: Props) {
         {status.state === 'problem' ? (
           <>
             <p className="mt-3 text-sm font-medium text-red-700">{status.message}</p>
-            <div className="pt-6">
-              <button type="button" className={PRIMARY} onClick={begin}>
-                Try Again
-              </button>
+            <div className={`${TILE_ALONE} pt-6`}>
+              <TileButton tone="teal" Icon={ReplayIcon} label="Try Again" onClick={begin} />
             </div>
           </>
         ) : (
@@ -196,34 +203,11 @@ export function LiveShareView({ onCreateAccount }: Props) {
         <QrCode value={url} size={220} label="Scan to watch this session" />
       </div>
 
-      <p className="text-center text-[15px] leading-snug text-[#3D495A]">
-        Have people scan this QR code, or send the link.
-      </p>
-
-      {/* select-all: one tap selects the whole address. */}
-      <p className="select-all break-all rounded-md border border-panel-edge bg-[#F8F9FB] px-3 py-2.5 text-sm font-medium text-[#3D495A]">
-        {url}
-      </p>
-
-      {/* Said here rather than on a panel before this one, and said whatever
-          the publisher is doing. It is what somebody would want to know before
-          they hold the code up, so it cannot be the line an error replaces. */}
-      <p className="text-sm" style={{ color: QUIET_TEXT }}>
-        {scoring
-          ? 'Names, courts and scores are shared. Player ratings are not.'
-          : 'Names and courts are shared. Player ratings are not.'}
-      </p>
-
-      {status.state === 'problem' ? (
-        // The link on the table is still the right one, so it stays on screen.
-        // Only the last upload failed, and the next one is already scheduled.
-        <p className="text-sm font-medium text-red-700">{status.message}</p>
-      ) : (
-        <p className="text-sm" style={{ color: QUIET_TEXT }}>
-          Changes you make appear on their phones. The link stops working after
-          24 hours.
-        </p>
-      )}
+      {/* The two decisions about what the link opens on, above the buttons that
+          hand it out: they are settled once, before anybody scans anything, and
+          the row of tiles is what the host presses when they are settled. */}
+      <ShareStandings scoring={scoring} />
+      <ScoreEditing scoring={scoring} />
 
       {/* Absent on a browser with no share sheet, and then the row is two tiles
           wide rather than three. TileButton is basis-0, so whichever are there
@@ -251,7 +235,66 @@ export function LiveShareView({ onCreateAccount }: Props) {
         />
       </div>
 
-      <ScoreEditing scoring={scoring} />
+      {/* select-all: one tap selects the whole address. */}
+      <p className="select-all break-all rounded-md border border-panel-edge bg-[#F8F9FB] px-3 py-2.5 text-sm font-medium text-[#3D495A]">
+        {url}
+      </p>
+
+      {/* The fine print, under a rule and at the foot of the card. Said here
+          rather than on a panel before this one, and said whatever the
+          publisher is doing: it is what somebody would want to know before they
+          hold the code up, so it cannot be the line an error replaces. */}
+      <div className="space-y-3 border-t border-panel-edge pt-3">
+        <p className="text-sm" style={{ color: QUIET_TEXT }}>
+          {scoring
+            ? 'Names, courts and scores are shared. Player ratings are not.'
+            : 'Names and courts are shared. Player ratings are not.'}
+        </p>
+
+        {status.state === 'problem' ? (
+          // The link on the table is still the right one, so it stays on
+          // screen. Only the last upload failed, and the next one is already
+          // scheduled.
+          <p className="text-sm font-medium text-red-700">{status.message}</p>
+        ) : (
+          <p className="text-sm" style={{ color: QUIET_TEXT }}>
+            Changes you make appear on their phones. The link stops working
+            after 24 hours.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Whether the watchers get the standings table.
+ *
+ * On unless the host says otherwise, and the first of the two switches because
+ * it is the one that changes what the page they open looks like. Switched off,
+ * the table goes from the watchers' page and every link down to it goes with
+ * it; the schedule and the scores are untouched.
+ *
+ * Only offered on a session that keeps score, the same rule the switch below it
+ * follows. With scoring off there is no table on anybody's page to take away,
+ * and a switch promising one would be promising a page that does not exist.
+ */
+function ShareStandings({ scoring }: { scoring: boolean }) {
+  const [shared, setShared] = useStoredValue(stores.standingsShared);
+
+  if (!scoring) return null;
+
+  return (
+    <div className={SWITCH_ROW}>
+      <h3 className={SWITCH_LABEL}>
+        Share Standings{' '}
+        {/* The word people actually use for it, in the size of an aside. The
+            heading has to stay two words to sit level with the switch below. */}
+        <span className="font-normal" style={{ color: QUIET_TEXT }}>
+          (leaderboard)
+        </span>
+      </h3>
+      <Toggle checked={shared} onChange={setShared} label="Share Standings" />
     </div>
   );
 }
@@ -259,9 +302,9 @@ export function LiveShareView({ onCreateAccount }: Props) {
 /**
  * Letting the people watching change the scores, behind a four digit code.
  *
- * Under the three tiles because it is the one thing on this card that is not
- * about getting the link to people. They share the link first and decide this
- * afterwards, if at all.
+ * The second of the two switches, under the one about the standings and above
+ * the tiles, because both are decisions about what the link opens on and the
+ * tiles are what hands the link out.
  *
  * Only offered on a session that keeps score. With scoring off there are no
  * scores on the watchers' phones to edit, and a switch promising otherwise
@@ -282,11 +325,9 @@ function ScoreEditing({ scoring }: { scoring: boolean }) {
   }
 
   return (
-    <div className="border-t border-panel-edge pt-3">
-      <div className="flex items-center justify-between gap-4">
-        {/* Sized as Keep Score? on the Setup panel, which is the switch this
-            one is meant to feel like. */}
-        <h3 className="text-lg font-semibold text-gray-800">Allow Editing Scores</h3>
+    <div>
+      <div className={SWITCH_ROW}>
+        <h3 className={SWITCH_LABEL}>Allow Editing Scores</h3>
         <Toggle checked={allowed} onChange={handleToggle} label="Allow Editing Scores" />
       </div>
 
@@ -306,12 +347,15 @@ function ScoreEditing({ scoring }: { scoring: boolean }) {
         }`}
       >
         <div className="overflow-hidden">
+          {/* What to do, then the boxes to do it in, then what the code is for.
+              The instruction is above the thing it is an instruction for, which
+              is where somebody reading down the panel wants it; the sentence
+              about telling people is the part they need once it is typed. */}
           <div className="pt-3">
-            <p id="score-code-help" className="text-sm" style={{ color: QUIET_TEXT }}>
-              Set a code, then tell it to whoever you want changing scores. They
-              are asked for it the first time they tap one.
+            <p id="score-code-help" className="text-center text-sm" style={{ color: QUIET_TEXT }}>
+              Enter four digits
             </p>
-            <div className="pt-3">
+            <div className="pt-2">
               <CodeEntry
                 value={code ?? ''}
                 onChange={(next) => setCode(next === '' ? null : next)}
@@ -319,12 +363,9 @@ function ScoreEditing({ scoring }: { scoring: boolean }) {
                 describedBy="score-code-help"
               />
             </div>
-            {/* Says nothing while it is being typed, then confirms. A code
-                half entered is not a mistake, so it is not marked as one. */}
-            <p className="pt-3 text-center text-sm" style={{ color: QUIET_TEXT }}>
-              {(code ?? '').length === CODE_LENGTH
-                ? 'Anyone with this code can change any score.'
-                : 'Enter four digits.'}
+            <p className="pt-3 text-sm" style={{ color: QUIET_TEXT }}>
+              Tell this code to anyone you&rsquo;d like to be a scorekeeper. They
+              are asked for it the first time they tap a score box.
             </p>
           </div>
         </div>

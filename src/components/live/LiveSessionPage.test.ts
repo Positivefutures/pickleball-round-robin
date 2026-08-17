@@ -143,6 +143,10 @@ function shared(
         players,
         scoringEnabled: true,
         scoreEditing,
+        // What a host publishes unless they have moved the switch. The tests
+        // that care about it flip this one field rather than building a second
+        // document.
+        standingsShared: true,
         roundTimer
       })
     )
@@ -550,6 +554,34 @@ describe('watching a session', () => {
     answer = off;
     await open();
     expect(text()).not.toContain('Standings');
+  });
+
+  it('leaves the standings out when the host has switched them off', async () => {
+    // The other way the table can be absent, and the one the host chooses. The
+    // link goes with it: a View Standings that scrolls to nothing is worse
+    // than no link at all.
+    const off = shared({ team1: 11, team2: 7 });
+    if (off.state !== 'ok') throw new Error('not ok');
+    off.snapshot.standingsShared = false;
+    answer = off;
+    await open();
+    expect(text()).not.toContain('Standings');
+    expect(text()).not.toContain('View Standings');
+    // Everything else is untouched. Scores included: this switch is about the
+    // table, not about what is on the courts.
+    expect(text()).toContain('COURT 7');
+    expect(text()).toContain('11');
+  });
+
+  it('keeps the standings on a document published before the switch existed', async () => {
+    // Absence means shared. Links minted before today are still open on
+    // people's phones, and every one of them carried the table.
+    const old = shared({ team1: 11, team2: 7 });
+    if (old.state !== 'ok') throw new Error('not ok');
+    delete (old.snapshot as { standingsShared?: boolean }).standingsShared;
+    answer = old;
+    await open();
+    expect(text()).toContain('Standings');
   });
 
   it('says when it last heard anything', async () => {

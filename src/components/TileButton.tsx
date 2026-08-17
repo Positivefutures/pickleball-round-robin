@@ -16,9 +16,11 @@ import type { CSSProperties, ReactElement } from 'react';
  * button on the panel that is really a button. Stop Sharing set the pattern and
  * the rest have followed it.
  *
- * `flex-1 basis-0`, so however many are in the row they split it evenly. They
- * are always a row: a lone tile stretched across a panel is a card, not a
- * button, and those places keep an ordinary full-width button.
+ * `flex-1 basis-0`, so however many are in the row they split it evenly. A
+ * panel with only one thing to press puts it in TILE_ALONE instead, which is
+ * the same row held to the width of a single tile and centred. Stretched the
+ * whole way across it would read as a card rather than as a button, which is
+ * why those panels used to keep an ordinary full-width button.
  */
 
 export type TileTone = 'quiet' | 'teal' | 'red';
@@ -88,3 +90,13 @@ export function TileButton({ tone, Icon, label, onClick, disabled, title, dataTu
  * some other way and end up with tiles of two different widths.
  */
 export const TILE_ROW = 'flex gap-3';
+
+/**
+ * The row a single tile sits in, when a panel has one thing to press.
+ *
+ * A tile is `flex-1 basis-0` and will happily take a whole phone's width; at
+ * that size the glyph is marooned in the middle of a wide box and the thing
+ * stops looking like a button. Capped a little wider than one of three across
+ * and centred, it is recognisably the same control as the rows elsewhere.
+ */
+export const TILE_ALONE = 'mx-auto flex w-full max-w-[11rem]';

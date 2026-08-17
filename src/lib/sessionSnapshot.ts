@@ -117,6 +117,19 @@ export interface SessionSnapshot {
    */
   scoreEditing: boolean;
   /**
+   * Whether the watchers get the standings table at all.
+   *
+   * Added after the fact like `scoreEditing` above, and read the other way
+   * round: absent means true. Every session published before this switch
+   * existed carried the table, so a document without the field is one that
+   * shared it, and reading the absence as false would take the standings off
+   * links that are still open on somebody's phone.
+   *
+   * It says nothing about scoring. A session with scoring off has no table to
+   * share whatever this holds, which is why the switch is not offered there.
+   */
+  standingsShared: boolean;
+  /**
    * The round being timed right now, or null when none is.
    *
    * Added after the fact like `scoreEditing` above, and for the same reason
