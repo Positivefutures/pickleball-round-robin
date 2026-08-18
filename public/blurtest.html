@@ -7,17 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Blur Lab</title>
 <!--
-  A one-install laboratory for the iOS 26 status bar fade.
+  Round 2 of the iOS 26 status bar laboratory.
 
-  iOS decides whether to paint the status bar as a flat theme-color bar or as
-  a sampled, blurred continuation of the page. The app's screenshots prove the
-  flat bar appears when nothing in the page can scroll, and the fade appears
-  when the app's inner pane can. This page holds one layout that can be
-  rearranged into five shapes with the buttons at the bottom, so one
-  Add to Home Screen install can answer which shapes iOS leaves sharp.
-
-  The stripes and the wedge at the top are the instrument: 1px lines and a
-  saturated edge cannot survive a blur, so a soft top means the fade is on.
+  Round 1 found that scrollability is not what iOS keys off. A page whose
+  document was pinned, a page with a static bar in normal flow, and a page
+  with nothing scrollable at all were blurred alike. The one sharp shape was
+  a position:fixed bar owning the top of the screen. So the question is now:
+  what does that fixed element need to be? These modes vary one property at
+  a time. B and E return as the known-bad and known-good controls.
 -->
 <style>
   * { margin: 0; box-sizing: border-box; }
@@ -50,6 +47,17 @@
     padding: 34px 8px 0 70px;
   }
 
+  .stickybar {
+    display: none;
+    height: 66px;
+    background:
+      repeating-linear-gradient(to bottom, #1f2937 0 1px, transparent 1px 7px) top / 100% 28px no-repeat,
+      linear-gradient(115deg, #fe4b01 60px, transparent 60px),
+      #FBFAF6;
+    color: #1f2937; font-weight: 700; font-size: 15px;
+    padding: 34px 8px 0 70px;
+  }
+
   .filler { padding: 12px 16px 140px; color: #374151; font-size: 15px; line-height: 1.5; }
   .filler .block {
     height: 260px; margin: 12px 0; border-radius: 12px;
@@ -71,39 +79,48 @@
   }
   .controls button.on { background: #fe4b01; }
 
-  /* ---- Mode A: the document itself scrolls, like the app before 3.52. ---- */
-  html[data-mode="A"], html[data-mode="A"] body { height: auto; overflow: visible; }
-  html[data-mode="A"] .pane { height: auto; overflow: visible; }
-
-  /* ---- Modes B-E: the document is pinned to the viewport. ---- */
-  html:not([data-mode="A"]), html:not([data-mode="A"]) body { height: 100%; overflow: hidden; }
-
-  /* Mode B: one full-height inner pane scrolls. The 3.52 architecture. */
+  /* Every mode pins the document; only what sits at the top changes. */
+  html, body { height: 100%; overflow: hidden; }
   .pane { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; }
 
-  /* Mode C: a fixed bar owns the top edge; the pane starts below it. */
-  html[data-mode="C"] .bar { display: block; }
-  html[data-mode="C"] .pane { height: calc(100% - 66px); }
-  html[data-mode="C"] .art { display: none; }
+  /* Mode B: the 3.52 shape, no fixed element anywhere. Known bad. */
 
-  /* Mode E: the pane still touches the top edge but slides under a fixed bar. */
+  /* Mode E: opaque fixed striped bar, pane slides under it. Known good. */
   html[data-mode="E"] .bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5; }
   html[data-mode="E"] .art { display: none; }
   html[data-mode="E"] .pane > .filler { padding-top: 78px; }
 
-  /* Mode D: nothing anywhere can scroll. The control that should be sharp. */
-  html[data-mode="D"] .pane { overflow: hidden; }
+  /* Mode F: the same fixed bar made fully transparent and untouchable.
+     The striped art stays visible beneath it. If this is sharp, the app
+     can keep its whole header and add one invisible strip. */
+  html[data-mode="F"] .bar {
+    display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    background: none; pointer-events: none; color: transparent;
+  }
+
+  /* Mode G: a slim opaque cream strip, 24px, no artwork of its own.
+     The striped art slides under it. Tests whether height and paint
+     matter once the element is fixed. */
+  html[data-mode="G"] .bar {
+    display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    height: 24px; background: #FBFAF6; padding: 0; overflow: hidden; color: transparent;
+  }
+
+  /* Mode I: the bar rides inside the pane as position:sticky. */
+  html[data-mode="I"] .stickybar { display: block; position: sticky; top: 0; z-index: 5; }
+  html[data-mode="I"] .art { display: none; }
 </style>
 </head>
 <body>
   <div class="bar">BAR: is this line sharp?</div>
   <div class="pane">
+    <div class="stickybar">STICKY: is this line sharp?</div>
     <div class="art">
       <div class="label">Are these stripes sharp?</div>
       <div class="sub">If the top looks soft or washed out, the fade is on.</div>
     </div>
     <div class="filler">
-      <p><strong>Blur Lab.</strong> Tap a mode below, look at the very top of the screen, and note whether the stripes and the orange wedge stay sharp. Then close the app fully and reopen it, because iOS may only re-decide at launch. The chosen mode is remembered.</p>
+      <p><strong>Blur Lab, round 2.</strong> Tap a mode below and look at the very top of the screen. B and E repeat round 1 as the controls. F is an invisible fixed strip over the stripes. G is a thin cream fixed strip. I is a sticky bar. For any sharp mode, also close the app fully and reopen it. The chosen mode is remembered.</p>
       <div class="block">scrollable filler 1</div>
       <div class="block">scrollable filler 2</div>
       <div class="block">scrollable filler 3</div>
@@ -115,23 +132,24 @@
   <div class="controls">
     <div class="status" id="status"></div>
     <div class="row">
-      <button data-m="A">A</button>
       <button data-m="B">B</button>
-      <button data-m="C">C</button>
       <button data-m="E">E</button>
-      <button data-m="D">D</button>
+      <button data-m="F">F</button>
+      <button data-m="G">G</button>
+      <button data-m="I">I</button>
     </div>
   </div>
 <script>
   var NAMES = {
-    A: 'A: the page itself scrolls',
-    B: 'B: full-height inner pane scrolls (3.52)',
-    C: 'C: fixed bar on top, pane below it',
-    E: 'E: pane under a fixed bar',
-    D: 'D: nothing can scroll'
+    B: 'B: no fixed element (known bad)',
+    E: 'E: opaque fixed bar (known good)',
+    F: 'F: transparent fixed strip',
+    G: 'G: thin cream fixed strip',
+    I: 'I: sticky bar inside the pane'
   };
   var root = document.documentElement;
   function apply(m) {
+    if (!NAMES[m]) m = 'B';
     root.setAttribute('data-mode', m);
     try { localStorage.setItem('blurlab-mode', m); } catch (e) {}
     document.querySelectorAll('.controls button').forEach(function (b) {
@@ -140,11 +158,9 @@
     report();
   }
   function report() {
-    var d = document.scrollingElement;
     var standalone = window.navigator.standalone ? 'home screen' : 'browser tab';
     document.getElementById('status').textContent =
-      NAMES[root.getAttribute('data-mode')] + ' · ' + standalone +
-      ' · document ' + d.scrollHeight + '/' + d.clientHeight;
+      NAMES[root.getAttribute('data-mode')] + ' · round 2 · ' + standalone;
   }
   document.querySelectorAll('.controls button').forEach(function (b) {
     b.addEventListener('click', function () { apply(b.getAttribute('data-m')); });
