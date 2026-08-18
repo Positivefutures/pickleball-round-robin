@@ -7,14 +7,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Blur Lab</title>
 <!--
-  Round 2 of the iOS 26 status bar laboratory.
+  Round 3 of the iOS 26 status bar laboratory.
 
-  Round 1 found that scrollability is not what iOS keys off. A page whose
-  document was pinned, a page with a static bar in normal flow, and a page
-  with nothing scrollable at all were blurred alike. The one sharp shape was
-  a position:fixed bar owning the top of the screen. So the question is now:
-  what does that fixed element need to be? These modes vary one property at
-  a time. B and E return as the known-bad and known-good controls.
+  Round 1: scrollability is not the trigger; the sharp shape had a
+  position:fixed bar at the top. Round 2: the bar must be painted. A
+  transparent fixed strip was only sharp when a painted mode had already
+  decided the state, so the decision is made from paint and then carried.
+  Round 3 finds the thinnest paint that still counts, and tries painting
+  only at launch. A 2px cream strip that counts would be invisible in the
+  real app, which is the look Jeff asked for.
 -->
 <style>
   * { margin: 0; box-sizing: border-box; }
@@ -37,17 +38,6 @@
   .art .sub { position: absolute; top: 80px; left: 104px; font-size: 13px; color: #4b5563; }
 
   .bar {
-    display: none;
-    height: 66px;
-    background:
-      repeating-linear-gradient(to bottom, #1f2937 0 1px, transparent 1px 7px) top / 100% 28px no-repeat,
-      linear-gradient(115deg, #fe4b01 60px, transparent 60px),
-      #FBFAF6;
-    color: #1f2937; font-weight: 700; font-size: 15px;
-    padding: 34px 8px 0 70px;
-  }
-
-  .stickybar {
     display: none;
     height: 66px;
     background:
@@ -85,42 +75,33 @@
 
   /* Mode B: the 3.52 shape, no fixed element anywhere. Known bad. */
 
-  /* Mode E: opaque fixed striped bar, pane slides under it. Known good. */
-  html[data-mode="E"] .bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5; }
-  html[data-mode="E"] .art { display: none; }
-  html[data-mode="E"] .pane > .filler { padding-top: 78px; }
-
-  /* Mode F: the same fixed bar made fully transparent and untouchable.
-     The striped art stays visible beneath it. If this is sharp, the app
-     can keep its whole header and add one invisible strip. */
-  html[data-mode="F"] .bar {
+  /* Every other mode: a fixed cream strip over the striped art, and the
+     only thing that changes is how thin the paint can get. */
+  html[data-mode="2"] .bar, html[data-mode="8"] .bar,
+  html[data-mode="G"] .bar, html[data-mode="J"] .bar {
     display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5;
-    background: none; pointer-events: none; color: transparent;
+    background: #FBFAF6; padding: 0; overflow: hidden; color: transparent;
+    pointer-events: none;
   }
+  html[data-mode="2"] .bar { height: 2px; }
+  html[data-mode="8"] .bar { height: 8px; }
+  html[data-mode="G"] .bar { height: 24px; }
 
-  /* Mode G: a slim opaque cream strip, 24px, no artwork of its own.
-     The striped art slides under it. Tests whether height and paint
-     matter once the element is fixed. */
-  html[data-mode="G"] .bar {
-    display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5;
-    height: 24px; background: #FBFAF6; padding: 0; overflow: hidden; color: transparent;
-  }
-
-  /* Mode I: the bar rides inside the pane as position:sticky. */
-  html[data-mode="I"] .stickybar { display: block; position: sticky; top: 0; z-index: 5; }
-  html[data-mode="I"] .art { display: none; }
+  /* Mode J: 24px of cream at launch, transparent 1.5 seconds later. Tests
+     whether the sharp decision holds once the paint that earned it is gone. */
+  html[data-mode="J"] .bar { height: 24px; }
+  html[data-mode="J"].ghost .bar { background: none; }
 </style>
 </head>
 <body>
   <div class="bar">BAR: is this line sharp?</div>
   <div class="pane">
-    <div class="stickybar">STICKY: is this line sharp?</div>
     <div class="art">
       <div class="label">Are these stripes sharp?</div>
       <div class="sub">If the top looks soft or washed out, the fade is on.</div>
     </div>
     <div class="filler">
-      <p><strong>Blur Lab, round 2.</strong> Tap a mode below and look at the very top of the screen. B and E repeat round 1 as the controls. F is an invisible fixed strip over the stripes. G is a thin cream fixed strip. I is a sticky bar. For any sharp mode, also close the app fully and reopen it. The chosen mode is remembered.</p>
+      <p><strong>Blur Lab, round 3.</strong> Every mode except B has a fixed cream strip over the stripes, and only its thickness changes: 2px, 8px, or 24px. J starts at 24px and turns transparent after 1.5 seconds. For each mode, close the app fully and reopen it before judging, since the decision is made at launch. Then for any sharp mode, also swipe to the home screen and come back, and scroll hard up and down.</p>
       <div class="block">scrollable filler 1</div>
       <div class="block">scrollable filler 2</div>
       <div class="block">scrollable filler 3</div>
@@ -133,24 +114,30 @@
     <div class="status" id="status"></div>
     <div class="row">
       <button data-m="B">B</button>
-      <button data-m="E">E</button>
-      <button data-m="F">F</button>
+      <button data-m="2">2</button>
+      <button data-m="8">8</button>
       <button data-m="G">G</button>
-      <button data-m="I">I</button>
+      <button data-m="J">J</button>
     </div>
   </div>
 <script>
   var NAMES = {
-    B: 'B: no fixed element (known bad)',
-    E: 'E: opaque fixed bar (known good)',
-    F: 'F: transparent fixed strip',
-    G: 'G: thin cream fixed strip',
-    I: 'I: sticky bar inside the pane'
+    B: 'B: no strip (known bad)',
+    2: '2: 2px cream strip',
+    8: '8: 8px cream strip',
+    G: 'G: 24px cream strip (known good)',
+    J: 'J: 24px strip, transparent after 1.5s'
   };
   var root = document.documentElement;
+  var ghostTimer = null;
   function apply(m) {
     if (!NAMES[m]) m = 'B';
     root.setAttribute('data-mode', m);
+    root.classList.remove('ghost');
+    if (ghostTimer) { clearTimeout(ghostTimer); ghostTimer = null; }
+    if (m === 'J') {
+      ghostTimer = setTimeout(function () { root.classList.add('ghost'); }, 1500);
+    }
     try { localStorage.setItem('blurlab-mode', m); } catch (e) {}
     document.querySelectorAll('.controls button').forEach(function (b) {
       b.classList.toggle('on', b.getAttribute('data-m') === m);
@@ -159,8 +146,9 @@
   }
   function report() {
     var standalone = window.navigator.standalone ? 'home screen' : 'browser tab';
+    var ghost = root.classList.contains('ghost') ? ' · now transparent' : '';
     document.getElementById('status').textContent =
-      NAMES[root.getAttribute('data-mode')] + ' · round 2 · ' + standalone;
+      NAMES[root.getAttribute('data-mode')] + ghost + ' · round 3 · ' + standalone;
   }
   document.querySelectorAll('.controls button').forEach(function (b) {
     b.addEventListener('click', function () { apply(b.getAttribute('data-m')); });
