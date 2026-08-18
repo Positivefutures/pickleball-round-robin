@@ -139,7 +139,9 @@ export const RUNTIME_CACHED_PUBLIC = [
  * Never stored, at any point. The share banner, which exists for scrapers
  * rather than for people, and the two manifest screenshots, which exist for
  * Chrome's install dialog. Both are things another program reads once from a
- * server, so a copy on the phone would never be the copy anybody used.
+ * server, so a copy on the phone would never be the copy anybody used. The
+ * blur lab is a diagnostic page rearranged between deploys, so a cached copy
+ * would be an old experiment answering a new question.
  *
  * Written out again here rather than imported from `sw.ts`, which owns the copy
  * the worker actually enforces. That file has to stay free of imports, because
@@ -149,6 +151,7 @@ export const RUNTIME_CACHED_PUBLIC = [
  * lists agree, which is the part that matters.
  */
 export const NEVER_CACHED_PUBLIC = [
+  '/blurtest.html',
   '/og-banner.png',
   '/screenshot-roster.png',
   '/screenshot-schedule.png',

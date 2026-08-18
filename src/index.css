@@ -59,26 +59,36 @@
 }
 
 /**
- * The document never scrolls. The app does, in a pane of its own.
+ * The document never scrolls, and a painted strip owns the top of the screen.
  *
- * This is the whole defence against iOS 26's scroll edge effect, which over an
- * installed web app samples the page's own top rows, blurs and lightens them,
- * and paints the result back down over them and up under the clock. The banner
- * puts an orange wedge and a teal court on its first row, so what arrived was
- * a smear of both across the status bar and on down over the robin. There is
- * no switch for it on a web page — but it keys off the root scroller alone.
- * Held still, it never engages: the proof is `INBOX/Tutorial-On.png`, taken
- * while the tutorial's scroll lock pinned the body, where rows 0 to 186 are
- * flat #FBFAF6 to the byte and the banner starts sharp underneath. So the root
- * is now held still permanently — html, body and #root are exactly the
- * viewport, with nothing to scroll — and everything from the banner to the
- * footer scrolls inside `.app-scroll` instead, a pane the system is not
- * watching.
+ * Together they are the defence against iOS 26's scroll edge effect, which
+ * over an installed web app samples the page's own top rows, blurs and
+ * lightens them, and paints the result back down over them and up under the
+ * clock. The banner puts an orange wedge and a teal court on its first row,
+ * so what arrived was a smear of both across the status bar and on down over
+ * the robin. There is no switch for it on a web page.
+ *
+ * What actually turns it off was measured on a real iPhone, one layout at a
+ * time, with `public/blurtest.html`. It is not scrollability: a pinned
+ * document with a scrolling pane was blurred, a static bar in normal flow was
+ * blurred, and a page with nothing scrollable at all was blurred. The one
+ * shape iOS leaves sharp is a `position: fixed` element with real paint at
+ * the top of the viewport, which it reads as the app's own bar and stands
+ * down. The paint is load-bearing twice over. A transparent strip only
+ * stayed sharp when a painted one had already made the decision, so it can
+ * never be released. And 2px of it was overlooked at launch where 8px never
+ * was, so 8px is the floor. That element is `#top-pin` in index.html —
+ * static, so it is painted from the first frame, before React boots — and it
+ * is drawn as a copy of the banner's own first rows, so at rest it is
+ * invisible and scrolled it reads as the thinnest sliver of the banner
+ * staying put.
  *
  * This replaced a blank cream band above the banner, which fed the effect a
  * flat colour it could not visibly smear. It worked, and cost forty pixels of
  * every home screen; git history has the band if the effect ever needs feeding
- * again.
+ * again. The pane arrangement below is the shape the strip was proven
+ * against, and it keeps the app's own scrolling out of the document either
+ * way.
  *
  * Three consequences worth knowing:
  * - `.app-scroll` carries `[data-app-scroll]`, and lib/appScroll.ts is the one
@@ -116,6 +126,52 @@ body {
 html,
 body {
   overscroll-behavior: none;
+}
+
+/**
+ * The strip itself — see the story above. Height, hairline and artwork all
+ * mirror the banner's first rows exactly: the same 1px rule, the same two
+ * images at the same height, pinned and windowed the same way, so the eight
+ * pixels land on top of an identical eight and vanish. The height variable is
+ * the banner's own clamp from Header.tsx minus the 2px its borders keep, and
+ * the window formula is Header.tsx's RIGHT_ASPECT and TITLE_MIN verbatim;
+ * src/lib/topPin.test.ts holds the two files to the same numbers.
+ *
+ * z-index 10 is `.app-panel`'s own, and #top-pin sits later in the DOM, so it
+ * paints over the panel and everything trapped inside it — which is right,
+ * because the status bar above it stays cream too. Overlays mounted outside
+ * the panel run z-50 and cover it, which is also right.
+ */
+#top-pin {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  background: #fbfaf6;
+  border-top: 1px solid #d2d2d2;
+  --top-pin-art: calc(clamp(110px, 26.25vw, 165px) - 2px);
+}
+
+#top-pin img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: var(--top-pin-art);
+  width: auto;
+  max-width: none;
+}
+
+#top-pin > div {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: min(calc(1.3333 * clamp(110px, 26.25vw, 165px)), calc(100% - 11rem));
+  overflow: hidden;
 }
 
 /**
@@ -276,6 +332,12 @@ body {
   }
 
   .no-print {
+    display: none !important;
+  }
+
+  /* The strip guards a screen edge the sheet does not have. Printed, it would
+     be a stray sliver of banner across the top of page one. */
+  #top-pin {
     display: none !important;
   }
 

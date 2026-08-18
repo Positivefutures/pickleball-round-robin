@@ -1471,11 +1471,12 @@ function App() {
         />
       )}
       {/* The pane the whole app scrolls in, banner to footer — the document
-          itself is held to the viewport and cannot move, which is what keeps
-          iOS 26's scroll edge effect off the top of the banner. The story is
-          at the top of index.css; lib/appScroll.ts is how code scrolls it.
-          The click-catcher above sits outside it on purpose: an absolute
-          inset-0 child of a scrolled pane covers only the first screenful. */}
+          itself is held to the viewport and cannot move. What keeps iOS 26's
+          scroll edge effect off the banner is #top-pin in index.html; the
+          story is at the top of index.css. lib/appScroll.ts is how code
+          scrolls this pane. The click-catcher above sits outside it on
+          purpose: an absolute inset-0 child of a scrolled pane covers only
+          the first screenful. */}
       <div data-app-scroll className="app-scroll">
       <Header
         // Past the roster step the group being worked on is the useful label

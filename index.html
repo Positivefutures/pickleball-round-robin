@@ -138,6 +138,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- The 8px that keeps iOS honest. iOS 26 blurs an installed app's top
+         rows into the status bar unless a painted position:fixed element owns
+         the top of the viewport, in which case it reads it as the app's own
+         bar and stands down. This strip is that element, drawn as a copy of
+         the banner's first rows so at rest it is invisible. It lives here
+         rather than in React so it is painted from the first frame, because
+         the decision is made at launch, and so it stands over every surface
+         the app mounts. After #root on purpose: the two share a z-index and
+         this one has to win. The full story is at the top of src/index.css;
+         the measurements behind it came from public/blurtest.html on a real
+         iPhone. -->
+    <div id="top-pin" aria-hidden="true">
+      <img src="/header-left.png" alt="" width="280" height="264" />
+      <div><img src="/header-right.jpg" alt="" width="352" height="264" /></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

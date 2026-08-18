@@ -60,8 +60,14 @@ const RUNTIME_ASSETS = /\.(png|jpg|jpeg|webp|svg|mp3)$/;
  * manifest to build its install dialog, which is a thing it draws before this
  * app is installed and never again after. Storing them on the device would be
  * caching a picture of the app for somebody already looking at the app.
+ *
+ * The blur lab is a diagnostic page rearranged between deploys, so a cached
+ * copy would be an old experiment answering a new question. In practice `.html`
+ * never matches RUNTIME_ASSETS anyway; the entry is here so the two copies of
+ * this list stay reconcilable. See precache.ts.
  */
 export const NEVER_CACHE = new Set([
+  '/blurtest.html',
   '/og-banner.png',
   '/screenshot-roster.png',
   '/screenshot-schedule.png',
