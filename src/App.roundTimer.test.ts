@@ -228,21 +228,21 @@ describe('Round Timer', () => {
     expect(text(panel).match(/Round 2/g)).toHaveLength(1);
   });
 
-  it('keeps Reset in place when Stop turns back into Start Timer', () => {
+  it('keeps Reset in place when Pause turns back into Start Timer', () => {
     openTimer(1);
     clickButton(/^Start Timer$/, timerPanel()!);
 
     // Counting down: stop it, or take it back to the top.
-    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Pause$/, timerPanel()!)).toHaveLength(1);
     expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(1);
     expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(0);
 
-    clickButton(/^Stop$/, timerPanel()!);
+    clickButton(/^Pause$/, timerPanel()!);
 
-    // Stopped, and still three tiles: only the middle one changed.
+    // Paused, and still three tiles: only the middle one changed.
     expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(1);
     expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(1);
-    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(0);
+    expect(buttons(/^Pause$/, timerPanel()!)).toHaveLength(0);
 
     // Reset is the only way back to two tiles and the settings under them.
     clickButton(/^Reset$/, timerPanel()!);
@@ -270,7 +270,7 @@ describe('Round Timer', () => {
     expect(row()).toEqual(['Close', 'Start Timer']);
 
     clickButton(/^Start Timer$/, timerPanel()!);
-    expect(row()).toEqual(['Close', 'Stop', 'Reset']);
+    expect(row()).toEqual(['Close', 'Pause', 'Reset']);
 
     // No X in the corner: the sheet used to carry one, and with Close in the
     // row it would be a second way out to read past.
@@ -329,7 +329,7 @@ describe('Round Timer', () => {
     act(() => {
       vi.advanceTimersByTime(30_000);
     });
-    clickButton(/^Stop$/, timerPanel()!);
+    clickButton(/^Pause$/, timerPanel()!);
     clickButton(/^Close$/, timerPanel()!);
 
     const chip = roundCard(1).querySelector('[aria-label="Round timer"]')!;
@@ -361,7 +361,8 @@ describe('Round Timer', () => {
 
     openTimer(2);
 
-    expect(text(document.body)).toContain('Stop Round 1');
+    // Reset, not Pause: a paused timer still holds the round.
+    expect(text(document.body)).toContain('Reset Round 1');
     expect(timerPanel()).toBeNull();
     clickButton(/^OK$/);
 
@@ -369,7 +370,7 @@ describe('Round Timer', () => {
     // no dialog in the way.
     openTimer(1);
     expect(timerPanel()).not.toBeNull();
-    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Pause$/, timerPanel()!)).toHaveLength(1);
   });
 
   it('forces the panel back open when the alarm fires, even on a different tab', () => {
@@ -394,7 +395,7 @@ describe('Round Timer', () => {
     expect(alarmed).not.toBeNull();
     expect(text(alarmed!)).toContain('TIME’S UP');
 
-    clickButton(/^Stop$/, alarmed!);
+    clickButton(/^Pause$/, alarmed!);
     expect(storedTimer().phase).toBe('paused');
   });
 

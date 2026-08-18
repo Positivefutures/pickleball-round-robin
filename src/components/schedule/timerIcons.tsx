@@ -148,3 +148,23 @@ export function StopSquareIcon({ className = 'w-4 h-4' }: { className?: string }
     </svg>
   );
 }
+
+/**
+ * Two bars: the classic media pause. What the middle key on a running timer
+ * wears, because that is what it does — the clock stops where it is and Start
+ * Timer picks it up again. The square beside it says the run is over and
+ * something has to be reset, which is Reset's job on the same row.
+ */
+export function PauseIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      <path d="M7 5h3.2v14H7zm6.8 0H17v14h-3.2z" />
+    </svg>
+  );
+}

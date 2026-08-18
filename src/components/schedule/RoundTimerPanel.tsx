@@ -14,7 +14,7 @@ import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { AlarmTonePicker } from './AlarmTonePicker';
 import { TimerSheet } from './TimerSheet';
 import {
-  VolumeUpIcon, SilenceIcon, FlashIcon, IphoneOutlineIcon, PlayTriangleIcon, StopSquareIcon,
+  VolumeUpIcon, SilenceIcon, FlashIcon, IphoneOutlineIcon, PlayTriangleIcon, PauseIcon,
   ReplayIcon,
 } from './timerIcons';
 
@@ -33,7 +33,7 @@ import {
  *
  * `visible` is `manuallyOpen || phase === 'alarming'` — an active alarm always
  * wins, so a stray tap on Close while it's ringing snaps the sheet right back
- * open on the next render. Only Stop, which actually leaves the alarming
+ * open on the next render. Only Pause, which actually leaves the alarming
  * phase, dismisses it for real.
  */
 export function RoundTimerPanel() {
@@ -82,8 +82,9 @@ export function RoundTimerPanel() {
               in the corner of the sheet — and what it sits beside grows from
               one button to two once the clock is running.
 
-              STOP turns back into START in place rather than collapsing the
-              row, so Close and Reset stay where the thumb last found them. */}
+              Pause turns back into Start Timer in place rather than
+              collapsing the row, so Close and Reset stay where the thumb last
+              found them. */}
           <div className={TILE_ROW}>
             <TileButton
               tone="quiet"
@@ -92,7 +93,10 @@ export function RoundTimerPanel() {
               onClick={closeRoundTimerPanel}
             />
             {counting ? (
-              <TileButton tone="red" Icon={StopSquareIcon} label="Stop" onClick={stopTimer} />
+              /* Quiet, not red. Pausing takes nothing away: the clock holds
+                 where it is and Start Timer carries on from there. Red is for
+                 the tiles that end something. */
+              <TileButton tone="quiet" Icon={PauseIcon} label="Pause" onClick={stopTimer} />
             ) : (
               <TileButton
                 tone="teal"
