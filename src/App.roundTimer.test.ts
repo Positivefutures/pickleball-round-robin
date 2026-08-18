@@ -399,16 +399,33 @@ describe('Round Timer', () => {
     expect(storedTimer().phase).toBe('paused');
   });
 
-  it('releases the timer when the schedule is regenerated', () => {
+  it('releases the timer when a new schedule is built', () => {
     openTimer(1);
     clickButton(/^Start Timer$/, timerPanel()!);
     clickButton(/^Close$/, timerPanel()!);
     expect(storedTimer().roundNumber).toBe(1);
 
+    // A real change on Setup, so the press builds rather than hands the parked
+    // schedule back. The round the clock was pinned to no longer exists.
     click(tab(/^2\. Setup/));
+    clickLabel('More rounds');
     clickButton(/^Generate Schedule/);
 
     expect(storedTimer().roundNumber).toBeNull();
+  });
+
+  it('keeps it running when Generate hands the same schedule back', () => {
+    // Nothing changed on Setup, so nothing is rebuilt and there is no reason to
+    // stop a clock counting down a round that is still on the board.
+    openTimer(1);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
+
+    click(tab(/^2\. Setup/));
+    clickButton(/^Generate Schedule/);
+
+    expect(storedTimer().roundNumber).toBe(1);
+    expect(storedTimer().phase).toBe('running');
   });
 
   /**

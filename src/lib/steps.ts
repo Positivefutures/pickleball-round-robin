@@ -6,35 +6,13 @@ export const STEPS: { key: Step; label: string }[] = [
   { key: 'schedule', label: '3. Schedule' },
 ];
 
-/** The step's display name, so nothing else has to repeat these strings. */
-export function stepLabel(step: Step): string {
-  return STEPS.find((s) => s.key === step)?.label ?? step;
+/**
+ * The step's name in a sentence: "Returning to Setup discards the session".
+ *
+ * Not the tab's label, which is numbered because the three of them are a route
+ * and the numbers are how a host knows where they are in it. A number read out
+ * in the middle of a sentence is a step in a recipe.
+ */
+export function stepName(step: Step): string {
+  return step === 'roster' ? 'Players' : step === 'setup' ? 'Setup' : 'Schedule';
 }
-
-/**
- * What replacing a schedule costs, in one sentence.
- *
- * It used to be said by three doors — the Setup tab, the Players tab and New
- * Round Robin. The tabs no longer take anything away, so this is down to
- * Generate, which is the one thing that writes over a schedule.
- *
- * New Round Robin says its own version, in Jeff's words on 2026-08-15. The two
- * differ on purpose: this one is about a rebuild, where the swaps and the ticks
- * are what somebody would miss, and that one is about clearing the afternoon,
- * where it is the scores.
- */
-export const DISCARD_WARNING =
-  "This will discard the current schedule including any swaps you've made " +
-  "and rounds you've marked complete.";
-
-/**
- * Opening Set Round Types on a session that is already under way.
- *
- * Not DISCARD_WARNING, which is about losing the schedule. This one keeps the
- * rounds already played, scores and all, and rebuilds only what is left, so
- * saying it would discard the schedule would be frightening the host off a
- * change that costs them very little.
- */
-export const PLAN_REBUILD_WARNING =
-  'Every round still to be played will be rebuilt. The ones already done keep ' +
-  'their games and scores.';

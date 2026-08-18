@@ -31,7 +31,7 @@ import { DefaultRatingPanel } from './components/layout/DefaultRatingPanel';
 import { ImportExportPanel, ALL_GROUPS } from './components/layout/ImportExportPanel';
 import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
-import { type Step } from './lib/steps';
+import { type Step, stepName } from './lib/steps';
 import {
   currentStep, switchToGroup, resume as resumeGroup,
   forget as forgetGroupSession, clearSession as clearStoredSession,
@@ -73,7 +73,7 @@ import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import type { ActionsEntry } from './components/schedule/ActionsSheet';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
-import { EditPageIcon } from './components/icons';
+import { StepPlayersIcon, StepSetupIcon } from './components/icons';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
 // Shown in the banner on the Players step, and as the settings drawer's heading.
@@ -136,13 +136,23 @@ function App() {
   // down again.
   const [promptGenerate, setPromptGenerate] = useState(false);
   /**
-   * Whether Generate has been asked to replace a schedule worth keeping.
+   * The tab the host tapped on their way off a schedule they have worked on,
+   * held until they answer the question. Null while nothing is being asked.
    *
-   * The question used to be asked by the tabs, on the way out of the schedule.
-   * It is asked here now because here is where the loss actually happens:
-   * leaving the schedule keeps it, and pressing Generate is what writes over it.
+   * The question is asked at the door rather than at Generate. Leaving the
+   * Schedule tab is the moment the afternoon ends, because the only way back
+   * onto it is to build a new one.
    */
-  const [pendingGenerate, setPendingGenerate] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<Step | null>(null);
+  /**
+   * Whether any padlock, or any couple broken for a single round, is set.
+   *
+   * SchedulePage's own state, reported up rather than stored: it goes when that
+   * page goes, and a padlock written to storage would outlive the padlock. It
+   * only has to be true while the host is standing on the schedule, which is
+   * the only place the question about leaving it can be asked.
+   */
+  const [liveLocks, setLiveLocks] = useState(false);
   /**
    * The Set Round Types list's draft while it is open, or null when it is shut.
    *
@@ -724,39 +734,57 @@ function App() {
       partnerships, numCourts, numRounds, roundPlan, scheduleBasis, setScheduleBasis]);
 
   /**
-   * Whether the schedule still matches the session, and so whether the Schedule
-   * tab is a door back to it.
+   * Whether the host has done anything to this schedule.
+   *
+   * Scores and swaps and every Actions edit are written down in
+   * `scheduleEdited`; the ticks are their own list; the padlocks are reported up
+   * from SchedulePage while it is mounted. All three can be counted here
+   * because the one question that reads this — may I leave? — is only ever
+   * asked while the host is standing on the schedule.
    */
-  const scheduleStale = !schedule || scheduleIsStale(scheduleBasis, liveBasis);
+  const scheduleAltered =
+    !!schedule && (scheduleEdited || completedRounds.length > 0 || liveLocks);
 
   /**
-   * What pressing Generate would throw away, read from storage rather than from
-   * SchedulePage.
+   * What Generate would build from, the open round types list included.
    *
-   * SchedulePage reports a wider answer that also counts the padlocks and the
-   * couples broken for one round, but those are its own state and go when it
-   * unmounts — and the host doing the asking is standing on Setup, where it is
-   * unmounted. These two are written down, so they are still true from here.
+   * handleGenerate builds from `planDraft ?? roundPlan` rather than the
+   * committed plan, so the comparison has to as well: a host with the list open
+   * and a round changed is looking at something the parked schedule does not
+   * match, whatever the store still says.
    */
-  const workAtStake = !!schedule && (scheduleEdited || completedRounds.length > 0);
+  const pressBasis = { ...liveBasis, roundPlan: planDraft ?? roundPlan };
+  /**
+   * Whether the parked schedule is the one this press would have built, and so
+   * whether Generate hands it back rather than making another.
+   *
+   * The same comparison that used to decide whether the Schedule tab was a
+   * door. It decides what the button does now.
+   */
+  const parkedIsCurrent = !!schedule && !scheduleIsStale(scheduleBasis, pressBasis);
 
   /**
-   * Generate, asked for from the Setup page.
+   * Generate, pressed on the Setup page. The only way onto the Schedule tab.
    *
-   * An untouched schedule is rebuilt without a word: it cost one tap to make and
-   * costs one to make again. A schedule with scores on it, or rounds marked
-   * complete, is an afternoon, and gets the question.
+   * Two jobs in one button, and the host cannot tell them apart, which is the
+   * point. Nothing changed since the schedule was parked: hand it straight
+   * back, scores, clock and all. Anything changed, or nothing parked: build.
    *
-   * Never during the tour, which generates a schedule of its own on the way
-   * past and must not meet a dialog it did not put there.
+   * No question either way. A schedule with an afternoon on it cannot be
+   * reached from this page — leaving it is what asks, and a yes there is what
+   * threw it away.
    */
-  const requestGenerate = useCallback(() => {
-    if (workAtStake && !tour) {
-      setPendingGenerate(true);
+  const handleGeneratePress = useCallback(() => {
+    if (parkedIsCurrent) {
+      setStep('schedule');
+      // The tour's Select Players card moves on the press rather than on the
+      // build. Without this, coming back from the congratulations card leaves
+      // the host on the schedule with the previous card still showing.
+      if (tour?.id === 'select-players') nextCard();
       return;
     }
     handleGenerate();
-  }, [workAtStake, tour, handleGenerate]);
+  }, [parkedIsCurrent, tour, setStep, handleGenerate]);
 
   // The box above Generate belongs to one visit to Setup. Walking away is an
   // answer too, and coming back later with no press behind it should be a clean
@@ -909,11 +937,12 @@ function App() {
         ).rounds
       ),
     });
-    // The remaining rounds are machine-built again, so swaps are gone — but a
-    // removal is still work that going back to Setup would throw away.
-    setScheduleEdited(removedIds.length > 0);
+    // The remaining rounds are machine-built again, so the swaps are gone. The
+    // reshuffle is still the host's own doing, and walking back to Setup would
+    // throw it away with everything else.
+    setScheduleEdited(true);
   }, [schedule, attendingPlayers, sessionPartnerships, completedRounds, numCourts, roundPlan,
-      removedIds, setSchedule, setScheduleEdited]);
+      setSchedule, setScheduleEdited]);
 
   /**
    * Done, on the Set Round Types list.
@@ -961,14 +990,14 @@ function App() {
     // render's, and the Schedule tab would shut on a host mid-session — the
     // same trick handleRosterDeletePlayer plays with `attending: remaining`.
     setScheduleBasis(basisKey({ ...liveBasis, roundPlan: next, schedule: rebuilt }));
-    // The rounds still to come are machine-built again, so swaps are gone. A
-    // removal is still work, exactly as after a reshuffle.
-    setScheduleEdited(removedIds.length > 0);
+    // Nothing said about whether the schedule has been altered. This runs on
+    // the Setup tab, and a change made there is not a change made to an
+    // afternoon: a session under way cannot be reached from that page.
     // liveBasis is rebuilt every render from values already in this list
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schedule, roundPlan, numRounds, completedRounds, attendingPlayers, sessionPartnerships,
       numCourts, removedIds, activeRosterId, partnerships, setRoundPlan, setSchedule,
-      setScheduleBasis, setScheduleEdited]);
+      setScheduleBasis]);
 
   /**
    * Walking off the Setup tab with the list still open keeps what was set.
@@ -1223,8 +1252,11 @@ function App() {
     );
     setNumRounds(numRounds + 1);
     setRoundPlan(plan);
+    // A round on the end is the host's own work, like every other thing the
+    // Actions sheet does.
+    setScheduleEdited(true);
   }, [schedule, attendingPlayers, sessionPartnerships, numCourts, numRounds, roundPlan,
-      setNumRounds, setRoundPlan, setSchedule]);
+      setNumRounds, setRoundPlan, setSchedule, setScheduleEdited]);
 
   // Players who aren't in this session yet — including anyone removed from it
   // earlier or subbed off, since a player who left may well come back, and a
@@ -1364,51 +1396,80 @@ function App() {
   /**
    * Which tabs are doors.
    *
-   * Schedule used to be a door to nowhere: the only way onto it was Generate,
-   * so every trip to Players or Setup cost the host the schedule they had. It
-   * is a door now whenever the schedule still describes the session — the whole
-   * point being that a look at the roster, or a change of mind about keeping
-   * score, is not a reason to lose an afternoon.
+   * Two of them, and never the schedule. Generate is the only way onto that
+   * tab: a session under way is not something Setup can be used on, so walking
+   * back to Setup is walking away from it, and the way forward from there is
+   * the button that builds.
    */
   const availableSteps: Step[] = [];
   if (step !== 'roster') availableSteps.push('roster');
   if (step !== 'setup' && setupSeen) availableSteps.push('setup');
-  if (step !== 'schedule' && !scheduleStale) availableSteps.push('schedule');
 
   /**
-   * And which is drawn shut but still answers: a schedule that exists and no
-   * longer fits. Pressing it cannot show the schedule, so it says where the
-   * schedule went instead.
+   * And which is drawn shut but still answers: Schedule, whenever the host is
+   * standing somewhere else.
+   *
+   * It is flat rather than a card because it is not a door, and it takes a
+   * press anyway because somebody reaching for it is asking a real question —
+   * where is my schedule — and the answer is the Generate button. Before the
+   * host has ever seen Setup there is no answer worth giving, and the tab is
+   * dead: the way to Setup is Continue to Setup, at the foot of the Players
+   * page, and this must not become a way around it.
    */
-  const answeringSteps: Step[] =
-    step !== 'schedule' && schedule && scheduleStale ? ['schedule'] : [];
+  const answeringSteps: Step[] = step !== 'schedule' && setupSeen ? ['schedule'] : [];
 
   /**
    * Moving between tabs.
    *
-   * Nothing here discards anything any more. Leaving the schedule parks it, and
-   * the only thing that writes over it is Generate, which asks its own question
-   * when there is something to lose.
+   * Three answers. The Schedule tab is never a door, so a press on it lands on
+   * Setup with the box bouncing over Generate. Leaving a schedule the host has
+   * worked on asks first, because that is where the afternoon ends. Everything
+   * else just goes.
    */
   const handleStepNav = useCallback(
     (target: Step) => {
+      if (target === 'schedule') {
+        // Already on Setup: nowhere to go, and the box is the whole point of
+        // the press.
+        if (step !== 'setup') setStep('setup');
+        setPromptGenerate(true);
+        return;
+      }
       if (target === step) return;
-      if (target !== 'schedule') {
-        setStep(target);
+      if (step === 'schedule' && scheduleAltered) {
+        setPendingLeave(target);
         return;
       }
-      // A Schedule tab that is a door.
-      if (!scheduleStale) {
-        setStep('schedule');
-        return;
-      }
-      // And one that is not. Somebody has just asked for their schedule, so
-      // take them to the page that can give them one and point at the button.
-      setStep('setup');
-      setPromptGenerate(true);
+      setStep(target);
     },
-    [step, scheduleStale, setStep]
+    [step, scheduleAltered, setStep]
   );
+
+  /**
+   * Yes, abandon it.
+   *
+   * The same clearing New Round Robin does, keeping the ticked players and
+   * their partners: the crowd is usually the same and the next Generate is one
+   * press away. Everything that belonged to the afternoon goes with it — the
+   * schedule, the scores, the ticks, the guests, whoever was covering for whom,
+   * the clock, and the basis the parked schedule was compared against.
+   */
+  const confirmLeave = useCallback(() => {
+    if (!pendingLeave) return;
+    clearSession(true);
+    setStep(pendingLeave);
+    setPendingLeave(null);
+  }, [pendingLeave, clearSession, setStep]);
+
+  /**
+   * The padlocks go when the page holding them goes.
+   *
+   * Keyed on the group as well as the tab: two groups can both be parked on the
+   * Schedule tab, and one group's padlocks are not the other's.
+   */
+  useEffect(() => {
+    setLiveLocks(false);
+  }, [step, activeRosterId]);
 
   // Both banners wait for a roster worth keeping. Four players is a group
   // somebody has typed in by hand, and the first point at which losing it would
@@ -1588,9 +1649,8 @@ function App() {
             onPlanCommit={handlePlanCommit}
             planDraft={planDraft}
             onPlanDraft={setPlanDraft}
-            workAtStake={workAtStake}
             promptGenerate={promptGenerate}
-            onGenerate={requestGenerate}
+            onGenerate={handleGeneratePress}
           />
         )}
 
@@ -1621,6 +1681,9 @@ function App() {
             defaultRating={defaultRating}
             scoringEnabled={scoringEnabled}
             onOpenAccount={openAccount}
+            // The padlocks are this page's own, and count as work the moment
+            // one is set: leaving the schedule would throw them away.
+            onLocksChange={setLiveLocks}
             actions={{
               onStartNewSession: handleStartNewSession,
               onAddPlayer: handleAddPlayer,
@@ -1635,23 +1698,25 @@ function App() {
         )}
       </main>
 
-      {/* The one place a schedule is still lost, and so the one place the
-          question is still worth asking. The tabs used to ask it on the way out
-          of the schedule, which was the wrong moment: leaving keeps it, and
-          this is what writes over it. */}
-      {pendingGenerate && (
+      {/* The one door out of an afternoon, and so the one question left in the
+          app about losing one. Leaving the Schedule tab is what ends a session,
+          because Generate is the only way back onto it — so this is asked here
+          rather than over the button that rebuilds. */}
+      {pendingLeave && (
         <DiscardScheduleDialog
-          heading="Replace the current schedule?"
+          heading="Abandon This Schedule?"
+          body={
+            <>
+              Returning to <strong className="font-bold">{stepName(pendingLeave)}</strong>{' '}
+              discards the session including any entered scores.
+            </>
+          }
           cancelLabel="Cancel"
-          confirmLabel="Generate"
-          // The same shape New Round Robin wears in the Actions sheet: this is
-          // that question asked from the Setup tab.
-          confirmIcon={EditPageIcon}
-          onConfirm={() => {
-            setPendingGenerate(false);
-            handleGenerate();
-          }}
-          onCancel={() => setPendingGenerate(false)}
+          confirmLabel={`Return to ${stepName(pendingLeave)}`}
+          // The tab it lands on, wearing that tab's own shape.
+          confirmIcon={pendingLeave === 'roster' ? StepPlayersIcon : StepSetupIcon}
+          onConfirm={confirmLeave}
+          onCancel={() => setPendingLeave(null)}
         />
       )}
 

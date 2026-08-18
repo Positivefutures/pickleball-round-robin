@@ -1,5 +1,4 @@
-import type { ReactElement } from 'react';
-import { DISCARD_WARNING } from '../../lib/steps';
+import type { ReactElement, ReactNode } from 'react';
 import { CloseIcon, WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
@@ -8,42 +7,37 @@ import { TileButton, TILE_ROW } from '../TileButton';
 interface Props {
   heading: string;
   /**
-   * What is about to be lost. Defaults to the whole schedule, which is what
-   * every door out of one costs; Set Round Types passes its own, because it
-   * keeps the rounds already played and only rebuilds the rest.
+   * What is about to be lost. A node rather than a string: the one thing this
+   * says is where the host is going, and the destination is set in bold inside
+   * the sentence.
    */
-  body?: string;
+  body: ReactNode;
   cancelLabel: string;
   confirmLabel: string;
   /** The shape on the confirm tile. Every tile in the app carries one. */
   confirmIcon: (props: { className?: string }) => ReactElement;
-  /**
-   * How hard the confirm button pushes back. Red is the default and means the
-   * schedule is going; teal is for a change that costs less than it sounds,
-   * where red would frighten the host off something quite ordinary.
-   */
-  tone?: 'destructive' | 'primary';
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 /**
- * Standing between the host and work they cannot get back. Each door names
- * itself in the heading and in its buttons, and says underneath what it costs:
- * by default the warning in lib/steps, which New Round Robin in the Actions
- * sheet says too.
+ * Standing between the host and work they cannot get back.
+ *
+ * One door leads here: leaving the Schedule tab for Players or Setup with an
+ * afternoon on the board. The heading asks the question, the line under it says
+ * what a yes costs, and the buttons name the tab they land on.
  *
  * Answered with the same tiles as its twin on the Actions sheet. New Round Robin
- * asks this question there and Generate asks it here, and a host who has met one
- * of them should recognise the other.
+ * asks this question there and the tabs ask it here, and a host who has met one
+ * of them should recognise the other. Red on the confirm, always: nothing
+ * reaches this dialog that does not throw a session away.
  */
 export function DiscardScheduleDialog({
   heading,
-  body = DISCARD_WARNING,
+  body,
   cancelLabel,
   confirmLabel,
   confirmIcon,
-  tone = 'destructive',
   onConfirm,
   onCancel,
 }: Props) {
@@ -58,7 +52,7 @@ export function DiscardScheduleDialog({
         <div className={TILE_ROW}>
           <TileButton tone="quiet" Icon={CloseIcon} label={cancelLabel} onClick={onCancel} />
           <TileButton
-            tone={tone === 'destructive' ? 'red' : 'teal'}
+            tone="red"
             Icon={confirmIcon}
             label={confirmLabel}
             onClick={onConfirm}

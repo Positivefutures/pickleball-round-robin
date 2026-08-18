@@ -8,11 +8,12 @@ interface Props {
   /**
    * Steps that are not doors but are still worth a press.
    *
-   * There is one: Schedule, when a schedule exists but the setup has moved on
-   * from it. It is drawn shut, because pressing it will not show the schedule,
-   * and it is pressable anyway, because somebody reaching for it is asking a
-   * real question — where has my schedule gone — and deserves an answer rather
-   * than a tab that does nothing at all.
+   * There is one: Schedule, whenever the host is standing somewhere else. It is
+   * never a door — Generate is the only way onto it — so it is drawn shut, and
+   * it is pressable anyway, because somebody reaching for it is asking a real
+   * question, where is my schedule, and deserves an answer rather than a tab
+   * that does nothing at all. The answer is the Setup tab with the box bouncing
+   * over the button that builds.
    *
    * Deliberately not marked disabled, by either `disabled` or `aria-disabled`.
    * Both say "this control does nothing", and this one does something useful:
@@ -81,9 +82,8 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
             <button
               type="button"
               // Only a step already been through is a door. The live step is
-              // where you are, and a step not reached yet has to be earned with
-              // the button at the foot of the page — which is what keeps
-              // Schedule off limits until Generate has built one.
+              // where you are, and Schedule is never one: it is earned with the
+              // button at the foot of the Setup page, every time.
               disabled={!isReady && !isAnswering}
               onClick={() => onNavigate(step.key)}
               aria-current={isActive ? 'step' : undefined}
