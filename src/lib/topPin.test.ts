@@ -73,3 +73,21 @@ describe('the strip that keeps iOS from blurring the banner', () => {
     expect(print).toMatch(/#top-pin\s*\{\s*[^}]*display:\s*none\s*!important/);
   });
 });
+
+describe('the same strip on the static pages, in their teal', () => {
+  // terms.html and privacy.html are their own documents with their own teal
+  // header, so the app's strip cannot reach them; each carries its own copy.
+  // Same measured rules: fixed, painted, 8px.
+  for (const page of ['public/terms.html', 'public/privacy.html']) {
+    it(`${page} pins a painted 8px strip to the top`, () => {
+      const source = readFileSync(page, 'utf8');
+      expect(source).toContain('<div id="top-pin" aria-hidden="true">');
+      const rule = source.match(/#top-pin\s*\{[^}]*\}/)?.[0] ?? '';
+      expect(rule).toMatch(/position:\s*fixed/);
+      expect(rule).toMatch(/height:\s*8px/);
+      expect(rule).toMatch(/background:\s*var\(--teal\)/);
+      expect(rule).toMatch(/pointer-events:\s*none/);
+      expect(source).toMatch(/@media print\s*\{\s*#top-pin\s*\{\s*display:\s*none/);
+    });
+  }
+});

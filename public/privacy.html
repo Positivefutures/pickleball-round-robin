@@ -197,10 +197,32 @@
         text-decoration: none;
         font-weight: 600;
       }
+
+      /* The 8px that keeps iOS honest — the app's #top-pin, in this page's
+         teal. iOS 26 blurs an installed app's top rows into the status bar
+         unless a painted position:fixed element owns the top of the viewport;
+         over the teal header that arrived as a white haze. Same recipe as the
+         app, same 8px floor, measured on a real iPhone by public/blurtest.html;
+         the full story is at the top of src/index.css. Teal on teal, so at
+         rest it is invisible and scrolled it is a teal hairline. */
+      #top-pin {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: var(--teal);
+        pointer-events: none;
+        z-index: 10;
+      }
+      @media print {
+        #top-pin { display: none; }
+      }
     </style>
   </head>
 
   <body>
+    <div id="top-pin" aria-hidden="true"></div>
     <header>
       <div class="inner">
         <!--
