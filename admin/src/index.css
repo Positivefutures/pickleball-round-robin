@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+/**
+ * The admin dashboard's tokens.
+ *
+ * Two families, kept apart on purpose.
+ *
+ * **Chrome** borrows the app's brand teal and its panel edge, so the two feel
+ * related when both are open. Copied as values rather than imported: this is a
+ * separate app with its own build, and a shared stylesheet across two Vercel
+ * projects would be a dependency for the sake of eight colours.
+ *
+ * **Charts** do not use the brand at all. The series slots and the four status
+ * steps are the validated data-visualisation palette, checked with the
+ * validator rather than by eye:
+ *
+ *   node scripts/validate_palette.js "#2a78d6,#eb6834,#1baf7a" \
+ *     --mode light --surface "#ffffff" --pairs all
+ *   → lightness, chroma, CVD separation and normal-vision floor all pass.
+ *     Contrast warns on aqua at 2.82:1, which obliges visible labels rather
+ *     than colour alone. Every chart here carries a legend and direct labels,
+ *     which is that relief.
+ *
+ * Painting a chart in the brand teal and orange was the first instinct and it
+ * is the wrong one. Teal against orange is a brand pairing chosen for contrast
+ * on a button, not a series pairing checked for deuteranopia, and the whole
+ * point of this page is numbers being read correctly.
+ */
+@theme static {
+  /* Chrome. The app's own, so the two look like siblings. */
+  --color-brand-teal: #007d88;
+  --color-brand-teal-dark: #006770;
+  --color-panel-edge: #a2a7ab;
+
+  /* Ink. Recessive by design: the marks carry the meaning, not the furniture. */
+  --color-ink: #1f2937;
+  --color-ink-quiet: #4b5563;
+  --color-ink-faint: #6b7280;
+  --color-grid: #e5e7eb;
+
+  /* Categorical series, in fixed order. Slot 4 does not exist on purpose: a
+     fourth line on one chart is a second chart. */
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-series-3: #1baf7a;
+
+  /* Status. Reserved, never reused as a series colour, and never shown without
+     a word beside it. On white, warning and serious are under 3:1, which is why
+     every quota row states its percentage in text. */
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+}
+
+body {
+  background: #f9fafb;
+  color: var(--color-ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Numbers in a column should line up. Tabular figures are the difference
+   between a table you can scan and one you have to read. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

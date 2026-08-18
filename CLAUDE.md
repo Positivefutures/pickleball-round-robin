@@ -56,3 +56,25 @@ The style guide is excluded from the production build: it lives at
 `style-guide.html` in the repo root, and `vite build` only takes `index.html`.
 Do not move it into `public/` — that folder ships, and `precache.test.ts` fails
 on any file in it that is not named in a service-worker list.
+
+## `admin/` is a different app, with different rules
+
+The admin dashboard in [admin/](admin/) is a second Vercel project built from
+this repo with Root Directory set to `admin`. It has its own `package.json`,
+its own build, its own tests and its own palette. **Nothing in the table above
+applies to it**, and it must never import from `src/`.
+
+Two things to know before touching it:
+
+- **Its charts deliberately do not use the brand.** Teal against orange is a
+  pairing chosen for a button, not one checked for deuteranopia. The series
+  colours are the validated data-viz palette and there is a note in
+  `admin/src/index.css` recording the validator command and its result. Add a
+  colour there and re-run it.
+- **Never ship SQL you have not run.** `admin/scripts/scratch-db.sh` builds a
+  throwaway Postgres, applies this repo's nine migrations and then the admin
+  ones, and `ADMIN_TEST_PG=... npm test` runs the real daily job against it.
+  Four bugs in the first draft were invisible to review and all four died here.
+
+The reasoning for the whole thing, including what the free plans genuinely
+cannot tell us, is in [PLANS/admin-dashboard.md](PLANS/admin-dashboard.md).
