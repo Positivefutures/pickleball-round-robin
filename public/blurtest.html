@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-mode="B">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#FBFAF6" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Blur Lab</title>
+<!--
+  A one-install laboratory for the iOS 26 status bar fade.
+
+  iOS decides whether to paint the status bar as a flat theme-color bar or as
+  a sampled, blurred continuation of the page. The app's screenshots prove the
+  flat bar appears when nothing in the page can scroll, and the fade appears
+  when the app's inner pane can. This page holds one layout that can be
+  rearranged into five shapes with the buttons at the bottom, so one
+  Add to Home Screen install can answer which shapes iOS leaves sharp.
+
+  The stripes and the wedge at the top are the instrument: 1px lines and a
+  saturated edge cannot survive a blur, so a soft top means the fade is on.
+-->
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  html { background: #FBFAF6; }
+  body { font-family: -apple-system, system-ui, sans-serif; }
+
+  /* The instrument: fine detail that makes any blur unmissable. */
+  .art {
+    height: 140px;
+    background:
+      repeating-linear-gradient(to bottom, #1f2937 0 1px, transparent 1px 7px) top / 100% 42px no-repeat,
+      linear-gradient(115deg, #fe4b01 90px, transparent 90px),
+      #FBFAF6;
+    position: relative;
+  }
+  .art .label {
+    position: absolute; top: 48px; left: 104px;
+    font-size: 21px; font-weight: 700; color: #1f2937;
+  }
+  .art .sub { position: absolute; top: 80px; left: 104px; font-size: 13px; color: #4b5563; }
+
+  .bar {
+    display: none;
+    height: 66px;
+    background:
+      repeating-linear-gradient(to bottom, #1f2937 0 1px, transparent 1px 7px) top / 100% 28px no-repeat,
+      linear-gradient(115deg, #fe4b01 60px, transparent 60px),
+      #FBFAF6;
+    color: #1f2937; font-weight: 700; font-size: 15px;
+    padding: 34px 8px 0 70px;
+  }
+
+  .filler { padding: 12px 16px 140px; color: #374151; font-size: 15px; line-height: 1.5; }
+  .filler .block {
+    height: 260px; margin: 12px 0; border-radius: 12px;
+    background: linear-gradient(160deg, #e0f2f4, #b6dde2);
+    display: flex; align-items: center; justify-content: center;
+    color: #17565f; font-size: 17px;
+  }
+
+  .controls {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: #111827ee; color: #f9fafb;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+  .controls .status { font-size: 13px; margin-bottom: 8px; }
+  .controls .row { display: flex; gap: 6px; }
+  .controls button {
+    flex: 1; padding: 10px 0; font-size: 15px; font-weight: 700;
+    border: 0; border-radius: 8px; background: #374151; color: #f9fafb;
+  }
+  .controls button.on { background: #fe4b01; }
+
+  /* ---- Mode A: the document itself scrolls, like the app before 3.52. ---- */
+  html[data-mode="A"], html[data-mode="A"] body { height: auto; overflow: visible; }
+  html[data-mode="A"] .pane { height: auto; overflow: visible; }
+
+  /* ---- Modes B-E: the document is pinned to the viewport. ---- */
+  html:not([data-mode="A"]), html:not([data-mode="A"]) body { height: 100%; overflow: hidden; }
+
+  /* Mode B: one full-height inner pane scrolls. The 3.52 architecture. */
+  .pane { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; }
+
+  /* Mode C: a fixed bar owns the top edge; the pane starts below it. */
+  html[data-mode="C"] .bar { display: block; }
+  html[data-mode="C"] .pane { height: calc(100% - 66px); }
+  html[data-mode="C"] .art { display: none; }
+
+  /* Mode E: the pane still touches the top edge but slides under a fixed bar. */
+  html[data-mode="E"] .bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 5; }
+  html[data-mode="E"] .art { display: none; }
+  html[data-mode="E"] .pane > .filler { padding-top: 78px; }
+
+  /* Mode D: nothing anywhere can scroll. The control that should be sharp. */
+  html[data-mode="D"] .pane { overflow: hidden; }
+</style>
+</head>
+<body>
+  <div class="bar">BAR: is this line sharp?</div>
+  <div class="pane">
+    <div class="art">
+      <div class="label">Are these stripes sharp?</div>
+      <div class="sub">If the top looks soft or washed out, the fade is on.</div>
+    </div>
+    <div class="filler">
+      <p><strong>Blur Lab.</strong> Tap a mode below, look at the very top of the screen, and note whether the stripes and the orange wedge stay sharp. Then close the app fully and reopen it, because iOS may only re-decide at launch. The chosen mode is remembered.</p>
+      <div class="block">scrollable filler 1</div>
+      <div class="block">scrollable filler 2</div>
+      <div class="block">scrollable filler 3</div>
+      <div class="block">scrollable filler 4</div>
+      <div class="block">scrollable filler 5</div>
+      <div class="block">scrollable filler 6</div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="status" id="status"></div>
+    <div class="row">
+      <button data-m="A">A</button>
+      <button data-m="B">B</button>
+      <button data-m="C">C</button>
+      <button data-m="E">E</button>
+      <button data-m="D">D</button>
+    </div>
+  </div>
+<script>
+  var NAMES = {
+    A: 'A: the page itself scrolls',
+    B: 'B: full-height inner pane scrolls (3.52)',
+    C: 'C: fixed bar on top, pane below it',
+    E: 'E: pane under a fixed bar',
+    D: 'D: nothing can scroll'
+  };
+  var root = document.documentElement;
+  function apply(m) {
+    root.setAttribute('data-mode', m);
+    try { localStorage.setItem('blurlab-mode', m); } catch (e) {}
+    document.querySelectorAll('.controls button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-m') === m);
+    });
+    report();
+  }
+  function report() {
+    var d = document.scrollingElement;
+    var standalone = window.navigator.standalone ? 'home screen' : 'browser tab';
+    document.getElementById('status').textContent =
+      NAMES[root.getAttribute('data-mode')] + ' · ' + standalone +
+      ' · document ' + d.scrollHeight + '/' + d.clientHeight;
+  }
+  document.querySelectorAll('.controls button').forEach(function (b) {
+    b.addEventListener('click', function () { apply(b.getAttribute('data-m')); });
+  });
+  var saved = 'B';
+  try { saved = localStorage.getItem('blurlab-mode') || 'B'; } catch (e) {}
+  apply(saved);
+  setInterval(report, 800);
+</script>
+</body>
+</html>
