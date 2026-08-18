@@ -11,6 +11,7 @@ import { startAppUpdates } from './lib/appUpdate'
 import { ErrorBoundary, CrashTest } from './components/layout/ErrorBoundary'
 import { sharedKeyFromUrl } from './lib/shareKey'
 import { LiveSessionPage } from './components/live/LiveSessionPage'
+import { startTopPinGhost } from './lib/topPin'
 
 // First, so that a fault in anything below is heard rather than lost. It only
 // attaches two listeners; nothing is loaded and nothing is sent until something
@@ -76,3 +77,7 @@ createRoot(document.getElementById('root')!).render(
 // while its source is being edited is a way to spend an hour debugging the
 // wrong copy of it.
 if (import.meta.env.PROD) startAppUpdates()
+
+// The anti-blur strip steps aside once the pane has scrolled. Whichever page
+// mounted above, the pane carries [data-app-scroll] and the watcher finds it.
+startTopPinGhost()

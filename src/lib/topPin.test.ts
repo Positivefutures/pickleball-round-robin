@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment happy-dom
+ *
  * Holds the anti-blur strip together across the three files that share it.
  *
  * iOS 26 blurs an installed app's top rows into the status bar unless a
@@ -9,8 +11,9 @@
  * asserted here is a property the measurement showed to be load-bearing, or
  * a number the strip and the banner must agree on to stay invisible.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { startTopPinGhost } from './topPin';
 
 const html = readFileSync('index.html', 'utf8');
 const css = readFileSync('src/index.css', 'utf8');
@@ -72,6 +75,12 @@ describe('the strip that keeps iOS from blurring the banner', () => {
     const print = css.slice(css.indexOf('@media print'));
     expect(print).toMatch(/#top-pin\s*\{\s*[^}]*display:\s*none\s*!important/);
   });
+
+  it('can ghost, and something actually starts the watcher', () => {
+    expect(css).toMatch(/#top-pin\.ghost\s*\{\s*opacity:\s*0/);
+    const main = readFileSync('src/main.tsx', 'utf8');
+    expect(main).toContain('startTopPinGhost()');
+  });
 });
 
 describe('the same strip on the static pages, in their teal', () => {
@@ -89,5 +98,70 @@ describe('the same strip on the static pages, in their teal', () => {
       expect(rule).toMatch(/pointer-events:\s*none/);
       expect(source).toMatch(/@media print\s*\{\s*#top-pin\s*\{\s*display:\s*none/);
     });
+
+    it(`${page} fades the strip out on scroll, after the launch window`, () => {
+      const source = readFileSync(page, 'utf8');
+      expect(source).toMatch(/#top-pin\.ghost\s*\{\s*opacity:\s*0/);
+      // The same floor mode J proved: the paint must outlive the launch.
+      expect(source).toContain('Date.now() - born > 1500');
+      expect(source).toContain("addEventListener('scroll', look");
+    });
   }
+});
+
+describe('the ghost that hides the strip once the app scrolls', () => {
+  let pin: HTMLElement;
+  let pane: HTMLElement;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    pin = document.createElement('div');
+    pin.id = 'top-pin';
+    pane = document.createElement('div');
+    pane.setAttribute('data-app-scroll', '');
+    document.body.append(pin, pane);
+    startTopPinGhost();
+  });
+
+  afterEach(() => {
+    pin.remove();
+    pane.remove();
+    vi.useRealTimers();
+  });
+
+  const scroll = (top: number) => {
+    pane.scrollTop = top;
+    pane.dispatchEvent(new Event('scroll'));
+  };
+
+  it('holds its paint through the launch window even while scrolled', () => {
+    // Mode J's guarantee only works if the paint is there when iOS looks.
+    vi.advanceTimersByTime(500);
+    scroll(400);
+    expect(pin.classList.contains('ghost')).toBe(false);
+  });
+
+  it('settles a scroll that happened inside the window', () => {
+    vi.advanceTimersByTime(500);
+    scroll(400);
+    vi.advanceTimersByTime(1200);
+    expect(pin.classList.contains('ghost')).toBe(true);
+  });
+
+  it('fades out scrolled and returns at the top', () => {
+    vi.advanceTimersByTime(2000);
+    scroll(400);
+    expect(pin.classList.contains('ghost')).toBe(true);
+    scroll(0);
+    expect(pin.classList.contains('ghost')).toBe(false);
+  });
+
+  it('ignores some other element scrolling while the pane is home', () => {
+    vi.advanceTimersByTime(2000);
+    const list = document.createElement('div');
+    document.body.append(list);
+    list.dispatchEvent(new Event('scroll'));
+    expect(pin.classList.contains('ghost')).toBe(false);
+    list.remove();
+  });
 });

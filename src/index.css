@@ -75,8 +75,12 @@
  * shape iOS leaves sharp is a `position: fixed` element with real paint at
  * the top of the viewport, which it reads as the app's own bar and stands
  * down. The paint is load-bearing twice over. A transparent strip only
- * stayed sharp when a painted one had already made the decision, so it can
- * never be released. And 2px of it was overlooked at launch where 8px never
+ * stayed sharp when a painted one had already made the decision — but the
+ * decision, once made, carries: the lab's mode J painted for 1.5 seconds,
+ * went transparent, and stayed sharp through backgrounding and hard reopens.
+ * So the strip holds its paint through that launch window and whenever the
+ * pane sits at the top, and fades out only once the pane has scrolled
+ * (lib/topPin.ts). And 2px of paint was overlooked at launch where 8px never
  * was, so 8px is the floor. That element is `#top-pin` in index.html —
  * static, so it is painted from the first frame, before React boots — and it
  * is drawn as a copy of the banner's own first rows, so at rest it is
@@ -154,6 +158,15 @@ body {
   background: #fbfaf6;
   border-top: 1px solid #d2d2d2;
   --top-pin-art: calc(clamp(110px, 26.25vw, 165px) - 2px);
+  transition: opacity 150ms ease;
+}
+
+/* Scrolled away from the top, the strip's sliver of banner over foreign
+   content read as a defect, so lib/topPin.ts fades it out — but only after
+   the launch window in which iOS reads the paint and decides. Mode J of the
+   blur lab is the proof this is safe. */
+#top-pin.ghost {
+  opacity: 0;
 }
 
 #top-pin img {

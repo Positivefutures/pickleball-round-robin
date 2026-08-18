@@ -214,6 +214,14 @@
         background: var(--teal);
         pointer-events: none;
         z-index: 10;
+        transition: opacity 150ms ease;
+      }
+      /* Scrolled, the teal line over pale content read as a defect, so the
+         script at the foot of the page fades it out — but only after the
+         launch window in which iOS reads the paint and decides. Without
+         JavaScript it simply stays, which is safe and nearly invisible. */
+      #top-pin.ghost {
+        opacity: 0;
       }
       @media print {
         #top-pin { display: none; }
@@ -562,6 +570,19 @@
           window.location.href = '/';
         }, 100);
       });
+    </script>
+    <script>
+      // The strip steps aside once the page has scrolled. See the CSS above.
+      (function () {
+        var pin = document.getElementById('top-pin');
+        var born = Date.now();
+        function look() {
+          var y = window.scrollY || document.documentElement.scrollTop || 0;
+          pin.classList.toggle('ghost', Date.now() - born > 1500 && y > 1);
+        }
+        addEventListener('scroll', look, { passive: true });
+        setTimeout(look, 1600);
+      })();
     </script>
   </body>
 </html>
