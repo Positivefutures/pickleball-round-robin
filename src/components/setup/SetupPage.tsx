@@ -364,11 +364,16 @@ export function SetupPage({
 function GeneratePrompt() {
   return (
     <div className="mb-3 flex justify-end no-print" role="status">
-      <div className="relative motion-safe:animate-bounce rounded-lg bg-brand-teal px-3.5 py-2 text-sm font-bold text-white shadow-md">
+      {/* Pale teal inside a dark teal line, not a solid teal block. It is a
+          note pointing at the button, and at full strength it read as a second
+          button sitting above the real one. The tail is painted after the box
+          it hangs off, so it covers the border it crosses and the two read as
+          one shape. */}
+      <div className="relative motion-safe:animate-bounce rounded-lg border-2 border-brand-teal-dark bg-brand-teal-light px-3.5 py-2 text-sm font-bold text-brand-teal-dark shadow-md">
         Tap Generate Schedule
         <span
           aria-hidden="true"
-          className="absolute -bottom-1 right-7 h-3 w-3 rotate-45 rounded-[2px] bg-brand-teal"
+          className="absolute -bottom-[7px] right-7 h-3 w-3 rotate-45 rounded-br-[2px] border-b-2 border-r-2 border-brand-teal-dark bg-brand-teal-light"
         />
       </div>
     </div>

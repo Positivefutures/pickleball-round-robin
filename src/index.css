@@ -56,6 +56,18 @@
    * are not panel edges and were never part of the complaint.
    */
   --color-panel-edge: #a2a7ab;
+
+  /**
+   * The fill behind a notice that only tells you something.
+   *
+   * The app already had one notice box, orange with a warning triangle, and it
+   * was doing two jobs: "this will delete scores" and "the courts are full, so
+   * whoever you add starts on the bench". The second costs nobody anything, and
+   * a box that cries wolf is a box people read past on the day it matters. Same
+   * shape, same 2px edge, yellow behind an i instead. Orange stays with the
+   * triangle, for the panels that really do take something away.
+   */
+  --color-notice-yellow: #fdf3c7;
 }
 
 /**
@@ -302,6 +314,23 @@ body {
   animation: seat-swapped 2s ease-out;
 }
 
+/* A line that says something happened and then gets out of the way.
+   "Ada was added", beside the button on the Players tab. Two seconds, and
+   `ease-in` so it holds at full strength long enough to be read before it
+   goes. `forwards` keeps it gone for the moment between the end of the fade
+   and React taking it out of the page. */
+@keyframes fade-out-2s {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.fade-out-2s {
+  animation: fade-out-2s 2s ease-in forwards;
+}
+
 /* The round timer's full-height sheet, and the one place in the app where the
    difference between the two viewport units matters.
 
@@ -331,6 +360,12 @@ body {
   /* And no fading edge. There is nothing behind this one to arrive at: the
      swap has already happened and the schedule below is showing it. */
   .seat-swapped {
+    animation: none;
+  }
+
+  /* The line still goes, because React takes it away on its own timer either
+     way. It simply holds still until it does. */
+  .fade-out-2s {
     animation: none;
   }
 }

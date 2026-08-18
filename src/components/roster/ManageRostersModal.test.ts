@@ -289,6 +289,18 @@ describe('duplicating a group', () => {
     expect(text(container)).toContain('New Group Name');
   });
 
+  it('opens at the top of the screen, above where the keyboard will be', () => {
+    // It opens with the field focused, so it opens with the keyboard up. A
+    // centred card puts Save and Cancel behind it: the phone shrinks what can
+    // be seen without moving what this is positioned against.
+    render();
+    edit('Tuesday Crew');
+    click(button('Duplicate'));
+    const backdrop = container.querySelector('.fixed.inset-0')!;
+    expect(backdrop.className).toContain('items-start');
+    expect(backdrop.className).not.toContain('items-center');
+  });
+
   it('counts up rather than offering a name already taken', () => {
     render([...ROSTERS, { id: 'g4', name: 'Tuesday Crew (copy)' }]);
     edit('Tuesday Crew');

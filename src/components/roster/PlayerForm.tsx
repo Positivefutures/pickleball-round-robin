@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Player, Gender, Roster } from '../../types';
 import { MAX_RATING, MIN_RATING } from '../../lib/rating';
 import { RatingStepper } from '../RatingStepper';
@@ -29,7 +29,19 @@ interface Props {
    * Gender; a narrow one does not, and they end up wrapping one at a time.
    */
   stackActions?: boolean;
+  /**
+   * Says "<name> was added" beside the button, and fades it out.
+   *
+   * Only the Players tab asks for it. Every other form built from this one
+   * either closes on save or is answered by the sheet's own flash, and the one
+   * that stays open is the one where the player just added has landed in a list
+   * a host cannot see while the keyboard is up.
+   */
+  announceAdded?: boolean;
 }
+
+/** How long the line takes to go, and how long it stays in the page. */
+const ANNOUNCE_MS = 2000;
 
 export function PlayerForm({
   onSubmit,
@@ -43,6 +55,7 @@ export function PlayerForm({
   submitLabel,
   nameLabel = 'Player Name',
   stackActions = false,
+  announceAdded = false,
 }: Props) {
   const [name, setName] = useState('');
   const [rating, setRating] = useState(String(defaultRating));
@@ -50,6 +63,14 @@ export function PlayerForm({
   // Set when submit is pressed with an empty name, to point at the field.
   const [nameMissing, setNameMissing] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  /**
+   * Who was just added, and how many have been. The count is the element's key,
+   * so a second name restarts the fade rather than joining one already halfway
+   * through — remounting is the only way to replay a CSS animation.
+   */
+  const [added, setAdded] = useState<{ name: string; n: number } | null>(null);
+  const addedTimer = useRef<number>(0);
+  useEffect(() => () => window.clearTimeout(addedTimer.current), []);
 
   // Populate the fields when a different player is picked for editing. Done
   // during render rather than in an effect so the form paints once, already
@@ -88,6 +109,13 @@ export function PlayerForm({
     onSubmit(trimmed, r, gender);
     setNameMissing(false);
     setName('');
+    if (announceAdded && !editingPlayer) {
+      setAdded((prev) => ({ name: trimmed, n: (prev?.n ?? 0) + 1 }));
+      window.clearTimeout(addedTimer.current);
+      // Taken out of the page once it has faded, rather than left invisible:
+      // a line a screen reader can still find is a line still being said.
+      addedTimer.current = window.setTimeout(() => setAdded(null), ANNOUNCE_MS);
+    }
     setRating(String(defaultRating));
     // Gender stays where it was put. A roster is typed in in runs, and snapping
     // back to M after every save means setting it again for each of the women.
@@ -104,6 +132,15 @@ export function PlayerForm({
   // The group checkboxes always push the buttons down; a narrow panel asks for
   // the same thing without them.
   const actionsBelow = showRosters || stackActions;
+
+  const submit = (
+    <button
+      type="submit"
+      className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
+    >
+      {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
+    </button>
+  );
 
   const actions = (
     <>
@@ -127,12 +164,26 @@ export function PlayerForm({
           Cancel
         </button>
       )}
-      <button
-        type="submit"
-        className="px-4 py-2 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
-      >
-        {submitLabel ?? (editingPlayer ? 'Update' : 'Add Player')}
-      </button>
+      {/* The button and what it has just said, as one thing.
+          The row above wraps on a phone, and left as two items the line landed
+          on the far left under the gender keys rather than beside the button it
+          belongs to. Bound together they wrap as a pair, and the words are to
+          the right of the button at any width. */}
+      {announceAdded ? (
+        <span className="flex items-center gap-3">
+          {submit}
+          {/* In the teal the app confirms in, gone two seconds later. The field
+              keeps the focus and the keyboard stays up, so this is the only
+              thing that says the name went anywhere. */}
+          {added && (
+            <span key={added.n} role="status" className="fade-out-2s font-bold text-brand-teal">
+              {added.name} was added
+            </span>
+          )}
+        </span>
+      ) : (
+        submit
+      )}
       {/* Pushed to the far end of the row, away from the two buttons a thumb is
           aiming for. It only opens a warning; nothing goes on this press. */}
       {onDelete && (

@@ -228,34 +228,60 @@ describe('Round Timer', () => {
     expect(text(panel).match(/Round 2/g)).toHaveLength(1);
   });
 
-  it('keeps RESET in place when STOP turns back into START', () => {
+  it('keeps Reset in place when Stop turns back into Start Timer', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
 
     // Counting down: stop it, or take it back to the top.
-    expect(buttons(/^STOP TIMER$/, timerPanel()!)).toHaveLength(1);
-    expect(buttons(/^RESET TIMER$/, timerPanel()!)).toHaveLength(1);
-    expect(buttons(/^START TIMER$/, timerPanel()!)).toHaveLength(0);
+    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(0);
 
-    clickButton(/^STOP TIMER$/, timerPanel()!);
+    clickButton(/^Stop$/, timerPanel()!);
 
-    // Stopped, and still two buttons: only the left one changed.
-    expect(buttons(/^START TIMER$/, timerPanel()!)).toHaveLength(1);
-    expect(buttons(/^RESET TIMER$/, timerPanel()!)).toHaveLength(1);
-    expect(buttons(/^STOP TIMER$/, timerPanel()!)).toHaveLength(0);
+    // Stopped, and still three tiles: only the middle one changed.
+    expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(0);
 
-    // RESET is the only way back to a single button and the settings under it.
-    clickButton(/^RESET TIMER$/, timerPanel()!);
-    expect(buttons(/^RESET TIMER$/, timerPanel()!)).toHaveLength(0);
-    expect(buttons(/^START TIMER$/, timerPanel()!)).toHaveLength(1);
+    // Reset is the only way back to two tiles and the settings under them.
+    clickButton(/^Reset$/, timerPanel()!);
+    expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(0);
+    expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(1);
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).not.toBeNull();
+  });
+
+  /**
+   * The row of tiles the sheet is answered with, and the corner key it replaced.
+   *
+   * Close is always the leftmost, because the key it stands in for is the one
+   * thing a host reaches for without reading, and it has to be in the same
+   * place whether the clock is running or not.
+   */
+  it('answers with tiles: Close, then what there is to do', () => {
+    openTimer(1);
+
+    /** The labels of the tiles under the clock, left to right. */
+    const row = () =>
+      [...timerPanel()!.querySelectorAll('button')]
+        .filter((b) => b.className.includes('flex-col') && b.querySelector('svg'))
+        .map((b) => text(b));
+
+    expect(row()).toEqual(['Close', 'Start Timer']);
+
+    clickButton(/^Start Timer$/, timerPanel()!);
+    expect(row()).toEqual(['Close', 'Stop', 'Reset']);
+
+    // No X in the corner: the sheet used to carry one, and with Close in the
+    // row it would be a second way out to read past.
+    expect(timerPanel()!.querySelector('[aria-label="Close Round Timer"]')).toBeNull();
   });
 
   it('hides the minutes stepper and the alerts once it is counting', () => {
     openTimer(1);
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).not.toBeNull();
 
-    clickButton(/^START TIMER$/, timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
 
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).toBeNull();
     expect(text(timerPanel()!)).not.toContain('When time is up');
@@ -263,8 +289,8 @@ describe('Round Timer', () => {
 
   it('closing the panel leaves the countdown running in the background', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
 
     expect(timerPanel()).toBeNull();
     expect(storedTimer().phase).toBe('running');
@@ -272,8 +298,8 @@ describe('Round Timer', () => {
 
   it('counts down on the round card itself, with the clock ahead of the time', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
 
     const chip = roundCard(1).querySelector('[aria-label="Round timer"]')!;
     expect(text(chip)).toBe('12:00');
@@ -291,20 +317,20 @@ describe('Round Timer', () => {
 
   it('shows a bare clock on a round with no timer of its own', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
 
     expect(text(roundCard(2).querySelector('[aria-label="Round timer"]')!)).toBe('');
   });
 
   it('keeps the time on the card while the timer is stopped, not just while it runs', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
     act(() => {
       vi.advanceTimersByTime(30_000);
     });
-    clickButton(/^STOP TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Stop$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
 
     const chip = roundCard(1).querySelector('[aria-label="Round timer"]')!;
     expect(text(chip)).toBe('11:30');
@@ -319,8 +345,8 @@ describe('Round Timer', () => {
 
   it('checking DONE while its timer is running stops and releases it', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
     expect(storedTimer().phase).toBe('running');
 
     click(checkbox(1));
@@ -330,8 +356,8 @@ describe('Round Timer', () => {
 
   it('refuses a second round while one is running, naming the round that is', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
 
     openTimer(2);
 
@@ -343,7 +369,7 @@ describe('Round Timer', () => {
     // no dialog in the way.
     openTimer(1);
     expect(timerPanel()).not.toBeNull();
-    expect(buttons(/^STOP TIMER$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Stop$/, timerPanel()!)).toHaveLength(1);
   });
 
   it('forces the panel back open when the alarm fires, even on a different tab', () => {
@@ -353,8 +379,8 @@ describe('Round Timer', () => {
     // Silence for this test — the tone synthesis itself is covered elsewhere,
     // and this is only checking that the panel reasserts itself.
     clickLabel('Play Sound', panel);
-    clickButton(/^START TIMER$/, panel);
-    clickLabel('Close Round Timer', panel);
+    clickButton(/^Start Timer$/, panel);
+    clickButton(/^Close$/, panel);
     expect(timerPanel()).toBeNull();
 
     click(tab(/^2\. Setup/));
@@ -368,14 +394,14 @@ describe('Round Timer', () => {
     expect(alarmed).not.toBeNull();
     expect(text(alarmed!)).toContain('TIME’S UP');
 
-    clickButton(/^STOP TIMER$/, alarmed!);
+    clickButton(/^Stop$/, alarmed!);
     expect(storedTimer().phase).toBe('paused');
   });
 
   it('releases the timer when the schedule is regenerated', () => {
     openTimer(1);
-    clickButton(/^START TIMER$/, timerPanel()!);
-    clickLabel('Close Round Timer', timerPanel()!);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
     expect(storedTimer().roundNumber).toBe(1);
 
     click(tab(/^2\. Setup/));
@@ -413,7 +439,7 @@ describe('Round Timer', () => {
     clickButton(/^Police Whistle$/, panel);
 
     for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel); // 12 -> 1
-    clickButton(/^START TIMER$/, panel);
+    clickButton(/^Start Timer$/, panel);
     act(() => {
       vi.advanceTimersByTime(61_000);
     });

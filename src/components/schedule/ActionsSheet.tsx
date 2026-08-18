@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon,
   CloseIcon,
   GuestIcon,
+  InfoIcon,
   LinkIcon,
   EditPageIcon,
   LockIcon,
@@ -738,13 +739,19 @@ export function ActionsSheet({
                         Sitting Out at the foot of the schedule, which is the
                         one place a host is not looking when they add them. */}
                     {noRoomOnCourt && (
-                      <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-brand-orange-light p-4">
+                      /* Yellow and an i, not orange and a warning triangle.
+                         Nothing here is lost or undone: the session is simply
+                         full, and the two lines say where the next player
+                         lands and how to put them on a court. The orange box
+                         with the triangle is kept for the panels that really
+                         do take something away. */
+                      <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-notice-yellow p-4">
                         <span
                           className="flex shrink-0 items-center"
                           style={{ color: ORANGE }}
                           aria-hidden="true"
                         >
-                          <WarningIcon className="h-9 w-9" />
+                          <InfoIcon className="h-9 w-9" />
                         </span>
                         <div>
                           <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
@@ -756,9 +763,15 @@ export function ActionsSheet({
                             {/* The shape off the Reshuffle card, so the way out
                                 of this is recognised before the word is read.
                                 Kept on one line with it: an icon orphaned at the
-                                end of a line reads as a bullet. */}
-                            <span className="inline-flex items-center gap-1 whitespace-nowrap font-bold">
-                              <ShuffleIcon className="h-5 w-5" />
+                                end of a line reads as a bullet.
+
+                                Inline-block on a nudged baseline rather than an
+                                inline-flex box. An inline-flex takes its
+                                baseline from its first item, which sat the
+                                glyph's foot on the text baseline and lifted the
+                                word above the line it belongs to. */}
+                            <span className="whitespace-nowrap font-bold">
+                              <ShuffleIcon className="mr-1 inline-block h-5 w-5 align-[-0.25em]" />
                               Reshuffle
                             </span>{' '}
                             to rebuild the remaining rounds.
@@ -839,6 +852,19 @@ export function ActionsSheet({
                     <p className="pb-1 text-sm" style={{ color: QUIET_TEXT }}>
                       Who is going on for {subOut.name}?
                     </p>
+                    {/* The same way out this list has on Add Player, and in the
+                        same place: above the names. Whoever is taking the place
+                        of somebody going home is as likely to be a newcomer
+                        here as there, and on a full group a row under the names
+                        is a row below the fold. */}
+                    <button
+                      type="button"
+                      className={NEW_ROW}
+                      onClick={() => setView('new-player')}
+                    >
+                      <AddPlayerSolidIcon className="h-6 w-6" />
+                      Someone New
+                    </button>
                     {addablePlayers.map((p) => (
                       <button
                         key={p.id}
@@ -853,18 +879,6 @@ export function ActionsSheet({
                         <span className="text-gray-500">{p.rating.toFixed(1)}</span>
                       </button>
                     ))}
-                    {/* The same way out this list has on Add Player. Whoever
-                        is taking the place of somebody going home is as likely
-                        to be a newcomer here as there, and without this the
-                        answer was to back out and start again. */}
-                    <button
-                      type="button"
-                      className={NEW_ROW}
-                      onClick={() => setView('new-player')}
-                    >
-                      <AddPlayerSolidIcon className="h-6 w-6" />
-                      Someone New
-                    </button>
                   </div>
                 )}
 

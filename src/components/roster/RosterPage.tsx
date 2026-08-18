@@ -315,7 +315,9 @@ export function RosterPage({
           Add Player
           <AddPlayerSolidIcon className="w-[26px] h-[26px] text-[#60697c]" />
         </h2>
-        <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} />
+        {/* The one place a name is typed in over and over. The list it lands in
+            is below the fold on a full group, so the form says so itself. */}
+        <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} announceAdded />
       </div>
 
       {/* Both delete prompts replace the edit modal rather than stacking on it —

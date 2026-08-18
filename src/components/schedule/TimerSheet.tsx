@@ -51,8 +51,16 @@ interface Props {
   onClose: () => void;
   /** The minutes stepper and the alerts. Absent on a read-only timer. */
   config?: ReactNode;
-  /** START/STOP/RESET, and anything said under them. Absent on a read-only timer. */
+  /** Close/Start/Stop/Reset, and anything said under them. Absent on a read-only timer. */
   actions?: ReactNode;
+  /**
+   * Whether the sheet draws its own close key in the corner.
+   *
+   * The host's timer answers with a row of tiles and Close is the first of
+   * them, so the key up here would be a second way out to read past. A read-only
+   * timer has no tiles at all and keeps it.
+   */
+  closeKey?: boolean;
 }
 
 export function TimerSheet({
@@ -64,6 +72,7 @@ export function TimerSheet({
   onClose,
   config,
   actions,
+  closeKey = true,
 }: Props) {
   // Off the bottom for the first frame, then let the transition carry it up —
   // the same two-step trick TourSheet uses. Mounted fresh each time it opens,
@@ -191,15 +200,17 @@ export function TimerSheet({
           <h2 className="mt-1 text-[1.6rem] font-extrabold" style={{ color: theme.ink }}>
             Round {roundNumber} Timer
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Round Timer"
-            className="absolute -right-2 -top-1 rounded p-2 transition-colors"
-            style={{ color: theme.sub }}
-          >
-            <CloseIcon className="h-8 w-8" strokeWidth={3} />
-          </button>
+          {closeKey && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Round Timer"
+              className="absolute -right-2 -top-1 rounded p-2 transition-colors"
+              style={{ color: theme.sub }}
+            >
+              <CloseIcon className="h-8 w-8" strokeWidth={3} />
+            </button>
+          )}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-4">

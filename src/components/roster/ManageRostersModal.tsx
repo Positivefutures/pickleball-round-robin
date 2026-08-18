@@ -109,9 +109,21 @@ export function ManageRostersModal({
     return `${name} (copy ${n})`;
   }
 
-  // The card every screen here is drawn on.
-  const shell = (children: React.ReactNode, width: string) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  /**
+   * The card every screen here is drawn on.
+   *
+   * `high` pins it to the top of the screen instead of the middle. A panel that
+   * opens with a field focused opens with the keyboard up, and a centred card
+   * has its buttons behind it: the phone shrinks the visible area but not the
+   * viewport this is positioned against, so nothing moves out of the way. Near
+   * the top there is room for the whole card above the keyboard.
+   */
+  const shell = (children: React.ReactNode, width: string, high = false) => (
+    <div
+      className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${
+        high ? 'items-start pt-6' : 'items-center'
+      }`}
+    >
       <div
         className={`bg-white ${panelCard} p-6 mx-4 w-full ${width} max-h-[92vh] overflow-y-auto overscroll-contain`}
       >
@@ -250,7 +262,10 @@ export function ManageRostersModal({
           </button>
         </div>
       </>,
-      'max-w-sm'
+      'max-w-sm',
+      // The name field is focused on arrival, so this one always opens with the
+      // keyboard standing where Save and Cancel would be.
+      true
     );
   }
 

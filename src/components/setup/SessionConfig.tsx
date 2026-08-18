@@ -277,10 +277,15 @@ export function SessionConfig({
               going to rebuild it, and clearing it would only make the list lie
               about what happened on court. */}
           {canReset && (
+            /* A button, in the border Set Round Types wears, rather than a word
+               with an underline's worth of target on it. No glyph: the two
+               controls beside it are recognised by their shapes, and a third
+               shape here would say this is a third thing to open. */
             <button
               type="button"
               onClick={handleReset}
-              className="ml-auto shrink-0 px-1 text-sm font-bold text-brand-teal transition-colors hover:text-brand-teal-dark"
+              className="ml-auto shrink-0 rounded-xl border bg-[#FAFCFC] px-3 py-3 font-bold transition-colors hover:bg-[#F1F8F9]"
+              style={{ borderColor: TEAL, color: TEAL }}
             >
               Reset All
             </button>

@@ -79,6 +79,9 @@ export function PlayerMenu({
             />
           </div>
           <div className={TILE_ROW}>
+            {/* Cancel on the left, the way out where a way out belongs, and the
+                same order every confirm panel in the sheet uses. */}
+            <TileButton tone="quiet" Icon={CloseIcon} label="Cancel" onClick={onCancel} />
             {/* The Actions card for this says "Remove Player" and draws it in
                 this shape. It is the same job from the other end of the app, so
                 it is now the same word and the same glyph, not a bin. */}
@@ -88,7 +91,6 @@ export function PlayerMenu({
               label="Remove Player"
               onClick={onRemove}
             />
-            <TileButton tone="quiet" Icon={CloseIcon} label="Cancel" onClick={onCancel} />
           </div>
         </div>
       </div>

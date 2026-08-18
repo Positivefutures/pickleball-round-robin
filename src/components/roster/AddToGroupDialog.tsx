@@ -70,7 +70,9 @@ export function AddToGroupDialog({
                   onChange={() => toggle(g.id)}
                   className="w-4 h-4 accent-brand-teal"
                 />
-                {g.name}
+                {/* Bold, because the name is the whole of the choice being made
+                    and the rest of the panel is prose about it. */}
+                <span className="font-bold">{g.name}</span>
               </label>
             ))}
           </div>

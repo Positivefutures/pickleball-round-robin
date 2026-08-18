@@ -8,6 +8,8 @@ import {
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { Toggle } from '../Toggle';
+import { CloseIcon } from '../icons';
+import { TileButton, TILE_ROW } from '../TileButton';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { AlarmTonePicker } from './AlarmTonePicker';
 import { TimerSheet } from './TimerSheet';
@@ -30,9 +32,9 @@ import {
  * Roster.
  *
  * `visible` is `manuallyOpen || phase === 'alarming'` — an active alarm always
- * wins, so a stray tap on the X while it's ringing snaps the sheet right back
- * open on the next render. Only STOP TIMER, which actually leaves the
- * alarming phase, dismisses it for real.
+ * wins, so a stray tap on Close while it's ringing snaps the sheet right back
+ * open on the next render. Only Stop, which actually leaves the alarming
+ * phase, dismisses it for real.
  */
 export function RoundTimerPanel() {
   const state = useSyncExternalStore(
@@ -68,38 +70,41 @@ export function RoundTimerPanel() {
       light={idle}
       flashOn={state.flashOn}
       onClose={closeRoundTimerPanel}
+      // Close is the first tile in the row below. Two ways out of one sheet is
+      // one to read past.
+      closeKey={false}
       config={idle ? <TimerConfig state={state} /> : undefined}
       actions={
         <>
-          {/* One button until it has been started, two ever afterwards. STOP
-              turns back into START in place rather than collapsing the row,
-              so RESET stays where the thumb last found it. */}
-          {idle ? (
-            <StartButton />
-          ) : (
-            <div className="flex gap-3">
-              {counting ? (
-                <button
-                  type="button"
-                  onClick={stopTimer}
-                  className={`${PAIRED} bg-red-600 hover:bg-red-700`}
-                >
-                  <StopSquareIcon className="h-5 w-5" />
-                  STOP TIMER
-                </button>
-              ) : (
-                <StartButton paired />
-              )}
-              <button
-                type="button"
-                onClick={resetTimer}
-                className={`${PAIRED} bg-slate-600 hover:bg-slate-700`}
-              >
-                <ReplayIcon className="h-5 w-5" />
-                RESET TIMER
-              </button>
-            </div>
-          )}
+          {/* The tiles every other panel in the app answers with, so the way
+              out of the timer is the shape a host already knows. Close is
+              always the left one — it stands in for the key that used to sit
+              in the corner of the sheet — and what it sits beside grows from
+              one button to two once the clock is running.
+
+              STOP turns back into START in place rather than collapsing the
+              row, so Close and Reset stay where the thumb last found them. */}
+          <div className={TILE_ROW}>
+            <TileButton
+              tone="quiet"
+              Icon={CloseIcon}
+              label="Close"
+              onClick={closeRoundTimerPanel}
+            />
+            {counting ? (
+              <TileButton tone="red" Icon={StopSquareIcon} label="Stop" onClick={stopTimer} />
+            ) : (
+              <TileButton
+                tone="teal"
+                Icon={PlayTriangleIcon}
+                label="Start Timer"
+                onClick={startTimer}
+              />
+            )}
+            {!idle && (
+              <TileButton tone="quiet" Icon={ReplayIcon} label="Reset" onClick={resetTimer} />
+            )}
+          </div>
           {!idle && (
             <p className="mt-3 text-center text-sm text-gray-400">
               You can leave this screen. The timer keeps running.
@@ -108,33 +113,6 @@ export function RoundTimerPanel() {
         </>
       }
     />
-  );
-}
-
-/**
- * One of two buttons sharing the width. `whitespace-nowrap` is the point of
- * having this in one place: on a narrow phone START TIMER is a hair wider than
- * STOP TIMER, and left to wrap it takes two lines while RESET beside it takes
- * one, so the row changes height the moment the timer is stopped.
- */
-const PAIRED =
-  'flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-4 ' +
-  'text-lg font-bold text-white transition-colors';
-
-function StartButton({ paired = false }: { paired?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={startTimer}
-      className={
-        paired
-          ? `${PAIRED} bg-[#018D31] hover:bg-[#017129]`
-          : 'flex w-full items-center justify-center gap-2 rounded-lg bg-[#018D31] px-6 py-4 text-xl font-bold text-white transition-colors hover:bg-[#017129]'
-      }
-    >
-      <PlayTriangleIcon className={paired ? 'h-5 w-5' : 'h-6 w-6'} />
-      START TIMER
-    </button>
   );
 }
 

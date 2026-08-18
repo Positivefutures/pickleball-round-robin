@@ -15,7 +15,7 @@
  * The test below checks that too, so the day someone adds `flex-row-reverse`
  * this stops quietly lying.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Player } from '../../types';
@@ -95,5 +95,82 @@ describe('the buttons under the edit player form', () => {
     expect(faces()).toContain('Add Player');
     expect(faces()).not.toContain('Cancel');
     expect(faces()).not.toContain('Update');
+  });
+});
+
+/**
+ * The line that says the name went somewhere.
+ *
+ * On the Players tab the field keeps the focus and the keyboard stays up, so
+ * the list the player just landed in is behind it. Nothing else on that screen
+ * changes on a press, which is why this line exists.
+ */
+describe('saying who was just added', () => {
+  /** The form as the Players tab draws it: nothing to edit, and the announcement on. */
+  const addForm = () => render({ editingPlayer: null, onDelete: undefined, announceAdded: true });
+
+  function type(name: string) {
+    const field = container.querySelector('input[type="text"]') as HTMLInputElement;
+    act(() => {
+      // React listens on its own value setter, so the native one has to be used
+      // to make a change it will hear.
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      set.call(field, name);
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  function add(name: string) {
+    type(name);
+    const form = container.querySelector('form')!;
+    act(() => void form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  }
+
+  const said = () => text(container.querySelector('[role="status"]') ?? document.createElement('i'));
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('names the player, beside the button that added them', () => {
+    vi.useFakeTimers();
+    addForm();
+    add('Peter');
+    expect(said()).toBe('Peter was added');
+  });
+
+  it('fades and then leaves, so it never sits over the next name', () => {
+    vi.useFakeTimers();
+    addForm();
+    add('Peter');
+    // The fade is CSS; what is asserted here is that it is asked for and that
+    // React takes the line out of the page when it is done.
+    expect(container.querySelector('[role="status"]')!.className).toContain('fade-out-2s');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(container.querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('starts again on the next player rather than joining a fade in progress', () => {
+    vi.useFakeTimers();
+    addForm();
+    add('Peter');
+    const first = container.querySelector('[role="status"]');
+    act(() => vi.advanceTimersByTime(1500));
+    add('Ada');
+    // A different element, which is what replays the animation, and the clock
+    // is the new one's: the first name's timer must not take this one away.
+    expect(container.querySelector('[role="status"]')).not.toBe(first);
+    expect(said()).toBe('Ada was added');
+    act(() => vi.advanceTimersByTime(1000));
+    expect(said()).toBe('Ada was added');
+  });
+
+  it('says nothing on the forms that answer for themselves', () => {
+    // Add Guest and Sub Player close on save and the sheet flashes its own
+    // confirmation; the edit dialog closes outright.
+    vi.useFakeTimers();
+    render({ editingPlayer: null, onDelete: undefined });
+    add('Peter');
+    expect(container.querySelector('[role="status"]')).toBeNull();
   });
 });

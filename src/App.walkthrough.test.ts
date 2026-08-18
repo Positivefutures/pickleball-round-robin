@@ -3907,6 +3907,25 @@ describe('the Actions sheet', () => {
         expect(said).toContain('to rebuild the remaining rounds.');
       });
 
+      it('says it in yellow, which is not what the app warns in', () => {
+        mount();
+        generate();
+        action(/^Add Player$/);
+
+        // The box itself, not the sheet around it or the pair of lines inside
+        // it: the one that draws the rounded edge everything else is set in.
+        const notice = [...sheet().querySelectorAll('div')].find(
+          (d) => text(d).startsWith('All courts are full.') && d.className.includes('rounded-lg')
+        )!;
+        expect(notice, 'no box around the full-courts line').toBeTruthy();
+        // Nothing is lost by adding somebody to a full session, so this is a
+        // note and not a warning. Orange and the triangle stay with the panels
+        // that really do take something away.
+        expect(notice.className).toContain('bg-notice-yellow');
+        expect(notice.className).toContain('border-2');
+        expect(notice.className).not.toContain('bg-brand-orange-light');
+      });
+
       it('draws the Reshuffle shape beside the word, not the word alone', () => {
         mount();
         generate();
@@ -4220,6 +4239,30 @@ describe('the player menu on a place', () => {
       expect(tile.querySelector('svg'), `${label} has no glyph`).toBeTruthy();
       expect(tile.className, `${label} is not a tile`).toContain('flex-col');
     }
+  });
+
+  it('puts Cancel on the left of the row it shares with Remove Player', () => {
+    mount();
+    generate();
+
+    openPlayerMenu(onCourtOne().name);
+    const order = buttons(/^(Edit Player|Sub Someone In|Remove Player|Cancel)$/).map(text);
+    // The way out on the left, the same order every confirm panel in the sheet
+    // reads in, so a host never has to look for it twice.
+    expect(order).toEqual(['Edit Player', 'Sub Someone In', 'Cancel', 'Remove Player']);
+  });
+
+  it('offers Someone New above the names here too, not under them', () => {
+    seed(12, 9, 2);
+    mount();
+    generate();
+
+    subIn(onCourtOne().name);
+    const order = [...sheet().querySelectorAll('button')].map(text);
+    const newcomer = order.findIndex((t) => /^Someone New$/.test(t));
+    const firstName = order.findIndex((t) => /^(Jo|Kit|Lex)/.test(t));
+    expect(newcomer, 'no Someone New button').toBeGreaterThan(-1);
+    expect(newcomer).toBeLessThan(firstName);
   });
 
   it('opens the sub panel on who is coming on, the first question answered', () => {
@@ -4733,6 +4776,20 @@ describe('the player roster panel', () => {
     clickButton(/^Cancel$/);
 
     expect(rosterIdsOf('Ava')).toEqual(['g1', 'g2']);
+  });
+
+  it('sets the group names in bold, because they are the choice being made', () => {
+    mount();
+    click(labelled('Select Ava'));
+    clickButton(/^Add to Another Group$/);
+
+    const row = [...container.querySelectorAll('label')].find((l) =>
+      text(l).includes('Other Group')
+    )!;
+    expect(row, 'no row for the other group').toBeTruthy();
+    const name = [...row.querySelectorAll('span')].find((s) => text(s) === 'Other Group')!;
+    expect(name, 'the name is not in a span of its own').toBeTruthy();
+    expect(name.className).toContain('font-bold');
   });
 
   it('makes the second group from inside Add to Another Group, already ticked', () => {

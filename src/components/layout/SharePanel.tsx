@@ -66,11 +66,15 @@ export function SharePanel({ onClose }: Props) {
         </h2>
 
         <p className="mt-2 text-center text-lg leading-snug text-[#495668]">
-          Help more pickleball players run better round robins.{' '}
+          Help more pickleball players run better round robins.
           {/* Teal words, orange heart. Both are the app's own colours, and the
               heart is the one thing on the panel that is decoration rather than
-              a control, so it is the one place the accent belongs. */}
-          <span className="font-medium text-brand-teal">
+              a control, so it is the one place the accent belongs.
+
+              On its own line: it is the thank you, not the end of the sentence
+              above it, and run together the two ideas made three ragged lines
+              of one thought. */}
+          <span className="block font-medium text-brand-teal">
             Thanks for spreading the word!
             <HeartIcon className="ml-1.5 inline-block h-4 w-4 align-[-0.1em] text-brand-orange" />
           </span>
