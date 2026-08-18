@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Deliberately outside public/ and outside index.html's world.
+
+      `vite build` takes a single entry — index.html — so nothing reachable from
+      this file is ever emitted to dist/. Putting it in public/ would have
+      shipped it verbatim AND failed precache.test.ts, which asserts that every
+      file in that folder is named in one of the three service-worker lists.
+
+      In dev, Vite serves any HTML at the project root, so this is live at
+      /style-guide.html. The middleware in vite.config.ts makes /style-guide
+      reach it too.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <title>UI Style Guide — Pickleball Round Robin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/styleguide/main.tsx"></script>
+  </body>
+</html>

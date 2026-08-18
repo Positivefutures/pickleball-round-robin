@@ -60,8 +60,36 @@ function serviceWorker(): Plugin {
   }
 }
 
+/**
+ * Serves the style guide at `/style-guide` rather than `/style-guide.html`.
+ *
+ * `apply: 'serve'` is the whole safety story. The guide is a second HTML entry
+ * at the repo root, and `vite build` takes only `index.html`, so nothing in
+ * `src/styleguide/` is ever emitted to `dist/`. This middleware exists purely so
+ * the address is the one worth typing on a phone.
+ *
+ * Deliberately not in `public/`: that folder is copied verbatim into the build,
+ * and `precache.test.ts` fails on any file in it that is named in none of the
+ * three service-worker lists.
+ */
+function styleGuideRoute(): Plugin {
+  return {
+    name: 'pbrr-style-guide-route',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        // Trailing slash tolerated; a query string is left alone.
+        if (req.url === '/style-guide' || req.url === '/style-guide/') {
+          req.url = '/style-guide.html'
+        }
+        next()
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorker()],
+  plugins: [react(), tailwindcss(), serviceWorker(), styleGuideRoute()],
 
   // Two flags Sentry checks at build time and expects a bundler to replace.
   // Left alone they ship the SDK's own debug logging and its tracing code into
