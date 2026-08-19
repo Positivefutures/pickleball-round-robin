@@ -5695,6 +5695,30 @@ describe('changing groups', () => {
     expect(header.textContent).toContain('Pickleball');
   });
 
+  /**
+   * The mark beside the name says what the name is. Jeff's groups artwork is
+   * the only thing in the banner drawn on a 512 grid, so finding it there is
+   * finding the disc that covers the painted robin.
+   */
+  it('swaps the robin for the groups mark wherever the banner names a group', () => {
+    mount();
+    const header = () => container.querySelector('header')!;
+    const groupsMark = () => header().querySelectorAll('svg[viewBox="0 0 512 512"]');
+
+    // Players reads the app's own name, and keeps the app's own bird.
+    expect(header().textContent).toContain('Pickleball');
+    expect(groupsMark()).toHaveLength(0);
+
+    clickButton(/^Continue to Setup/);
+    expect(header().textContent).toContain(RIVERSIDE);
+    expect(groupsMark()).toHaveLength(1);
+
+    clickButton(/^Select All$/);
+    clickButton(/^Generate Schedule/);
+    expect(header().textContent).toContain(RIVERSIDE);
+    expect(groupsMark()).toHaveLength(1);
+  });
+
   it('files each group under its own name, and nowhere else', () => {
     mount();
     runRiverside();

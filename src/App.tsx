@@ -1656,6 +1656,12 @@ function App() {
       <Header
         // Past the roster step the group being worked on is the useful label
         title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}
+        // And the mark beside it follows it. Where the banner reads a group's
+        // name, the robin is standing next to something that is not the app's
+        // name, so the groups mark goes there instead. Tied to the same test
+        // the title is, not to the step: with no group to name the banner falls
+        // back to the app's own title, and there the robin belongs.
+        badge={step !== 'roster' && activeRoster ? 'groups' : 'robin'}
         // And there it is also the way to another group. The roster step has the
         // My Groups panel a little way down the page, so it needs no chevron.
         onTitleClick={step === 'roster' ? undefined : () => setShowGroupPicker(true)}

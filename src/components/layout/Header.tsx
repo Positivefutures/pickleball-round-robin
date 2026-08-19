@@ -14,7 +14,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { ChevronDownIcon } from '../icons';
+import { ChevronDownIcon, GroupSolidIcon } from '../icons';
 
 /** The banner's height. Every other measurement here is a multiple of it. */
 const HEIGHT = 'clamp(110px, 26.25vw, 165px)';
@@ -51,8 +51,37 @@ const TITLE_MIN = '11rem';
  */
 const BADGE = { left: 40 / 264, top: 76 / 264, width: 102 / 264, height: 104 / 264 };
 
+/**
+ * The disc that hides the robin where another mark stands in for it.
+ *
+ * The badge is painted as a navy ring on a white disc that carries on past the
+ * ring as a halo, so anything that covers the ring and stops inside the halo
+ * leaves no seam and needs no second picture. The gap was measured off the file
+ * the same way the ring was: the ring's outer edge is 52 from the badge's
+ * centre, and every pixel between 54 and 58 out is #FEFEFE the whole way round.
+ * 56 sits in the middle of that, and is the radius used here.
+ */
+const PATCH = 112 / 264;
+
+/** The ring redrawn at the painted one's measurements: 103 across, 3 thick. */
+const RING = 103 / 264;
+const RING_WEIGHT = 3 / 264;
+
+/**
+ * The mark inside it. The groups artwork is wider than it is tall and sits
+ * centred in a square, so this is that square's side: at 74 the outermost of
+ * the three figures still clears the inside of the ring by 6.
+ */
+const MARK = 74 / 264;
+
+/** Everything above is a share of the banner's height. This spends them. */
+const span = (share: number) => `calc(${share} * ${HEIGHT})`;
+
 const CREAM = '#FBFAF6';
 const NAVY = '#051829';
+
+/** The white the halo runs, so the patch lands on its own colour. */
+const HALO = '#FEFEFE';
 
 /**
  * A hairline closing the banner off at both ends.
@@ -70,6 +99,12 @@ const RULE = '#D2D2D2';
 interface HeaderProps {
   /** Shown in the banner — the app name on the roster step, the group name after. */
   title: string;
+  /**
+   * Which mark sits beside the title. The robin is the app's own, and is what
+   * the artwork is painted with; `groups` covers it with the three-person mark
+   * for the steps where the title is a group's name rather than the app's.
+   */
+  badge?: 'robin' | 'groups';
   settingsOpen?: boolean;
   /** Omitted on the live view, which has no drawer; the button is not drawn. */
   onToggleSettings?: () => void;
@@ -104,6 +139,7 @@ interface HeaderProps {
 
 export function Header({
   title,
+  badge = 'robin',
   settingsOpen = false,
   onToggleSettings,
   onTitleClick,
@@ -156,6 +192,44 @@ export function Header({
         />
       </div>
 
+      {/* The groups mark, taking the badge over on the steps whose title is a
+          group's name. Painted over the robin rather than swapped into the
+          artwork: the ring's surroundings are white out to the halo's edge, so
+          a disc landing in between covers the bird and leaves the badge looking
+          as drawn — at every width, since all of this is sized off the same
+          height the picture is. Not a target: on these steps the name already
+          opens the group picker, and a badge that did it too would be the same
+          answer said twice. */}
+      {badge === 'groups' && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute grid place-items-center rounded-full"
+          style={{
+            left: span(BADGE.left + BADGE.width / 2 - PATCH / 2),
+            top: span(BADGE.top + BADGE.height / 2 - PATCH / 2),
+            width: span(PATCH),
+            height: span(PATCH),
+            backgroundColor: HALO,
+            color: NAVY,
+          }}
+        >
+          <div
+            className="grid place-items-center rounded-full"
+            style={{
+              width: span(RING),
+              height: span(RING),
+              borderStyle: 'solid',
+              borderWidth: span(RING_WEIGHT),
+              borderColor: NAVY,
+            }}
+          >
+            <div style={{ width: span(MARK), height: span(MARK) }}>
+              <GroupSolidIcon className="w-full h-full" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* The badge, made the same door the name is. Only where the name is a
           link: on the host's banner the title opens the group picker, and a
           badge that went somewhere else instead would be a second answer to
@@ -167,10 +241,10 @@ export function Header({
           aria-label={title}
           className="absolute z-10 rounded-full"
           style={{
-            left: `calc(${BADGE.left} * ${HEIGHT})`,
-            top: `calc(${BADGE.top} * ${HEIGHT})`,
-            width: `calc(${BADGE.width} * ${HEIGHT})`,
-            height: `calc(${BADGE.height} * ${HEIGHT})`,
+            left: span(BADGE.left),
+            top: span(BADGE.top),
+            width: span(BADGE.width),
+            height: span(BADGE.height),
           }}
         />
       )}
