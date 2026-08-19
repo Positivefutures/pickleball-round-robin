@@ -391,14 +391,16 @@ describe('when the polling runs', () => {
     expect(__testing.draining).toBe(false);
   });
 
-  it('stops when the share does', async () => {
+  it('stops when the session does, and keeps the link', async () => {
     stores.scoreEditingAllowed.set(true);
     stores.scoreEditCode.set('4719');
     await startSharing();
 
-    // However the session ends, it ends by the schedule going null.
+    // However the session ends, it ends by the schedule going null. There is
+    // nothing left for a watcher's score to land on, so the polling stops. The
+    // link is the group's rather than the afternoon's, so it does not.
     stores.schedule.set(null);
     await vi.waitFor(() => expect(__testing.draining).toBe(false));
-    expect(__testing.key).toBeNull();
+    expect(__testing.key).not.toBeNull();
   });
 });

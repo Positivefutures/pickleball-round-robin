@@ -66,6 +66,8 @@ beforeEach(() => {
   stores.guests.set([]);
   stores.sessionId.set(null);
   stores.shareKey.set(null);
+  stores.scoreEditingAllowed.set(false);
+  stores.scoreEditCode.set(null);
   stores.numCourts.set(3);
   stores.numRounds.set(8);
   stores.scoringEnabled.set(false);
@@ -214,25 +216,73 @@ describe('a group that is going', () => {
 });
 
 describe('a session being shared live', () => {
-  it('is stopped on the way out rather than pointed at another group', () => {
+  it('lets go of the key on the way out rather than pointing it at another group', () => {
     stores.schedule.set(scheduleNamed('riverside'));
     stores.shareKey.set('abc123');
 
     switchToGroup('g2');
 
     // liveSession publishes whatever is in the live slot under the key it is
-    // holding, so a key that survived the switch would push the incoming group's
-    // scores out to the outgoing group's QR code.
+    // holding, so a key left sitting in the slot would push the incoming group's
+    // scores out to the outgoing group's QR code. The published copy is left
+    // standing; it is the live slot that has to let go of it.
     expect(stores.shareKey.get()).toBeNull();
+    expect(stores.groupSessions.get().g1.shareKey).toBe('abc123');
   });
 
-  it('does not come back with the group it belonged to', () => {
+  it('comes back with the group it belonged to', () => {
     stores.schedule.set(scheduleNamed('riverside'));
     stores.shareKey.set('abc123');
 
     switchToGroup('g2');
     switchToGroup('g1');
 
+    expect(stores.schedule.get()).toEqual(scheduleNamed('riverside'));
+    expect(stores.shareKey.get()).toBe('abc123');
+  });
+
+  it('keeps three afternoons apart, which is the whole point of it', () => {
+    stores.schedule.set(scheduleNamed('riverside'));
+    stores.shareKey.set('abc123');
+
+    switchToGroup('g2');
+    stores.schedule.set(scheduleNamed('tuesday'));
+    stores.shareKey.set('def456');
+
+    switchToGroup('g1');
+    expect(stores.shareKey.get()).toBe('abc123');
+    switchToGroup('g2');
+    expect(stores.shareKey.get()).toBe('def456');
+  });
+
+  it('keeps the score code with the group it was said to', () => {
+    stores.schedule.set(scheduleNamed('riverside'));
+    stores.scoreEditingAllowed.set(true);
+    stores.scoreEditCode.set('1234');
+
+    switchToGroup('g2');
+    // Four digits told to one court on one afternoon. Left in the live slot
+    // they would unlock the next group's scores to everybody holding them.
+    expect(stores.scoreEditingAllowed.get()).toBe(false);
+    expect(stores.scoreEditCode.get()).toBeNull();
+
+    switchToGroup('g1');
+    expect(stores.scoreEditingAllowed.get()).toBe(true);
+    expect(stores.scoreEditCode.get()).toBe('1234');
+  });
+
+  it('gives a group parked by an older build no share', () => {
+    // shareKey is optional, and its absence is the truth rather than a gap to
+    // migrate: those builds stopped sharing on the way out, so there is
+    // genuinely nothing to pick back up.
+    stores.schedule.set(scheduleNamed('riverside'));
+    switchToGroup('g2');
+    const parked = stores.groupSessions.get();
+    const older = { ...parked.g1 };
+    delete older.shareKey;
+    stores.groupSessions.set({ ...parked, g1: older });
+
+    switchToGroup('g1');
     expect(stores.schedule.get()).toEqual(scheduleNamed('riverside'));
     expect(stores.shareKey.get()).toBeNull();
   });

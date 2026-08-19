@@ -25,6 +25,7 @@ import { planMerge, remapSession, remapParked, type Snapshot } from './syncMerge
 import {
   switchToGroup, resume as resumeGroup, forget as forgetGroupSession,
 } from './groupSessions';
+import { stopAllSharing } from './liveSession';
 import { getSupabase, hasAuthCallback, hasStoredSession, isSupabaseConfigured } from './supabase';
 
 /**
@@ -1087,6 +1088,11 @@ export async function adoptAccountCopy(): Promise<SyncReport> {
     // as the live one did, and for the same reason: the ids they were built from
     // are no longer in the pool.
     stores.groupSessions.set({});
+    // And every published copy of them. Those rows would otherwise sit there
+    // publicly readable for up to two days, each one a document naming people
+    // this account no longer has. Not awaited: the adoption is already done,
+    // and a phone with no signal must not be held up by a tidy-up.
+    void stopAllSharing();
   } finally {
     applying = false;
   }

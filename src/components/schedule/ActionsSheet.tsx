@@ -27,6 +27,9 @@ import {
 } from '../icons';
 import { AddCourtIcon, RemoveCourtIcon } from './actionIcons';
 import { TileButton, TILE_ROW } from '../TileButton';
+import { Toggle } from '../Toggle';
+import { useStoredValue } from '../../hooks/useStoredValue';
+import * as stores from '../../lib/stores';
 import { LiveShareView } from './LiveShareView';
 import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -435,6 +438,17 @@ export function ActionsSheet({
    * away from what they answered, and that is fixed where it was broken — they
    * sit under the content now. The room below them is just room.
    */
+  /**
+   * Keeping score, switched from here as well as from Setup.
+   *
+   * It only ever lived on Setup, and that was fine while a look at Setup cost
+   * nothing. Setup ends a session now, so a host who starts an afternoon and
+   * then decides they want the boards on had no way to say so without
+   * rebuilding the whole thing. Read straight off the store rather than passed
+   * down, the same way LiveShareView reads it to decide what the link promises.
+   */
+  const [scoringEnabled, setScoringEnabled] = useStoredValue(stores.scoringEnabled);
+
   const tall = view !== 'menu' && view !== 'done';
 
   // Both ends have to be a pixel count for the height to animate between them,
@@ -684,6 +698,22 @@ export function ActionsSheet({
                   to the foot of the sheet rather than leaving a hole under it.
                   See CONFIRM below. */}
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
+                {view === 'menu' && (
+                  /* Above the cards and not among them. It is a setting rather
+                     than an action: nothing opens, nothing is confirmed, and the
+                     board appears under every court the moment it goes on. */
+                  <div className="mb-4 flex items-center gap-4 border-b border-panel-edge pb-4">
+                    <h3 className="text-lg font-semibold" style={{ color: NAVY_TEXT }}>
+                      Keep Score?
+                    </h3>
+                    <Toggle
+                      checked={scoringEnabled}
+                      onChange={setScoringEnabled}
+                      label="Keep Score?"
+                    />
+                  </div>
+                )}
+
                 {view === 'menu' && (
                   <div className="grid grid-cols-3 gap-3">
                     {CARDS.map((card) => {

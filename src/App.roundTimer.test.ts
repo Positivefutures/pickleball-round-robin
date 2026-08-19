@@ -171,6 +171,19 @@ function generate() {
   clickButton(/^Generate Schedule/);
 }
 
+/**
+ * To Setup, the way a host gets there.
+ *
+ * Setup is the one tab that ends a session, so it asks whenever there is a
+ * schedule to lose, and the answer is what walks through.
+ */
+function toSetup() {
+  click(tab(/^2\. Setup/));
+  if (/Abandon This Schedule\?/.test(container.textContent ?? '')) {
+    clickButton(/^Return to Setup/);
+  }
+}
+
 function tab(label: RegExp): HTMLButtonElement {
   const found = [...container.querySelectorAll('nav button')].find((b) => label.test(text(b)));
   if (!found) throw new Error(`no step tab matching ${label}`);
@@ -384,7 +397,10 @@ describe('Round Timer', () => {
     clickButton(/^Close$/, panel);
     expect(timerPanel()).toBeNull();
 
-    click(tab(/^2\. Setup/));
+    // Players rather than Setup. Stepping over there is free now, and it is the
+    // only tab a host can be on with a round still running — walking to Setup
+    // would end the session and take the clock with it.
+    click(tab(/^1\. Players/));
     expect(timerPanel()).toBeNull();
 
     act(() => {
@@ -405,9 +421,10 @@ describe('Round Timer', () => {
     clickButton(/^Close$/, timerPanel()!);
     expect(storedTimer().roundNumber).toBe(1);
 
-    // A real change on Setup, so the press builds rather than hands the parked
-    // schedule back. The round the clock was pinned to no longer exists.
-    click(tab(/^2\. Setup/));
+    // Walking to Setup is walking out of the afternoon, and the clock goes with
+    // the rest of it. The round it was pinned to does not exist in what the
+    // press below builds, and would not have existed in any other answer either.
+    toSetup();
     clickLabel('More rounds');
     clickButton(/^Generate Schedule/);
 
@@ -417,11 +434,21 @@ describe('Round Timer', () => {
   it('keeps it running when Generate hands the same schedule back', () => {
     // Nothing changed on Setup, so nothing is rebuilt and there is no reason to
     // stop a clock counting down a round that is still on the board.
+    //
+    // Reached by relaunching onto Setup rather than by walking there, because
+    // walking there ends the session and there would be nothing to hand back.
+    // What is left standing on Setup with a schedule under it is a host who
+    // closed the app on that tab, and storage written by an older build. Both
+    // are why handleGeneratePress still has the branch this pins.
     openTimer(1);
     clickButton(/^Start Timer$/, timerPanel()!);
     clickButton(/^Close$/, timerPanel()!);
 
-    click(tab(/^2\. Setup/));
+    act(() => root.unmount());
+    container.remove();
+    window.localStorage.setItem('pb-step', JSON.stringify('setup'));
+    mount();
+
     clickButton(/^Generate Schedule/);
 
     expect(storedTimer().roundNumber).toBe(1);

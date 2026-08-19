@@ -243,12 +243,13 @@ function generate() {
 }
 
 /**
- * Off the schedule, the way a host does it.
+ * Off the schedule to Setup, the way a host does it.
  *
- * A schedule nobody has touched is parked and the tab just goes. One with work
- * on it asks first, and answering yes is what throws it away — so a test that
- * needs its afternoon on the Setup tab cannot come this way. Those relaunch
- * instead: see `parkOnSetup`.
+ * Setup asks every time there is a schedule, touched or not, and answering yes
+ * is what throws it away — so a test that needs its afternoon still standing on
+ * the Setup tab cannot come this way. Those relaunch instead: see `parkOnSetup`.
+ *
+ * Players asks nothing and needs none of this: click the tab.
  */
 function leaveSchedule(target: RegExp) {
   clickButton(target);
@@ -341,8 +342,15 @@ function storedGuests(): { id: string; name: string; guest?: true }[] {
   return JSON.parse(window.localStorage.getItem('pb-guests') ?? '[]');
 }
 
-function storedPlayers(): { id: string; name: string; rating: number }[] {
+function storedPlayers(): { id: string; name: string; rating: number; gender: string }[] {
   return JSON.parse(window.localStorage.getItem('pb-roster') ?? '[]');
+}
+
+/** One of them by name, for the edits that have to be shown to have landed. */
+function storedPlayer(name: string) {
+  const found = storedPlayers().find((p) => p.name === name);
+  if (!found) throw new Error(`no stored player called ${name}`);
+  return found;
 }
 
 const courtsOf = (round: Round) => round.courts.map((c) => c.courtNumber);
@@ -1322,8 +1330,9 @@ describe('Set Round Types', () => {
 
     expect(storedSchedule().rounds[1].roundType).toBe('gendered');
     expect(text(roundBlock(2))).toContain('Gendered Round');
-    // And the plan the host was left with is the one they set.
-    clickButton(/^2\. Setup$/);
+    // And the plan the host was left with is the one they set. The schedule
+    // goes on the way to Setup, which is not what this is asking about.
+    leaveSchedule(/^2\. Setup$/);
     openPlanner();
     expect(text(pill(2))).toBe('Gendered');
     expect(text(pill(1))).toBe('Normal');
@@ -1342,7 +1351,7 @@ describe('Set Round Types', () => {
     generate();
     const before = storedSchedule().rounds.map(fingerprint);
 
-    click(stepTab(/^2\. Setup$/));
+    leaveSchedule(/^2\. Setup$/);
     openPlanner();
     setRoundType(3, 'Gendered Round');
     clickButton(/^Generate Schedule/);
@@ -1769,7 +1778,9 @@ describe('Set Round Types', () => {
       generate();
       const before = storedSchedule().rounds.map(fingerprint);
 
-      click(stepTab(/^2\. Setup$/));
+      // Relaunched onto Setup rather than walked there, because walking there
+      // ends the session and there would be no afternoon left to leave alone.
+      parkOnSetup();
       openPlanner();
       clickButton(/^Set Round Types$/);
 
@@ -1822,7 +1833,7 @@ describe('Set Round Types', () => {
       generate();
       const before = storedSchedule().rounds.map(fingerprint);
 
-      click(stepTab(/^2\. Setup$/));
+      parkOnSetup();
       openPlanner();
       click(stepTab(/^1\. Players$/));
 
@@ -2114,6 +2125,38 @@ describe('the step tabs', () => {
   const setupTab = () => tab(/^2\. Setup$/);
   const scheduleTab = () => tab(/^3\. Schedule$/);
 
+  const scoringOn = () =>
+    JSON.parse(window.localStorage.getItem('pb-scoring-enabled') ?? 'false');
+
+  /**
+   * To Setup, and through the question it always asks once there is a schedule.
+   *
+   * There is no way to walk onto that page and keep the afternoon, which is the
+   * point of it: Setup is where a schedule is built, so arriving is leaving.
+   */
+  function toSetup() {
+    click(setupTab());
+    if (/Abandon This Schedule\?/.test(container.textContent ?? '')) {
+      clickButton(/^Return to Setup/);
+    }
+  }
+
+  /**
+   * A real schedule with no record of what it was built from.
+   *
+   * That is what a session parked by a build older than the basis looks like,
+   * and with Setup ending sessions and the Players tab rebuilding rather than
+   * breaking, it is the one thing left that can put a live schedule behind a
+   * tab drawn shut. Relaunched onto Players, because the effect that writes the
+   * basis runs on the Schedule tab and would put it straight back.
+   */
+  function forgetBasis() {
+    remount(() => {
+      window.localStorage.removeItem('pb-schedule-basis');
+      window.localStorage.setItem('pb-step', JSON.stringify('roster'));
+    });
+  }
+
   it('opens a tab only once the host has been through that step', () => {
     mount();
     expect(playersTab().getAttribute('aria-current')).toBe('step');
@@ -2142,71 +2185,85 @@ describe('the step tabs', () => {
     expect(scheduleTab().disabled).toBe(true);
   });
 
-  it('keeps a schedule nobody has touched while the host looks around', () => {
-    // A look at either page costs nothing and asks nothing. The way back is
-    // Generate, which hands the same schedule over rather than making another.
+  it('keeps the schedule while the host looks at Players, and takes them back', () => {
+    // The whole of it. A host running three of tomorrow's groups steps over to
+    // Players to add somebody to next week's list, not to end this afternoon,
+    // and the tab they pressed to leave is the tab that brings them back.
     mount();
     generate();
     const before = storedSchedule().rounds.map(fingerprint);
-
-    click(setupTab());
-    expect(container.textContent).toContain('Generate Schedule');
-    expect(storedSchedule()).not.toBeNull();
 
     click(playersTab());
     expect(container.textContent).toContain('Continue to Setup');
     expect(storedSchedule()).not.toBeNull();
 
-    click(setupTab());
-    clickButton(/^Generate Schedule/);
+    click(scheduleTab());
     expect(container.textContent).toContain('Actions');
     expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
   });
 
-  it('asks nothing on the way out of a schedule nobody has touched', () => {
+  it('asks on the way to Setup with nothing to lose, and never on the way to Players', () => {
     mount();
     generate();
 
-    click(setupTab());
-    expect(container.textContent).not.toContain('Abandon This Schedule?');
     click(playersTab());
     expect(container.textContent).not.toContain('Abandon This Schedule?');
+
+    // Nothing scored, nothing edited, and it asks anyway. "Sessions stay live
+    // until the host goes to Setup" is only sayable if it has no exceptions.
+    click(setupTab());
+    expect(container.textContent).toContain('Abandon This Schedule?');
+
+    // And no is no: the schedule stands and the host has not moved.
+    clickButton(/^Cancel$/);
+    expect(storedSchedule()).not.toBeNull();
+    expect(container.textContent).toContain('Continue to Setup');
   });
 
-  it('lets Keep Score be changed without costing the schedule', () => {
+  it('lets Keep Score be changed mid-session, from the Actions sheet', () => {
     // Keeping score is a setting about the session, not an input to the
-    // pairings, so it is not a reason to build anything: Generate hands the
-    // same rounds back with the boards switched on.
+    // pairings, so it was never a reason to build anything. It only lived on
+    // Setup, which cost nothing to visit and now ends the afternoon — so a host
+    // who starts a session and then wants the boards on would have had to
+    // rebuild. The switch is on the sheet for that reason, and only that one.
     mount();
     generate();
     const before = storedSchedule().rounds.map(fingerprint);
+    expect(scoringOn()).toBe(false);
 
-    click(setupTab());
-    clickLabel('Keep Score?');
-    clickButton(/^Generate Schedule/);
+    clickButton(/^Actions$/);
+    clickLabel('Keep Score?', sheet());
 
-    expect(container.textContent).toContain('Actions');
+    expect(scoringOn()).toBe(true);
+    // Still the same afternoon, still on it, nothing asked.
     expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+    expect(container.textContent).not.toContain('Abandon This Schedule?');
   });
 
   /**
-   * The heart of it. The Schedule tab is drawn shut wherever the host is
-   * standing, whether or not a schedule exists and whether or not the setup has
-   * moved on — and it still answers, because somebody pressing it is asking
-   * where their schedule is.
+   * The heart of it. The Schedule tab is a raised card whenever there is a
+   * schedule to go back to, and drawn flat when there is not — and flat, it
+   * still answers, because somebody pressing it is asking where theirs went.
    */
-  it('keeps the tab shut on Setup, and points at Generate', () => {
+  it('is a door from Players while the schedule still stands', () => {
     mount();
     generate();
 
-    // Shut the moment they walk off it, with the schedule still perfectly good.
-    click(setupTab());
-    expect(scheduleTab().style.backgroundColor).toBe('');
+    click(playersTab());
+    // A card like the other two, rather than the flat tab it used to be.
+    expect(scheduleTab().style.backgroundColor).not.toBe('');
+    expect(scheduleTab().disabled).toBe(false);
 
-    clickLabel('More rounds');
-    // And no different once the setup has moved on. Behaving shut is not
-    // enough; it has to look shut, or the host presses a tab that appears to be
-    // a door and is not.
+    click(scheduleTab());
+    expect(container.textContent).toContain('Actions');
+  });
+
+  it('is flat on Setup, because arriving on Setup is what ended the session', () => {
+    mount();
+    generate();
+
+    toSetup();
+    expect(storedSchedule()).toBeNull();
     expect(scheduleTab().style.backgroundColor).toBe('');
     // But never marked disabled: it does something, and saying otherwise would
     // be a lie told only to the people relying on the markup.
@@ -2216,18 +2273,17 @@ describe('the step tabs', () => {
     // Drawn shut, pressed anyway: the box appears rather than nothing at all.
     click(scheduleTab());
     expect(container.textContent).toContain('Tap Generate Schedule');
-    // Still on Setup, which is where the button is.
     expect(container.textContent).toContain('Generate Schedule');
   });
 
-  it('sends them to Setup for the button when the press comes from Players', () => {
+  it('sends them to Setup for the button when there is nothing to go back to', () => {
     mount();
     generate();
+    forgetBasis();
 
-    click(setupTab());
-    clickLabel('More rounds');
-    click(playersTab());
     expect(container.textContent).toContain('Continue to Setup');
+    expect(storedSchedule()).not.toBeNull();
+    expect(scheduleTab().style.backgroundColor).toBe('');
 
     click(scheduleTab());
     expect(container.textContent).toContain('Tap Generate Schedule');
@@ -2238,11 +2294,16 @@ describe('the step tabs', () => {
     // A comparison rather than a one-way flag, so changing your mind is free:
     // put the rounds back and Generate returns what was parked rather than
     // building another.
+    //
+    // Relaunched onto Setup rather than walked there, because walking there
+    // ends the session and leaves nothing to hand back. What is left standing
+    // on that page with a schedule under it is a host who closed the app on it,
+    // and it is why handleGeneratePress still has this branch.
     mount();
     generate();
     const before = storedSchedule().rounds.map(fingerprint);
 
-    click(setupTab());
+    parkOnSetup();
     clickLabel('More rounds');
     clickLabel('Fewer rounds');
 
@@ -2254,9 +2315,8 @@ describe('the step tabs', () => {
   it('puts the box down again once Generate has been pressed', () => {
     mount();
     generate();
+    forgetBasis();
 
-    click(setupTab());
-    clickLabel('More rounds');
     click(scheduleTab());
     expect(container.textContent).toContain('Tap Generate Schedule');
 
@@ -2281,13 +2341,52 @@ describe('the step tabs', () => {
 
   describe('and what the Players tab does to the schedule', () => {
     /**
-     * Back onto the schedule the only way there is one: Setup, then the button.
-     * It hands the parked schedule over whenever the edit left it describing
-     * the same session, which is what each of these is really asking.
+     * Back onto the schedule the way a host does it: the tab.
+     *
+     * It used to be Setup and then the button, because that was the only
+     * entrance. That it is one press now is the point of the change, and it is
+     * also what makes each of these tests honest — the schedule they check is
+     * the one that was standing, not one Generate happened to build again.
      */
     function backToSchedule() {
-      click(setupTab());
-      clickButton(/^Generate Schedule/);
+      click(scheduleTab());
+    }
+
+    /**
+     * The same nine, in two groups rather than one.
+     *
+     * Everything about being taken out of a group needs a second one to still
+     * be in. Unticking the only group somebody belongs to is the orphan path,
+     * which offers to delete them and is a different question entirely.
+     */
+    function seedTwoGroups() {
+      seed(9, 8, 2);
+      const players = JSON.parse(window.localStorage.getItem('pb-roster')!) as unknown[];
+      window.localStorage.setItem(
+        'pb-rosters',
+        JSON.stringify([{ id: 'g1', name: 'Test Group' }, { id: 'g2', name: 'Other Group' }])
+      );
+      window.localStorage.setItem(
+        'pb-roster',
+        JSON.stringify(players.map((p) => ({ ...(p as object), rosterIds: ['g1', 'g2'] })))
+      );
+    }
+
+    /** A group's tick box inside the open Edit Player panel. */
+    function clickGroupBox(name: string) {
+      const panel = container.querySelector('.fixed.inset-0');
+      if (!panel) throw new Error('no panel open');
+      const box = [...panel.querySelectorAll('label')].find((l) => text(l) === name);
+      if (!box) throw new Error(`no group box for ${name}`);
+      click(box.querySelector('input[type="checkbox"]')!);
+    }
+
+    /** Manage, the group's pencil, Delete, and the panel's own confirm. */
+    function deleteGroup(name: string) {
+      clickButton(/^Manage$/);
+      click(labelled(`Edit ${name}`));
+      clickButton(/^Delete$/);
+      clickButton(/^Delete Group$/);
     }
 
     /** The pencil on a row, then the panel's own Update. */
@@ -2326,6 +2425,19 @@ describe('the step tabs', () => {
       return storedSchedule().rounds.flatMap((r) => namesInRound(r.roundNumber));
     }
 
+    /**
+     * A button inside the open Edit Player panel, not one on the page behind it.
+     *
+     * The Add Player card at the top of Players has its own M and F, and it
+     * comes first in the document. Both gender tests below were pressing that
+     * one and proving nothing at all.
+     */
+    function panelButton(re: RegExp) {
+      const panel = container.querySelector('.fixed.inset-0');
+      if (!panel) throw new Error('no panel open');
+      clickButton(re, panel);
+    }
+
     /** The text box inside the open Edit Player panel, not the one on the page. */
     function panelNameBox(): HTMLInputElement {
       const panel = container.querySelector('.fixed.inset-0');
@@ -2361,7 +2473,8 @@ describe('the step tabs', () => {
       const before = storedSchedule().rounds.map(fingerprint);
 
       click(playersTab());
-      editPlayer('Ava', () => clickButton(/^F$/));
+      editPlayer('Ava', () => panelButton(/^F$/));
+      expect(storedPlayer('Ava').gender).toBe('F');
 
       backToSchedule();
       expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
@@ -2374,10 +2487,10 @@ describe('the step tabs', () => {
       generate();
       markComplete(1);
 
-      // Relaunched onto Players rather than walked there: with a round ticked
-      // the tab would ask, and answering is what ends the session. What is
-      // being held here is the rebuild, which is unchanged.
-      parkOnPlayers();
+      // Walked there, which is the change: with a round ticked this used to ask
+      // and answering was what ended the session. What is being held here is
+      // the rebuild, which is unchanged.
+      click(playersTab());
       click(labelled('Edit Ava'));
       clickButton(/^Delete$/);
       clickButton(/^Yes, Delete$/);
@@ -2389,6 +2502,113 @@ describe('the step tabs', () => {
       // Every round still to come has been rebuilt without her.
       expect(namesInRound(2)).not.toContain('Ava');
       expect(namesInRound(8)).not.toContain('Ava');
+    });
+
+    it('rebuilds around somebody taken out of the group, rather than breaking', () => {
+      // The mirror image of the delete above, and it used to get none of its
+      // care: unticking the open group dropped a playing player out of the
+      // session, moved the basis, and said nothing. The schedule was left
+      // describing an afternoon that could no longer happen.
+      seedTwoGroups();
+      mount();
+      generate();
+      markComplete(1);
+
+      click(playersTab());
+      editPlayer('Ava', () => clickGroupBox('Test Group'));
+
+      // Nothing asked, and the tab is still a door.
+      expect(container.textContent).not.toContain('Abandon This Schedule?');
+      backToSchedule();
+      expect(completedRounds()).toEqual([1]);
+      expect(namesInRound(1)).toContain('Ava');
+      expect(namesInRound(2)).not.toContain('Ava');
+      expect(namesInRound(8)).not.toContain('Ava');
+    });
+
+    it('carries a rename into the rounds already played when the same edit drops them', () => {
+      // Both at once, which the panel makes easy: it sends name, rating and
+      // gender on every Update whether or not they moved. The rebuild has to
+      // start from the schedule the rename left behind, or the correction is
+      // written and then written straight back over.
+      seedTwoGroups();
+      mount();
+      generate();
+      markComplete(1);
+
+      click(playersTab());
+      editPlayer('Ava', () => {
+        typeInto(panelNameBox(), 'Ava Renamed');
+        clickGroupBox('Test Group');
+      });
+
+      backToSchedule();
+      // The round already played is what happened, under the corrected name.
+      expect(namesInRound(1)).toContain('Ava Renamed');
+      expect(namesInRound(1)).not.toContain('Ava');
+      // And she is in none of the rounds still to come, under either name.
+      expect(namesInRound(2)).not.toContain('Ava Renamed');
+      expect(namesInRound(2)).not.toContain('Ava');
+    });
+
+    it('keeps the way back open when a gender is corrected on a Gendered round', () => {
+      // Gender is in the basis, but only on a schedule built around it. Left
+      // alone this would shut the tab behind a host standing on Players, whose
+      // only way back would then be Setup, which costs them the afternoon.
+      seed(9, 8, 2);
+      // Sixteen slots, which is what PLAN_SLOTS is and what the store holds.
+      // An ordinary round is null rather than a word.
+      window.localStorage.setItem(
+        'pb-round-plan',
+        JSON.stringify(['gendered', ...Array<null>(15).fill(null)])
+      );
+      mount();
+      generate();
+      expect(storedSchedule().rounds[0].roundType).toBe('gendered');
+
+      click(playersTab());
+      expect(storedPlayer('Ava').gender).toBe('M');
+      editPlayer('Ava', () => panelButton(/^F$/));
+      expect(storedPlayer('Ava').gender).toBe('F');
+
+      // Still a door, and the round is still what it was built as: a court that
+      // no longer fits picks up its "(normal game)" note rather than moving
+      // four people because one of them was typed in wrong.
+      expect(scheduleTab().style.backgroundColor).not.toBe('');
+      backToSchedule();
+      expect(storedSchedule().rounds[0].roundType).toBe('gendered');
+    });
+
+    it('asks before deleting the group the session is running in', () => {
+      seedTwoGroups();
+      mount();
+      generate();
+      markComplete(1);
+
+      click(playersTab());
+      deleteGroup('Test Group');
+      expect(container.textContent).toContain('Abandon This Schedule?');
+      expect(container.textContent).toContain('ends the session running in it');
+
+      // No is no: the group is still there and so is the afternoon.
+      clickButton(/^Cancel$/);
+      expect(completedRounds()).toEqual([1]);
+      expect(storedSchedule()).not.toBeNull();
+      expect(container.textContent).toContain('Test Group');
+    });
+
+    it('says nothing about deleting a group the session is not in', () => {
+      seedTwoGroups();
+      mount();
+      generate();
+      markComplete(1);
+
+      click(playersTab());
+      deleteGroup('Other Group');
+
+      expect(container.textContent).not.toContain('Abandon This Schedule?');
+      backToSchedule();
+      expect(completedRounds()).toEqual([1]);
     });
 
     it('keeps the schedule when the player deleted was not in it', () => {
@@ -2452,16 +2672,43 @@ describe('the step tabs', () => {
       expect(buttons(/^Cancel$/, dialog()!)).toHaveLength(1);
     });
 
-    it('names Players when Players is the tab that was tapped', () => {
+    it('promises the link will survive when the group has one out', () => {
+      // Decision made with Jeff: a link belongs to the group rather than to one
+      // afternoon, so tidying up the setup on the morning of does not ask
+      // fourteen people to scan a new QR code. The dialog has to say so, or the
+      // host will not believe it and will not press the button.
+      seed(9, 8, 2);
+      window.localStorage.setItem('pb-share-key', JSON.stringify('ABCDEFGHJK'));
+      mount();
+      generate();
+
+      click(setupTab());
+      expect(text(container)).toContain(
+        'Your link stays the same and will show the new schedule.'
+      );
+    });
+
+    it('says nothing about a link when the group has none', () => {
+      mount();
+      generate();
+
+      click(setupTab());
+      expect(text(container)).not.toContain('Your link stays the same');
+    });
+
+    it('says nothing at all on the way to Players', () => {
+      // Players used to be the other door out of an afternoon and is not one
+      // now. A host with a round played and a score on the board can step over
+      // to add somebody to next week's list and come straight back.
       mount();
       generate();
       markComplete(1);
 
       click(playersTab());
-      expect(text(dialog()!)).toContain(
-        'Returning to Players discards the session including any entered scores.'
-      );
-      expect(buttons(/^Return to Players$/, dialog()!)).toHaveLength(1);
+      expect(container.textContent).not.toContain('Abandon This Schedule?');
+      expect(storedSchedule()).not.toBeNull();
+      expect(completedRounds()).toEqual([1]);
+      expect(container.textContent).toContain('Continue to Setup');
     });
 
     it('changes nothing at all on Cancel', () => {
@@ -2499,21 +2746,16 @@ describe('the step tabs', () => {
       expect(JSON.parse(window.localStorage.getItem('pb-selected-ids')!)).toEqual(ticked);
     });
 
-    it('lands on the tab that was tapped', () => {
-      mount();
-      generate();
-      markComplete(1);
-
-      click(playersTab());
-      clickButton(/^Return to Players$/);
-      expect(container.textContent).toContain('Continue to Setup');
-    });
-
     /**
-     * Every kind of work counts, not just the two that are written down. A
-     * padlock is this page's own state and would go with the page.
+     * The question no longer depends on what the host has done.
+     *
+     * It used to: scores, completed rounds and padlocks were the three kinds of
+     * work worth asking about, and anything else was parked in silence. Setup
+     * ends a session whatever state it is in, so what is worth pinning now is
+     * that none of these move it — including taking the padlock back off, which
+     * used to be the way to make the question go away.
      */
-    it('counts a padlock, and stops counting it when it is taken off', () => {
+    it('asks the same whatever has been done to it', () => {
       mount();
       generate();
 
@@ -2526,25 +2768,16 @@ describe('the step tabs', () => {
 
       click(container.querySelector('[aria-label^="Unlock "]')!);
       click(setupTab());
-      expect(container.textContent).not.toContain('Abandon This Schedule?');
-      expect(container.textContent).toContain('Generate Schedule');
-    });
+      expect(container.textContent).toContain('Abandon This Schedule?');
+      clickButton(/^Cancel$/);
 
-    it('counts a round added from the Actions sheet', () => {
-      mount();
-      generate();
       action(/^Add Round$/);
       clickButton(/^Add 1 Round$/, sheet());
-
       click(setupTab());
       expect(container.textContent).toContain('Abandon This Schedule?');
-    });
+      clickButton(/^Cancel$/);
 
-    it('counts a reshuffle', () => {
-      mount();
-      generate();
       reshuffle();
-
       click(setupTab());
       expect(container.textContent).toContain('Abandon This Schedule?');
     });

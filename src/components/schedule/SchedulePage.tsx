@@ -151,7 +151,6 @@ interface Props {
    * everything else, so the host is asked first. Reported as it stands rather
    * than announced once, so locking and unlocking again leaves nothing behind.
    */
-  onLocksChange?: (any: boolean) => void;
 }
 
 // The padlocks shown for a round: every intact (non-broken) couple found in the
@@ -233,7 +232,6 @@ export function SchedulePage({
   defaultRating,
   scoringEnabled,
   onOpenAccount,
-  onLocksChange,
 }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<PlayerSlot | null>(null);
   /**
@@ -249,9 +247,6 @@ export function SchedulePage({
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
   // Couples the host has broken for a specific round (partnerKeys by round index).
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
-  useEffect(() => {
-    onLocksChange?.(Object.keys(locks).length > 0 || Object.keys(brokenPairs).length > 0);
-  }, [locks, brokenPairs, onLocksChange]);
 
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const [removeCandidate, setRemoveCandidate] = useState<Player | null>(null);

@@ -1,9 +1,9 @@
-import { useSyncExternalStore } from 'react';
 import type { Player, Roster } from '../../types';
 import { CheckIcon } from '../icons';
 import { GroupSolidIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
-import { liveStatusStore } from '../../lib/liveSession';
+import { useStoredValue } from '../../hooks/useStoredValue';
+import * as stores from '../../lib/stores';
 import { useSuspendsTour } from '../../lib/tourSuspend';
 import { panelCard } from '../panelStyles';
 
@@ -40,11 +40,16 @@ export function GroupPicker({
   onSelect,
   onClose,
 }: Props) {
-  const live = useSyncExternalStore(
-    liveStatusStore.subscribe,
-    liveStatusStore.get,
-    liveStatusStore.get
-  );
+  // Which groups have a link out, from the two places a key can be kept: the
+  // live slot for the group being stood in, and the parked record for every
+  // other one. Read here rather than from liveStatusStore, which only ever
+  // describes the open group and so could not answer this question at all.
+  const [parked] = useStoredValue(stores.groupSessions);
+  const [openKey] = useStoredValue(stores.shareKey);
+
+  function isShared(rosterId: string) {
+    return rosterId === activeId ? openKey !== null : Boolean(parked[rosterId]?.shareKey);
+  }
 
   // The first-run tour hands the group name over on its first card, so this can
   // open while the tour is up. It cannot simply stack over it — see
@@ -67,15 +72,6 @@ export function GroupPicker({
           <PanelHeading icon={GroupSolidIcon} title={heading} />
         </div>
 
-        {/* The one thing a switch does not carry with it. The published copy is
-            of this session, and pointing it at another group's would show the
-            wrong scores to everyone holding the link. */}
-        {(live.state === 'live' || live.state === 'publishing') && (
-          <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            You are sharing this session. Changing groups will stop sharing.
-          </p>
-        )}
-
         {/* The one part that gives when there is not enough room, so the
             heading stays on and Close stays reachable however many groups
             there are. */}
@@ -83,6 +79,7 @@ export function GroupPicker({
           {groups.map((g) => {
             const current = g.id === activeId;
             const count = countFor(g.id);
+            const shared = isShared(g.id);
             return (
               <button
                 key={g.id}
@@ -96,8 +93,15 @@ export function GroupPicker({
                     : 'border-gray-300 bg-white hover:bg-gray-100'
                 }`}
               >
-                <span className="min-w-0 flex-1 text-lg font-bold text-[#222] break-words">
-                  {g.name}
+                <span className="min-w-0 flex-1 break-words">
+                  <span className="block text-lg font-bold text-[#222]">{g.name}</span>
+                  {/* A switch no longer costs anybody their link, so the thing
+                      worth saying here is which groups have one out. A host
+                      running three of tomorrow's afternoons has no other place
+                      in the app to see that. */}
+                  {shared && (
+                    <span className="block text-sm font-bold text-brand-teal">Shared</span>
+                  )}
                 </span>
                 <span className="shrink-0 text-sm text-gray-500">
                   {count} player{count === 1 ? '' : 's'}

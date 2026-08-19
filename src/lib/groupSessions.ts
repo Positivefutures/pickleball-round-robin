@@ -2,7 +2,7 @@ import type { Player, Partnership, RoundPlan, Schedule } from '../types';
 import type { Step } from './steps';
 import * as stores from './stores';
 import { normalizeRoundPlan } from './roundPlan';
-import { stopSharing } from './liveSession';
+import { attachShare, detachShare, discardShare, stopAllSharing } from './liveSession';
 import { clearRoundTimerForNewSchedule } from './roundTimer';
 
 /**
@@ -19,8 +19,7 @@ import { clearRoundTimerForNewSchedule } from './roundTimer';
  * in sync.ts to ask which group they meant. This way they never have to.
  *
  * What is not here is as deliberate as what is. `scheduleRosterId` is missing
- * because the map key already says which group the schedule belongs to. The
- * share key is missing because a share does not survive the switch: see park().
+ * because the map key already says which group the schedule belongs to.
  */
 export interface GroupSession {
   step: Step;
@@ -55,6 +54,37 @@ export interface GroupSession {
    */
   roundPlan?: RoundPlan;
   scoringEnabled: boolean;
+  /**
+   * The key this group's session is published under, or null while it is not
+   * being shared.
+   *
+   * Here rather than absent, which is the whole of this change. A share used to
+   * end the moment the host looked at another group, because one live slot
+   * publishing under one key could only ever describe the group in front. It
+   * survives now because park() hands the key back instead of taking the row
+   * down with it — see detachShare — which is what lets a host set three of
+   * tomorrow's groups up tonight and send all three links out.
+   *
+   * Optional for the same reason the three fields above are: a group parked by
+   * an older build has none. Here the absence is not merely tolerable, it is
+   * true — those builds stopped sharing on the way out, so there is genuinely
+   * nothing to pick back up.
+   */
+  shareKey?: string | null;
+  /**
+   * Whether watchers may type scores, and the four digits that let them.
+   *
+   * Parked with the group because they are published, and because a code said
+   * out loud to Tuesday night's court must not unlock Wednesday's. Left global
+   * they would follow the host from one live share to the next, which was
+   * harmless while only one could exist.
+   *
+   * `standingsShared` deliberately stays where it is. stores.ts calls it a
+   * preference that outlives a session, and it is about what this host likes to
+   * show rather than about one afternoon.
+   */
+  scoreEditingAllowed?: boolean;
+  scoreEditCode?: string | null;
 }
 
 /**
@@ -88,7 +118,10 @@ function live(): GroupSession {
     numCourts: stores.numCourts.get(),
     numRounds: stores.numRounds.get(),
     roundPlan: stores.roundPlan.get(),
-    scoringEnabled: stores.scoringEnabled.get()
+    scoringEnabled: stores.scoringEnabled.get(),
+    shareKey: stores.shareKey.get(),
+    scoreEditingAllowed: stores.scoreEditingAllowed.get(),
+    scoreEditCode: stores.scoreEditCode.get()
   };
 }
 
@@ -126,6 +159,13 @@ export function clearSession(keepSelection = false): void {
   }
   stores.scheduleRosterId.set(null);
   stores.sessionId.set(null);
+  // The share key is deliberately left where it is, and this omission is the
+  // one that lets a host tidy up the morning of. A link belongs to the group
+  // rather than to one afternoon: New Round Robin and a walk back to Setup both
+  // land here, and neither should cost a host the QR code they have already
+  // sent to fourteen people. The next Generate publishes straight over it.
+  //
+  // Taking a share down is Stop Sharing, a deleted group, and nothing else.
 }
 
 /** Fills the live slot from a saved group. */
@@ -146,6 +186,9 @@ function fill(saved: GroupSession, rosterId: string): void {
   stores.numRounds.set(saved.numRounds);
   stores.roundPlan.set(normalizeRoundPlan(saved.roundPlan));
   stores.scoringEnabled.set(saved.scoringEnabled);
+  stores.shareKey.set(saved.shareKey ?? null);
+  stores.scoreEditingAllowed.set(saved.scoreEditingAllowed ?? false);
+  stores.scoreEditCode.set(saved.scoreEditCode ?? null);
   stores.setupSeen.set(saved.setupSeen);
   stores.step.set(saved.step);
 }
@@ -153,13 +196,20 @@ function fill(saved: GroupSession, rosterId: string): void {
 /**
  * Files the live slot under a group.
  *
- * A live share is stopped first, before anything else moves. liveSession watches
- * the schedule store and publishes what it finds there under whatever key it is
- * holding, so leaving the share up for even one write would push the incoming
- * group's session out to the outgoing group's QR code.
+ * The share is detached first, before anything else moves, and the ordering is
+ * the most load-bearing thing in this file. liveSession watches the schedule
+ * store and publishes what it finds there under whatever key it is holding, so
+ * leaving it subscribed for even one write of fill() would push a half-filled
+ * slot — the incoming group's afternoon — out to the outgoing group's QR code.
+ *
+ * What has changed is only what "detached" costs. It used to be stopSharing(),
+ * which deleted the row: the link died with the switch and the warning in the
+ * group picker said so. It is detachShare() now, which hands the key back and
+ * leaves the published copy standing, so the group being left stays shared and
+ * the key travels into the record below to be picked up on the way back in.
  */
 export function park(rosterId: string): void {
-  if (stores.shareKey.get() !== null) void stopSharing();
+  detachShare();
   const saved = live();
   // Read then write, rather than the functional form. A store's set() takes the
   // previous value from its cache while nothing is subscribed, and get() is the
@@ -184,9 +234,20 @@ export function resume(rosterId: string): void {
   const saved = stores.groupSessions.get()[rosterId];
   if (saved) {
     fill(saved, rosterId);
+    // After fill and never before: the live slot has to be describing this
+    // group before anything starts watching it. The publish that follows also
+    // moves expires_at forward, so a host flicking between three groups keeps
+    // all three links alive rather than watching the first one time out.
+    if (saved.shareKey) attachShare(saved.shareKey);
     return;
   }
   clearSession();
+  // A group nobody has opened before is not sharing anything, and the key still
+  // in the live slot belongs to the group just parked. clearSession leaves it
+  // alone on purpose, so this is where it has to go.
+  stores.shareKey.set(null);
+  stores.scoreEditingAllowed.set(false);
+  stores.scoreEditCode.set(null);
   stores.setupSeen.set(false);
   stores.step.set('roster');
 }
@@ -204,16 +265,27 @@ export function switchToGroup(id: string): void {
   resume(id);
 }
 
-/** Drops a deleted group's saved session. Nothing is coming back for it. */
+/**
+ * Drops a deleted group's saved session. Nothing is coming back for it.
+ *
+ * The published copy goes too, and this is one of the two places anything takes
+ * a share down without being asked to. The group it described does not exist
+ * any more, so neither should a public document naming everyone who was in it.
+ */
 export function forget(rosterId: string): void {
   const all = stores.groupSessions.get();
   if (!(rosterId in all)) return;
+  const going = all[rosterId].shareKey;
   const next = { ...all };
   delete next[rosterId];
   stores.groupSessions.set(next);
+  if (going) void discardShare(going);
 }
 
 /** Every group's saved session gone, for a device being handed to an account. */
 export function forgetAll(): void {
   stores.groupSessions.set({});
+  // Every link this device was holding, and it means it: the sessions those
+  // rows describe are the ones being thrown away here.
+  void stopAllSharing();
 }

@@ -36,7 +36,6 @@ type Fault = { code?: string; message: string } | null;
 let rows: Row[] = [];
 /** Every row handed to insert or upsert, in order, whether it was accepted. */
 let writes: Row[] = [];
-let deletes: number;
 /** Faults to serve, one per write, shifted off as they are used. */
 let faults: Fault[] = [];
 let reachable = true;
@@ -56,9 +55,12 @@ function table() {
       tests.push((row) => row[column] !== value);
       return builder;
     },
+    lt(column: string, value: unknown) {
+      tests.push((row) => String(row[column]) < String(value));
+      return builder;
+    },
     // A PostgrestFilterBuilder is a thenable, so awaiting one runs it.
     then(resolve: (result: { error: Fault }) => void) {
-      deletes += 1;
       rows = rows.filter((row) => !tests.every((matches) => matches(row)));
       resolve({ error: null });
     }
@@ -122,8 +124,10 @@ vi.mock('./auth', () => ({
 }));
 
 // Imported after the mocks are registered.
-const { startSharing, stopSharing, startLive, liveStatusStore, __testing } =
-  await import('./liveSession');
+const {
+  startSharing, stopSharing, startLive, attachShare, detachShare, stopAllSharing,
+  liveStatusStore, __testing
+} = await import('./liveSession');
 const stores = await import('./stores');
 const { isShareKey } = await import('./shareKey');
 
@@ -178,7 +182,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   rows = [];
   writes = [];
-  deletes = 0;
   faults = [];
   reachable = true;
   authState = { status: 'signed-in', email: 'host@example.com', userId: 'u1' };
@@ -241,9 +244,45 @@ describe('starting a share', () => {
     expect(sent).toContain('Dee');
   });
 
-  it('clears out what this account had shared before', async () => {
+  it("leaves another group's link alone when a new one is made", async () => {
+    // The whole of this release in one assertion. This used to be a delete of
+    // every other row the account held, on the grounds that a host runs one
+    // session at a time. A host now runs three of tomorrow's afternoons at once.
+    const future = new Date(Date.now() + 3600_000).toISOString();
+    rows.push({ share_key: 'TUESDAYCRW', expires_at: future } as unknown as Row);
+
     await startSharing();
-    expect(deletes).toBe(1);
+
+    expect(rows.some((row) => row.share_key === 'TUESDAYCRW')).toBe(true);
+    expect(rows).toHaveLength(2);
+  });
+
+  it('sweeps its own expired rows on the way past, and leaves the living', async () => {
+    // Nothing else in this schema deletes an expired row and cap_shared_sessions
+    // counts them, so without this an account fills up over a year of
+    // afternoons and can never share again. The blanket delete was doing this
+    // job by accident, which is why nobody noticed it needed doing.
+    const past = new Date(Date.now() - 3600_000).toISOString();
+    const future = new Date(Date.now() + 3600_000).toISOString();
+    rows.push({ share_key: 'DEADDEADAA', expires_at: past } as unknown as Row);
+    rows.push({ share_key: 'ALIVEALIVE', expires_at: future } as unknown as Row);
+
+    await startSharing();
+
+    expect(rows.some((row) => row.share_key === 'DEADDEADAA')).toBe(false);
+    expect(rows.some((row) => row.share_key === 'ALIVEALIVE')).toBe(true);
+  });
+
+  it('picks a held key back up rather than minting a group a second link', async () => {
+    await startSharing();
+    const first = live().share_key;
+    // The Share card opened again, on a group that already has a link out —
+    // which after an abandoned session is the ordinary case, not the odd one.
+    __testing.reset();
+    await startSharing();
+
+    expect(__testing.key).toBe(first);
+    expect(rows).toHaveLength(1);
   });
 
   it('picks another name when the first is taken', async () => {
@@ -427,16 +466,92 @@ describe('the round timer', () => {
 });
 
 describe('when the session ends', () => {
-  it('takes the share down, wherever the ending came from', async () => {
-    // New Round Robin, a group switch, a deleted group and sync adopting an
-    // account copy all null the schedule and none of them call this file. That
-    // is the point of watching the store.
+  it('leaves the link standing, whatever ended it', async () => {
+    // New Round Robin, a walk back to Setup, a deleted group and sync adopting
+    // an account copy all null the schedule and none of them call this file.
+    // This used to be where the share came down, and it is not any more: a link
+    // belongs to the group rather than to one afternoon, so the row keeps what
+    // the watchers were last shown and the next Generate publishes over it.
     await startSharing();
+    const key = live().share_key;
+    const before = writes.length;
+
     stores.schedule.set(null);
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(rows).toHaveLength(1);
+    expect(stores.shareKey.get()).toBe(key);
+    // And nothing new went up. There was nothing to send.
+    expect(writes.length).toBe(before);
+  });
+});
+
+describe('letting go of a group without taking its copy down', () => {
+  it('leaves the row standing and hands the key back', async () => {
+    await startSharing();
+    const key = live().share_key;
+
+    detachShare();
     await vi.advanceTimersByTimeAsync(0);
+
+    expect(rows.some((row) => row.share_key === key)).toBe(true);
+    expect(__testing.key).toBeNull();
+    expect(status()).toEqual({ state: 'off' });
+  });
+
+  it('puts the last second and a half on the wire before it stops watching', async () => {
+    await startSharing();
+    const before = writes.length;
+
+    // A score typed, and the host switches group before the debounce fires.
+    // While a switch deleted the row this cost nothing. Now the row survives,
+    // so the number would sit on nine other phones as a blank.
+    stores.schedule.set(schedule({ team1: 11, team2: 9 }));
+    detachShare();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(writes.length).toBe(before + 1);
+    expect(JSON.stringify(writes[writes.length - 1].snapshot)).toContain('"team1":11');
+  });
+
+  it('sends no clock on for a group nobody is running any more', async () => {
+    await startSharing();
+    stores.roundTimer.set((state) => ({
+      ...state, roundNumber: 1, phase: 'running', endsAt: Date.now() + 600_000
+    }));
+    await vi.advanceTimersByTimeAsync(0);
+    stores.schedule.set(schedule({ team1: 6, team2: 4 }));
+
+    detachShare();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const sent = writes[writes.length - 1].snapshot as { roundTimer: unknown };
+    expect(sent.roundTimer).toBeNull();
+  });
+
+  it('picks a parked key back up and republishes under it', async () => {
+    await startSharing();
+    const key = live().share_key;
+    detachShare();
+    await vi.advanceTimersByTimeAsync(0);
+
+    attachShare(key);
+    stores.schedule.set(schedule({ team1: 3, team2: 8 }));
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(live().share_key).toBe(key);
+    expect(JSON.stringify(live().snapshot)).toContain('"team1":3');
+  });
+
+  it('takes every link down when an account copy is adopted', async () => {
+    const future = new Date(Date.now() + 3600_000).toISOString();
+    rows.push({ share_key: 'TUESDAYCRW', expires_at: future } as unknown as Row);
+    await startSharing();
+
+    await stopAllSharing();
+
     expect(rows).toHaveLength(0);
     expect(stores.shareKey.get()).toBeNull();
-    expect(status()).toEqual({ state: 'off' });
   });
 });
 
@@ -477,13 +592,23 @@ describe('a reload part way through', () => {
     expect(JSON.stringify(live().snapshot)).toContain('"team1":11');
   });
 
-  it('drops a key whose session ended while the app was shut', async () => {
+  it('keeps a key whose session ended while the app was shut', async () => {
+    // The link is the group's, not the afternoon's. A host who abandoned last
+    // night's schedule and reopens the app to build today's has not asked
+    // anybody to rescan anything, so the key waits for the next Generate.
     stores.shareKey.set('ABCDEFGHJK');
     stores.schedule.set(null);
     startLive();
     await vi.advanceTimersByTimeAsync(0);
-    expect(stores.shareKey.get()).toBeNull();
+
+    expect(stores.shareKey.get()).toBe('ABCDEFGHJK');
+    // Held rather than published: there is still nothing to send.
     expect(writes).toHaveLength(0);
+
+    // And the moment there is, it goes out under the same name.
+    stores.schedule.set(schedule());
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(live().share_key).toBe('ABCDEFGHJK');
   });
 
   it('waits for sign-in rather than publishing into a refusal', async () => {

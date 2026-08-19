@@ -47,8 +47,18 @@ const TABLE = 'shared_sessions';
 /** Where the watchers' scores queue up until this phone takes them. */
 const EDITS_TABLE = 'score_edits';
 
-/** The client asks for a day. The database clamps anything longer. */
-const SHARE_HOURS = 24;
+/**
+ * How long a link is asked to live.
+ *
+ * Two days rather than one, because what this publishes is no longer only the
+ * afternoon being played right now. A host who sets tomorrow's three groups up
+ * tonight and sends the links out has minted them twenty hours before anybody
+ * scans one, and a day would have expired them on the way.
+ *
+ * Forty-eight hours is also exactly what clamp_share_expiry allows, so this
+ * asks for the most the database will give and the two numbers cannot drift.
+ */
+const SHARE_HOURS = 48;
 
 /**
  * How many keys to try before giving up. A collision means the ten characters
@@ -234,12 +244,34 @@ function scheduleRetry() {
   schedulePublish(wait);
 }
 
+/**
+ * The upload itself, from its arguments and nothing else.
+ *
+ * Split out from publish() so that a group being parked can have its last
+ * change sent under the key it is being parked with. By the time that call
+ * resolves the live slot belongs to a different group entirely, so nothing in
+ * it may be read here. See detachShare().
+ *
+ * An upsert rather than an update, which is what lets a link outlive its row:
+ * a key whose copy the database has since expired comes back under the same
+ * name the next time this runs, and the QR code the host sent out still opens.
+ */
+async function upsertRow(shareKey: string, snapshot: SessionSnapshot): Promise<void> {
+  const supabase = await getSupabase();
+  const { error } = await supabase.from(TABLE).upsert(await row(shareKey, snapshot), {
+    onConflict: 'share_key'
+  });
+  if (error) throw new Error(error.message);
+}
+
 async function publish(): Promise<void> {
   if (publishing || key === null) return;
 
   const snapshot = currentSnapshot();
-  // The session ended between the change and this firing. teardown() has the
-  // job of taking the share down; there is nothing to send.
+  // The session ended between the change and this firing: New Round Robin, a
+  // walk back to Setup, or sync adopting an account copy. There is nothing to
+  // send and nothing to take down — the row keeps the link alive until the next
+  // Generate writes over it. See onChange().
   if (!snapshot) return;
 
   // Signed out, or not signed in yet at boot. Stay in publishing and wait to be
@@ -251,11 +283,7 @@ async function publish(): Promise<void> {
   publishing = true;
   setStatus({ state: 'publishing', url });
   try {
-    const supabase = await getSupabase();
-    const { error } = await supabase.from(TABLE).upsert(await row(key, snapshot), {
-      onConflict: 'share_key'
-    });
-    if (error) throw new Error(error.message);
+    await upsertRow(key, snapshot);
     attempt = 0;
     setStatus({ state: 'live', url, at: snapshot.at });
   } catch (error) {
@@ -378,7 +406,11 @@ async function drain(): Promise<void> {
  * interval that was already running.
  */
 function syncDraining() {
-  const wanted = key !== null && stores.scoreEditingAllowed.get();
+  // A schedule that has gone is the third condition. applyEdits would drop every
+  // row it read against a null schedule, so a session the host has ended would
+  // otherwise go on polling every ten seconds for numbers with nowhere to land.
+  const wanted =
+    key !== null && stores.scoreEditingAllowed.get() && stores.schedule.get() !== null;
 
   if (wanted && drainTimer === null) {
     drainTimer = setInterval(() => void drain(), DRAIN_MS);
@@ -472,14 +504,17 @@ function stopTracking() {
 
 function onChange(delay = PUBLISH_DELAY_MS) {
   if (key === null) return;
-  // The session is over, however it ended: New Round Robin, a group switch, a
-  // deleted group, or sync adopting an account copy. All four null the schedule,
-  // which is why this is the only teardown in the file.
-  if (stores.schedule.get() === null) {
-    void stopSharing();
-    return;
-  }
   syncDraining();
+  // The session is over, however it ended: New Round Robin, a walk back to
+  // Setup, a deleted group, or sync adopting an account copy. This used to be
+  // the file's only teardown, and it is not one any more.
+  //
+  // A link belongs to a group rather than to one afternoon. The host who sent
+  // it out on Sunday and rebuilt the schedule on Monday morning has not asked
+  // anybody to rescan anything, so the row keeps the last thing the watchers
+  // were shown and the next Generate publishes over it. Nothing to send is
+  // nothing to send. Taking a share down is Stop Sharing, and a deleted group.
+  if (stores.schedule.get() === null) return;
   schedulePublish(delay);
 }
 
@@ -507,6 +542,16 @@ export async function startSharing(): Promise<void> {
     return;
   }
 
+  // This group already has a link, so it does not need a second one. Picking
+  // the held key back up is what lets a QR code outlive the schedule it was
+  // minted for: the host can walk back to Setup on the morning of, build a
+  // different afternoon, and send nobody anything.
+  const held = stores.shareKey.get();
+  if (held && isShareKey(held)) {
+    attachShare(held);
+    return;
+  }
+
   const snapshot = currentSnapshot();
   if (!snapshot) {
     setStatus({ state: 'problem', url: null, message: 'There is no session to share yet.' });
@@ -516,13 +561,20 @@ export async function startSharing(): Promise<void> {
   setStatus({ state: 'starting' });
   try {
     const supabase = await getSupabase();
-    let minted = mintShareKey();
+    await sweepExpired();
 
-    // Whatever this account had shared before, it is not sharing now. RLS scopes
-    // the delete to its own rows, and PostgREST refuses a delete with no filter
-    // at all, so the key about to be used is the thing to exclude. One row per
-    // account is the real invariant; the cap in the migration is the backstop.
-    await supabase.from(TABLE).delete().neq('share_key', minted);
+    // The same afternoon, published from another phone. Two devices signed into
+    // one account each keep their own keys — stores.shareKey is deliberately
+    // device-scoped — so this one cannot know the other's name for this session.
+    // It can recognise the session though, and a second copy under a link nobody
+    // is updating is worse than no second copy. Everything else the account has
+    // shared is left exactly where it is, which is the whole point of the
+    // release: the other two groups playing tomorrow are still shared.
+    if (snapshot.sessionId) {
+      await supabase.from(TABLE).delete().eq('session_id', snapshot.sessionId);
+    }
+
+    let minted = mintShareKey();
 
     for (let tries = 0; tries < MINT_ATTEMPTS; tries++) {
       const { error } = await supabase.from(TABLE).insert(await row(minted, snapshot));
@@ -557,6 +609,63 @@ function adopt(minted: string, at: string) {
  * about would be one the host had told a different set of people, on a
  * different afternoon, and had no reason to think was still live.
  */
+/**
+ * Whether this run has already tidied up after itself. Once is enough.
+ */
+let swept = false;
+
+/**
+ * The account's own expired rows, deleted on the way past.
+ *
+ * This is the job the old `.neq('share_key', minted)` line was doing by
+ * accident. That line deleted every other row the account had, on the grounds
+ * that a host runs one session at a time — which is the sentence this release
+ * deletes. Nothing else in the schema removes an expired row: there is no cron
+ * and no sweeper, and cap_shared_sessions counts the dead along with the living.
+ * Take the wipe away without putting this in its place and an account fills up
+ * over a year of afternoons and can never share again.
+ *
+ * Deleting an expired row costs nothing that was not already gone. shared_session()
+ * refuses anything past expires_at, so those links had stopped opening; and the
+ * key lives on this phone, so a group whose row is swept publishes straight back
+ * over the same name the next time it is opened, and the QR code still works.
+ *
+ * RLS scopes it to this account. Not worth failing a share over, so a failure
+ * only puts the flag back for the next attempt.
+ */
+async function sweepExpired(): Promise<void> {
+  if (swept || !available()) return;
+  swept = true;
+  try {
+    const supabase = await getSupabase();
+    await supabase.from(TABLE).delete().lt('expires_at', new Date().toISOString());
+  } catch {
+    swept = false;
+  }
+}
+
+/**
+ * Every share key this device is holding, forgotten: the open group's, and
+ * every parked group's.
+ *
+ * The one place in this file that admits there is more than one group, and it
+ * reads the store rather than calling groupSessions.ts, which imports this
+ * module. It gets away with that because the question is about rows rather than
+ * about groups, and a row is something this file already understands.
+ */
+function forgetEveryKey(): void {
+  stores.shareKey.set(null);
+  const parked = stores.groupSessions.get();
+  const next = { ...parked };
+  let moved = false;
+  for (const [id, session] of Object.entries(parked)) {
+    if (session.shareKey == null) continue;
+    next[id] = { ...session, shareKey: null };
+    moved = true;
+  }
+  if (moved) stores.groupSessions.set(next);
+}
+
 function forgetScoreEditing() {
   stores.scoreEditingAllowed.set(false);
   stores.scoreEditCode.set(null);
@@ -589,6 +698,121 @@ export async function stopSharing(): Promise<void> {
 }
 
 /**
+ * Every published copy this account holds, gone.
+ *
+ * Two callers and both of them mean it: sync adopting an account copy, and a
+ * device being handed over. Every id those sessions referred to has just left
+ * this phone, so every document describing them is about people who are no
+ * longer here.
+ */
+export async function stopAllSharing(): Promise<void> {
+  stopTracking();
+  key = null;
+  attempt = 0;
+  forgetEveryKey();
+  forgetScoreEditing();
+  setStatus({ state: 'off' });
+  if (!available()) return;
+
+  try {
+    const supabase = await getSupabase();
+    // PostgREST refuses a delete with no filter at all, and RLS has already
+    // narrowed this to the caller's own rows. Every key is longer than nothing,
+    // the length check in 0005 having seen to that, so this asks for all of them.
+    await supabase.from(TABLE).delete().neq('share_key', '');
+  } catch {
+    // Nothing to say. They expire on their own.
+  }
+}
+
+/**
+ * Picks a group's share back up: on resume(), and at boot.
+ *
+ * A null schedule is not a reason to refuse. A group whose session has been
+ * abandoned still owns its link, and the next Generate publishes over it, which
+ * is what lets a host tidy tomorrow's setup up without sending everybody a new
+ * QR code. The status is set to publishing rather than off even then, and that
+ * is deliberate: off is what LiveShareView reads as "this group has no link",
+ * and it answers that by minting a second one.
+ */
+export function attachShare(shareKey: string): void {
+  if (!available() || !isShareKey(shareKey)) return;
+  key = shareKey;
+  attempt = 0;
+  stores.shareKey.set(shareKey);
+  // Once per run, on whichever of the two paths gets here first. A host who
+  // keeps their links rather than minting new ones would otherwise never reach
+  // the sweep in startSharing, which is exactly the host this release creates.
+  void sweepExpired();
+  startTracking();
+  setStatus({ state: 'publishing', url: shareUrl(shareKey) });
+  schedulePublish(0);
+}
+
+/**
+ * Stops publishing a group without taking its copy down.
+ *
+ * The counterpart to attachShare, and the pair of them is what lets one host
+ * share three groups at once. park() calls this on the way out of a group: the
+ * row stays where it is, still readable by everyone the host sent the link to,
+ * and this phone simply stops writing to it until the group is opened again.
+ *
+ * The flush is the part that matters. stopTracking() throws away a publish
+ * still sitting in its debounce, and while a switch deleted the row that cost
+ * nothing. Now the row survives, so a score typed a second before a switch
+ * would sit on nine other phones as a blank for as long as the host stayed in
+ * the other group. The document is built here, synchronously, before anything
+ * moves, and sent under the key being left.
+ */
+export function detachShare(): void {
+  const going = key;
+  // Only when one was actually waiting. Building a document to send an upload
+  // nobody asked for would make every group switch a request.
+  const pending = timer !== null;
+  const last = pending ? currentSnapshot() : null;
+
+  stopTracking();
+  key = null;
+  attempt = 0;
+  setStatus({ state: 'off' });
+
+  if (going === null || last === null) return;
+  // The clock is not sent on. It belongs to the round the host is standing
+  // over, and a group nobody is running any more should not leave a countdown
+  // ticking down to zero on nine other phones. stores.roundTimer is one
+  // device-wide store rather than one per group, so this is the only place that
+  // can tell the difference.
+  //
+  // Nothing waits for this, and nothing in it reads the live slot, which is
+  // about to be filled with another group's afternoon.
+  void upsertRow(going, { ...last, roundTimer: null }).catch(() => {
+    // The row keeps what it had, for a day or two. There is nowhere to say so:
+    // the host is already looking at a different group.
+  });
+}
+
+/**
+ * Takes one published copy down by key, for a group being deleted.
+ *
+ * Deliberately separate from stopSharing, which is about the group being stood
+ * in. The group being deleted usually is not that one, and its key is parked
+ * rather than live, so there is no module state here to put back.
+ */
+export async function discardShare(shareKey: string): Promise<void> {
+  if (!available() || !isShareKey(shareKey)) return;
+  if (shareKey === key) {
+    await stopSharing();
+    return;
+  }
+  try {
+    const supabase = await getSupabase();
+    await supabase.from(TABLE).delete().eq('share_key', shareKey);
+  } catch {
+    // Nothing to say. It expires on its own.
+  }
+}
+
+/**
  * Picks a share back up after a reload, and keeps it in step with sign-in.
  *
  * Called once from App, beside startSync().
@@ -597,22 +821,15 @@ export function startLive(): void {
   if (!available() || started) return;
   started = true;
 
+  // Whatever the open group was sharing when the app was last shut, and whether
+  // or not there is a schedule under it now. A group keeps its link across an
+  // abandoned session, so a saved key with nothing to publish is a link waiting
+  // for the next Generate rather than a leftover to throw away.
+  //
+  // At boot the auth state is still 'unknown', so the publish this schedules
+  // bounces off the guard in publish() and is woken by the subscription below.
   const saved = stores.shareKey.get();
-  if (saved && isShareKey(saved)) {
-    if (stores.schedule.get() === null) {
-      // The session ended while the app was shut. Nothing to publish and no key
-      // worth keeping; the row expires by itself.
-      stores.shareKey.set(null);
-      forgetScoreEditing();
-    } else {
-      key = saved;
-      startTracking();
-      setStatus({ state: 'publishing', url: shareUrl(saved) });
-      // At boot the auth state is still 'unknown', so this will bounce off the
-      // guard in publish() and be woken by the subscription below.
-      schedulePublish(0);
-    }
-  }
+  if (saved && isShareKey(saved)) attachShare(saved);
 
   authStore.subscribe(() => {
     if (key === null) return;
@@ -621,11 +838,17 @@ export function startLive(): void {
       return;
     }
     if (authStore.get().status === 'signed-out') {
-      // Signed out mid-session. There is no longer a token to delete the row
-      // with, so it is left to expire, and the local end simply stops.
+      // Signed out mid-session. There is no longer a token to delete a row
+      // with, so nothing is taken down and the copies expire on their own.
+      //
+      // Every key goes, the parked groups' included, rather than only the open
+      // one's. A key is good for the account that minted it and no other: sign
+      // back in as somebody else and the upsert would be aimed at a row that
+      // account does not own, which the update policy refuses, leaving a group
+      // stuck on a problem it cannot explain. A fresh link costs one tap.
       stopTracking();
       key = null;
-      stores.shareKey.set(null);
+      forgetEveryKey();
       forgetScoreEditing();
       setStatus({ state: 'off' });
     }
@@ -676,6 +899,7 @@ export const __testing = {
     publishing = false;
     draining = false;
     started = false;
+    swept = false;
     status = { state: 'off' };
     listeners.clear();
   },
