@@ -38,6 +38,19 @@ const TITLE_INSET = 0.66;
  */
 const TITLE_MIN = '11rem';
 
+/**
+ * Where the robin badge sits inside the left-hand piece, as fractions of the
+ * banner's height.
+ *
+ * The badge is painted into `header-left.png` rather than being an element, so
+ * the only way to make it tappable is a box laid over where it lands. Measured
+ * off the file rather than judged by eye: its navy ring runs x 40..141 and
+ * y 76..179 in a picture 280x264, and the picture is drawn at the banner's own
+ * height with its top-left in the corner, so each of those over 264 is a share
+ * of `HEIGHT` and stays true at every width the banner clamps to.
+ */
+const BADGE = { left: 40 / 264, top: 76 / 264, width: 102 / 264, height: 104 / 264 };
+
 const CREAM = '#FBFAF6';
 const NAVY = '#051829';
 
@@ -143,6 +156,25 @@ export function Header({
         />
       </div>
 
+      {/* The badge, made the same door the name is. Only where the name is a
+          link: on the host's banner the title opens the group picker, and a
+          badge that went somewhere else instead would be a second answer to
+          the same tap. Nothing is drawn here — the picture underneath is the
+          whole of what is seen, and this only catches the finger. */}
+      {titleHref && (
+        <a
+          href={titleHref}
+          aria-label={title}
+          className="absolute z-10 rounded-full"
+          style={{
+            left: `calc(${BADGE.left} * ${HEIGHT})`,
+            top: `calc(${BADGE.top} * ${HEIGHT})`,
+            width: `calc(${BADGE.width} * ${HEIGHT})`,
+            height: `calc(${BADGE.height} * ${HEIGHT})`,
+          }}
+        />
+      )}
+
       <div
         className="relative flex h-full items-center"
         style={{
@@ -162,7 +194,11 @@ export function Header({
               className="text-[clamp(0.6875rem,2vw,0.875rem)] font-bold uppercase leading-none tracking-[0.12em] opacity-70 mb-[0.4em]"
               style={{ color: NAVY }}
             >
-              {eyebrow}
+              {/* The same address as the name under it, and no styling of its
+                  own: Tailwind's reset leaves an anchor the colour and the
+                  decoration of whatever it sits in, so this reads exactly as it
+                  did before it was a link. */}
+              {titleHref ? <a href={titleHref}>{eyebrow}</a> : eyebrow}
             </p>
           )}
 

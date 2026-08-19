@@ -692,6 +692,24 @@ describe('watching a session', () => {
     expect(title?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
   });
 
+  it('takes the badge and the small line to the app as well as the name', async () => {
+    // Three ways in, because a visitor reaching for the logo is reaching for
+    // the same thing as a visitor reaching for the words.
+    answer = shared();
+    await open();
+    const links = [...container.querySelectorAll('header a')];
+    expect(links).toHaveLength(3);
+    for (const link of links) {
+      expect(link.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+    }
+
+    // The badge is painted into the banner's artwork, so its link has no words
+    // of its own and has to say what it is out loud instead.
+    const badge = links.find((a) => (a.textContent ?? '') === '');
+    expect(badge?.getAttribute('aria-label')).toBe('Pickleball Round Robin Generator');
+    expect(links.some((a) => a.textContent === 'MADE WITH')).toBe(true);
+  });
+
   it('marks itself live, so nobody wonders whether it is a screenshot', async () => {
     answer = shared();
     await open();
