@@ -336,6 +336,7 @@ export function LiveSessionPage({ shareKey }: Props) {
         // group's name takes its place. Somebody watching arrived by scanning a
         // code and may have no idea what they are looking at, so the title says
         // what it is and goes there.
+        eyebrow="MADE WITH"
         title="Pickleball Round Robin Generator"
         titleHref={APP_URL}
         corner={
@@ -472,6 +473,40 @@ function Session({
   // finished ones: a visitor was not there for the folding the host did, and a
   // page that arrives half shut looks broken rather than tidy.
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
+
+  /**
+   * Every round whose DONE has already had its say here.
+   *
+   * The host ticking DONE folds that round away on this phone, once. It is the
+   * only thing the host does that moves anything on somebody else's screen, and
+   * it earns that because it is the moment the round stopped being the one to
+   * look at: folding it puts the next round under the thumb that was about to
+   * scroll.
+   *
+   * Once, though, and never again. After that fold the round belongs to
+   * whoever is holding this phone: they open it to check a score, and it stays
+   * open through every poll, including the ones where the host unticks DONE and
+   * ticks it back. A set that only ever grows is what says so.
+   *
+   * It starts holding whatever was already finished when this page opened,
+   * which is why a visitor who arrives at round four still gets the first three
+   * open. Those rounds were done before this phone existed; folding them on
+   * arrival would be the half-shut page the comment above rules out.
+   */
+  const settled = useRef<ReadonlySet<number> | null>(null);
+
+  useEffect(() => {
+    const finished = snapshot.completedRounds;
+    if (settled.current === null) {
+      settled.current = new Set(finished);
+      return;
+    }
+    const seen = settled.current;
+    const fresh = finished.filter((roundNumber) => !seen.has(roundNumber));
+    if (fresh.length === 0) return;
+    settled.current = new Set([...seen, ...fresh]);
+    setFolded((cur) => new Set([...cur, ...fresh]));
+  }, [snapshot.completedRounds]);
 
   /**
    * Whether the timer sheet is up. Opened by tapping the clock and closed by

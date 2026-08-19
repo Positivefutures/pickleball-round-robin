@@ -516,6 +516,65 @@ describe('watching a session', () => {
     expect(text()).toContain('COURT 7');
   });
 
+  it('folds a round away the first time the host ticks DONE', async () => {
+    // Round 1 is finished before this phone arrives, so it opens the way it
+    // always has. Round 2 is the one being played.
+    answer = shared();
+    await open();
+    expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
+
+    // The host ticks DONE on round 2.
+    const next = shared();
+    if (next.state !== 'ok') throw new Error('not ok');
+    next.snapshot.completedRounds = [1, 2];
+    next.snapshot.at = new Date(Date.parse(next.snapshot.at) + 1000).toISOString();
+    answer = next;
+    await poll();
+
+    // It folded itself, and only it: round 1 is where the visitor left it.
+    expect(container.querySelector('[aria-label="Show round 2"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Hide round 1"]')).toBeTruthy();
+  });
+
+  it('leaves a round alone once the visitor has opened it again', async () => {
+    answer = shared();
+    await open();
+
+    const done = shared();
+    if (done.state !== 'ok') throw new Error('not ok');
+    done.snapshot.completedRounds = [1, 2];
+    done.snapshot.at = new Date(Date.parse(done.snapshot.at) + 1000).toISOString();
+    answer = done;
+    await poll();
+
+    const unfold = container.querySelector<HTMLButtonElement>('[aria-label="Show round 2"]');
+    if (!unfold) throw new Error('round 2 did not fold');
+    await act(async () => unfold.click());
+
+    // The host unticks DONE and ticks it again. Whatever that does to the
+    // host's own page, this one is not theirs to shut a second time. Each of
+    // these has to carry its own timestamp: the page only pulls a document
+    // whose clock has moved, so two at the same moment would be one poll.
+    for (const [rounds, moved] of [[[1], 5000], [[1, 2], 9000]] as const) {
+      const again = shared();
+      if (again.state !== 'ok') throw new Error('not ok');
+      again.snapshot.completedRounds = [...rounds];
+      again.snapshot.at = new Date(Date.parse(again.snapshot.at) + moved).toISOString();
+      answer = again;
+      await poll();
+    }
+    expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
+  });
+
+  it('does not fold the rounds that were already done when the page opened', async () => {
+    // Somebody scanning the code at round three should not land on three shut
+    // rounds. Only a DONE they were here to see folds anything.
+    answer = shared();
+    await open();
+    expect(container.querySelector('[aria-label="Hide round 1"]')).toBeTruthy();
+    expect(text()).toContain('COURT 7');
+  });
+
   it('offers the way down to the standings on every open round', async () => {
     // The scoring-off case is covered where the standings themselves are:
     // no table, and no link pointing at where it would have been.

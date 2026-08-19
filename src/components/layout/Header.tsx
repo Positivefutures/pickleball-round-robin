@@ -76,6 +76,13 @@ interface HeaderProps {
   /** Omitted on steps with nothing worth printing, which hides the button. */
   onPrint?: () => void;
   /**
+   * A small line above the title, which the title then sits under and reads on
+   * from. Only the live view uses it: a visitor who scanned a code is looking
+   * at somebody else's session, so the app's name needs saying as the thing it
+   * was made with rather than as the page they are on.
+   */
+  eyebrow?: string;
+  /**
    * Sits where the buttons do, before them. The live view's LIVE pill, on a
    * page that has neither button to keep it company.
    */
@@ -89,6 +96,7 @@ export function Header({
   onTitleClick,
   titleHref,
   onPrint,
+  eyebrow,
   corner,
 }: HeaderProps) {
   // Both buttons have to stay legible wherever the diagonal happens to fall
@@ -144,42 +152,57 @@ export function Header({
           paddingRight: `max(7.5rem, calc(0.95 * ${HEIGHT}))`,
         }}
       >
-        {/* Clamped rather than truncated: three lines is enough for the longest
-            name worth reading, and a fourth would push the banner open. Three
-            lines of the largest size still sit inside the banner at every width,
-            which is what holds the clamp's top end where it is. */}
-        <h1
-          className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
-          style={{ color: NAVY }}
-        >
-          {titleHref ? (
-            <a href={titleHref} className="hover:opacity-70 transition-opacity">
-              {title}
-            </a>
-          ) : onTitleClick ? (
-            /* The whole name is the target, which on a phone is the only tap
-               area big enough to be worth having. The chevron runs on from the
-               last word rather than sitting in a corner of its own, so a name
-               that wraps to three lines keeps it. */
-            <button
-              type="button"
-              onClick={onTitleClick}
-              aria-haspopup="dialog"
-              className="text-left hover:opacity-70 transition-opacity"
+        <div className="min-w-0">
+          {/* Above the title, and centred with it rather than added on top: the
+              pair drops by half this line's height, so the title moves down a
+              little and the banner does not grow. Small, but uppercase and bold
+              at a size that still holds on the narrowest phone. */}
+          {eyebrow && (
+            <p
+              className="text-[clamp(0.6875rem,2vw,0.875rem)] font-bold uppercase leading-none tracking-[0.12em] opacity-70 mb-[0.4em]"
+              style={{ color: NAVY }}
             >
-              {title}
-              {/* Sized against the title rather than in pixels, so it holds its
-                  share of the line at every width the banner clamps to. The
-                  glyph is a thin chevron inside a 24 box, so it needs most of a
-                  full em to carry against type this heavy. */}
-              <ChevronDownIcon
-                className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
-              />
-            </button>
-          ) : (
-            title
+              {eyebrow}
+            </p>
           )}
-        </h1>
+
+          {/* Clamped rather than truncated: three lines is enough for the longest
+              name worth reading, and a fourth would push the banner open. Three
+              lines of the largest size still sit inside the banner at every width,
+              which is what holds the clamp's top end where it is. */}
+          <h1
+            className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
+            style={{ color: NAVY }}
+          >
+            {titleHref ? (
+              <a href={titleHref} className="hover:opacity-70 transition-opacity">
+                {title}
+              </a>
+            ) : onTitleClick ? (
+              /* The whole name is the target, which on a phone is the only tap
+                 area big enough to be worth having. The chevron runs on from the
+                 last word rather than sitting in a corner of its own, so a name
+                 that wraps to three lines keeps it. */
+              <button
+                type="button"
+                onClick={onTitleClick}
+                aria-haspopup="dialog"
+                className="text-left hover:opacity-70 transition-opacity"
+              >
+                {title}
+                {/* Sized against the title rather than in pixels, so it holds its
+                    share of the line at every width the banner clamps to. The
+                    glyph is a thin chevron inside a 24 box, so it needs most of a
+                    full em to carry against type this heavy. */}
+                <ChevronDownIcon
+                  className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
+                />
+              </button>
+            ) : (
+              title
+            )}
+          </h1>
+        </div>
       </div>
 
       {/* Held to the top rather than centred: the ball sits across the lower
