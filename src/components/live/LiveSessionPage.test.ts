@@ -139,7 +139,11 @@ function shared(
       sessionSnapshot({
         sessionId: 'sess-1',
         schedule: schedule(score),
-        completedRounds: [1],
+        // Nothing ticked DONE. A finished round arrives folded now, and round 1
+        // is where every court in this file lives, so a fixture that finished
+        // it would hide the courts from every test that is not about finishing.
+        // Those say so themselves, through withDone below.
+        completedRounds: [],
         players,
         scoringEnabled: true,
         scoreEditing,
@@ -151,6 +155,19 @@ function shared(
       })
     )
   };
+}
+
+/**
+ * The same document with rounds already ticked DONE on it.
+ *
+ * Mutated after redaction, the way the tests that move a round mid-session
+ * already do it: the publisher has no say over completedRounds, so there is
+ * nothing to be gained by building a second document through it.
+ */
+function withDone(got: LiveFetch, ...rounds: number[]): LiveFetch {
+  if (got.state !== 'ok') throw new Error('not ok');
+  got.snapshot.completedRounds = rounds;
+  return got;
 }
 
 let root: Root;
@@ -490,7 +507,7 @@ describe('watching a session', () => {
       snapshot: sessionSnapshot({
         sessionId: 'sess-1',
         schedule: schedule({ team1: 11, team2: 7 }),
-        completedRounds: [1],
+        completedRounds: [],
         players,
         scoringEnabled: true
       })
@@ -529,23 +546,22 @@ describe('watching a session', () => {
   });
 
   it('folds a round away the first time the host ticks DONE', async () => {
-    // Round 1 is finished before this phone arrives, so it opens the way it
-    // always has. Round 2 is the one being played.
+    // Nothing is finished when this phone arrives, so both rounds are open and
+    // a round folding can only be the DONE that just landed.
     answer = shared();
     await open();
-    expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Hide round 1"]')).toBeTruthy();
 
-    // The host ticks DONE on round 2.
-    const next = shared();
+    // The host ticks DONE on round 1.
+    const next = withDone(shared(), 1);
     if (next.state !== 'ok') throw new Error('not ok');
-    next.snapshot.completedRounds = [1, 2];
     next.snapshot.at = new Date(Date.parse(next.snapshot.at) + 1000).toISOString();
     answer = next;
     await poll();
 
-    // It folded itself, and only it: round 1 is where the visitor left it.
-    expect(container.querySelector('[aria-label="Show round 2"]')).toBeTruthy();
-    expect(container.querySelector('[aria-label="Hide round 1"]')).toBeTruthy();
+    // It folded itself, and only it: round 2 is where the visitor left it.
+    expect(container.querySelector('[aria-label="Show round 1"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
   });
 
   it('leaves a round alone once the visitor has opened it again', async () => {
@@ -578,12 +594,40 @@ describe('watching a session', () => {
     expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
   });
 
-  it('does not fold the rounds that were already done when the page opened', async () => {
-    // Somebody scanning the code at round three should not land on three shut
-    // rounds. Only a DONE they were here to see folds anything.
-    answer = shared();
+  it('folds the rounds that were already done when the page opened', async () => {
+    // Somebody scanning the code at round two lands on round two. The rounds
+    // the host finished before this phone existed are bars above it, not
+    // screens of courts nobody is on. Jeff's call on 2026-08-20, reversing the
+    // rule that had them all arrive open.
+    answer = withDone(shared(), 1);
     await open();
-    expect(container.querySelector('[aria-label="Hide round 1"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Show round 1"]')).toBeTruthy();
+    expect(text()).not.toContain('COURT 7');
+    // Still a round on the page, still saying which one, and still the
+    // visitor's to open.
+    expect(text()).toContain('Round 1');
+    expect(text()).toContain('Done');
+    // And the round being played is untouched by any of it.
+    expect(container.querySelector('[aria-label="Hide round 2"]')).toBeTruthy();
+  });
+
+  it('opens a round that arrived folded, and leaves it open', async () => {
+    // The fold is a starting position, not a lock. Somebody checking a score
+    // from an hour ago opens that round and it stays open through the polls,
+    // including the ones carrying the DONE that folded it.
+    answer = withDone(shared(), 1);
+    await open();
+
+    const unfold = container.querySelector<HTMLButtonElement>('[aria-label="Show round 1"]');
+    if (!unfold) throw new Error('round 1 did not arrive folded');
+    await act(async () => unfold.click());
+    expect(text()).toContain('COURT 7');
+
+    const again = withDone(shared(), 1);
+    if (again.state !== 'ok') throw new Error('not ok');
+    again.snapshot.at = new Date(Date.parse(again.snapshot.at) + 1000).toISOString();
+    answer = again;
+    await poll();
     expect(text()).toContain('COURT 7');
   });
 
@@ -596,7 +640,7 @@ describe('watching a session', () => {
   });
 
   it('marks a round the host has finished', async () => {
-    answer = shared();
+    answer = withDone(shared(), 1);
     await open();
     expect(text()).toContain('Done');
   });
@@ -633,8 +677,8 @@ describe('watching a session', () => {
     }
 
     it('draws the finished one paler than the live one', async () => {
-      // shared() finishes round 1 and leaves round 2 going.
-      answer = shared();
+      // Round 1 finished, round 2 still going.
+      answer = withDone(shared(), 1);
       await open();
       const [finished, live] = cards();
 
@@ -647,7 +691,7 @@ describe('watching a session', () => {
     });
 
     it('leaves the live round in exactly the colours it had', async () => {
-      answer = shared();
+      answer = withDone(shared(), 1);
       await open();
       const live = cards()[1];
 
@@ -658,27 +702,29 @@ describe('watching a session', () => {
       expect(live.style.borderColor).toBe('#2B76A9');
     });
 
-    it('takes the height off the folded round, not the finished one', async () => {
-      answer = shared();
+    it('gives a finished round its full height back, still pale', async () => {
+      // Round 1 arrives finished and folded, which is one card carrying both
+      // states. Opening it moves exactly one of them: the height comes back
+      // and the wash stays, because the round is still finished.
+      answer = withDone(shared(), 1);
       await open();
-
-      // Round 1 is finished and still open — a visitor was not here for the
-      // folding, so nothing arrives shut. Full height, pale.
-      expect(cards()[0].className).toContain('pt-[0.83rem]');
-
-      const fold = container.querySelector<HTMLButtonElement>('[aria-label="Hide round 1"]');
-      if (!fold) throw new Error('no fold arrow on round 1');
-      await act(async () => fold.click());
-
       expect(cards()[0].className).toContain('py-1.5');
-      expect(cards()[0].className).not.toContain('pt-[0.83rem]');
+      const pale = cards()[0].style.backgroundColor;
+
+      const unfold = container.querySelector<HTMLButtonElement>('[aria-label="Show round 1"]');
+      if (!unfold) throw new Error('round 1 did not arrive folded');
+      await act(async () => unfold.click());
+
+      expect(cards()[0].className).toContain('pt-[0.83rem]');
+      expect(cards()[0].className).not.toContain('py-1.5');
+      expect(cards()[0].style.backgroundColor).toBe(pale);
     });
 
     it('shortens a live round somebody folds, without washing it out', async () => {
-      // The case that proves the two are not one switch. Folding round 2 is
-      // somebody reaching past a round still being played to get at what is
-      // under it; it has not finished and must not look as though it has.
-      answer = shared();
+      // The other half of the case. Folding round 2 is somebody reaching past
+      // a round still being played to get at what is under it; it has not
+      // finished and must not look as though it has.
+      answer = withDone(shared(), 1);
       await open();
       const before = cards()[1].style.backgroundColor;
 
@@ -693,7 +739,7 @@ describe('watching a session', () => {
     it('keeps the clock readable on a finished card', async () => {
       // The chip is drawn on every round here, unlike the host's page, so it is
       // the one thing that meets the pale card. White on it would be gone.
-      answer = shared();
+      answer = withDone(shared(), 1);
       await open();
       const chip = cards()[0].querySelector('[aria-label="Round timer"]')!;
       expect(chip.className).not.toContain('text-white');
@@ -703,7 +749,7 @@ describe('watching a session', () => {
   it('keeps the rounds in playing order rather than lifting the finished ones', async () => {
     // The host's page groups completed rounds at the top. Somebody watching
     // wants to know which court they are on next.
-    answer = shared();
+    answer = withDone(shared(), 1);
     await open();
     // The rounds' own headings. The panel at the foot of the page carries one
     // too, and it is not a round.

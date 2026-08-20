@@ -473,10 +473,21 @@ function Session({
 }) {
   const done = new Set(snapshot.completedRounds);
 
-  // Rounds somebody has folded away. Everything starts open, including the
-  // finished ones: a visitor was not there for the folding the host did, and a
-  // page that arrives half shut looks broken rather than tidy.
-  const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
+  /**
+   * Rounds somebody has folded away.
+   *
+   * It starts holding whatever the host had already ticked DONE, so a page that
+   * opens part way through an afternoon opens on the round being played. The
+   * rule this reverses said an arriving page should never look half shut. That
+   * was right about a tidy page and wrong about the question being asked of it:
+   * somebody who scans the code at round four is looking for round four, and
+   * three finished rounds standing open above it are three screens of courts
+   * nobody is on, with the live one found by reading numbers. Folded, they are
+   * three bars, each still saying its number and still opening to a tap.
+   */
+  const [folded, setFolded] = useState<ReadonlySet<number>>(
+    () => new Set(snapshot.completedRounds)
+  );
 
   /**
    * Every round whose DONE has already had its say here.
@@ -492,10 +503,10 @@ function Session({
    * open through every poll, including the ones where the host unticks DONE and
    * ticks it back. A set that only ever grows is what says so.
    *
-   * It starts holding whatever was already finished when this page opened,
-   * which is why a visitor who arrives at round four still gets the first three
-   * open. Those rounds were done before this phone existed; folding them on
-   * arrival would be the half-shut page the comment above rules out.
+   * It starts holding whatever was already finished when this page opened.
+   * Those rounds are folded by the initializer above, and naming them here as
+   * settled is what stops the first poll folding them a second time over a
+   * visitor who has since opened one to look at a score.
    */
   const settled = useRef<ReadonlySet<number> | null>(null);
 
