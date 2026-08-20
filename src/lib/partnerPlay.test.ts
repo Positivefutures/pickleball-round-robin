@@ -36,13 +36,22 @@ function fixtureOf(court: { team1: Player[]; team2: Player[] }): string {
   return matchKey(side(court.team1), side(court.team2));
 }
 
+/**
+ * Sorted within a round, in round order.
+ *
+ * Which court a fixture lands on is rotateCourts' business and deliberately not
+ * stable — a pair that always drew the same fixture slot used to always draw
+ * the same court, which is the thing that change fixed. What the round robin
+ * still promises is which fixtures are played in which round, so that is what
+ * these compare.
+ */
 function fixturesIn(rounds: Round[]): string[] {
-  return rounds.flatMap((r) => r.courts.map(fixtureOf));
+  return rounds.flatMap((r) => r.courts.map(fixtureOf).sort());
 }
 
 /** Every court in every round, as a comparable string, round by round. */
 function shapeOf(rounds: Round[]): string[] {
-  return rounds.map((r) => r.courts.map(fixtureOf).join(' | '));
+  return rounds.map((r) => r.courts.map(fixtureOf).sort().join(' | '));
 }
 
 describe('fixtureList', () => {

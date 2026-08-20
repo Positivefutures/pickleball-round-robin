@@ -21,6 +21,13 @@ import type { Alerts } from '../../lib/watchAlerts';
  * behind it last arrived — a page polling every twenty seconds still shows a
  * countdown that moves once a second, and reaches zero on time rather than up
  * to twenty seconds late.
+ *
+ * It opens whether or not there is a timer. `timer` is null until the host
+ * starts one, and this says so in as many words rather than showing nothing:
+ * "has it started?" is the question a group standing on a court actually has,
+ * and an empty screen answers it no better than an empty pocket. When the host
+ * does start, the field arrives on the next poll and the screen becomes a
+ * countdown where it stands. Nobody has to close it and open it again.
  */
 export function LiveRoundTimer({
   timer,
@@ -28,20 +35,20 @@ export function LiveRoundTimer({
   onChangeAlerts,
   onClose
 }: {
-  timer: SharedRoundTimer;
+  timer: SharedRoundTimer | null;
   /** The host's choices, with this watcher's own over the top. */
   alerts: Alerts;
   onChangeAlerts: (patch: Partial<Alerts>) => void;
   onClose: () => void;
 }) {
-  useCountdownTick(timer.phase === 'running');
+  useCountdownTick(timer?.phase === 'running');
 
-  const remaining = sharedRemainingMs(timer);
-  const alarming = sharedAlarming(timer, remaining);
+  const remaining = timer ? sharedRemainingMs(timer) : 0;
+  const alarming = !!timer && sharedAlarming(timer, remaining);
 
   return (
     <TimerSheet
-      roundNumber={timer.roundNumber}
+      roundNumber={timer?.roundNumber ?? null}
       alarming={alarming}
       remainingMs={remaining}
       // Never the white sheet. On the host's panel that is the phase with the
@@ -49,9 +56,17 @@ export function LiveRoundTimer({
       light={false}
       flashOn={alerts.flashOn}
       onClose={onClose}
+      waiting={
+        timer
+          ? undefined
+          : 'The host hasn’t started the timer yet. The time will appear here when they do.'
+      }
       // Three switches rather than none. What the host chose reaches every
       // phone, which is right, and then the phone gets a say: nine alarms
       // going off around one court is nine times what anybody asked for.
+      //
+      // Offered while waiting too, so the answer can be given before the alarm
+      // rather than after it.
       config={<LiveAlertControls alerts={alerts} onChange={onChangeAlerts} />}
     />
   );
@@ -67,24 +82,35 @@ export function LiveRoundTimer({
  * drawing them — and both are written from one class string in roundLook, so
  * two people standing next to each other see the same thing.
  *
- * Only ever mounted on the round being timed, so unlike the host's there is no
- * clock-with-no-time state to draw.
+ * On every round, and only the round actually being timed shows a time — the
+ * same rule the host's chip follows, for the same reason it reads the way it
+ * does: digits mean it has started. A clock that only appeared once the host
+ * pressed something left a watcher with nothing to look at and no way to tell
+ * "not started" from "not working".
  */
 export function LiveTimerChip({
   timer,
+  roundNumber,
   onOpen,
 }: {
-  timer: SharedRoundTimer;
+  timer: SharedRoundTimer | null;
+  /** Which round this chip sits on. */
+  roundNumber: number;
   onOpen: () => void;
 }) {
-  useCountdownTick(timer.phase === 'running');
+  // Truthiness, not `!== null`: a document published before the timer field
+  // existed has no key at all, and `undefined !== null` is true.
+  const mine = !!timer && timer.roundNumber === roundNumber;
+  useCountdownTick(mine && timer.phase === 'running');
 
   return (
     <button type="button" onClick={onOpen} aria-label="Round timer" className={ROUND_TIMER_CHIP}>
       <TimerIcon className="h-6 w-6" />
-      <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>
-        {formatMMSS(sharedRemainingMs(timer))}
-      </span>
+      {mine && (
+        <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>
+          {formatMMSS(sharedRemainingMs(timer))}
+        </span>
+      )}
     </button>
   );
 }

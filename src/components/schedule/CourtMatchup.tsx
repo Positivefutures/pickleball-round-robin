@@ -172,7 +172,7 @@ function PlayerButton({
             } as React.CSSProperties)
           : undefined
       }
-      className={`relative w-full flex justify-between items-center text-sm px-3 py-2 rounded-md transition-colors ${
+      className={`relative flex w-full min-w-0 flex-1 items-center justify-between rounded-md px-1.5 py-2 text-sm transition-colors ${
         swapped ? 'seat-swapped ' : ''
       }${
         locked
@@ -183,12 +183,14 @@ function PlayerButton({
       }${readOnly ? ' cursor-default' : ''}`}
     >
       {showGender && <GenderMark player={player} />}
-      {/* One line, cut with an ellipsis. A name long enough to wrap used to
-          make its court taller than the one beside it, and a grid of courts
-          that no longer lines up is harder to read than a shortened name. The
-          title carries the whole of it. */}
+      {/* Wrapped, never cut. Two players called Vanessa, told apart by a last
+          initial, both came out as "Vanessa…" on a phone — the one character
+          that identified them was the one the ellipsis took. A name goes to a
+          second line instead, and the seats are stretched to a common height so
+          that a court whose name wrapped still lines up with the one beside it,
+          which is what the ellipsis was there to protect. */}
       <span
-        className={`min-w-0 flex-1 truncate text-left font-medium ${PLAYER_NAME_TEXT}`}
+        className={`min-w-0 flex-1 hyphens-auto break-words text-left font-medium ${PLAYER_NAME_TEXT}`}
         title={displayName}
       >
         {displayName}
@@ -196,7 +198,7 @@ function PlayerButton({
       {showPencil ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
-        <span className="shrink-0 pl-2 text-gray-500">{player.rating.toFixed(1)}</span>
+        <span className="shrink-0 pl-1 text-gray-500">{player.rating.toFixed(1)}</span>
       )}
     </button>
   );
@@ -225,7 +227,7 @@ function EmptyPlace({
   onTap: () => void;
 }) {
   const base =
-    'w-full text-sm px-3 py-2 rounded-md text-left font-medium border border-dashed transition-colors';
+    'w-full min-w-0 flex-1 text-sm px-1.5 py-2 rounded-md text-left font-medium border border-dashed transition-colors';
   return (
     <button
       type="button"
@@ -333,8 +335,16 @@ function TeamColumn({
   return (
     // min-w-0 or the column refuses to go narrower than the longest name in
     // it, and the court grows sideways off the screen instead of the name
-    // being cut. A flex item is min-width: auto until told otherwise.
-    <div className="min-w-0 flex-1 flex flex-col items-center gap-1">
+    // wrapping. A grid item is min-width: auto until told otherwise.
+    //
+    // `subgrid` is what shares row heights with the other side. Its own rows
+    // are the parent's, so seat one of each team is one row and seat two is
+    // another, whatever either name did.
+    <div
+      className={`grid min-w-0 grid-rows-subgrid items-stretch ${
+        lockRow ? 'row-span-3' : 'row-span-2'
+      }`}
+    >
       {team[0] && (
         <PlayerButton
           key={seatKey(team[0])}
@@ -363,13 +373,13 @@ function TeamColumn({
           <button
             type="button"
             onClick={() => onToggleLock(roundIdx, courtIdx, teamKey)}
-            className="self-center -my-0.5 z-10 p-0.5 rounded hover:bg-gray-100 transition-colors"
+            className="justify-self-center -my-0.5 z-10 p-0.5 rounded hover:bg-gray-100 transition-colors"
             aria-label={locked ? 'Unlock pair' : 'Lock pair'}
           >
             <LockIcon locked={locked} />
           </button>
         ) : (
-          <div aria-hidden="true" className="self-center -my-0.5 p-0.5 w-4 h-4" />
+          <div aria-hidden="true" className="justify-self-center -my-0.5 p-0.5 w-4 h-4" />
         ))}
 
       {team[1] && (
@@ -453,7 +463,7 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, pencilSl
     // the round rather than as a box that happens to be near it.
     <div
       data-tutorial={tourCourt === 0 ? 'court-1' : tourCourt === 1 ? 'court-2' : undefined}
-      className="border-2 rounded-lg p-4 bg-white"
+      className="border-2 rounded-lg p-3 bg-white"
       style={{ borderColor: ROUND_EDGE }}
     >
       {/* The heading and the balance badge each take half of what is left, so
@@ -520,7 +530,15 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, pencilSl
         </div>
       </div>
 
-      <div className="flex items-start gap-2">
+      {/* One grid for the whole court, and each side a subgrid of its rows.
+          A name that wraps makes its row taller on both sides at once, so the
+          two teams still read across — which is what the ellipsis was there to
+          protect and the only thing lost by taking it away. */}
+      <div
+        className={`grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-1 ${
+          lockRow ? 'grid-rows-[auto_auto_auto]' : 'grid-rows-[auto_auto]'
+        }`}
+      >
         <TeamColumn
           team={court.team1}
           teamKey="team1"
@@ -544,8 +562,15 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, pencilSl
           swapSeq={swapSeq}
         />
 
-        {/* Sits in the gap between the two columns, centred against the taller one */}
-        <span className="self-center shrink-0 text-xs font-medium text-gray-400">Vs.</span>
+        {/* Down the middle of both rows, centred on the court rather than on
+            whichever side happened to be taller. */}
+        <span
+          className={`self-center shrink-0 text-xs font-medium text-gray-400 ${
+            lockRow ? 'row-span-3' : 'row-span-2'
+          }`}
+        >
+          Vs.
+        </span>
 
         <TeamColumn
           team={court.team2}

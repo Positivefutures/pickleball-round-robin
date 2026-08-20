@@ -59,8 +59,12 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
   const carded = (key: Step) => key === current || available.includes(key);
 
   return (
+    // `@container` makes every size below a fraction of this bar's own width
+    // rather than of the root font size. That is what survives Safari's page
+    // zoom, which does not scale rem — it narrows the CSS viewport, so a tab
+    // measured in rem keeps its size while the room it has to sit in shrinks.
     <nav
-      className="flex items-stretch p-0.5 rounded-2xl border border-panel-edge no-print"
+      className="@container flex items-stretch p-0.5 rounded-2xl border border-panel-edge no-print"
       style={{ backgroundColor: TRACK }}
     >
       {steps.map((step, i) => {
@@ -91,14 +95,22 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
               // punches this one back out. Where you are is not a thing to be
               // greyed out while somebody explains where you are.
               data-tutorial={isActive ? 'active-tab' : undefined}
-              // `relative` anchors the mark below. No `whitespace-nowrap`: a tab
-              // that cannot fit its label must wrap rather than push the page
-              // wider than the phone and clip everything else with it.
-              // One absolute size in both text modes, and it is the size large
-              // text mode used to give text-xs here. These three labels are how
-              // the app is navigated, so they are worth reading at the setting
-              // that made them readable whether or not it is switched on.
-              className={`relative flex-1 flex items-center justify-center gap-1 py-3 px-0.5 rounded-xl text-[1.0125rem] font-bold transition-colors ${
+              // `relative` anchors the mark below.
+              //
+              // These three labels are how the app is navigated, so a tab must
+              // never be on two lines. "3. Schedule" wants 92px at the size
+              // below, and on a 375px phone — an SE, a mini — it had 88.7, so
+              // it broke in half and took the other two tabs down with it.
+              //
+              // Three rules, in the order they take effect. `whitespace-nowrap`
+              // is the guarantee. The size is a share of the bar rather than a
+              // fixed one, so it gives ground before anything has to, holding
+              // 1.0125rem wherever that fits — which is everywhere the icon is
+              // drawn, so no phone loses the size it reads at today. And
+              // `overflow-hidden` is the backstop for a width no clamp can
+              // answer: the label is cut rather than allowed to push the page
+              // wider than the phone, which is what the old wrap was avoiding.
+              className={`relative flex-1 flex items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl py-3 text-[clamp(0.75rem,5.4cqi,1.0125rem)] font-bold transition-colors ${
                 isActive ? 'bg-white shadow-sm' : ''
               }`}
               style={
@@ -116,9 +128,17 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
               {/* On the live step the icon is the label's colour exactly; on the
                   others it still runs a shade lighter. It came off the design at
                   23px against much smaller type; at 20 it is the same weight
-                  beside the bigger label and it buys back the width
-                  "3. Schedule" needs to stay on one line. */}
-              <span style={{ color: isActive ? ACTIVE : IDLE_ICON }} className="flex">
+                  beside the bigger label.
+
+                  Gone under 23rem of bar, which is a phone about 384px wide.
+                  Icon and gap are 24px of a tab that only has 99 at 320px, and
+                  they are the one thing here that can go: the word is what the
+                  tab is for, and it is better read at full size without a glyph
+                  than shrunk to make room for one. */}
+              <span
+                style={{ color: isActive ? ACTIVE : IDLE_ICON }}
+                className="flex @max-[23rem]:hidden"
+              >
                 <Icon className="w-5 h-5" />
               </span>
               {step.label}

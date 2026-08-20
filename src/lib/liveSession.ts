@@ -666,6 +666,14 @@ function forgetEveryKey(): void {
   if (moved) stores.groupSessions.set(next);
 }
 
+/**
+ * Score editing off, and its code thrown away with it.
+ *
+ * Only for the case where the person holding the phone has changed. Stopping a
+ * share is not that: a host who stops and starts again is the same host, and
+ * having the switch quietly move under them is what made it feel broken. See
+ * the note on scoreEditingAllowed in stores.ts.
+ */
 function forgetScoreEditing() {
   stores.scoreEditingAllowed.set(false);
   stores.scoreEditCode.set(null);
@@ -685,7 +693,8 @@ export async function stopSharing(): Promise<void> {
   key = null;
   attempt = 0;
   stores.shareKey.set(null);
-  forgetScoreEditing();
+  // Score editing and its code deliberately survive this. Stopping is not
+  // handing the phone to somebody else.
   setStatus({ state: 'off' });
   if (going === null) return;
 
@@ -710,7 +719,6 @@ export async function stopAllSharing(): Promise<void> {
   key = null;
   attempt = 0;
   forgetEveryKey();
-  forgetScoreEditing();
   setStatus({ state: 'off' });
   if (!available()) return;
 

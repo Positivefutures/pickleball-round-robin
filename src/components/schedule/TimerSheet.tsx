@@ -36,7 +36,11 @@ const LIGHT = { bg: '#FFFFFF', ink: '#0D1F44', sub: '#6B7280', icon: '#007d88', 
 const DARK = { bg: '#000000', ink: '#FFFFFF', sub: '#9CA3AF', icon: '#FFFFFF', handle: '#333333' };
 
 interface Props {
-  roundNumber: number;
+  /**
+   * Null on a watcher's screen opened before the host has started anything.
+   * There is no round being timed yet, so the header does not name one.
+   */
+  roundNumber: number | null;
   /** Reached zero and not yet silenced: TIME'S UP in place of the digits. */
   alarming: boolean;
   remainingMs: number;
@@ -49,6 +53,15 @@ interface Props {
   /** Whether reaching zero should strobe the screen. */
   flashOn: boolean;
   onClose: () => void;
+  /**
+   * Said in place of the digits, when there is no countdown to draw.
+   *
+   * The one state the host's panel never has: they cannot open a timer without
+   * having a timer. A watcher can, and an empty screen is what left a group
+   * unable to tell a timer that had not been started from one they simply could
+   * not see.
+   */
+  waiting?: ReactNode;
   /** The minutes stepper and the alerts. Absent on a read-only timer. */
   config?: ReactNode;
   /** Close/Start/Stop/Reset, and anything said under them. Absent on a read-only timer. */
@@ -70,6 +83,7 @@ export function TimerSheet({
   light,
   flashOn,
   onClose,
+  waiting,
   config,
   actions,
   closeKey = true,
@@ -198,7 +212,7 @@ export function TimerSheet({
         <div className="relative mt-8 shrink-0 text-center" style={{ color: theme.icon }}>
           <TimerIcon className="mx-auto h-12 w-12" />
           <h2 className="mt-1 text-[1.6rem] font-extrabold" style={{ color: theme.ink }}>
-            Round {roundNumber} Timer
+            {roundNumber === null ? 'Round Timer' : `Round ${roundNumber} Timer`}
           </h2>
           {closeKey && (
             <button
@@ -214,7 +228,14 @@ export function TimerSheet({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-4">
-          {alarming ? (
+          {waiting ? (
+            <p
+              className="max-w-sm text-center text-xl font-medium"
+              style={{ color: theme.sub }}
+            >
+              {waiting}
+            </p>
+          ) : alarming ? (
             <p
               className="text-center font-extrabold tracking-tight"
               style={{ color: theme.ink, fontSize: 'clamp(3rem, 13vw, 6.5rem)' }}

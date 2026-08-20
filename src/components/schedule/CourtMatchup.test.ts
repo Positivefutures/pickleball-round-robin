@@ -1,19 +1,19 @@
 /**
  * @vitest-environment happy-dom
  *
- * A long name must not be allowed to change the shape of a court.
+ * A long name must be shown whole, and must not change the shape of a court.
  *
- * Left alone it did two things, and the second is the worse one. It wrapped, so
- * that court stood taller than the one beside it and a grid meant to be scanned
- * stopped lining up. And because a flex item will not go narrower than its own
- * contents unless told to, the court grew sideways off the edge of the phone
- * instead.
+ * It used to be cut with an ellipsis. That kept every court the same height and
+ * lost the end of the name, which is the half that says which of two Vanessas
+ * this is — reported off a live session where both read "Vanessa…". So it wraps
+ * now, and the shape is held a different way.
  *
  * happy-dom has no layout, so what is checked here is the arrangement that
- * produces the behaviour rather than the pixels. Three parts have to hold
- * together: the name shrinks and clips, the column it sits in is allowed to be
- * narrower than the name, and the rating on the other end never gives up any
- * width. Any one of them missing and the name wraps or the court overflows.
+ * produces the behaviour rather than the pixels. Four parts hold it together:
+ * the name wraps rather than clipping, the span and the seat around it are both
+ * allowed to be narrower than the name, the two teams share row lines so a wrap
+ * on one side cannot put them out of step, and the rating never gives up width.
+ * Any one of them missing and the name is cut again or the court overflows.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { createElement, act } from 'react';
@@ -86,22 +86,36 @@ afterEach(() => {
 });
 
 describe('a name too long for its court', () => {
-  it('is cut with an ellipsis rather than wrapped', () => {
-    expect(nameSpan().className.split(/\s+/)).toContain('truncate');
+  it('wraps rather than being cut with an ellipsis', () => {
+    const classes = nameSpan().className.split(/\s+/);
+    expect(classes).toContain('break-words');
+    expect(classes).not.toContain('truncate');
   });
 
   it('is allowed to be narrower than the name it holds', () => {
-    // truncate on its own does nothing here. Without min-w-0 the span keeps its
-    // full text width and pushes the court out sideways instead of clipping.
+    // Without min-w-0 the span keeps its full text width and pushes the court
+    // out sideways instead of wrapping inside it.
     expect(nameSpan().className.split(/\s+/)).toContain('min-w-0');
   });
 
-  it('sits in a column that is also allowed to shrink', () => {
-    // The same rule one level up. The column is a flex item too, and it refuses
-    // to go below its content width until it is told it may.
-    const column = nameSpan().closest('div.flex-1');
-    expect(column).not.toBeNull();
-    expect(column!.className.split(/\s+/)).toContain('min-w-0');
+  it('sits in a seat that is also allowed to shrink', () => {
+    // The same rule one level up, and the one break-words actually needs:
+    // `overflow-wrap: break-word` does not shrink an element's min-content
+    // width, so without this the seat stays as wide as the longest word and the
+    // name spills out of the card.
+    const seat = nameSpan().closest('button');
+    expect(seat).not.toBeNull();
+    expect(seat!.className.split(/\s+/)).toContain('min-w-0');
+  });
+
+  it('puts the two teams on shared row lines', () => {
+    // What replaces the ellipsis as the thing keeping a court in shape. Each
+    // side is a subgrid of the court's rows, so a name that wraps makes that
+    // row taller on both sides at once instead of only its own.
+    const seat = nameSpan().closest('button')!;
+    const column = seat.parentElement!;
+    expect(column.className.split(/\s+/)).toContain('grid-rows-subgrid');
+    expect(column.parentElement!.className.split(/\s+/)).toContain('grid');
   });
 
   it('never takes the width from the rating beside it', () => {

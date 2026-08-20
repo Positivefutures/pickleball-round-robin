@@ -141,6 +141,22 @@ export interface PairingHistory {
    */
   specialMissCounts: Record<RoundType, Record<string, number>>;
   /**
+   * Player id -> court position -> how many games there.
+   *
+   * Keyed on the court's index within the round, not on `courtNumber`. The
+   * number is a label the host may rewrite from any round forward, and the
+   * index is what the rest of the app already treats as a court's identity:
+   * renumberFrom addresses a court by position and carryCourtNumbers copies
+   * numbers back onto a rebuilt schedule by position. So this counts the court
+   * somebody actually stood on rather than what the sign said that round.
+   *
+   * Read by rotateCourts, which is the only thing that decides which group
+   * plays where. It is not in the cost function: the courts are dealt out after
+   * the pairings are chosen, so court fairness can never be bought with a worse
+   * match.
+   */
+  courtCounts: Record<string, Record<number, number>>;
+  /**
    * On a night of partner play, how many times each pair of fixed teams has met.
    * Keyed by the two team keys, so it survives a reshuffle: the round robin
    * reads the lowest count off here to know which fixtures are still owed.

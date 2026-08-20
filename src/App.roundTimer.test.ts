@@ -415,6 +415,66 @@ describe('Round Timer', () => {
     expect(storedTimer().phase).toBe('paused');
   });
 
+  /**
+   * Reported off a live court: the alarm was going, the leftmost tile was
+   * pressed, and pressed again, and nothing happened.
+   *
+   * It was not a stray tap being ignored. Panel visibility is
+   * `manuallyOpen || phase === 'alarming'`, so lowering the flag while it rang
+   * did exactly nothing and the sheet redrew in place. Close now means the
+   * whole of it: silence, reset, and gone.
+   */
+  it('closes, silences and resets in one tap while the alarm is going', () => {
+    openTimer(1);
+    const panel = timerPanel()!;
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel); // 12 -> 1
+    clickLabel('Play Sound', panel);
+    clickButton(/^Start Timer$/, panel);
+
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+    const alarmed = timerPanel();
+    expect(text(alarmed!)).toContain('TIME’S UP');
+
+    clickButton(/^Close$/, alarmed!);
+
+    // Gone on the first tap, and it stays gone.
+    expect(timerPanel()).toBeNull();
+    // Not left showing 0:00 either: back to the full minute it was set to.
+    expect(storedTimer().phase).toBe('idle');
+    expect(storedTimer().remainingMs).toBe(60_000);
+  });
+
+  it('leaves Reset reachable while the alarm is going', () => {
+    // The other two tiles in the same state, since one being unreachable was
+    // reason enough to check its neighbours.
+    openTimer(1);
+    const panel = timerPanel()!;
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
+    clickLabel('Play Sound', panel);
+    clickButton(/^Start Timer$/, panel);
+
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+
+    clickButton(/^Reset$/, timerPanel()!);
+    expect(storedTimer().phase).toBe('idle');
+    expect(storedTimer().remainingMs).toBe(60_000);
+  });
+
+  it('still leaves a running timer running when Close is tapped', () => {
+    // The half that must not change. Close only means stop when there is an
+    // alarm to stop; mid-round it is still just putting the sheet away.
+    openTimer(1);
+    clickButton(/^Start Timer$/, timerPanel()!);
+    clickButton(/^Close$/, timerPanel()!);
+
+    expect(timerPanel()).toBeNull();
+    expect(storedTimer().phase).toBe('running');
+  });
+
   it('releases the timer when a new schedule is built', () => {
     openTimer(1);
     clickButton(/^Start Timer$/, timerPanel()!);

@@ -255,11 +255,14 @@ describe('allowing the watchers to edit scores', () => {
  * that it is not offered on a session with no table to share.
  */
 describe('sharing the standings', () => {
-  it('is on before the host has touched anything', () => {
+  it('is off before the host has touched anything', () => {
+    // Keeping score says how this host uses the app. It does not say they meant
+    // to put a leaderboard on twenty strangers' phones, so the table is offered
+    // rather than assumed.
     const said = open(true);
     expect(said).toContain('Share Standings');
     expect(said).toContain('(leaderboard)');
-    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('true');
+    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('false');
   });
 
   it('is the first of the two switches, above the tiles', () => {
@@ -279,8 +282,18 @@ describe('sharing the standings', () => {
     // host who moved it would have moved nothing.
     open(true);
     click(standingsSwitch()!);
-    expect(stores.standingsShared.get()).toBe(false);
-    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('false');
+    expect(stores.standingsShared.get()).toBe(true);
+    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('stays where the host put it, for the next share and the next week', () => {
+    // The other half of off-by-default: a host who says yes is not asked again.
+    open(true);
+    click(standingsSwitch()!);
+    expect(stores.standingsShared.get()).toBe(true);
+
+    open(true);
+    expect(standingsSwitch()!.getAttribute('aria-checked')).toBe('true');
   });
 
   it('is not offered on a session with no standings to share', () => {

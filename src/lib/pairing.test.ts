@@ -535,3 +535,90 @@ describe('partner variety', () => {
     expect(hits).toBeLessThanOrEqual(1);
   }, 60000);
 });
+
+/**
+ * Courts are not interchangeable at a real venue — wind, sun, the surface, how
+ * far it is from the bathroom — so a pair parked on the worst one all night has
+ * had a worse evening than everybody else, however fair the pairings were.
+ *
+ * Nothing used to decide this. `courtNumber` was stamped as whatever index a
+ * solver happened to build a court at, so who played where fell out of the
+ * order groups came back in. Measured over 25 twelve-round schedules per
+ * config: with set partners on for everybody, 50 of 300 player-schedules never
+ * left one court at all and the worst player had all 12 games in one place.
+ * Ordinary sessions never stuck anybody outright but the worst player still had
+ * 10 of 12 games on one court, and 11 of 12 on a gendered/skill night.
+ *
+ * With the courts dealt out after the groups are chosen: nobody stuck in any
+ * config, worst spread 0 with set partners and 4 to 6 everywhere else. The
+ * bounds below sit above the measured worst with room for the random
+ * tie-breaks under them.
+ */
+describe('court variety', () => {
+  /** Per player: most games on one court minus fewest, and whether they ever moved. */
+  function courtSpread(s: Schedule): { worst: number; stuck: number } {
+    const seen = new Map<string, Map<number, number>>();
+    const used = new Set<number>();
+    for (const r of s.rounds) {
+      r.courts.forEach((c, idx) => {
+        used.add(idx);
+        for (const p of [...c.team1, ...c.team2]) {
+          if (!seen.has(p.id)) seen.set(p.id, new Map());
+          const mine = seen.get(p.id)!;
+          mine.set(idx, (mine.get(idx) ?? 0) + 1);
+        }
+      });
+    }
+    let worst = 0;
+    let stuck = 0;
+    for (const counts of seen.values()) {
+      const games = [...counts.values()].reduce((a, b) => a + b, 0);
+      const per = [...used].map((idx) => counts.get(idx) ?? 0);
+      worst = Math.max(worst, Math.max(...per) - Math.min(...per));
+      if (counts.size === 1 && games > 1) stuck += 1;
+    }
+    return { worst, stuck };
+  }
+
+  it('moves people around the courts on an ordinary night', () => {
+    // Measured worst spread 4 over 25 schedules; 6 leaves the tie-breaks room.
+    for (let i = 0; i < 5; i++) {
+      const { worst, stuck } = courtSpread(generateSchedule(makePlayers(12), 3, 12));
+      expect(stuck).toBe(0);
+      expect(worst).toBeLessThanOrEqual(6);
+    }
+  }, 30000);
+
+  it('moves a fixed pair around the courts too', () => {
+    // The night this came from. A fully paired roster takes the partner-play
+    // path, which reads a fixture list in the same order every round and never
+    // calls the scorer — so a cost-function term would not have touched it.
+    const players = makePlayers(12);
+    const partnerships = Array.from({ length: 6 }, (_, i) => ({
+      player1Id: `p${i * 2}`,
+      player2Id: `p${i * 2 + 1}`,
+    }));
+    for (let i = 0; i < 5; i++) {
+      const { worst, stuck } = courtSpread(
+        generateSchedule(players, 3, 12, [], partnerships)
+      );
+      expect(stuck).toBe(0);
+      // Twelve rounds over three courts divides exactly, and with the pairs
+      // fixed there is nothing to stop it landing on 4/4/4.
+      expect(worst).toBeLessThanOrEqual(2);
+    }
+  }, 30000);
+
+  it('replays court history out of the saved rounds', () => {
+    // Same rule as every other count here: a reshuffle of the back half has to
+    // know where people have already played, or it starts the problem again.
+    const players = makePlayers(12);
+    const first = generateSchedule(players, 3, 12);
+    const completed = [1, 2, 3, 4, 5, 6];
+    const redone = regenerateRemaining(players, 3, first.rounds, completed);
+
+    const { worst, stuck } = courtSpread(redone);
+    expect(stuck).toBe(0);
+    expect(worst).toBeLessThanOrEqual(6);
+  }, 30000);
+});

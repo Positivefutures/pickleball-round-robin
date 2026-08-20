@@ -162,10 +162,19 @@ export const shareKey = createStoredValue<string | null>('pb-share-key', null);
 /**
  * Whether the people watching this session may change its scores.
  *
- * Off unless the host says otherwise, and off again for every new session: it
- * is a decision about one afternoon and one group of people, not a preference
- * that should follow somebody to next Tuesday. Beside shareKey because it is
- * the same kind of thing — what this phone is publishing, right now.
+ * Off unless the host says otherwise. Beside shareKey because it is the same
+ * kind of thing — what this phone is publishing, right now.
+ *
+ * It used to be wiped every time sharing stopped, on the reasoning that it was
+ * a decision about one afternoon rather than a preference. That made it a
+ * switch that would not stay where it was put: a host who turned it on, stopped
+ * sharing and shared again found it off, with no way to tell that from the app
+ * having lost it. It is now remembered, and the code below is remembered with
+ * it, so a restarted share is the same share.
+ *
+ * Still cleared for the two cases that are genuinely somebody else: signing in
+ * as a different account (liveSession.ts), and opening a group this phone has
+ * never opened (groupSessions.ts), which also parks and restores it per group.
  */
 export const scoreEditingAllowed = createStoredValue<boolean>(
   'pb-score-editing-allowed',
@@ -175,17 +184,17 @@ export const scoreEditingAllowed = createStoredValue<boolean>(
 /**
  * Whether the people watching this session get the standings table.
  *
- * On unless the host says otherwise, because the table is most of what people
- * ask for once a round is played, and a host who has never thought about it
- * should not find it missing. Turning it off takes the panel off the watchers'
- * page and every link to it with it; the schedule and the scores stay exactly
- * as they were.
+ * Off unless the host says otherwise. Keeping score is a statement about how
+ * the host is using the app; it is not consent to put a leaderboard on twenty
+ * strangers' phones. So the table is offered rather than assumed, and a host
+ * who wants one turns it on.
  *
- * Unlike scoreEditingAllowed above, this survives the end of a session. It is
- * a preference about what this host shares, not a decision about one afternoon
- * and one code told to one group of people.
+ * It survives the end of a session, which is the other half of the same point:
+ * a host who has said yes should not be asked again every week. Turning it off
+ * takes the panel off the watchers' page and every link to it with it; the
+ * schedule and the scores stay exactly as they were.
  */
-export const standingsShared = createStoredValue<boolean>('pb-standings-shared', true);
+export const standingsShared = createStoredValue<boolean>('pb-standings-shared', false);
 
 /**
  * The four digits a watcher must type before they can change a score, or null

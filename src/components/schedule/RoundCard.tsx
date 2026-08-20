@@ -156,7 +156,7 @@ export function RoundCard({
       {roundType && <RoundTypeBadge type={roundType} />}
 
       <div
-        className="round-card rounded-lg shadow border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem]"
+        className="round-card rounded-lg shadow border-2 px-1.5 pt-[0.83rem] pb-[1.2rem]"
         style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap">

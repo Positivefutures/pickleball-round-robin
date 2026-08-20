@@ -88,11 +88,31 @@ export function openRoundTimer(roundNumber: number): {
 
 /**
  * Closing the sheet, not stopping the timer — it keeps counting down (or
- * alarming) in the background. If it's alarming, the panel snaps itself back
- * open on the very next render (see RoundTimerPanel), so this is only a real
- * dismissal for an idle, running, or paused timer.
+ * alarming) in the background. The panel's visibility is
+ * `manuallyOpen || phase === 'alarming'`, so on a ringing timer this alone
+ * does nothing: the sheet snaps back open on the very next render. Use
+ * dismissRoundTimer below for anything a person can press.
  */
 export function closeRoundTimerPanel(): void {
+  setPanelOpen(false);
+}
+
+/**
+ * What every way out of the sheet does: the Close tile, the scrim behind it and
+ * the drag handle.
+ *
+ * On a ringing timer, closing on its own was a no-op — the alarm held the sheet
+ * open and the tap went nowhere, over and over, which is what a host hit on a
+ * live court. So a dismissal made while it is ringing means the whole of it:
+ * silence the alarm, put the clock back to its full length, and go. That is
+ * Reset and then Close, which is what a host was reduced to working out for
+ * themselves, and it leaves nobody looking at a round stopped on 0:00.
+ *
+ * Every other phase is untouched. Closing a running timer still leaves it
+ * running in the background.
+ */
+export function dismissRoundTimer(): void {
+  if (stores.roundTimer.get().phase === 'alarming') resetTimer();
   setPanelOpen(false);
 }
 

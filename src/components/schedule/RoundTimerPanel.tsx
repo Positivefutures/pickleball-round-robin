@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import * as stores from '../../lib/stores';
 import {
-  timerPanelOpen, closeRoundTimerPanel, startTimer, stopTimer, resetTimer,
+  timerPanelOpen, dismissRoundTimer, startTimer, stopTimer, resetTimer,
   setMinutes, setSoundOn, setFlashOn, setAlarmTone, liveRemainingMs,
   MINUTES_MIN, MINUTES_MAX, type RoundTimerState,
 } from '../../lib/roundTimer';
@@ -32,9 +32,10 @@ import {
  * Roster.
  *
  * `visible` is `manuallyOpen || phase === 'alarming'` — an active alarm always
- * wins, so a stray tap on Close while it's ringing snaps the sheet right back
- * open on the next render. Only Pause, which actually leaves the alarming
- * phase, dismisses it for real.
+ * wins, so lowering that flag on its own cannot dismiss a ringing sheet. Every
+ * way out of it therefore goes through `dismissRoundTimer`, which leaves the
+ * alarming phase first. See the note on that function for why closing a ringing
+ * timer resets it.
  */
 export function RoundTimerPanel() {
   const state = useSyncExternalStore(
@@ -69,7 +70,7 @@ export function RoundTimerPanel() {
       remainingMs={liveRemainingMs(state)}
       light={idle}
       flashOn={state.flashOn}
-      onClose={closeRoundTimerPanel}
+      onClose={dismissRoundTimer}
       // Close is the first tile in the row below. Two ways out of one sheet is
       // one to read past.
       closeKey={false}
@@ -90,7 +91,7 @@ export function RoundTimerPanel() {
               tone="quiet"
               Icon={CloseIcon}
               label="Close"
-              onClick={closeRoundTimerPanel}
+              onClick={dismissRoundTimer}
             />
             {counting ? (
               /* Quiet, not red. Pausing takes nothing away: the clock holds

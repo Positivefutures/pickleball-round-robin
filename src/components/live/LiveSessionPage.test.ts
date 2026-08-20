@@ -168,6 +168,18 @@ async function open() {
 
 const text = () => container.textContent ?? '';
 
+/**
+ * The rendered markup with every icon taken out of it.
+ *
+ * The rating checks below scan raw HTML rather than text, deliberately: a
+ * rating hidden in a `title` or an `aria-label` is still a rating this page
+ * published, and textContent would not see it. But an SVG path is a few hundred
+ * comma-separated decimals, and "3.1" genuinely occurs inside the clock glyph —
+ * so those checks passed only while no icon happened to sit on the page. Strip
+ * the glyphs and the assertion is about the page again.
+ */
+const markupWithoutIcons = () => container.innerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '');
+
 beforeEach(() => {
   asks = 0;
   probes = 0;
@@ -454,7 +466,7 @@ describe('watching a session', () => {
     // The requirement, and the one that cannot be seen by looking at the page.
     answer = shared({ team1: 11, team2: 7 });
     await open();
-    const rendered = container.innerHTML;
+    const rendered = markupWithoutIcons();
     for (const rating of ['3.11', '3.22', '3.33', '3.44', '3.55', '0.77', '3.1', '4.0']) {
       expect(rendered).not.toContain(rating);
     }
@@ -484,7 +496,7 @@ describe('watching a session', () => {
       })
     };
     await open();
-    const rendered = container.innerHTML;
+    const rendered = markupWithoutIcons();
     expect(text()).toContain('COURT 7');
     for (const rating of ['3.11', '3.22', '3.33', '3.44', '3.55', '0.77']) {
       expect(rendered).not.toContain(rating);
@@ -891,18 +903,26 @@ describe('the round timer', () => {
     };
   }
 
-  it('shows no clock on a session where nobody has started one', async () => {
+  it('shows a clock on every round even though nobody has started one', async () => {
+    // The gap this closes. A watcher used to get nothing at all before the host
+    // pressed START, so "has it started?" could only be answered by guessing
+    // from an absence. The clock is the way in to the screen that answers it.
     answer = shared();
     await open();
-    expect(clocks()).toHaveLength(0);
+
+    expect(clocks()).toHaveLength(2);
+    // A clock with no time on it. Digits are what say a timer is running.
+    expect(clocks().map((c) => c.textContent?.trim())).toEqual(['', '']);
   });
 
-  it('puts a clock on the round being timed, and only that one', async () => {
+  it('puts the time on the round being timed, and a bare clock on the others', async () => {
     answer = shared(undefined, false, timing(2, 300_000));
     await open();
 
-    expect(clocks()).toHaveLength(1);
-    const header = clocks()[0].closest('div')?.parentElement;
+    expect(clocks()).toHaveLength(2);
+    expect(clocks()[0].textContent?.trim()).toBe('');
+    expect(clocks()[1].textContent?.trim()).toBe('5:00');
+    const header = clocks()[1].closest('div')?.parentElement;
     expect(header?.textContent).toContain('Round 2');
   });
 
@@ -951,9 +971,125 @@ describe('the round timer', () => {
     answer = shared(undefined, false, timing(2, 305_000));
     await open();
 
-    expect(clocks()[0].textContent?.trim()).toBe('5:05');
+    expect(clocks()[1].textContent?.trim()).toBe('5:05');
     // Icon first, digits second, the same way round as the host's card.
-    expect(clocks()[0].firstElementChild?.tagName.toLowerCase()).toBe('svg');
+    expect(clocks()[1].firstElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+
+  it('opens on the waiting line before the host has started anything', async () => {
+    answer = shared();
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+
+    expect(sheet()?.textContent).toContain('The host hasn’t started the timer yet');
+    // No round is being timed, so the header does not name one.
+    expect(sheet()?.textContent).toContain('Round Timer');
+    expect(sheet()?.textContent).not.toContain('Round 1 Timer');
+  });
+
+  it('turns into the countdown on its own when the host starts one', async () => {
+    // No tap, no reload, no closing and reopening: the field arrives on the
+    // next poll and the screen it is already showing becomes the countdown.
+    vi.useFakeTimers();
+    answer = shared();
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+    expect(sheet()?.textContent).toContain('The host hasn’t started the timer yet');
+
+    // Published with 5:21 to run, and read twenty-one seconds later, because
+    // the deadline is absolute and this phone counts against its own clock.
+    answer = shared(undefined, false, timing(1, 321_000));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(21_000);
+    });
+
+    expect(sheet()?.textContent).toContain('5:00');
+    expect(sheet()?.textContent).not.toContain('The host hasn’t started');
+    expect(sheet()?.textContent).toContain('Round 1 Timer');
+  });
+
+  /**
+   * A phone that sleeps five minutes into a thirteen minute game.
+   *
+   * Whether the screen actually stays lit is the browser's answer and cannot be
+   * had from happy-dom. What can be had is whether this page asks at all, which
+   * is the thing that was missing: the host held a lock for their own countdown
+   * and a watcher held nothing.
+   */
+  describe('keeping the screen awake', () => {
+    let held: number;
+    let released: number;
+
+    beforeEach(() => {
+      held = 0;
+      released = 0;
+      Object.defineProperty(navigator, 'wakeLock', {
+        configurable: true,
+        value: {
+          request: async () => {
+            held += 1;
+            return {
+              release: async () => void (released += 1),
+              addEventListener: () => {}
+            };
+          }
+        }
+      });
+    });
+
+    afterEach(() => {
+      delete (navigator as unknown as Record<string, unknown>).wakeLock;
+    });
+
+    it('asks for the screen while the timer is open and counting', async () => {
+      answer = shared(undefined, false, timing(1, 300_000));
+      await open();
+      expect(held).toBe(0);
+
+      await act(async () => {
+        clocks()[0].click();
+      });
+      expect(held).toBe(1);
+
+      // And hands it straight back when the screen is shut.
+      await act(async () => {
+        (sheet()!.querySelector('[aria-label="Close Round Timer"]') as HTMLButtonElement).click();
+      });
+      expect(released).toBe(1);
+    });
+
+    it('does not ask while it is only waiting for the host to start', async () => {
+      // Nothing to watch yet. Twenty phones lit for a timer that does not exist
+      // is twenty batteries spent on an empty screen.
+      answer = shared();
+      await open();
+      await act(async () => {
+        clocks()[0].click();
+      });
+
+      expect(held).toBe(0);
+    });
+  });
+
+  it('lets a watcher answer the alerts before there is a timer to answer for', async () => {
+    // The switch is worth having early. Somebody who does not want their phone
+    // making a noise would rather say so now than after it has.
+    answer = shared();
+    await open();
+    await act(async () => {
+      clocks()[0].click();
+    });
+
+    const sound = sheet()!.querySelector('[aria-label="Play Sound"]') as HTMLButtonElement;
+    expect(sound.getAttribute('aria-checked')).toBe('true');
+    await act(async () => {
+      sound.click();
+    });
+    expect(sound.getAttribute('aria-checked')).toBe('false');
   });
 
   /**

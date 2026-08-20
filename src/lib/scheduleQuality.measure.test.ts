@@ -34,6 +34,26 @@
  *   3:1 gender courts: 268 of 300 rounds at 12p (was 426); meeting everyone
  *     outranks court shape, so roughly one court a round still lands 3:1
  *   sit-out spread max 1, short-game spread max 1, special miss spread max 2
+ *
+ * COURT VARIETY (2026-08-19). Nothing had ever decided which group played on
+ * which court: courtNumber was stamped as the index a solver happened to build
+ * a court at. Reported off a live session — one pair on court one all evening.
+ *
+ * BEFORE, worst player's spread (most games on one court minus fewest) and how
+ * many player-schedules never left a single court:
+ *   all set partners 12p/3c/12r: spread 12, and 50 of 300 never moved at all
+ *   ordinary configs:            spread 7-10, 0-2 stuck
+ *   gendered q2 + skill q3:      spread 11, 0 stuck
+ *
+ * AFTER, with the courts dealt out by rotateCourts once the groups are chosen:
+ *   all set partners: spread 0, nobody stuck — 12 rounds over 3 courts is 4/4/4
+ *   every other config: spread 4-6, nobody stuck anywhere
+ *
+ * Pairing quality is unchanged, and it cannot be otherwise: the pass returns
+ * the same groups in a different order, which courtRotation.test.ts asserts
+ * directly. The repeat-partnership numbers do move between runs of this file —
+ * the samplers are unseeded — and the baseline-to-after differences sit inside
+ * the run-to-run spread measured on identical code.
  */
 import { appendFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
@@ -163,6 +183,52 @@ function shortGameSpread(s: Schedule, ids: string[]): number {
   return Math.max(...vals) - Math.min(...vals);
 }
 
+interface CourtStats {
+  /** Worst player's spread: most games on one court minus fewest. */
+  worstSpread: number;
+  /** Players who never left one court, over players who played at all. */
+  stuck: number;
+  players: number;
+}
+
+/**
+ * How evenly each player is moved around the courts.
+ *
+ * Keyed on the court's index in the round rather than on courtNumber, because
+ * the number is a label the host may rewrite from any round forward and the
+ * index is what the app already treats as a court's identity — see
+ * carryCourtNumbers.
+ *
+ * A player on three courts over nine games has a spread of 0 if it went 3/3/3
+ * and 9 if they never moved. "Stuck" is the headline: a pair parked on court
+ * one all evening is what was reported, and it is invisible in an average.
+ */
+function courtStats(s: Schedule, ids: string[]): CourtStats {
+  const seen = new Map(ids.map((id) => [id, new Map<number, number>()]));
+  const courtsUsed = new Set<number>();
+  for (const r of s.rounds) {
+    r.courts.forEach((c, idx) => {
+      courtsUsed.add(idx);
+      for (const p of [...c.team1, ...c.team2]) {
+        const mine = seen.get(p.id);
+        if (mine) mine.set(idx, (mine.get(idx) ?? 0) + 1);
+      }
+    });
+  }
+  let worstSpread = 0;
+  let stuck = 0;
+  let players = 0;
+  for (const counts of seen.values()) {
+    const games = [...counts.values()].reduce((a, b) => a + b, 0);
+    if (games === 0) continue;
+    players += 1;
+    const per = [...courtsUsed].map((idx) => counts.get(idx) ?? 0);
+    worstSpread = Math.max(worstSpread, Math.max(...per) - Math.min(...per));
+    if (counts.size === 1 && games > 1) stuck += 1;
+  }
+  return { worstSpread, stuck, players };
+}
+
 interface GapStats { n: number; over05: number; p95: number; max: number }
 
 function gapStats(schedules: Schedule[], pick: (r: Round) => boolean): GapStats {
@@ -265,6 +331,18 @@ const CONFIGS: Config[] = [
   { label: '12p/3c/12r gendered q2', players: makePlayers(12), courts: 3, rounds: 12, plan: everyNth('gendered', 2, 12) },
   { label: '13p/3c/12r mixed q2', players: makePlayers(13), courts: 3, rounds: 12, plan: everyNth('mixed', 2, 12) },
   { label: '12p/3c/12r gendered q2 + skill q3', players: makePlayers(12), courts: 3, rounds: 12, plan: GENDERED_Q2_SKILL_Q3 },
+  // The night this came from: set partners on for every player. It takes the
+  // partner-play path, which reads a fixture list and never calls the scorer.
+  {
+    label: '12p/3c/12r all set partners',
+    players: makePlayers(12),
+    courts: 3,
+    rounds: 12,
+    partnerships: Array.from({ length: 6 }, (_, i) => ({
+      player1Id: `p${i * 2}`,
+      player2Id: `p${i * 2 + 1}`,
+    })),
+  },
   {
     label: '12p/3c/8r two couples',
     players: makePlayers(12),
@@ -304,6 +382,7 @@ describe.runIf(process.env.MEASURE === '1')('schedule quality measurement', () =
       const shortSpreads = schedules.map((s) => shortGameSpread(s, ids));
       const normalGaps = gapStats(schedules, (r) => !roundTypeOf(r));
       const specialGaps = gapStats(schedules, (r) => !!roundTypeOf(r));
+      const courts = schedules.map((s) => courtStats(s, ids));
       const gender = schedules.map((s) => genderShapeStats(s));
       const g31 = gender.reduce((a, g) => a + g.courts31, 0);
       const g31forced = gender.reduce((a, g) => a + g.forced31, 0);
@@ -319,6 +398,9 @@ describe.runIf(process.env.MEASURE === '1')('schedule quality measurement', () =
           + ` of ${reps[0].possiblePairs}`,
         `  sit-out spread max ${Math.max(...spreads)}`
           + ` | short-game spread max ${Math.max(...shortSpreads)}`,
+        `  court spread worst ${Math.max(...courts.map((c) => c.worstSpread))}`
+          + ` | never left one court: ${courts.reduce((a, c) => a + c.stuck, 0)}`
+          + ` of ${courts.reduce((a, c) => a + c.players, 0)} player-schedules`,
         `  rating gaps normal: n=${normalGaps.n} over0.5=${normalGaps.over05}`
           + ` (${fmt((100 * normalGaps.over05) / Math.max(1, normalGaps.n))}%)`
           + ` p95=${fmt(normalGaps.p95)} max=${fmt(normalGaps.max)}`,

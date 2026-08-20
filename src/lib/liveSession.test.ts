@@ -571,6 +571,39 @@ describe('stopping', () => {
     expect(status()).toEqual({ state: 'off' });
     expect(stores.shareKey.get()).toBeNull();
   });
+
+  it('leaves score editing and its code where the host put them', async () => {
+    // This used to wipe both, so a host who allowed editing, stopped and
+    // started again found the switch off and no way to tell that from the app
+    // having lost it. Stopping is not handing the phone to somebody else.
+    stores.scoreEditingAllowed.set(true);
+    stores.scoreEditCode.set('4821');
+    await startSharing();
+    await stopSharing();
+
+    expect(stores.scoreEditingAllowed.get()).toBe(true);
+    expect(stores.scoreEditCode.get()).toBe('4821');
+
+    // And the restarted share is still an editable one.
+    await startSharing();
+    expect(live().snapshot.scoreEditing).toBe(true);
+  });
+
+  it('still forgets them when the host signs out', async () => {
+    // The one case that is genuinely somebody else holding the phone, and the
+    // reason the wipe still exists at all.
+    stores.scoreEditingAllowed.set(true);
+    stores.scoreEditCode.set('4821');
+    await startSharing();
+    __testing.reset();
+    startLive();
+    await vi.advanceTimersByTimeAsync(0);
+
+    setAuth({ status: 'signed-out' });
+
+    expect(stores.scoreEditingAllowed.get()).toBe(false);
+    expect(stores.scoreEditCode.get()).toBeNull();
+  });
 });
 
 describe('a reload part way through', () => {

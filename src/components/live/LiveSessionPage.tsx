@@ -22,9 +22,9 @@ import { LiveRoundTimer, LiveTimerChip } from './LiveRoundTimer';
 import * as stores from '../../lib/stores';
 import { alertsFor, setOwnAlert } from '../../lib/watchAlerts';
 import { sharedAlarming } from '../../lib/sessionSnapshot';
-import { DEFAULT_ALARM_TONE } from '../../lib/alarmSounds';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { useSharedAlarm } from '../../hooks/useSharedAlarm';
+import { useWakeLock } from '../../hooks/useWakeLock';
 import { MakeYourOwn } from './MakeYourOwn';
 
 /**
@@ -531,17 +531,29 @@ function Session({
     stores.watchAlerts.get,
     stores.watchAlerts.get
   );
-  const alerts = timer ? alertsFor(timer, session, own) : null;
+  // Worked out with or without a timer, because the switches are on the screen
+  // somebody opens while waiting for one. Anything they leave alone still
+  // follows the host the moment there is a host choice to follow.
+  const alerts = alertsFor(timer, session, own);
+
+  // A thirteen minute game against a phone that sleeps after five: somebody who
+  // opens the timer to watch it wants to be able to look at it, and was getting
+  // a black screen for the last eight minutes of every round.
+  //
+  // Narrower than the host's lock, which is held for the whole countdown with
+  // the sheet closed. A host started the timer and asked for their own phone to
+  // stay lit; twenty people watching did not all ask for thirteen minutes of
+  // screen. So it is held while the timer screen is open and there is something
+  // on it to count, and dropped the moment either stops being true.
+  useWakeLock(
+    timerOpen && !!timer && (timer.phase === 'running' || sharedAlarming(timer))
+  );
 
   // Counted here rather than in the sheet, because the sheet is only mounted
   // when somebody has opened it and the alarm is most for the phone that has
   // been put down. The tick is what makes zero arrive at zero.
   useCountdownTick(timer?.phase === 'running');
-  useSharedAlarm(
-    timer !== null && alerts !== null && sharedAlarming(timer),
-    alerts?.soundOn ?? false,
-    alerts?.alarmTone ?? DEFAULT_ALARM_TONE
-  );
+  useSharedAlarm(!!timer && sharedAlarming(timer), alerts.soundOn, alerts.alarmTone);
 
   // Where View Standings on every round goes.
   const standingsRef = useRef<HTMLDivElement>(null);
@@ -588,7 +600,7 @@ function Session({
           <div key={round.roundNumber}>
             {roundType && <RoundTypeBadge type={roundType} />}
             <section
-              className="rounded-lg border-2 px-[0.6rem] pt-[0.83rem] pb-[1.2rem] shadow"
+              className="rounded-lg border-2 px-1.5 pt-[0.83rem] pb-[1.2rem] shadow"
               style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -603,12 +615,16 @@ function Session({
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Only on the round actually being timed, and only once it
-                      has been started — the host's page shows a clock on every
-                      round because the host is the one who picks which to time. */}
-                  {timer?.roundNumber === round.roundNumber && (
-                    <LiveTimerChip timer={timer} onOpen={() => setTimerOpen(true)} />
-                  )}
+                  {/* On every round, exactly as the host's page draws it, and
+                      only the round holding the timer shows a time. The clock
+                      is the way in to the timer screen, so it has to be there
+                      before there is a timer: that screen is where somebody
+                      finds out whether the host has started one. */}
+                  <LiveTimerChip
+                    timer={timer}
+                    roundNumber={round.roundNumber}
+                    onOpen={() => setTimerOpen(true)}
+                  />
                   {/* Down while the round is open, sideways once it is folded:
                       the arrow points at where the courts are. */}
                   <button
@@ -728,9 +744,11 @@ function Session({
       </p>
       <MakeYourOwn />
 
-      {/* Goes on its own when the host resets or clears their timer: the field
-          is gone from the next poll, and there is nothing left to count. */}
-      {timerOpen && timer && alerts && (
+      {/* Held open across a timer arriving and a timer going. The host starting
+          one turns the waiting line into a countdown where it stands; the host
+          resetting one turns it back, rather than pulling the screen out from
+          under somebody who is still looking at it. */}
+      {timerOpen && (
         <LiveRoundTimer
           timer={timer}
           alerts={alerts}

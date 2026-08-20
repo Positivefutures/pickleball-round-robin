@@ -3,6 +3,7 @@ import type {
   RoundType, RoundPlan,
 } from '../types';
 import { determineSitOuts } from './sitout';
+import { rotateCourts } from './courtRotation';
 import { partnerKey } from './partnerships';
 import { ROUND_TYPES, courtMatchesType, roundTypeOf } from './roundTypes';
 import { planAt } from './roundPlan';
@@ -37,6 +38,7 @@ function initHistory(players: Player[]): PairingHistory {
     lastPartneredRound: {},
     gamesPlayed: {},
     shortGameCounts: {},
+    courtCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
     teamMatchCounts: {},
   };
@@ -46,6 +48,7 @@ function initHistory(players: Player[]): PairingHistory {
     history.sitOutCounts[p.id] = 0;
     history.gamesPlayed[p.id] = 0;
     history.shortGameCounts[p.id] = 0;
+    history.courtCounts[p.id] = {};
     for (const t of ROUND_TYPES) history.specialMissCounts[t][p.id] = 0;
   }
   return history;
@@ -68,6 +71,15 @@ function updateHistory(
   sitOuts: Player[]
 ) {
   history.roundsRecorded = (history.roundsRecorded ?? 0) + 1;
+  courts.forEach((court, courtIdx) => {
+    // Replayed out of the stored rounds as well as counted while building, like
+    // everything else here, so court variety survives a reshuffle and a reload.
+    // The index, not court.courtNumber — see the note on courtCounts.
+    for (const p of [...court.team1, ...court.team2]) {
+      if (!history.courtCounts[p.id]) history.courtCounts[p.id] = {};
+      history.courtCounts[p.id][courtIdx] = (history.courtCounts[p.id][courtIdx] ?? 0) + 1;
+    }
+  });
   for (const court of courts) {
     for (const team of [court.team1, court.team2]) {
       if (team.length === 2) {
@@ -180,7 +192,7 @@ function buildRound(
     const fixtures = fixtureList(teams.length);
     const capacity = Math.min(effectiveCourts, Math.floor(teams.length / 2));
     const matches = nextMatches(teams, fixtures, history, capacity);
-    const courts = matchesToCourts(teams, matches);
+    const courts = rotateCourts(matchesToCourts(teams, matches), history);
 
     const playing = new Set(courts.flatMap((c) => [...c.team1, ...c.team2]).map((p) => p.id));
     const sitOuts = players.filter((p) => !playing.has(p.id));
@@ -289,15 +301,24 @@ function buildRound(
   }
 
   const allSitOuts = [...sitOuts, ...result.extraSitOuts];
-  updateHistory(history, result.courts, allSitOuts);
+  // After the short court has been appended and before anything is recorded, so
+  // the history counts the court each player actually ends up on. A padlocked
+  // round is left alone: a lock names a court by position.
+  // On a special round the courts the format could not fill sit at the end, and
+  // the card under them says so in those terms. They stay there.
+  const keepFrom = roundType
+    ? result.courts.findIndex((c) => !courtMatchesType(c, roundType))
+    : -1;
+  const courts = rotateCourts(result.courts, history, { pinned: hasLocks, keepFrom });
+  updateHistory(history, courts, allSitOuts);
 
   if (roundType) {
-    updateSpecialMissCounts(history, roundType, result.courts, allSitOuts);
+    updateSpecialMissCounts(history, roundType, courts, allSitOuts);
   }
 
   return {
     roundNumber,
-    courts: result.courts,
+    courts,
     sitOuts: allSitOuts,
     roundType: roundType ?? undefined,
   };

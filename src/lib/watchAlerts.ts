@@ -1,5 +1,6 @@
 import * as stores from './stores';
 import { DEFAULT_ALARM_TONE, resolveTone, type AlarmToneId } from './alarmSounds';
+import { DEFAULT_ROUND_TIMER_STATE } from './roundTimerState';
 import type { SharedRoundTimer } from './sessionSnapshot';
 
 /**
@@ -50,19 +51,28 @@ export function ownAlerts(
  * `?? timer.soundOn ?? true` rather than a boolean or: `false` is a real answer
  * from either of them, and the whole point of this is that a watcher can say no
  * to something the host said yes to.
+ *
+ * `timer` is null on the timer screen a watcher opens before the host has
+ * started anything. There is no published choice to follow yet, so the three
+ * switches stand at what the host's own timer starts life as — and because
+ * nothing untouched is written down, the moment a real timer arrives they go
+ * back to following it. Answering them while waiting is the point: a watcher
+ * who wants the alarm silenced would rather say so now than after it has gone
+ * off next to them.
  */
 export function alertsFor(
-  timer: SharedRoundTimer,
+  timer: SharedRoundTimer | null,
   session: string,
   held = stores.watchAlerts.get()
 ): Alerts {
   const mine = ownAlerts(session, held);
+  const host = timer ?? DEFAULT_ROUND_TIMER_STATE;
   return {
-    soundOn: mine.soundOn ?? timer.soundOn ?? true,
-    flashOn: mine.flashOn ?? timer.flashOn,
+    soundOn: mine.soundOn ?? host.soundOn ?? true,
+    flashOn: mine.flashOn ?? host.flashOn,
     // Resolved here rather than where it is stored, so a tone published by a
     // build this one has never seen still lands on something audible.
-    alarmTone: resolveTone(mine.alarmTone ?? timer.alarmTone ?? DEFAULT_ALARM_TONE)
+    alarmTone: resolveTone(mine.alarmTone ?? host.alarmTone ?? DEFAULT_ALARM_TONE)
   };
 }
 
