@@ -21,6 +21,51 @@ export const ROUND_FILL = '#7CAED0';
 export const ROUND_EDGE = '#2B76A9';
 
 /**
+ * The same card and the same line once the round is finished.
+ *
+ * A round that is done is still worth finding on the page and no longer worth
+ * looking at, and until now it said so only by folding shut. Stacked up at the
+ * top of a long session, the finished ones read exactly as loud as the round
+ * being played — same blue, same weight — so the eye had to read the numbers to
+ * find the live one. These are the same colours lifted and drained: the fill
+ * comes up towards white, the line comes with it so the edge does not end up
+ * the loudest thing on a quiet card, and both keep enough blue to still belong
+ * to the round above them rather than looking like a different component.
+ *
+ * Jeff's brief on 2026-08-20: lighter, less colourful, a little washed out,
+ * with the live rounds left exactly as they are.
+ */
+export const ROUND_FILL_DONE = '#CBDCE7';
+export const ROUND_EDGE_DONE = '#A3C0D3';
+
+/**
+ * What is printed on a finished card, in place of white.
+ *
+ * White is what the live card uses, and on a fill this pale it would be all but
+ * gone — the wash has to come off the card, not off the writing, or a host
+ * cannot read which round they are looking at. A slate out of the same blue
+ * family reads as quiet without disappearing, and it is a genuine improvement
+ * on the live card it copies: white on #7CAED0 is about 2.1:1, and this is
+ * about 5.4:1.
+ *
+ * A whole class name rather than a hex, for the reason TEAM1_EDGE gives above.
+ */
+export const ROUND_TEXT_DONE = 'text-[#41566B]';
+
+/**
+ * The DONE pill on a watcher's finished round, and the underline on a link
+ * printed on one.
+ *
+ * Both are the ink at a fraction, written out with the hex rather than as
+ * `current/15`, for the same reason the ink itself is: Tailwind generates what
+ * it can see spelled out. The live card keeps its own white pair below, so a
+ * round that is still being played looks exactly as it did.
+ */
+export const ROUND_PILL_DONE = 'bg-[#41566B]/15';
+export const ROUND_RULE_DONE = 'decoration-[#41566B]/50';
+export const ROUND_RULE_LIVE = 'decoration-white/50';
+
+/**
  * The same line, several steps down, worn for two seconds by a sit-out chip
  * somebody has just been swapped into. The courts do this in their own two
  * colours; out here there is only the round's line to darken.
@@ -74,9 +119,16 @@ export const ROUND_HEADING_TEXT = 'text-[1.35rem]';
  *
  * The digits sit at the heading's own size, which is also DONE's: all three are
  * things read off the top of a card at arm's length, so all three are one size.
+ *
+ * The ink is the caller's, not this string's. A watcher's page draws a clock on
+ * every round including the finished ones, and a finished card is pale now, so
+ * `text-white` baked in here would have put a white clock on a near-white card.
+ * Ordering two colour utilities in one attribute does not settle which wins —
+ * the generated stylesheet does — so the colour has to come from outside rather
+ * than be overridden.
  */
 export const ROUND_TIMER_CHIP =
-  'no-print flex shrink-0 items-center gap-1.5 text-white transition-colors hover:text-white/75';
+  'no-print flex shrink-0 items-center gap-1.5 transition-opacity hover:opacity-75';
 
 /**
  * A player's name, on a court and in the sit-out list.

@@ -112,7 +112,34 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // Only one test fakes them, and leaving them faked breaks `settle` for
+  // every test after it.
+  vi.useRealTimers();
 });
+
+/**
+ * The browser's half of the handover, which the fakes above deliberately leave
+ * out: a worker told to skip waiting really does activate, take the page over,
+ * and fire `controllerchange`.
+ *
+ * Everything above stops at the message, which is the right place to stop when
+ * what is being tested is what this module sends. It is the wrong place to stop
+ * for the question the 20 Aug session asked — after the tap, is the new worker
+ * the one running this page? — because that is the browser's answer and not
+ * ours, and a fake that never answers it is how a dead Reload button went four
+ * releases without being noticed.
+ */
+function wireHandover(where: FakeContainer, waiting: FakeWorker): void {
+  const record = waiting.postMessage.bind(waiting);
+  waiting.postMessage = (data: unknown) => {
+    record(data);
+    if ((data as { type?: string } | null)?.type !== 'skip-waiting') return;
+    waiting.reach('activated');
+    where.registration.waiting = null;
+    where.controller = waiting;
+    where.handOver();
+  };
+}
 
 describe('spotting a new build', () => {
   it('says nothing on a first visit, when no worker is running yet', async () => {
@@ -215,12 +242,108 @@ describe('letting it in', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing on Reload when no build is waiting', async () => {
+  /**
+   * The two ways this used to do nothing at all, which is what a host reported
+   * after the 20 Aug session: banner tapped, old build still on screen.
+   */
+  describe('when there is nothing in the waiting slot', () => {
+    it('reloads anyway, because the build may already have let itself in', async () => {
+      // iOS discards a backgrounded app's pages when it wants the memory, and
+      // the last page going is what lets a waiting worker activate unasked. It
+      // then claims this page, which carries on running the JavaScript it
+      // already had: an older interface, nothing left in `waiting` to message,
+      // and a banner still up because `ready` never goes back to `none`.
+      container.controller = {};
+      startAppUpdates();
+      await settle();
+
+      applyUpdate();
+
+      // The new worker is already in charge, so the shell this comes back with
+      // is the new one. Returning here is what left the button dead.
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('still does not throw', async () => {
+      startAppUpdates();
+      await settle();
+      expect(() => applyUpdate()).not.toThrow();
+    });
+  });
+
+  it('reloads without the handover if it never comes', async () => {
+    // Nothing measured does this — both engines hand over in single-digit
+    // milliseconds. The point is that an event is no longer the only exit, so a
+    // browser that misbehaves costs a reload rather than a dead button for as
+    // long as the app stays open.
+    const waiting = await withOneWaiting();
+    vi.useFakeTimers();
+
+    applyUpdate();
+    expect(waiting.posted).toEqual([{ type: 'skip-waiting' }]);
+    expect(reload).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(3_000);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reload twice when the handover lands inside the grace period', async () => {
+    await withOneWaiting();
+    vi.useFakeTimers();
+
+    applyUpdate();
+    container.handOver();
+    vi.advanceTimersByTime(10_000);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The whole path, end to end, with the browser's half wired in.
+ *
+ * An old worker running the page, a new one waiting behind it, one tap — and
+ * then the question that matters, which is not "was a message sent" but "is the
+ * new worker the one in charge now".
+ */
+describe('from an old build to a new one', () => {
+  it('leaves the new worker running the page after a single tap of Reload', async () => {
+    const old = new FakeWorker();
+    old.reach('activated');
+    container.controller = old;
+
+    const fresh = new FakeWorker();
+    fresh.reach('installed');
+    container.registration.waiting = fresh;
+    wireHandover(container, fresh);
+
     startAppUpdates();
     await settle();
+    expect(updateStore.get()).toBe('ready');
 
-    expect(() => applyUpdate()).not.toThrow();
-    expect(reload).not.toHaveBeenCalled();
+    applyUpdate();
+
+    expect(container.controller).toBe(fresh);
+    expect(container.controller).not.toBe(old);
+    // One tap. Not two, and no reinstall.
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('has nothing left waiting once it is in', async () => {
+    const fresh = new FakeWorker();
+    fresh.reach('installed');
+    container.controller = {};
+    container.registration.waiting = fresh;
+    wireHandover(container, fresh);
+
+    startAppUpdates();
+    await settle();
+    applyUpdate();
+
+    // A second banner with nothing behind it is the state the dead button was
+    // being read out of.
+    expect(container.registration.waiting).toBeNull();
   });
 });
 

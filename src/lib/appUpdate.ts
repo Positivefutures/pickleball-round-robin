@@ -21,11 +21,17 @@
  * nobody is moved off one without being asked.
  *
  * What survives from those releases is the looking. A waiting worker takes over
- * when every page it would replace has gone away, and a home-screen app never
- * lets one go; the browser's own check for a new worker rides on navigations,
- * and this app can go weeks without one. So coming back to the foreground is
- * when it asks, which is what puts the banner in front of somebody who has just
- * picked the phone up. See `onVisible`.
+ * when every page it would replace has gone away, and a home-screen app hardly
+ * ever lets one go on purpose; the browser's own check for a new worker rides on
+ * navigations, and this app can go weeks without one. So coming back to the
+ * foreground is when it asks, which is what puts the banner in front of somebody
+ * who has just picked the phone up. See `onVisible`.
+ *
+ * "Hardly ever" rather than "never", and the difference is load-bearing. iOS
+ * discards a backgrounded app's pages when it wants the memory back, which lets
+ * the waiting worker in with nobody having tapped anything — so the app can be
+ * found running old code under a new worker, with an empty waiting slot and the
+ * banner still up. See `applyUpdate`, which is where that is answered.
  */
 
 /** `ready` means a new build is downloaded and waiting to be let in. */
@@ -129,34 +135,91 @@ export function startAppUpdates(): void {
 }
 
 /**
- * Lets one build in, then reloads onto it.
+ * How long the handover gets before this reloads anyway.
  *
- * The listener is attached here rather than at startup on purpose. `activate`
- * claims open pages, so a permanently attached `controllerchange` handler would
- * reload the page during the very first install, and then again, and again.
+ * Both engines this app actually meets were measured doing it: Chromium, and
+ * WebKit, which is what an iPhone runs whether the app was opened from Safari
+ * or from a home-screen icon. In both, `controllerchange` follows the
+ * skip-waiting message within a few milliseconds. Three seconds is far past any
+ * plausible slow case and still short enough that a host who has just pressed a
+ * button has not yet decided it is broken.
  */
-function swapTo(worker: ServiceWorker | null): void {
-  if (!worker) return;
+const HANDOVER_GRACE_MS = 3_000;
 
+/** Once, whichever of the three ways into it arrives first. */
+function reloadOnce(): void {
+  if (reloading) return;
+  reloading = true;
+  window.location.reload();
+}
+
+/**
+ * Lets the waiting build in. The Reload button on the update line, and the only
+ * way in there is.
+ *
+ * ## Why this does more than post a message
+ *
+ * It used to be one line: message whatever sits in `registration.waiting`, and
+ * reload when the new worker takes over. That is right in the ordinary case and
+ * it is what still happens. It had two ways of doing nothing at all, and doing
+ * nothing at all is what a host reported after a live session — banner tapped,
+ * old build still on screen.
+ *
+ * The first is an empty waiting slot. A waiting worker activates on its own as
+ * soon as the last page it would replace goes away, and iOS discards a
+ * backgrounded app's pages whenever it feels the memory pressure. The new
+ * worker then claims this page, which goes on running the old JavaScript it
+ * already had in memory: an older interface, missing whatever the new build
+ * added, and no longer anything in `waiting` to message. The store still says
+ * `ready`, because it never goes back to `none`, so the banner is still up and
+ * the tap had nowhere to go. A plain reload is the whole fix here — the new
+ * worker is already in charge, so the shell it serves is the new one.
+ *
+ * The second is a handover that never lands. Nothing measured here does that,
+ * but the old code's only exit was an event, so if that event never came the
+ * button stayed dead for as long as the app was open. Now it reloads regardless
+ * once the grace period is up.
+ *
+ * ## The residual case, stated rather than papered over
+ *
+ * If the message is delivered and the old worker somehow stays in control, the
+ * reload after the grace period is served by that old worker, which answers
+ * `/index.html` from its own cache — so the page comes back on the same build
+ * it was on. What it will not do is come back silently: `startAppUpdates` runs
+ * again on the fresh page, finds the same worker still waiting, and puts the
+ * banner straight back up. So the failure is visible and the next tap tries the
+ * handover again, rather than the app looking like it ignored a button.
+ *
+ * The cure for that would be clearing the shell out of the caches before
+ * reloading, which does force the network. It is deliberately not done: the
+ * caches are shared with the worker that is waiting, and a session played on a
+ * court with no signal is worth more than the last few percent of this.
+ */
+export function applyUpdate(): void {
+  const waiting = registration?.waiting ?? null;
+
+  // Nothing to hand over to. Either it already let itself in, or there was
+  // never anything there — and both are answered by going and getting the page
+  // again rather than by returning.
+  if (!waiting) {
+    reloadOnce();
+    return;
+  }
+
+  // Attached here rather than at startup on purpose. `activate` claims open
+  // pages, so a permanently attached `controllerchange` handler would reload
+  // the page during the very first install, and then again, and again.
+  const grace = window.setTimeout(reloadOnce, HANDOVER_GRACE_MS);
   navigator.serviceWorker.addEventListener(
     'controllerchange',
     () => {
-      if (reloading) return;
-      reloading = true;
-      window.location.reload();
+      window.clearTimeout(grace);
+      reloadOnce();
     },
     { once: true }
   );
 
-  worker.postMessage({ type: 'skip-waiting' });
-}
-
-/**
- * Lets the waiting build in. The Reload button on the update line, and the
- * only way in there is.
- */
-export function applyUpdate(): void {
-  swapTo(registration?.waiting ?? null);
+  waiting.postMessage({ type: 'skip-waiting' });
 }
 
 /** Test seam, matching the one in sync.ts. */

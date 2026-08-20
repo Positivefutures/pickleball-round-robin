@@ -601,6 +601,105 @@ describe('watching a session', () => {
     expect(text()).toContain('Done');
   });
 
+  /**
+   * A finished round reads as finished, and a folded one takes less room.
+   *
+   * Two separate things, deliberately driven by two separate states, which on
+   * this page genuinely come apart: the host's DONE arrives on a poll, and the
+   * arrow belongs to whoever is holding this phone. So the wash follows DONE and
+   * the height follows the arrow, and the tests below are mostly about proving
+   * they are not the same switch wearing two hats.
+   *
+   * Jeff's brief on 2026-08-20: lighter, less colourful, a quarter shorter, with
+   * the live rounds left exactly as they were.
+   */
+  describe('telling a finished round from a live one', () => {
+    /**
+     * How light a card's fill is, summed across the channels.
+     *
+     * happy-dom hands back whatever was written into the inline style rather
+     * than normalising it, and what is written is a hex.
+     */
+    function lightness(el: HTMLElement): number {
+      const hex = el.style.backgroundColor.replace('#', '');
+      return [0, 2, 4].reduce((sum, at) => sum + parseInt(hex.slice(at, at + 2), 16), 0);
+    }
+
+    /** The card each round is drawn on, in playing order. */
+    function cards(): HTMLElement[] {
+      return [...container.querySelectorAll<HTMLElement>('section')].filter((s) =>
+        /^Round \d/.test(s.querySelector('h2')?.textContent ?? '')
+      );
+    }
+
+    it('draws the finished one paler than the live one', async () => {
+      // shared() finishes round 1 and leaves round 2 going.
+      answer = shared();
+      await open();
+      const [finished, live] = cards();
+
+      expect(finished.style.backgroundColor).not.toBe(live.style.backgroundColor);
+      expect(finished.style.borderColor).not.toBe(live.style.borderColor);
+      // Not merely different — lighter. Read off the rendered style rather than
+      // compared to a constant, so this still means something if the two
+      // colours are ever retuned.
+      expect(lightness(finished)).toBeGreaterThan(lightness(live));
+    });
+
+    it('leaves the live round in exactly the colours it had', async () => {
+      answer = shared();
+      await open();
+      const live = cards()[1];
+
+      // The half of the brief that was "no change needed". Written out rather
+      // than imported from roundLook, or it would go on passing through a
+      // change to the very constant it is here to pin.
+      expect(live.style.backgroundColor).toBe('#7CAED0');
+      expect(live.style.borderColor).toBe('#2B76A9');
+    });
+
+    it('takes the height off the folded round, not the finished one', async () => {
+      answer = shared();
+      await open();
+
+      // Round 1 is finished and still open — a visitor was not here for the
+      // folding, so nothing arrives shut. Full height, pale.
+      expect(cards()[0].className).toContain('pt-[0.83rem]');
+
+      const fold = container.querySelector<HTMLButtonElement>('[aria-label="Hide round 1"]');
+      if (!fold) throw new Error('no fold arrow on round 1');
+      await act(async () => fold.click());
+
+      expect(cards()[0].className).toContain('py-1.5');
+      expect(cards()[0].className).not.toContain('pt-[0.83rem]');
+    });
+
+    it('shortens a live round somebody folds, without washing it out', async () => {
+      // The case that proves the two are not one switch. Folding round 2 is
+      // somebody reaching past a round still being played to get at what is
+      // under it; it has not finished and must not look as though it has.
+      answer = shared();
+      await open();
+      const before = cards()[1].style.backgroundColor;
+
+      const fold = container.querySelector<HTMLButtonElement>('[aria-label="Hide round 2"]');
+      if (!fold) throw new Error('no fold arrow on round 2');
+      await act(async () => fold.click());
+
+      expect(cards()[1].className).toContain('py-1.5');
+      expect(cards()[1].style.backgroundColor).toBe(before);
+    });
+
+    it('keeps the clock readable on a finished card', async () => {
+      // The chip is drawn on every round here, unlike the host's page, so it is
+      // the one thing that meets the pale card. White on it would be gone.
+      answer = shared();
+      await open();
+      const chip = cards()[0].querySelector('[aria-label="Round timer"]')!;
+      expect(chip.className).not.toContain('text-white');
+    });
+  });
+
   it('keeps the rounds in playing order rather than lifting the finished ones', async () => {
     // The host's page groups completed rounds at the top. Somebody watching
     // wants to know which court they are on next.

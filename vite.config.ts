@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { defineConfig, transformWithEsbuild, type Plugin } from 'vite'
@@ -52,6 +53,14 @@ function serviceWorker(): Plugin {
         type: 'asset',
         fileName: 'sw.js',
         source:
+          // Nothing reads this one. It is here so the worker's own bytes differ
+          // between deploys, because a byte-identical script is not an update
+          // and the browser will not raise one. The cache name below is a hash
+          // of the file *list*, so a deploy that changed only index.html — a
+          // meta tag, an og: image, the analytics snippet — would otherwise
+          // produce exactly the same worker, no updatefound, no banner, and no
+          // way to reach the change until something moved an asset hash.
+          `globalThis.__BUILD_ID__ = ${JSON.stringify(buildId())};\n` +
           `globalThis.__PRECACHE__ = ${JSON.stringify(precache)};\n` +
           `globalThis.__CACHE_NAME__ = ${JSON.stringify(`pbrr-${hash}`)};\n` +
           code,
@@ -88,6 +97,28 @@ function styleGuideRoute(): Plugin {
   }
 }
 
+/**
+ * Which commit this build came from, for the line in the settings drawer.
+ *
+ * `APP_VERSION` is typed by hand and so can be forgotten, and a deploy that
+ * forgets it leaves two different builds both calling themselves 3.63 — which
+ * is exactly the question "is this phone stale?" needs answered. This one is
+ * derived, so it cannot disagree with the code it was built from.
+ *
+ * Vercel puts the sha in the environment. The local fallback is git itself, and
+ * the last resort is a word rather than a throw: a build is not worth failing
+ * over a missing label.
+ */
+function buildId(): string {
+  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromVercel) return fromVercel.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { encoding: 'utf8' }).trim()
+  } catch {
+    return 'local'
+  }
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker(), styleGuideRoute()],
 
@@ -100,5 +131,8 @@ export default defineConfig({
   define: {
     __SENTRY_DEBUG__: false,
     __SENTRY_TRACING__: false,
+    // Read back in appInfo.ts, which tolerates it being absent so the test
+    // suite — which never runs this config — still imports cleanly.
+    __BUILD_ID__: JSON.stringify(buildId()),
   },
 })

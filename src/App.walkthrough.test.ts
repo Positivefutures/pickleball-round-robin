@@ -5925,6 +5925,79 @@ describe('the way between a round and the standings', () => {
 });
 
 /**
+ * What a finished round looks like on the host's page.
+ *
+ * It used to look like every other round — same blue, same weight — and said it
+ * was finished only by folding shut and by a tick. Stacked at the top of a long
+ * session that meant the round actually being played was found by reading the
+ * numbers rather than by looking at the page. Jeff's brief on 2026-08-20:
+ * lighter, less colourful, a quarter shorter, live rounds untouched.
+ *
+ * The wash follows DONE and the saved height follows being collapsed, which on
+ * this page nearly coincide — a round here collapses if and only if it is
+ * finished — but come apart the moment somebody presses View. That is the case
+ * worth pinning, because it is the one a single flag would get wrong.
+ */
+describe('a finished round on the schedule', () => {
+  /** How light a card's fill is. happy-dom hands back the hex as written. */
+  function lightness(el: HTMLElement): number {
+    const hex = el.style.backgroundColor.replace('#', '');
+    return [0, 2, 4].reduce((sum, at) => sum + parseInt(hex.slice(at, at + 2), 16), 0);
+  }
+
+  it('goes pale, while the round still being played does not', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+
+    expect(lightness(roundCard(1))).toBeGreaterThan(lightness(roundCard(2)));
+    // The half of the brief that was "no change needed". Written out rather
+    // than imported, or it would pass through a change to the constant itself.
+    expect(roundCard(2).style.backgroundColor).toBe('#7CAED0');
+    expect(roundCard(2).style.borderColor).toBe('#2B76A9');
+  });
+
+  it('takes the writing off white when it does', () => {
+    // The reason the card could not go pale before. Everything printed on it
+    // was white, so the answer is to move the ink rather than keep the fill.
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+
+    expect(roundCard(1).querySelector('h3')!.className).not.toContain('text-white');
+    expect(roundCard(2).querySelector('h3')!.className).toContain('text-white');
+  });
+
+  it('gives back a quarter of its height once it is shut', () => {
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+
+    // 13.28 top and 19.2 bottom against 10 and 10, with the line box tightened
+    // to match: 68.8px measured down to 51 on a 390px screen.
+    expect(roundCard(1).className).toContain('py-2.5');
+    expect(roundCard(1).className).not.toContain('pt-[0.83rem]');
+    expect(roundCard(2).className).toContain('pt-[0.83rem]');
+  });
+
+  it('stays pale when it is opened again, and gets its height back', () => {
+    // The two states pulling apart. View is somebody reading a round that is
+    // still finished, so the wash stays and the padding returns.
+    seed(9, 9, 2, true);
+    mount();
+    generate();
+    markComplete(1);
+    clickButton(/^View$/, roundCard(1));
+
+    expect(roundCard(1).className).toContain('pt-[0.83rem]');
+    expect(lightness(roundCard(1))).toBeGreaterThan(lightness(roundCard(2)));
+  });
+});
+
+/**
  * The notice that says tonight is partner play.
  *
  * It used to live inside the pairing list, which meant Done Pairing — the one

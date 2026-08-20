@@ -10,8 +10,12 @@ import { ScoreDialog } from '../schedule/ScoreDialog';
 import {
   PLAYER_NAME_TEXT,
   ROUND_EDGE,
+  ROUND_EDGE_DONE,
   ROUND_FILL,
+  ROUND_FILL_DONE,
   ROUND_HEADING_TEXT,
+  ROUND_PILL_DONE,
+  ROUND_TEXT_DONE,
 } from '../schedule/roundLook';
 import { RoundTypeBadge } from '../schedule/RoundTypeBadge';
 import { roundTypeOf } from '../../lib/roundTypes';
@@ -594,22 +598,54 @@ function Session({
       {snapshot.schedule.rounds.map((round, roundIndex) => {
         const expanded = !folded.has(round.roundNumber);
         const roundType = roundTypeOf(round);
+        const finished = done.has(round.roundNumber);
+
+        /**
+         * The same two states the host's card separates, and separated here for
+         * the same reason — except that on this page they genuinely come apart.
+         *
+         * The wash follows **finished**, which is the host's DONE arriving on a
+         * poll. The saved height follows **folded**, which is whoever is holding
+         * this phone tapping the arrow, and they may well fold a round that is
+         * still being played to get at the next one. So a folded live round is
+         * short and still rich, and a finished round somebody has opened to
+         * check a score is pale and full height. Each says the thing it means.
+         */
+        const look = finished
+          ? { fill: ROUND_FILL_DONE, edge: ROUND_EDGE_DONE, text: ROUND_TEXT_DONE }
+          : { fill: ROUND_FILL, edge: ROUND_EDGE, text: 'text-white' };
         return (
           // Wrapped so the gap the page puts between rounds falls above the
           // tab, not between the tab and the card it belongs to.
           <div key={round.roundNumber}>
             {roundType && <RoundTypeBadge type={roundType} />}
             <section
-              className="rounded-lg border-2 px-1.5 pt-[0.83rem] pb-[1.2rem] shadow"
-              style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+              // Folded, the padding comes in to six pixels a side. It buys less
+              // here than on the host's card because the 42px arrow sets the
+              // floor and the text is nowhere near it: 4px of border plus 42
+              // plus 12 is 58, against 78.5 open, which is the quarter Jeff
+              // asked for. The arrow keeps its size — on this page it is the
+              // only thing there is to press.
+              className={`rounded-lg border-2 px-1.5 shadow ${
+                expanded ? 'pt-[0.83rem] pb-[1.2rem]' : 'py-1.5'
+              }`}
+              style={{ backgroundColor: look.fill, borderColor: look.edge }}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <h2 className={`${ROUND_HEADING_TEXT} font-extrabold uppercase text-white`}>
+                  <h2
+                    className={`${ROUND_HEADING_TEXT} ${
+                      finished ? 'font-bold' : 'font-extrabold'
+                    } uppercase ${look.text}`}
+                  >
                     Round {round.roundNumber}
                   </h2>
-                  {done.has(round.roundNumber) && (
-                    <span className="rounded bg-white/25 px-2 py-0.5 text-xs font-medium text-white">
+                  {finished && (
+                    // A tint of the ink rather than of white: white at a quarter
+                    // over a pale card is very nearly the card.
+                    <span
+                      className={`rounded ${ROUND_PILL_DONE} px-2 py-0.5 text-xs font-medium ${look.text}`}
+                    >
                       Done
                     </span>
                   )}
@@ -624,6 +660,7 @@ function Session({
                     timer={timer}
                     roundNumber={round.roundNumber}
                     onOpen={() => setTimerOpen(true)}
+                    ink={look.text}
                   />
                   {/* Down while the round is open, sideways once it is folded:
                       the arrow points at where the courts are. */}
@@ -636,7 +673,7 @@ function Session({
                         ? `Hide round ${round.roundNumber}`
                         : `Show round ${round.roundNumber}`
                     }
-                    className="text-white transition-colors hover:text-white/75"
+                    className={`${look.text} transition-opacity hover:opacity-75`}
                   >
                     {/* Twice the size it opened at. The glyph is solid rather
                         than drawn in a stroke, so scaling it is what makes it

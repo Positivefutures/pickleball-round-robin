@@ -290,14 +290,60 @@ describe('Round Timer', () => {
     expect(timerPanel()!.querySelector('[aria-label="Close Round Timer"]')).toBeNull();
   });
 
-  it('hides the minutes stepper and the alerts once it is counting', () => {
+  it('hides the minutes stepper once it is counting', () => {
     openTimer(1);
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).not.toBeNull();
 
     clickButton(/^Start Timer$/, timerPanel()!);
 
+    // The length a round was started at is not a thing that can be changed
+    // halfway through it, so the stepper has nothing left to offer.
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).toBeNull();
-    expect(text(timerPanel()!)).not.toContain('When time is up');
+  });
+
+  /**
+   * Reported off a live court on 2026-08-20: the round was started, the sound
+   * turned out to be off, and there was no way back to the switch short of
+   * resetting the timer that had just been started.
+   *
+   * The switches used to go with the stepper on the reasoning that nothing on
+   * the panel means anything mid-round. That is true of the stepper and false
+   * of these.
+   */
+  it('keeps Play Sound and Flash Screen reachable while it counts down', () => {
+    openTimer(1);
+    clickButton(/^Start Timer$/, timerPanel()!);
+
+    const panel = timerPanel()!;
+    expect(text(panel)).toContain('When time is up');
+    expect(panel.querySelector('[aria-label="Play Sound"]')).not.toBeNull();
+    expect(panel.querySelector('[aria-label="Flash Screen"]')).not.toBeNull();
+  });
+
+  it('really changes the setting when one is tapped mid-round', () => {
+    // Reachable is only half of it. The switch has to write, or it is a picture
+    // of a switch on a screen somebody is relying on.
+    openTimer(1);
+    clickLabel('Play Sound', timerPanel()!); // on -> off, before starting
+    clickButton(/^Start Timer$/, timerPanel()!);
+    expect(storedTimer().soundOn).toBe(false);
+
+    clickLabel('Play Sound', timerPanel()!);
+
+    expect(storedTimer().soundOn).toBe(true);
+    expect(storedTimer().phase).toBe('running');
+  });
+
+  it('leaves the tone picker behind when it starts', () => {
+    // Choosing a tone plays it, which mid-round is a false alarm on a court.
+    // Found by its disclosure button rather than by its words: what it says is
+    // the name of whichever tone is currently chosen.
+    openTimer(1);
+    expect(timerPanel()!.querySelector('button[aria-expanded]')).not.toBeNull();
+
+    clickButton(/^Start Timer$/, timerPanel()!);
+
+    expect(timerPanel()!.querySelector('button[aria-expanded]')).toBeNull();
   });
 
   it('closing the panel leaves the countdown running in the background', () => {
@@ -411,8 +457,67 @@ describe('Round Timer', () => {
     expect(alarmed).not.toBeNull();
     expect(text(alarmed!)).toContain('TIME’S UP');
 
-    clickButton(/^Pause$/, alarmed!);
-    expect(storedTimer().phase).toBe('paused');
+    // Reset rather than Pause. There is no Pause on a clock with nothing left
+    // to pause — see the test below — and Reset is what ends the alarm.
+    clickButton(/^Reset$/, alarmed!);
+    expect(storedTimer().phase).toBe('idle');
+  });
+
+  /**
+   * Jeff's second report of 2026-08-20: a Pause button on a clock reading 0:00,
+   * which when pressed produced a Start Timer button on a clock reading 0:00.
+   * Neither does anything worth doing, and Start Timer there would begin a
+   * countdown of no length and ring straight back.
+   */
+  it('offers only Close and Reset once the clock has run out', () => {
+    openTimer(1);
+    const panel = timerPanel()!;
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
+    clickLabel('Play Sound', panel);
+    clickButton(/^Start Timer$/, panel);
+
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+
+    const alarmed = timerPanel()!;
+    const tiles = [...alarmed.querySelectorAll('button')]
+      .map((b) => text(b))
+      .filter((t) => ['Close', 'Pause', 'Start Timer', 'Reset'].includes(t));
+
+    expect(tiles).toEqual(['Close', 'Reset']);
+  });
+
+  it('drops the switches for the alarm as well', () => {
+    // `setSoundOn` writes a preference the watchdog reads on the way to zero.
+    // It does not reach into a loop already playing, so a switch offered here
+    // would look like a way to silence the ringing and not be one.
+    openTimer(1);
+    const panel = timerPanel()!;
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
+    clickLabel('Play Sound', panel);
+    clickButton(/^Start Timer$/, panel);
+
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+
+    expect(text(timerPanel()!)).not.toContain('When time is up');
+  });
+
+  it('stops promising that a finished timer is still running', () => {
+    openTimer(1);
+    const panel = timerPanel()!;
+    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
+    clickLabel('Play Sound', panel);
+    clickButton(/^Start Timer$/, panel);
+    expect(text(timerPanel()!)).toContain('The timer keeps running');
+
+    act(() => {
+      vi.advanceTimersByTime(61_000);
+    });
+
+    expect(text(timerPanel()!)).not.toContain('The timer keeps running');
   });
 
   /**

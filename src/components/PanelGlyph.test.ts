@@ -17,6 +17,7 @@ import { createElement, act, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { APP_VERSION, BUILD_ID } from '../lib/appInfo';
 import { DefaultRatingPanel } from './layout/DefaultRatingPanel';
 import { ImportExportPanel } from './layout/ImportExportPanel';
 import { InstallPanel } from './layout/InstallPanel';
@@ -431,9 +432,31 @@ describe('the foot of the settings drawer', () => {
     // The last thing in the drawer, or there is something below it to push
     // down and the auto margin is measuring the wrong gap.
     expect(drawer.lastElementChild).toBe(footer);
-    // All three pieces of small print moved together, rather than the
+    // All four pieces of small print moved together, rather than the
     // copyright being pushed down on its own away from the links above it.
-    expect(footer.querySelectorAll('p')).toHaveLength(3);
+    expect(footer.querySelectorAll('p')).toHaveLength(4);
+  });
+
+  /**
+   * Which build this phone is running, where somebody can read it.
+   *
+   * After the 20 Aug session two installed copies were reported as looking
+   * different from each other, and there was no way to check: the version was
+   * in the page footer, in grey, below however many rounds the session had.
+   * Nothing about that question can be answered without this line, so it is
+   * worth a test of its own rather than riding on the count above.
+   */
+  it('says which version and which build, in the drawer', () => {
+    const drawer = openDrawer().querySelector('[aria-label="Settings"]')!;
+    const said = drawer.textContent ?? '';
+
+    expect(said).toContain(`Version ${APP_VERSION}`);
+    // The derived half. It is what separates two phones that both say 3.64
+    // because a deploy forgot to bump, from two that genuinely agree.
+    expect(said).toContain(`build ${BUILD_ID}`);
+    // Absent the build step there is nothing to inject, and a blank where the
+    // answer goes would be worse than useless.
+    expect(BUILD_ID).not.toBe('');
   });
 
   it('leaves a gap above the small print that a full menu cannot eat', () => {

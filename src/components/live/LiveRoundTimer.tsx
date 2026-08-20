@@ -92,11 +92,17 @@ export function LiveTimerChip({
   timer,
   roundNumber,
   onOpen,
+  ink,
 }: {
   timer: SharedRoundTimer | null;
   /** Which round this chip sits on. */
   roundNumber: number;
   onOpen: () => void;
+  /**
+   * What colour to draw in, since this page puts a clock on finished rounds as
+   * well as live ones and those two cards are no longer the same colour.
+   */
+  ink: string;
 }) {
   // Truthiness, not `!== null`: a document published before the timer field
   // existed has no key at all, and `undefined !== null` is true.
@@ -104,7 +110,12 @@ export function LiveTimerChip({
   useCountdownTick(mine && timer.phase === 'running');
 
   return (
-    <button type="button" onClick={onOpen} aria-label="Round timer" className={ROUND_TIMER_CHIP}>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Round timer"
+      className={`${ROUND_TIMER_CHIP} ${ink}`}
+    >
       <TimerIcon className="h-6 w-6" />
       {mine && (
         <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>

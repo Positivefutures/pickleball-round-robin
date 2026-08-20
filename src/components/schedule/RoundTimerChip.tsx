@@ -37,7 +37,14 @@ export function RoundTimerChip({
   useCountdownTick(mine && state.phase === 'running');
 
   return (
-    <button type="button" onClick={onOpen} aria-label="Round timer" className={ROUND_TIMER_CHIP}>
+    // Always white: the host's chip is gone by the time a round is finished, so
+    // this one never meets the pale card. See RoundCard.
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Round timer"
+      className={`${ROUND_TIMER_CHIP} text-white`}
+    >
       <TimerIcon className="h-6 w-6" />
       {mine && (
         <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>

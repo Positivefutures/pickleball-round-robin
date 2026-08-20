@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL } from '../../lib/appInfo';
+import {
+  APP_VERSION, BUILD_ID, COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL,
+} from '../../lib/appInfo';
 import { PersonIcon, ShareIcon } from '../icons';
 
 interface Props {
@@ -303,6 +305,32 @@ export function SettingsPanel({
           >
             Terms of Service
           </a>
+        </p>
+
+        {/* Which build this phone is actually running.
+ 
+            It is in the page footer too, in grey, at the bottom of however many
+            rounds a session has. That is not a place two phones can be held up
+            side by side, which is the one thing this line has to be good for:
+            the report that sent it here was "one of them looks older than the
+            other" and nobody could say whether that was true. The drawer opens
+            from any tab, in one tap, at any scroll position.
+
+            Both halves are here because they answer different questions.
+            APP_VERSION is the number Jeff bumps and quotes; BUILD_ID is derived
+            from the commit, so it stays right even on a deploy that forgot to
+            bump. Two phones agreeing on the version but not the build is a
+            forgotten bump; disagreeing on both is a genuinely stale phone.
+
+            `select-all` so a long press lifts the whole id rather than half of
+            it, and tabular-nums so the versions line up when they are read off
+            two screens at once. */}
+        <p className="mt-3 text-sm text-white/70">
+          Version{' '}
+          <span className="font-bold tabular-nums text-white">{APP_VERSION}</span>
+          <span className="mx-2">&middot;</span>
+          build{' '}
+          <span className="select-all font-mono text-white">{BUILD_ID}</span>
         </p>
 
         {/* Under the links, as it is at the foot of the app. Dimmer than either:

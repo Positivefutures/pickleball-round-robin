@@ -10,7 +10,23 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.63';
+export const APP_VERSION = '3.64';
+
+/**
+ * The commit this build was made from, written in by vite.config.ts.
+ *
+ * It sits beside `APP_VERSION` in the settings drawer and answers the question
+ * that one cannot: two phones both saying 3.63 are either the same build or a
+ * deploy that forgot to bump, and there is no way to tell them apart. This is
+ * derived from the build rather than typed, so it is always the truth.
+ *
+ * Undeclared rather than imported, and read through `typeof`, so that a test
+ * importing this file — where the build never ran and nothing was replaced —
+ * gets the fallback instead of a ReferenceError. Same bargain sw.ts strikes
+ * with its injected precache list.
+ */
+declare const __BUILD_ID__: string | undefined;
+export const BUILD_ID: string = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev';
 
 /**
  * The copyright line, at the foot of the app and of the settings drawer.
