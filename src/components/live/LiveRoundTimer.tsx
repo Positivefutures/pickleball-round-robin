@@ -1,4 +1,4 @@
-import { sharedAlarming, sharedRemainingMs, type SharedRoundTimer } from '../../lib/sessionSnapshot';
+import { sharedRemainingMs, type SharedRoundTimer } from '../../lib/sessionSnapshot';
 import { formatMMSS } from '../../lib/roundTimer';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { ROUND_HEADING_TEXT, ROUND_TIMER_CHIP } from '../schedule/roundLook';
@@ -7,7 +7,8 @@ import { TimerSheet } from '../schedule/TimerSheet';
 import { LiveAlertControls } from './LiveAlertControls';
 import type { Alerts } from '../../lib/watchAlerts';
 import { CloseIcon } from '../icons';
-import { TileButton, TILE_ALONE } from '../TileButton';
+import { StopSquareIcon } from '../schedule/timerIcons';
+import { TileButton, TILE_ALONE, TILE_ROW } from '../TileButton';
 
 /**
  * The host's round timer on somebody else's phone.
@@ -31,41 +32,56 @@ import { TileButton, TILE_ALONE } from '../TileButton';
  * does start, the field arrives on the next poll and the screen becomes a
  * countdown where it stands. Nobody has to close it and open it again.
  *
- * `heldAlarm` is the one thing on this screen the host cannot reach. Once this
- * phone's own clock has run a round out, TIME'S UP stands here until the person
- * holding it presses Close — the host putting their timer away does not take it
- * down. See the latch in LiveSessionPage for why.
+ * `alarm` is the one thing on this screen the host cannot reach, in either
+ * direction: their putting a timer away does not take TIME'S UP down here, and
+ * their own still ringing does not overrule somebody here who has answered it.
+ * See the latch in LiveSessionPage for why.
  */
+
+/**
+ * An alarm standing on this phone: which round ran out, and whether whoever is
+ * holding it has said they have heard it.
+ *
+ * Answered is not the same as gone. The round is still over, so the screen
+ * still says 0:00 and so does the chip on the round; what stops is the noise
+ * and the strobe.
+ */
+export interface WatchAlarm {
+  round: number;
+  answered: boolean;
+}
 export function LiveRoundTimer({
   timer,
-  heldAlarm,
+  alarm,
   alerts,
   onChangeAlerts,
-  onClose
+  onClose,
+  onStop
 }: {
   timer: SharedRoundTimer | null;
-  /**
-   * The round this phone has run out and not yet been told about, or null.
-   * Outlives the host's own timer on purpose.
-   */
-  heldAlarm: number | null;
+  /** The round this phone has run out, or null. Outlives the host's own timer. */
+  alarm: WatchAlarm | null;
   /** The host's choices, with this watcher's own over the top. */
   alerts: Alerts;
   onChangeAlerts: (patch: Partial<Alerts>) => void;
   onClose: () => void;
+  /** Answers the alarm and leaves the screen up. Only offered while it sounds. */
+  onStop: () => void;
 }) {
   useCountdownTick(timer?.phase === 'running');
 
   const remaining = timer ? sharedRemainingMs(timer) : 0;
-  const alarming = heldAlarm !== null || (!!timer && sharedAlarming(timer, remaining));
+  // Only an unanswered one draws TIME'S UP and strobes. An answered alarm is a
+  // round that is over, which the clock says by reading 0:00.
+  const sounding = alarm !== null && !alarm.answered;
 
   return (
     <TimerSheet
       // The held round when the host's timer has gone out from under it, so a
       // screen still saying TIME'S UP still says which round's.
-      roundNumber={timer?.roundNumber ?? heldAlarm}
-      alarming={alarming}
-      remainingMs={alarming ? 0 : remaining}
+      roundNumber={timer?.roundNumber ?? alarm?.round ?? null}
+      alarming={sounding}
+      remainingMs={alarm ? 0 : remaining}
       // Never the white sheet. On the host's panel that is the phase with the
       // minutes still to set, and a watcher's timer is always counting.
       light={false}
@@ -75,7 +91,7 @@ export function LiveRoundTimer({
       // corner as well would be two ways out of one sheet to read past.
       closeKey={false}
       waiting={
-        timer || alarming
+        timer || alarm
           ? undefined
           : 'The host hasn’t started the timer yet. The time will appear here when they do.'
       }
@@ -86,13 +102,25 @@ export function LiveRoundTimer({
       // Offered while waiting too, so the answer can be given before the alarm
       // rather than after it.
       config={<LiveAlertControls alerts={alerts} onChange={onChangeAlerts} />}
-      // One tile, in the shape the host's row of them already has. It is the
-      // only thing on this screen there has ever been to press, and on a
-      // ringing timer it is also the thing that stops the noise — which is
-      // exactly why it had to stop being an eight-pixel key in the corner.
+      // One tile most of the time, two while the alarm sounds, in the shape
+      // the host's row of them already has.
+      //
+      // Both of the two stop the noise, so a thumb startled by an alarm cannot
+      // press the wrong one. What they differ on is the screen: Close puts it
+      // away, and Stop leaves it standing, which is for somebody who wants the
+      // next round's countdown to appear where they are already looking. It
+      // will: this sheet is held open across a timer arriving and a timer
+      // going.
+      //
+      // Stop is only ever drawn on a sounding alarm. On a running countdown it
+      // would read as a way to stop the host's timer, which is the one thing
+      // this page must never look like.
       actions={
-        <div className={TILE_ALONE}>
+        <div className={sounding ? TILE_ROW : TILE_ALONE}>
           <TileButton tone="quiet" Icon={CloseIcon} label="Close" onClick={onClose} />
+          {sounding && (
+            <TileButton tone="quiet" Icon={StopSquareIcon} label="Stop" onClick={onStop} />
+          )}
         </div>
       }
     />

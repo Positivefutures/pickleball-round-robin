@@ -22,7 +22,7 @@ import { roundTypeOf } from '../../lib/roundTypes';
 import { ChevronDownIcon } from '../icons';
 import { CodePrompt } from './CodePrompt';
 import { LiveCourt } from './LiveCourt';
-import { LiveRoundTimer, LiveTimerChip } from './LiveRoundTimer';
+import { LiveRoundTimer, LiveTimerChip, type WatchAlarm } from './LiveRoundTimer';
 import * as stores from '../../lib/stores';
 import { alertsFor, seedOwnAlerts, setOwnAlert } from '../../lib/watchAlerts';
 import { sharedAlarming, sharedRemainingMs } from '../../lib/sessionSnapshot';
@@ -571,9 +571,20 @@ function Session({
    * because the host has seen it means the one person who most needed telling
    * is the one who never finds out. Jeff's report on 2026-08-20.
    *
-   * So it latches, and only two things let it go: the person holding this
-   * phone pressing Close, and the host starting the next countdown, which
-   * answers the question the alarm was asking anyway.
+   * So it latches, and this phone answers it. `answered` is that answer, and
+   * it is deliberately not the same as the latch going away: the round is
+   * still over once the noise has stopped, so the screen still says so at
+   * 0:00 and the chip on the round still reads 0:00. Only the host starting
+   * the next countdown clears the thing entirely, which answers the question
+   * the alarm was asking anyway.
+   *
+   * Answering has to be its own state rather than dropping the latch, because
+   * the host's document may still say `alarming` for minutes afterwards. The
+   * first version of this read the document as well as the latch, so pressing
+   * Close while the host's own timer was still ringing silenced nothing at
+   * all: the document put it straight back. Jeff's report on 2026-08-20, and
+   * it is the case that happens every time — a host answers their own alarm
+   * after the players, not before.
    *
    * State, set from an effect, which the react-hooks rule below objects to on
    * the grounds that an effect should synchronise with an external system
@@ -585,16 +596,15 @@ function Session({
    * into the poll callback would miss the alarm this phone reaches on its own
    * clock before the host's next document says anything.
    */
-  const [heldAlarm, setHeldAlarm] = useState<number | null>(null);
-  // This phone's own clock, not the host's phase: the tick below re-renders on
-  // the second the deadline passes, so zero here is zero here.
-  const liveAlarm = !!timer && sharedAlarming(timer);
+  const [alarm, setAlarm] = useState<WatchAlarm | null>(null);
   /**
    * What the arriving document has to say about the latch, or nothing at all.
    *
    * Most polls say nothing — a paused clock, a reset, the host going quiet —
    * and none of those is an answer to an alarm that has already sounded here.
    */
+  // This phone's own clock, not the host's phase: the tick re-renders on the
+  // second the deadline passes, so zero here is zero here.
   const latch = !timer
     ? undefined
     : sharedAlarming(timer)
@@ -605,9 +615,26 @@ function Session({
         ? null
         : undefined;
   useEffect(() => {
+    if (latch === undefined) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
-    if (latch !== undefined) setHeldAlarm(latch);
+    setAlarm((cur) => {
+      if (latch === null) return null;
+      // The same round still ringing on the host's phone. Whatever this one
+      // has already said about it stands.
+      return cur && cur.round === latch ? cur : { round: latch, answered: false };
+    });
   }, [latch]);
+
+  /** Ringing, flashing, and not yet answered on this phone. */
+  const sounding = alarm !== null && !alarm.answered;
+
+  /**
+   * This phone saying it has heard the alarm. Both tiles on the sheet do it,
+   * so whichever one a startled thumb lands on stops the noise.
+   */
+  const answerAlarm = useCallback(() => {
+    setAlarm((cur) => (cur && !cur.answered ? { ...cur, answered: true } : cur));
+  }, []);
 
   /**
    * Unlocks the audio on the first touch anywhere on this page.
@@ -643,17 +670,17 @@ function Session({
   // screen. So it is held while the timer screen is open and there is something
   // on it to count, and dropped the moment either stops being true.
   useWakeLock(
-    timerOpen &&
-      (heldAlarm !== null || (!!timer && (timer.phase === 'running' || sharedAlarming(timer))))
+    timerOpen && (sounding || (!!timer && (timer.phase === 'running' || sharedAlarming(timer))))
   );
 
   // Counted here rather than in the sheet, because the sheet is only mounted
   // when somebody has opened it and the alarm is most for the phone that has
   // been put down. The tick is what makes zero arrive at zero.
   useCountdownTick(timer?.phase === 'running');
-  // The latch rather than the document, so the host putting their timer away
-  // does not reach into somebody else's pocket and silence it.
-  useSharedAlarm(liveAlarm || heldAlarm !== null, alerts.soundOn, alerts.alarmTone);
+  // The latch rather than the document, in both directions: the host putting
+  // their timer away does not reach into somebody else's pocket and silence
+  // it, and the host's still ringing does not overrule somebody who has.
+  useSharedAlarm(sounding, alerts.soundOn, alerts.alarmTone);
 
   // Where View Standings on every round goes.
   const standingsRef = useRef<HTMLDivElement>(null);
@@ -754,7 +781,9 @@ function Session({
                       finds out whether the host has started one. */}
                   <LiveTimerChip
                     timer={timer}
-                    heldAlarm={heldAlarm}
+                    // Answered or not: the round is over either way, and that
+                    // is what a clock reading 0:00 says.
+                    heldAlarm={alarm?.round ?? null}
                     roundNumber={round.roundNumber}
                     // A tap, and the only one on this page that is certainly
                     // about the alarm. Spent on the audio as well as on the
@@ -891,15 +920,18 @@ function Session({
       {timerOpen && (
         <LiveRoundTimer
           timer={timer}
-          heldAlarm={heldAlarm}
+          alarm={alarm}
           alerts={alerts}
           onChangeAlerts={(patch) => setOwnAlert(session, patch)}
-          // Closing is this phone answering its own alarm. It is the only thing
-          // that does, which is what makes it worth a tile rather than a key.
+          // Both answer the alarm. Close puts the screen away with it; Stop
+          // leaves it standing, which is for somebody who wants the noise to
+          // end and the next round's countdown to appear where they are
+          // already looking.
           onClose={() => {
-            setHeldAlarm(null);
+            answerAlarm();
             setTimerOpen(false);
           }}
+          onStop={answerAlarm}
         />
       )}
     </>

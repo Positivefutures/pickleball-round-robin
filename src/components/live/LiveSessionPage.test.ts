@@ -1050,6 +1050,10 @@ describe('the round timer', () => {
     return found;
   }
 
+  /** The tile that answers the alarm and leaves the screen up, if it is drawn. */
+  const stopTile = () =>
+    [...sheet()!.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Stop');
+
   function timing(roundNumber: number, msLeft: number): SharedRoundTimer {
     return {
       roundNumber,
@@ -1466,6 +1470,15 @@ describe('the round timer', () => {
       await open();
     }
 
+    /** Another poll with the host's own alarm still going. */
+    async function hostStillRinging(atMs: number) {
+      const same = shared(undefined, false, { ...timing(1, -1000), soundOn: true });
+      if (same.state !== 'ok') throw new Error('not ok');
+      same.snapshot.at = new Date(Date.parse(same.snapshot.at) + atMs).toISOString();
+      answer = same;
+      await poll();
+    }
+
     /** The host presses Close: the published timer goes away entirely. */
     async function hostCloses() {
       const gone = shared();
@@ -1531,6 +1544,101 @@ describe('the round timer', () => {
       expect(sheet()!.textContent).not.toContain('TIME');
       expect(sheet()!.textContent).toContain('Round 2 Timer');
       expect(alarms).toContain('stop');
+    });
+
+    it('is silenced by Close while the host’s own alarm is still going', async () => {
+      // The case that happens every time, and the one the first version of
+      // this got wrong: a host answers their alarm after the players, not
+      // before, so the document still says `alarming` when a player presses
+      // Close. Reading the document as well as the latch meant the poll put
+      // the noise straight back. Jeff's report on 2026-08-20.
+      await ringing();
+      await act(async () => clocks()[0].click());
+      alarms = [];
+
+      await act(async () => closeTile().click());
+      expect(alarms).toContain('stop');
+      expect(sheet()).toBeNull();
+
+      // And it stays silenced through every poll that still says alarming.
+      alarms = [];
+      await hostStillRinging(2000);
+      await hostStillRinging(4000);
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
+
+    it('offers Stop only while the alarm is actually sounding', async () => {
+      // On a running countdown a Stop button would read as a way to stop the
+      // host's timer, which is the one thing this page must never look like.
+      answer = shared(undefined, false, timing(1, 60_000));
+      await open();
+      await act(async () => clocks()[0].click());
+      expect(stopTile()).toBeUndefined();
+
+      const rang = shared(undefined, false, { ...timing(1, -1000), soundOn: true });
+      if (rang.state !== 'ok') throw new Error('not ok');
+      rang.snapshot.at = new Date(Date.parse(rang.snapshot.at) + 1000).toISOString();
+      answer = rang;
+      await poll();
+      expect(stopTile()).toBeTruthy();
+
+      // And goes again once it has been answered.
+      await act(async () => stopTile()!.click());
+      expect(stopTile()).toBeUndefined();
+    });
+
+    it('lets Stop silence it without putting the screen away', async () => {
+      await ringing();
+      await act(async () => clocks()[0].click());
+      alarms = [];
+
+      await act(async () => stopTile()!.click());
+
+      expect(alarms).toContain('stop');
+      // Still up, still naming the round, and now reading zero rather than
+      // shouting. The round is over either way; what stopped is the noise.
+      expect(sheet()).not.toBeNull();
+      expect(sheet()!.textContent).toContain('Round 1 Timer');
+      expect(sheet()!.textContent).toContain('0:00');
+      expect(sheet()!.textContent).not.toContain('TIME');
+
+      // Nor does the host's alarm going on and on start it again.
+      alarms = [];
+      await hostStillRinging(3000);
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
+
+    it('turns into the next round’s countdown on the screen left standing', async () => {
+      // The whole point of Stop having been a separate button from Close.
+      await ringing();
+      await act(async () => clocks()[0].click());
+      await act(async () => stopTile()!.click());
+
+      const next = shared(undefined, false, timing(2, 300_000));
+      if (next.state !== 'ok') throw new Error('not ok');
+      next.snapshot.at = new Date(Date.parse(next.snapshot.at) + 6000).toISOString();
+      answer = next;
+      await poll();
+
+      expect(sheet()!.textContent).toContain('Round 2 Timer');
+      expect(sheet()!.textContent).toContain('5:00');
+    });
+
+    it('remembers the round rang after both the host and this phone let go', async () => {
+      // Answered is not the same as gone. The host has taken their timer away
+      // and this phone has said it heard the alarm, and round 1 is still a
+      // round that finished — so the screen reads 0:00 rather than falling
+      // back to the line about the host not having started anything.
+      await ringing();
+      await act(async () => clocks()[0].click());
+      await hostCloses();
+      await act(async () => stopTile()!.click());
+
+      expect(sheet()!.textContent).toContain('Round 1 Timer');
+      expect(sheet()!.textContent).toContain('0:00');
+      expect(sheet()!.textContent).not.toContain('hasn’t started the timer yet');
+      // And the schedule behind it still says which round it was.
+      expect(clocks()[0].textContent).toContain('0:00');
     });
 
     it('says 0:00 on the round that rang, once the host’s timer has gone', async () => {
