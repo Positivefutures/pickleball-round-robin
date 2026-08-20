@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Keeps /style-guide up on the network, so another machine can bookmark it.
+
+  Install:
+    cp scripts/com.jeffbaker.pbrr-style-guide.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jeffbaker.pbrr-style-guide.plist
+
+  Remove:
+    launchctl bootout gui/$(id -u)/com.jeffbaker.pbrr-style-guide
+    rm ~/Library/LaunchAgents/com.jeffbaker.pbrr-style-guide.plist
+
+  Restart it after changing this file, or the script it runs:
+    launchctl kickstart -k gui/$(id -u)/com.jeffbaker.pbrr-style-guide
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jeffbaker.pbrr-style-guide</string>
+
+  <!-- npm rather than the vite binary, so the `style-guide` script in
+       package.json stays the single place the port and the flags are written. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/npm</string>
+    <string>run</string>
+    <string>style-guide</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-round-robin</string>
+
+  <!-- launchd hands a job a bare PATH, and npm has to find node next door. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <!-- Back up after a crash, and after a restart. Ten seconds between attempts,
+       so a server that cannot bind its port does not spin. -->
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jeffbaker/Library/Logs/pbrr-style-guide.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/jeffbaker/Library/Logs/pbrr-style-guide.log</string>
+</dict>
+</plist>

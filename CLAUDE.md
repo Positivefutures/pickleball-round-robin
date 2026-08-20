@@ -6,8 +6,16 @@ Two files are the source of truth for what the app's UI is called:
 
 - **`/style-guide`** — a living page showing every component, variant and token.
   Dev only: `npm run dev`, then open `/style-guide`. It **imports the real
-  components**, so it is never out of date. Add `--host` to reach it from a
-  phone on the same network.
+  components**, so it is never out of date.
+
+  It is also kept up permanently on the network at
+  **http://mac-mini-2.local:5180/style-guide**, by a launch agent that runs
+  `npm run style-guide` and is checked in at
+  [scripts/com.jeffbaker.pbrr-style-guide.plist](scripts/com.jeffbaker.pbrr-style-guide.plist)
+  — install, removal and restart commands are in the comment at the top of it.
+  Because it is the dev server rather than a build, that address is current the
+  moment a component changes. `10.0.0.230` is the same thing without Bonjour, for
+  a client whose resolver will not do `.local`.
 - **`docs/ui-audit.md`** — the written inventory: usage counts, file paths, the
   full palette and type scale, and 13 numbered findings (F1–F13).
 
@@ -29,7 +37,10 @@ one shared button component, and it is not the ordinary button.
 | a **row** | `account.row` + `rowTitle` / `rowNote` / `rowIcon` | `layout/accountStyles.ts` |
 | the **panel edge** | `panelCard` — every dialog's chrome | `components/panelStyles.ts` |
 | a **panel heading** | `<PanelHeading icon title />` | `components/PanelGlyph.tsx` |
-| the **page card** | `bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6` | 9 sites, **not extracted** |
+| a **badge** | `<PanelBadge icon />` — the ring astride a page card’s top-left corner | `components/PanelGlyph.tsx`, on Players ×4 and Setup ×1 |
+| a **name plate** | the bordered box astride the players list's top edge | `roster/RosterPage.tsx`, one site |
+| the **corner dots** | `<CornerDots />`, `<CornerDots smaller />` | `components/CornerDots.tsx` |
+| the **page card** | `bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6` | 9 sites, **not extracted**. A badged card is the same shape at `pt-7` — `badgedCard` in `roster/RosterPage.tsx` |
 | a **banner** | `InstallBanner` / `SignInBanner` / `UpdateBanner` / `PrintNotice` / `SwapHint` | `layout/`, `schedule/` |
 | a **notice** | `account.note` + a tone, or `Problem` for the red one | `layout/accountStyles.ts`, `AccountShell.tsx` |
 | a **round-type pill** | `pillMeta(type)` → `badgeClass` + `badgeEdgeClass` | `lib/roundTypes.ts` |

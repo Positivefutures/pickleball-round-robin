@@ -2157,11 +2157,19 @@ describe('the step tabs', () => {
     });
   }
 
-  it('opens a tab only once the host has been through that step', () => {
+  it('opens Players and Setup from the start, and Schedule only when earned', () => {
     mount();
     expect(playersTab().getAttribute('aria-current')).toBe('step');
-    expect(setupTab().disabled).toBe(true);
+    // Open on the very first launch. Setup with nothing ticked is a page rather
+    // than a trap, so there is nothing behind this tab worth guarding, and a
+    // dead tab on the screen the app opens to is the worse of the two.
+    expect(setupTab().disabled).toBe(false);
     expect(scheduleTab().disabled).toBe(true);
+
+    // And it goes where it says, without Continue to Setup having been pressed.
+    click(setupTab());
+    expect(container.textContent).toContain('Generate Schedule');
+    click(playersTab());
 
     clickButton(/^Continue to Setup/);
     expect(setupTab().getAttribute('aria-current')).toBe('step');
@@ -2183,6 +2191,80 @@ describe('the step tabs', () => {
     expect(setupTab().disabled).toBe(false);
     // The tab you are standing on is never a door either.
     expect(scheduleTab().disabled).toBe(true);
+  });
+
+  /**
+   * Four players, said out loud rather than enforced in silence.
+   *
+   * Both doors into Setup used to be dead ends below four. Continue to Setup
+   * was hidden on an empty group and disabled under four, so on the one screen
+   * a new group opens to there was no way forward and nothing saying why; the
+   * tab meanwhile walked the host onto a page where nothing could be ticked.
+   *
+   * Now both are pressable, both answer, and the answer names the number.
+   */
+  describe('the four-player door into Setup', () => {
+    const ANSWER = 'Add at least 4 players before continuing to Setup.';
+
+    /** The dialog's own text, or null when it is not up. */
+    function answer(): string | null {
+      const found = [...container.querySelectorAll('.fixed.inset-0')].find((d) =>
+        text(d).includes(ANSWER)
+      );
+      return found ? text(found) : null;
+    }
+
+    it('offers Continue to Setup on a group nobody has typed a name into', () => {
+      seed(0, 0, 2);
+      mount();
+
+      // The button, on a page whose only other content is an empty list.
+      expect(container.textContent).toContain('Continue to Setup');
+      expect(container.textContent).toContain('Need at least 4 players to continue');
+      // Greyed, but it still takes the press — that is what carries the answer.
+      const button = buttons(/^Continue to Setup/)[0] as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      expect(button.className).toContain('opacity-50');
+    });
+
+    it('answers the press with the number, and stays on Players', () => {
+      seed(2, 0, 2);
+      mount();
+      clickButton(/^Continue to Setup/);
+
+      expect(answer()).toContain(ANSWER);
+      expect(playersTab().getAttribute('aria-current')).toBe('step');
+
+      clickButton(/^OK$/);
+      expect(answer()).toBeNull();
+      // Still where they started, with the button still there to press again.
+      expect(container.textContent).toContain('Continue to Setup');
+    });
+
+    it('gives the Setup tab the same answer rather than an empty page', () => {
+      seed(3, 0, 2);
+      mount();
+      click(setupTab());
+
+      expect(answer()).toContain(ANSWER);
+      // Not moved: the page behind the dialog is still Players.
+      expect(playersTab().getAttribute('aria-current')).toBe('step');
+      expect(container.textContent).not.toContain('Generate Schedule');
+    });
+
+    it('opens both doors on the fourth player', () => {
+      seed(4, 0, 2);
+      mount();
+
+      const button = buttons(/^Continue to Setup/)[0] as HTMLButtonElement;
+      expect(button.className).not.toContain('opacity-50');
+      expect(container.textContent).not.toContain('Need at least 4 players to continue');
+
+      clickButton(/^Continue to Setup/);
+      expect(answer()).toBeNull();
+      expect(setupTab().getAttribute('aria-current')).toBe('step');
+      expect(container.textContent).toContain('Generate Schedule');
+    });
   });
 
   it('keeps the schedule while the host looks at Players, and takes them back', () => {
@@ -4897,19 +4979,46 @@ describe('the player roster panel', () => {
     return [...container.querySelectorAll('.roster-table tbody tr td:nth-child(2)')].map(text);
   }
 
+  /**
+   * The plate astride the panel's top edge, naming the list.
+   *
+   * A sibling of `.roster-panel` rather than something inside it: half of it
+   * hangs outside the card, so it is positioned against the wrapper the card
+   * and its badge share.
+   */
+  function plate(): HTMLElement {
+    const found = container.querySelector('.roster-panel')!.parentElement!.querySelector('h2');
+    if (!found) throw new Error('the list has no name plate');
+    return found as HTMLElement;
+  }
+
+  /** The head count inside the panel, which is not the same thing as the name. */
+  function countLine(): string {
+    const found = [...container.querySelectorAll('.roster-panel span')].find((el) =>
+      /^\d+ (Members|Players)$/.test(text(el))
+    );
+    if (!found) throw new Error('the panel is not counting anything');
+    return text(found);
+  }
+
   beforeEach(() => seedGroups());
 
   /**
-   * "Riverside Club (37)" read as a score. The heading says what it is counting
-   * instead, and leaves naming the group to the panel above that does nothing
-   * else.
+   * "Riverside Club (37)" read as a score, so for a while the panel refused to
+   * say the name at all and headed itself "Group Members (4)".
+   *
+   * Both halves are back, set apart: the name on the plate over the top edge,
+   * the count a size down inside. What made the old line read as a score was
+   * the bracket, not the name.
    */
-  it('heads the list with what it is counting, not the name of the group', () => {
+  it('names the list on its plate and counts it inside, as two separate things', () => {
     mount();
 
-    const heading = container.querySelector('.roster-panel h2')!;
-    // Naming the group is the job of the panel above that does nothing else.
-    expect(text(heading)).toBe('Group Members (4)');
+    expect(text(plate())).toBe('Test Group');
+    expect(countLine()).toBe('4 Members');
+    // The count is not the heading, and the heading is not in the card.
+    expect(plate().contains(container.querySelector('.roster-table'))).toBe(false);
+    expect(container.querySelector('.roster-panel')!.querySelector('h2')).toBeNull();
   });
 
   it('opens with the checkboxes on, one dead action, and no way into a mode', () => {
@@ -4977,21 +5086,20 @@ describe('the player roster panel', () => {
   });
 
   /**
-   * The switch is the taller of the two things at the top of this panel. Laid
-   * out as rows, its height opened a hole between the heading and the button;
-   * as a column beside them, the button sits straight under the words it
-   * belongs to.
+   * The switch is the taller of the two things at the top of this panel, and it
+   * stays in a column of its own. That is also what keeps the corner it sits in
+   * clear, which is why the name plate stops short of the right edge.
    */
-  it('keeps the button under the heading rather than under the switch', () => {
+  it('keeps the count and the button in a column the switch is not in', () => {
     mount();
 
-    const heading = container.querySelector('.roster-panel h2')!;
+    const count = [...container.querySelectorAll('.roster-panel span')].find(
+      (el) => text(el) === '4 Members'
+    )!;
     const button = action(/^Add to Another Group$/);
-    expect(heading.parentElement!.contains(button)).toBe(true);
-    // Beside the heading, not inside it.
-    expect(heading.contains(button)).toBe(false);
-    // And the switch is in the other column, not above the button.
-    expect(heading.parentElement!.contains(labelled('Show All Players'))).toBe(false);
+    // One row: the count and the button read as a sentence, left to right.
+    expect(count.parentElement!.contains(button)).toBe(true);
+    expect(count.parentElement!.contains(labelled('Show All Players'))).toBe(false);
   });
 
   it('opens a player from the pencil without ticking their row', () => {
@@ -5077,10 +5185,16 @@ describe('the player roster panel', () => {
   describe('showing every player', () => {
     beforeEach(() => seedGroups(true, true));
 
-    /** The heading's own glyph. One, always, and not always the same one. */
+    /**
+     * The badge on the panel's corner. One, always, and not always the same
+     * drawing — it is a sibling of the card, not something inside it.
+     */
     function glyph(): SVGElement {
-      const found = container.querySelectorAll('.roster-panel h2 svg');
-      if (found.length !== 1) throw new Error(`${found.length} glyphs on the heading`);
+      const wrapper = container.querySelector('.roster-panel')!.parentElement!;
+      const found = [...wrapper.children]
+        .filter((el) => el.className.includes('rounded-full'))
+        .flatMap((el) => [...el.querySelectorAll('svg')]);
+      if (found.length !== 1) throw new Error(`${found.length} glyphs on the badge`);
       return found[0] as unknown as SVGElement;
     }
 
@@ -5094,7 +5208,9 @@ describe('the player roster panel', () => {
 
       click(labelled('Show All Players'));
 
-      expect(text(container.querySelector('.roster-panel h2')!)).toBe('All Players (5)');
+      // The plate stops naming a group it is no longer showing.
+      expect(text(plate())).toBe('All Players');
+      expect(countLine()).toBe('5 Players');
       expect(listedNames()).toContain('Elle');
       // Three people for a group, a crowd for everybody: another drawing, and a
       // busier one, because the number of figures is what the glyph is saying.
@@ -5103,7 +5219,8 @@ describe('the player roster panel', () => {
 
       click(labelled('Show All Players'));
 
-      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (4)');
+      expect(text(plate())).toBe('Test Group');
+      expect(countLine()).toBe('4 Members');
       expect(listedNames()).not.toContain('Elle');
       expect(glyph().outerHTML).toBe(group);
     });
@@ -5135,7 +5252,8 @@ describe('the player roster panel', () => {
       clickButton(/^Test Group$/);
       clickButton(/^Other Group/);
 
-      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (2)');
+      expect(text(plate())).toBe('Other Group');
+      expect(countLine()).toBe('2 Members');
       expect(listedNames()).toEqual(['Ava', 'Elle']);
     });
 
@@ -5186,7 +5304,7 @@ describe('the player roster panel', () => {
       );
       mount();
 
-      expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (0)');
+      expect(countLine()).toBe('0 Members');
       expect(container.textContent).toContain('Nobody in this group yet');
       // Nothing to tick, so nothing to add to another group either.
       expect(buttons(/^Add to Another Group$/)).toHaveLength(0);
@@ -5636,7 +5754,11 @@ describe('changing groups', () => {
     expect(container.textContent).not.toContain('Switch groups?');
 
     // A group nobody has set up opens on Players, with its own members.
-    expect(text(container.querySelector('.roster-panel h2')!)).toBe('Group Members (8)');
+    expect(
+      [...container.querySelectorAll('.roster-panel span')].some(
+        (el) => text(el) === '8 Members'
+      )
+    ).toBe(true);
     expect(stored('pb-schedule', 'null')).toBeNull();
     // And the courts already in use rather than a reset to the default three.
     expect(stored('pb-num-courts', '0')).toBe(3);

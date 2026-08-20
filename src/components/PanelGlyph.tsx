@@ -29,6 +29,44 @@ export function PanelGlyph({
 }
 
 /**
+ * The same mark, hung on the top-left corner of a page card instead.
+ *
+ * A dialog can afford a glyph centred over its title because it arrives alone.
+ * The Players tab cannot: three cards down one column, each with its title on
+ * the left, and three centred glyphs would read as a row of buttons down the
+ * middle of the page. So the ring sits astride the card's own top edge — left
+ * edges flush, the circle cut in half by the border — which names the card
+ * without taking a line of it.
+ *
+ * Absolutely positioned, so it needs a `relative` wrapper *around* the card
+ * rather than on it: half of this hangs outside the card's box, and a card that
+ * clips its corner artwork with `overflow-hidden` would take the top half of
+ * the ring off with it. Untappable, and drawn last so it covers whatever the
+ * card's edge is doing underneath.
+ *
+ * Grey rather than the dialogs' teal. These sit on the page, where teal is the
+ * colour of a thing you can press.
+ */
+export function PanelBadge({
+  icon: Icon,
+  iconClassName = 'h-[30px] w-[30px]',
+}: {
+  icon: (props: { className?: string }) => ReactElement;
+  /** The artwork's own size, which is not the same in every drawing. */
+  iconClassName?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute left-0 top-0 flex h-13 w-13 -translate-y-1/2
+        items-center justify-center rounded-full border border-panel-edge bg-white"
+    >
+      <Icon className={`${iconClassName} text-[#60697c]`} />
+    </span>
+  );
+}
+
+/**
  * How every panel in the app opens: one teal glyph, centred, with the title
  * centred under it.
  *

@@ -6,7 +6,9 @@ import { PartnerPlayNotice } from './PartnerPlayNotice';
 import { PairList } from './PairList';
 import { SessionConfig } from './SessionConfig';
 import { RoundTypesInfoPanel } from './RoundTypesInfoPanel';
-import { LinkIcon } from '../icons';
+import { LinkIcon, StepSetupIcon } from '../icons';
+import { CornerDots } from '../CornerDots';
+import { PanelBadge } from '../PanelGlyph';
 import { resolvePairs } from '../../lib/partnerships';
 import { minPlayersForCourts } from '../../lib/assign';
 import { useScrollLock } from '../../hooks/useScrollLock';
@@ -155,7 +157,12 @@ export function SetupPage({
    * the screen and the lower row is a long way past the bottom of it.
    */
   const makeButtonRow = (tourAnchor = false) => (
-    <div>
+    /* my-10 rather than the page's own space-y-6. This row is the twin of
+       Continue to Setup on the Players tab — the one press that moves the
+       afternoon on — and the two pages should hold it in the same amount of
+       air. Overrides the space-y above and below it; the top one collapses
+       with it rather than adding to it. */
+    <div className="my-10">
       {/* Only on the upper row. The page opens at the top, so this is the row
           the host is looking at, and one bouncing box is a signpost where two
           would be a page shouting. */}
@@ -164,7 +171,10 @@ export function SetupPage({
         <button
           onClick={handleToggleMode}
           disabled={mode === 'select' && !canPair}
-          className="flex items-center gap-2 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+          /* py-3.5 on both buttons in this row, which is the height Continue to
+             Setup is drawn at. They sit at opposite ends of one line, so a row
+             of two heights reads as one of them being an afterthought. */
+          className="flex items-center gap-2 px-4 py-3.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {/* The link belongs to pairing players up. The same button ends that
               mode, where it would be saying the wrong thing. */}
@@ -180,7 +190,7 @@ export function SetupPage({
         <button
           onClick={handleGenerate}
           data-tutorial={tourAnchor ? 'generate-schedule' : undefined}
-          className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
+          className="px-6 py-3.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
         >
           Generate Schedule &rarr;
         </button>
@@ -192,48 +202,49 @@ export function SetupPage({
   );
 
   return (
-    <div className="space-y-6">
+    /* pt-8 matches the Players tab, which opens the same gap under the tab row
+       so the badge on the first card is not sitting on it. The two pages are
+       one page apart and the tabs must not shuffle between them. */
+    <div className="space-y-6 pt-8">
       {/* No back button: the Players tab above the page is the way back. */}
-      <div className="relative overflow-hidden bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
-        {/* Decoration, held in the corner the mockup puts it in. A third of the
-            panel is the share it has there, so it keeps that share on a phone
-            rather than swallowing the corner; 144px is its own size and it never
-            grows past it. Behind everything and untappable, so a long word
-            passes over it rather than being pushed down a line. */}
-        <img
-          src="/corner-dots.png"
-          alt=""
-          width={144}
-          height={126}
-          className="pointer-events-none absolute right-1.5 top-1.5 w-[23.3%] max-w-[101px] select-none"
-        />
-        <div className="relative">
-          <h2
-            data-tutorial="setup-title"
-            className="text-[1.35rem] font-extrabold text-[#051829] mb-4"
-          >
-            Setup Round Robin
-          </h2>
-          <SessionConfig
-            numCourts={numCourts}
-            numRounds={numRounds}
-            onCourtsChange={onCourtsChange}
-            onRoundsChange={onRoundsChange}
-            roundPlan={roundPlan}
-            lockedRounds={completedRounds}
-            expanded={plannerOpen}
-            /* Nothing to ask before it opens. Setting a round type here can
-               only ever change what the next Generate builds, because a
-               schedule already under way is not reachable from this page. */
-            onToggleExpanded={() => setPlannerOpen((open) => !open)}
-            onOpenInfo={() => setInfoOpen(true)}
-            onPlanCommit={onPlanCommit}
-            planDraft={planDraft}
-            onPlanDraft={onPlanDraft}
-            scoringEnabled={scoringEnabled}
-            onScoringChange={onScoringChange}
-          />
+      <div className="relative">
+        <div className="relative overflow-hidden bg-white rounded-lg shadow border border-panel-edge px-3 pt-7 pb-6">
+          {/* Decoration, held in the corner the mockup puts it in. Two cards on
+              the Players tab carry the same corner a tenth smaller, which is why
+              it is a component rather than an `<img>` written out here. */}
+          <CornerDots />
+          <div className="relative">
+            <h2
+              data-tutorial="setup-title"
+              className="text-[1.35rem] font-extrabold text-[#051829] mb-4"
+            >
+              Setup Round Robin
+            </h2>
+            <SessionConfig
+              numCourts={numCourts}
+              numRounds={numRounds}
+              onCourtsChange={onCourtsChange}
+              onRoundsChange={onRoundsChange}
+              roundPlan={roundPlan}
+              lockedRounds={completedRounds}
+              expanded={plannerOpen}
+              /* Nothing to ask before it opens. Setting a round type here can
+                 only ever change what the next Generate builds, because a
+                 schedule already under way is not reachable from this page. */
+              onToggleExpanded={() => setPlannerOpen((open) => !open)}
+              onOpenInfo={() => setInfoOpen(true)}
+              onPlanCommit={onPlanCommit}
+              planDraft={planDraft}
+              onPlanDraft={onPlanDraft}
+              scoringEnabled={scoringEnabled}
+              onScoringChange={onScoringChange}
+            />
+          </div>
         </div>
+        {/* The tab's own shape, which is also the shape on the Setup tile in
+            the Actions sheet. Select Players below keeps its plain top edge:
+            one badge on the page is a landmark, four are wallpaper. */}
+        <PanelBadge icon={StepSetupIcon} />
       </div>
 
       {makeButtonRow(true)}

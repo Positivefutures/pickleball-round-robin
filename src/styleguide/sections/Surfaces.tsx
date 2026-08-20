@@ -1,7 +1,8 @@
 import { Example, Finding, Row, Section, SubHeading } from '../kit';
 
 import { panelCard } from '../../components/panelStyles';
-import { PanelGlyph, PanelHeading } from '../../components/PanelGlyph';
+import { PanelBadge, PanelGlyph, PanelHeading } from '../../components/PanelGlyph';
+import { CornerDots } from '../../components/CornerDots';
 import * as account from '../../components/layout/accountStyles';
 import { Problem } from '../../components/layout/AccountShell';
 import { InstallBanner } from '../../components/layout/InstallBanner';
@@ -80,6 +81,57 @@ export function Surfaces() {
         </Example>
 
         <Example
+          name="<PanelBadge icon />"
+          note="the same mark hung on a page card's top-left corner. Players ×4, Setup ×1"
+          source={`import { PanelBadge } from '../PanelGlyph';
+
+{/* The wrapper is what the badge is positioned against, and it must not clip:
+    half the ring hangs outside the card. */}
+<div className="relative">
+  <div className={badgedCard}>…</div>
+  <PanelBadge icon={GroupSolidIcon} />
+</div>`}
+        >
+          {/* The card needs air above it here too, or the ring is cropped by
+              the example's own top edge. */}
+          <div className="relative mt-7 max-w-sm">
+            <div className={`${PAGE_CARD} !pt-7`}>
+              <h3 className="text-[1.35rem] font-extrabold text-[#222]">My Groups</h3>
+            </div>
+            <PanelBadge icon={GroupSolidIcon} />
+          </div>
+        </Example>
+
+        <Example
+          name="<CornerDots /> and <CornerDots smaller />"
+          note="the dot grid a page card carries top-right. Setup at full size, Players a tenth down"
+          source={`import { CornerDots } from '../CornerDots';
+
+{/* The card clips it, so it needs relative overflow-hidden, and its own
+    content needs a relative wrapper to sit above the artwork. */}
+<div className="relative overflow-hidden ...">
+  <CornerDots smaller />
+  <div className="relative">…</div>
+</div>`}
+        >
+          <div className="flex flex-wrap gap-4">
+            {[false, true].map((smaller) => (
+              <div
+                key={String(smaller)}
+                className={`${PAGE_CARD} relative overflow-hidden w-[15rem]`}
+              >
+                <CornerDots smaller={smaller} />
+                <div className="relative">
+                  <h3 className="text-[1.35rem] font-extrabold text-[#222]">
+                    {smaller ? 'Add Players' : 'Setup'}
+                  </h3>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Example>
+
+        <Example
           name="account.card + account.backdrop"
           note="the account family's own shell, built on panelCard"
           source={`import { card, backdrop, heading, status, blurb } from './accountStyles';
@@ -107,11 +159,14 @@ export function Surfaces() {
       >
         <Example
           name="The page card — 9 copies, no name"
-          note="RosterPage ×3, SetupPage ×3, StandingsPanel, PartnerSummary, and the empty state"
-          source={`{/* verbatim from RosterPage.tsx:448 and 8 others */}
-<div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
+          note="SetupPage ×2, StandingsPanel, PartnerSummary, the empty state; the 4 badged cards open the top to pt-7"
+          source={`{/* verbatim from SetupPage.tsx and 4 others */}
+<div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
   …
-</div>`}
+</div>
+
+{/* A badged card opens the top to clear its ring — RosterPage's badgedCard */}
+<div className="… px-3 pt-7 pb-6">…</div>`}
         >
           <div className={`${PAGE_CARD} max-w-sm`}>
             <h3 className="text-lg font-bold text-gray-800">Players</h3>

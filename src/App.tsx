@@ -68,6 +68,7 @@ import {
   APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL, COPYRIGHT,
 } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
+import { TooFewPlayersDialog } from './components/TooFewPlayersDialog';
 import { GroupPicker } from './components/roster/GroupPicker';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
@@ -135,8 +136,8 @@ function App() {
   // refuses a saved 'schedule' with no schedule under it.
   const [, setStep] = useStoredValue(stores.step);
   const step = currentStep();
-  // Setup opens the first time the host reaches it and stays open, so a trip
-  // back to Players is never a dead end.
+  // Whether the host has ever reached Setup. The Setup tab no longer waits on
+  // it: all it decides now is whether the shut Schedule tab is worth a press.
   const [setupSeen, setSetupSeen] = useStoredValue(stores.setupSeen);
   // Set by a press on a Schedule tab that could not take them there. SetupPage
   // draws the box above Generate; pressing Generate, or leaving Setup, puts it
@@ -151,6 +152,14 @@ function App() {
    * stepName() rather than hard-coding a word that lives in steps.ts.
    */
   const [pendingLeave, setPendingLeave] = useState<Step | null>(null);
+  /**
+   * Whether the "four players first" answer is up.
+   *
+   * Held here rather than on the Players page because both doors into Setup ask
+   * it and only one of them is on that page: Continue to Setup at the foot of
+   * it, and the Setup tab above it, which App owns.
+   */
+  const [tooFewPlayers, setTooFewPlayers] = useState(false);
   /**
    * The Set Round Types list's draft while it is open, or null when it is shut.
    *
@@ -1502,12 +1511,18 @@ function App() {
   /**
    * Which tabs are doors.
    *
-   * Players always, Setup once it has been seen, and Schedule whenever there is
-   * one to go back to.
+   * Players and Setup always, and Schedule whenever there is one to go back to.
+   *
+   * Setup used to wait until it had been seen once, so that the first trip was
+   * made by Continue to Setup at the foot of the Players page. That held a
+   * newcomer to one route at the price of a dead tab on the very screen the app
+   * opens to, and there is nothing behind it worth guarding: Setup is safe to
+   * walk onto with nothing ticked, and Generate is where the count is checked
+   * anyway, saying how many players it still wants.
    */
   const availableSteps: Step[] = [];
   if (step !== 'roster') availableSteps.push('roster');
-  if (step !== 'setup' && setupSeen) availableSteps.push('setup');
+  if (step !== 'setup') availableSteps.push('setup');
   if (step !== 'schedule' && scheduleIsDoor) availableSteps.push('schedule');
 
   /**
@@ -1519,9 +1534,9 @@ function App() {
    * same real question, where is my schedule, and get the same answer: the
    * button at the foot of the Setup page, with the box bouncing over it.
    *
-   * Before the host has ever seen Setup there is no answer worth giving and the
-   * tab is dead. The way to Setup is Continue to Setup, at the foot of the
-   * Players page, and this must not become a way around it.
+   * Before the host has ever seen Setup the tab is still dead. The answer this
+   * one gives is a box bouncing over Generate, and pointing at that button
+   * before anybody has picked a player is not an answer, it is a shove.
    */
   const answeringSteps: Step[] =
     step !== 'schedule' && setupSeen && !scheduleIsDoor ? ['schedule'] : [];
@@ -1564,9 +1579,23 @@ function App() {
         return;
       }
 
+      /**
+       * Four players first, said rather than enforced silently.
+       *
+       * Below the check about the schedule on purpose. An afternoon already on
+       * the board came from a group that cleared this bar, and it may since
+       * have dropped under it — somebody deleted, or a session made up of
+       * guests, who are not group members and are not counted here. Locking
+       * that host out of the one page that rebuilds would be the worse bug.
+       */
+      if (target === 'setup' && rosterPlayers.length < 4) {
+        setTooFewPlayers(true);
+        return;
+      }
+
       setStep(target);
     },
-    [step, schedule, scheduleIsDoor, setStep]
+    [step, schedule, scheduleIsDoor, setStep, rosterPlayers.length]
   );
 
   /**
@@ -1670,13 +1699,18 @@ function App() {
         // Only the Schedule step has something worth printing
         onPrint={step === 'schedule' ? handlePrint : undefined}
       />
-      {/* Lifted out of `main` and held just under the banner. The `mt-4` is the
-          same 16px as `main`'s own `pt-4` below, so the tab row sits in equal
-          air on both sides rather than being crowded up against the artwork. It
-          has to sit outside `main` because the banners below can come and go,
-          and the tabs must stay against the header rather than being pushed off
-          it by a notice. */}
-      <div className="relative z-20 mx-auto mt-4 max-w-5xl px-2">
+      {/* Lifted out of `main` and held just under the banner. It has to sit
+          outside `main` because the banners below can come and go, and the tabs
+          must stay against the header rather than being pushed off it by a
+          notice.
+
+          The `mt-10` used to be `mt-4`, matched to `main`'s own `pt-4` so the
+          row sat in equal air on both sides. The header is artwork and the tabs
+          are the first thing to press, and 16px of white between them read as
+          the tabs being part of the picture. Below them the page now opens its
+          own space for the badge on the first card, so the symmetry that
+          argument rested on had gone anyway. */}
+      <div className="relative z-20 mx-auto mt-10 max-w-5xl px-2">
         <StepIndicator
           current={step}
           available={availableSteps}
@@ -1736,6 +1770,12 @@ function App() {
             onAddPlayersToRosters={addPlayersToRosters}
             onDeletePlayer={handleRosterDeletePlayer}
             onContinue={() => {
+              // The button is greyed rather than disabled below four, so this
+              // is where the press is answered. See TooFewPlayersDialog.
+              if (rosterPlayers.length < 4) {
+                setTooFewPlayers(true);
+                return;
+              }
               setStep('setup');
               // The tour's first card hands this button over rather than
               // offering a Next of its own, so the press has to move it.
@@ -1842,6 +1882,8 @@ function App() {
           onCancel={() => setPendingLeave(null)}
         />
       )}
+
+      {tooFewPlayers && <TooFewPlayersDialog onClose={() => setTooFewPlayers(false)} />}
 
       {pendingDeleteRoster && (
         <DiscardScheduleDialog

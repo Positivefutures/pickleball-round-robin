@@ -122,6 +122,28 @@ function buildId(): string {
 export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker(), styleGuideRoute()],
 
+  /**
+   * Reaching this server by name from another machine on the network.
+   *
+   * `--host` on its own is not enough. Vite guards against DNS rebinding by
+   * checking the Host header, and out of the box it allows only `localhost`,
+   * `*.localhost` and bare IP addresses. So with `--host` alone
+   * `http://10.0.0.230:5180/style-guide` answers and
+   * `http://mac-mini-2.local:5180/style-guide` gets a 403 pointing at this
+   * setting. The Bonjour name is the whole point: an IP address is something to
+   * look up again every time the router hands out a new one, and the style guide
+   * is meant to be a bookmark on somebody else's laptop.
+   *
+   * The leading dot is Vite's wildcard. `.local` covers `mac-mini-2.local` and
+   * every other machine name on the network, so this needs no edit when the
+   * machine is renamed or the guide is served from a laptop instead.
+   *
+   * `host` is deliberately not set here. Plain `npm run dev` stays on localhost,
+   * where a working copy belongs. Putting it on the network is opt-in: `--host`,
+   * or the `style-guide` script that the launch agent runs.
+   */
+  server: { allowedHosts: ['.local'] },
+
   // Two flags Sentry checks at build time and expects a bundler to replace.
   // Left alone they ship the SDK's own debug logging and its tracing code into
   // the crash-reporting chunk, which is downloaded at the one moment the

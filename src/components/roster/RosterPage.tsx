@@ -6,7 +6,8 @@ import { ManageRostersModal } from './ManageRostersModal';
 import { AddToGroupDialog } from './AddToGroupDialog';
 import { GroupPicker } from './GroupPicker';
 import { Toggle } from '../Toggle';
-import { PanelHeading } from '../PanelGlyph';
+import { PanelBadge, PanelHeading } from '../PanelGlyph';
+import { CornerDots } from '../CornerDots';
 import { useScrollLock } from '../../hooks/useScrollLock';
 import { panelCard } from '../panelStyles';
 import {
@@ -18,9 +19,20 @@ import {
   TrashIcon,
 } from '../icons';
 
-// The panel headings all carry their icon in #60697c. It is written out at each
-// use rather than held in a constant, because Tailwind only generates a class it
-// can see written in the source.
+/**
+ * The page card, with the top opened up to clear the badge on its corner.
+ *
+ * Six other cards in the app still carry the shared shape at `pt-[1.125rem]`
+ * and nothing here changes them — this is the Players tab's version of it, and
+ * the three cards on this page have to agree with each other or the ring will
+ * sit at a different height on each. 28px is the half of a 52px ring that hangs
+ * inside the card, plus the two the title needs to stop touching it.
+ *
+ * `relative overflow-hidden` is for the corner artwork, which is clipped to the
+ * rounded corner. The badge is outside this box for exactly that reason.
+ */
+const badgedCard =
+  'relative overflow-hidden bg-white rounded-lg shadow border border-panel-edge px-3 pt-7 pb-6';
 
 interface Props {
   /** Every player in the app, across all rosters. */
@@ -242,46 +254,57 @@ export function RosterPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
-        {/* A heading now rather than a label. It labelled the select that used
-            to sit below, and there is no form control left for it to point at.
-            Sized to match "Add Player" further down the page. */}
-        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-2">
-          My Groups
-          <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-        </h2>
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Which group you are in is the thing this panel exists to tell you,
-              so it is set at the size of a name in the list below rather than
-              the small type a select had it in. Cut with an ellipsis if it runs
-              out of room; the picker shows it whole.
+    /* pt-8 is the air above the first badge: `main` gives the page 16px and
+       half a ring wants 26 of them, so the circle would otherwise be sitting on
+       the tab row. space-y-10 is the same argument between the cards: 40px leaves
+       an even band of white above every badge and name plate on the page. */
+    <div className="space-y-10 pt-8">
+      <div className="relative">
+        <div className={badgedCard}>
+          <CornerDots smaller />
+          {/* Above the artwork, so a long group name passes over the dots
+              rather than being pushed down a line. */}
+          <div className="relative">
+            {/* A heading now rather than a label. It labelled the select that
+                used to sit below, and there is no form control left for it to
+                point at. Sized to match "Add Players" further down the page.
+                Its glyph is on the corner now, where it names the card without
+                taking a line of it. */}
+            <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-2">My Groups</h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Which group you are in is the thing this panel exists to tell
+                  you, so it is set at the size of a name in the list below
+                  rather than the small type a select had it in. Cut with an
+                  ellipsis if it runs out of room; the picker shows it whole.
 
-              An absolute size rather than text-xl, so large text mode leaves it
-              alone: scaled up it was the biggest thing on the page and read as
-              a heading rather than the setting it is. */}
-          <button
-            type="button"
-            onClick={() => setShowPicker(true)}
-            aria-haspopup="dialog"
-            data-tutorial="group-name"
-            className="flex-1 min-w-[160px] min-h-12 flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-left hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          >
-            <span
-              className="min-w-0 truncate text-[1.25rem] font-bold text-[#222]"
-              title={activeRoster?.name}
-            >
-              {activeRoster?.name}
-            </span>
-            <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-          </button>
-          <button
-            onClick={() => onManageOpenChange(true)}
-            className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
-          >
-            Manage
-          </button>
+                  An absolute size rather than text-xl, so large text mode leaves
+                  it alone: scaled up it was the biggest thing on the page and
+                  read as a heading rather than the setting it is. */}
+              <button
+                type="button"
+                onClick={() => setShowPicker(true)}
+                aria-haspopup="dialog"
+                data-tutorial="group-name"
+                className="flex-1 min-w-[160px] min-h-12 flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md text-left hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <span
+                  className="min-w-0 truncate text-[1.25rem] font-bold text-[#222]"
+                  title={activeRoster?.name}
+                >
+                  {activeRoster?.name}
+                </span>
+                <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+              </button>
+              <button
+                onClick={() => onManageOpenChange(true)}
+                className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
+              >
+                Manage
+              </button>
+            </div>
+          </div>
         </div>
+        <PanelBadge icon={GroupSolidIcon} />
       </div>
 
       {notice && (
@@ -290,34 +313,50 @@ export function RosterPage({
         </div>
       )}
 
-      {/* Hidden on an empty group: a disabled button with nothing to explain it
-          is noise on the one screen a newcomer needs to be simple. */}
-      {players.length > 0 && (
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={onContinue}
-            data-tutorial="continue-setup"
-            disabled={players.length < 4}
-            className="px-6 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Continue to Setup &rarr;
-          </button>
-          {players.length < 4 && (
-            <p className="text-amber-600 text-sm">
-              Need at least 4 players to continue
-            </p>
-          )}
-        </div>
-      )}
+      {/* On every group, including one nobody has typed a name into yet. It
+          used to be hidden below four players, on the grounds that a dead
+          button is noise — but a brand new group is exactly where somebody
+          wants to know what comes next, and a page with no way off it reads as
+          a bug rather than as restraint.
 
-      <div className="bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
-        <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222] mb-4">
-          Add Player
-          <AddPlayerSolidIcon className="w-[26px] h-[26px] text-[#60697c]" />
-        </h2>
-        {/* The one place a name is typed in over and over. The list it lands in
-            is below the fold on a full group, so the form says so itself. */}
-        <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} announceAdded />
+          Greyed but not `disabled`: pressing it is how the host is told what is
+          missing, and a disabled button swallows the press and says nothing.
+          The same answer comes back from the Setup tab, which App owns, so the
+          count is checked up there rather than here. */}
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={onContinue}
+          data-tutorial="continue-setup"
+          /* py-3.5 is the primary button's padding, which is the tallest
+             shape the teal already comes in. This is the one button on the
+             page that moves you on, and it was the same height as Manage. */
+          className={`px-6 py-3.5 bg-brand-teal text-white rounded-md transition-colors font-bold ${
+            players.length < 4 ? 'opacity-50' : 'hover:bg-brand-teal-dark'
+          }`}
+        >
+          Continue to Setup &rarr;
+        </button>
+        {players.length < 4 && (
+          <p className="text-amber-600 text-sm">
+            Need at least 4 players to continue
+          </p>
+        )}
+      </div>
+
+      <div className="relative">
+        <div className={badgedCard}>
+          <CornerDots smaller />
+          <div className="relative">
+            {/* Plural: the card is where a whole group gets typed in, one name
+                at a time, and the button under it is the singular one. */}
+            <h2 className="text-[1.35rem] font-extrabold text-[#222] mb-4">Add Players</h2>
+            {/* The one place a name is typed in over and over. The list it lands
+                in is below the fold on a full group, so the form says so
+                itself. */}
+            <PlayerForm onSubmit={handleSubmit} defaultRating={defaultRating} announceAdded />
+          </div>
+        </div>
+        <PanelBadge icon={AddPlayerSolidIcon} iconClassName="h-[26px] w-[26px]" />
       </div>
 
       {/* Both delete prompts replace the edit modal rather than stacking on it —
@@ -438,48 +477,52 @@ export function RosterPage({
           empty *group* keeps them: Show All Players is how you find out that the
           people you are missing are sitting in the group next door. */}
       {allPlayers.length === 0 ? (
-        <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 py-12 text-center">
-          <p className="text-xl font-medium text-gray-400">Add your first player!</p>
-          <p className="mt-2 text-sm text-gray-400">
-            You&rsquo;ll need at least 4 to build a schedule.
-          </p>
+        <div className="relative">
+          <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 py-12 text-center">
+            <p className="text-xl font-medium text-gray-400">Add your first player!</p>
+            <p className="mt-2 text-sm text-gray-400">
+              You&rsquo;ll need at least 4 to build a schedule.
+            </p>
+          </div>
+          <PanelBadge icon={GroupSolidIcon} />
         </div>
       ) : (
-        <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
-          {/* Two columns, not two rows. The heading and the button under it are
-              one column so the button follows the words it belongs to; the
-              switch is the other. Stacked as rows, the switch is the taller of
-              the two and its height became a hole under the heading. */}
-          <div className="flex justify-between items-start gap-3 mb-4">
-            <div className="min-w-0">
-              <h2 className="flex items-center gap-2 text-[1.35rem] font-extrabold text-[#222]">
-                {showAll ? 'All Players' : 'Group Members'} ({shown.length})
-                {/* Three people for a group, a crowd for everybody. The glyph
-                    is the fastest way to see which list is up, and the group
-                    one over the whole pool would say the opposite of the words
-                    beside it. */}
-                {showAll ? (
-                  <CrowdSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
-                ) : (
-                  <GroupSolidIcon className="w-[30px] h-[30px] text-[#60697c]" />
+        /* 70px rather than the page's 40: this is the one gap with a name plate
+           hanging into it as well as a badge, and it is where the tab stops
+           being about adding people and starts being about the ones already
+           there. It collapses with the 40 above it rather than adding to it,
+           which is why the whole number is written out. */
+        <div className="relative mt-[70px]">
+          <div className="roster-panel bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6">
+            {/* Two columns, not two rows. The count and the button beside it are
+                one column so the button sits next to the words it belongs to;
+                the switch is the other, and it stays up at the top of the panel
+                because the name plate stops short of it. */}
+            <div className="flex justify-between items-start gap-3 mb-4">
+              {/* Dropped clear of the plate hanging over this corner. The
+                  switch is not, which is the whole reason the plate is not the
+                  full width of the panel. */}
+              <div className="mt-8 min-w-0 flex items-center gap-3 flex-wrap">
+                {/* What the panel is counting, one size down from the name on
+                    the plate above it. The name used to be in here as well,
+                    which made a heading that read as a score. */}
+                <span className="text-lg font-extrabold text-[#222]">
+                  {shown.length} {showAll ? 'Players' : 'Members'}
+                </span>
+                {/* Set at the size of the names being counted, in both text
+                    modes. A row in the table carries no size class of its own,
+                    so it inherits the base, which is what text-base matches.
+                    Absent rather than counting to zero, so the row is the count
+                    and the button until there is something to say. */}
+                {selectedIds.length > 0 && (
+                  <span className="text-base font-bold text-gray-600">
+                    {selectedIds.length} selected
+                  </span>
                 )}
-              </h2>
-
-              {/* Nothing to tick means nothing to act on, so the row goes with
-                  the list rather than leaving a dead button over an empty
-                  panel. */}
-              {shown.length > 0 && (
-                <div className="mt-2 flex items-center gap-3 flex-wrap">
-                  {/* Set at the size of the names being counted, in both text
-                      modes. A row in the table carries no size class of its
-                      own, so it inherits the base, which is what text-base
-                      matches. Absent rather than counting to zero, so the row
-                      is the button alone until there is something to say. */}
-                  {selectedIds.length > 0 && (
-                    <span className="text-base font-bold text-gray-600">
-                      {selectedIds.length} selected
-                    </span>
-                  )}
+                {/* Nothing to tick means nothing to act on, so the button goes
+                    with the list rather than sitting dead over an empty
+                    panel. */}
+                {shown.length > 0 && (
                   <button
                     onClick={() => setShowAddToGroup(true)}
                     disabled={selectedIds.length === 0}
@@ -490,20 +533,19 @@ export function RosterPage({
                         another of, and the group in front is a target like any. */}
                     {showAll ? 'Add to Group' : 'Add to Another Group'}
                   </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Labelled above rather than beside, and held narrow enough that
-                the three words stack instead of taking the width a phone needs
-                for the heading. Unheld, the heading is what wraps. */}
-            <div className="flex shrink-0 flex-col items-center gap-1">
-              <span className="max-w-[5.25rem] text-center text-sm font-bold leading-tight text-gray-700">
-                Show All Players
-              </span>
-              <Toggle checked={showAll} onChange={toggleShowAll} label="Show All Players" />
+              {/* Labelled above rather than beside, and held narrow enough that
+                  the three words stack instead of taking the width a phone
+                  needs for the count. Unheld, the count is what wraps. */}
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                <span className="max-w-[5.25rem] text-center text-sm font-bold leading-tight text-gray-700">
+                  Show All Players
+                </span>
+                <Toggle checked={showAll} onChange={toggleShowAll} label="Show All Players" />
+              </div>
             </div>
-          </div>
 
           {shown.length === 0 ? (
             <p className="py-8 text-center text-gray-400">
@@ -518,6 +560,36 @@ export function RosterPage({
               onToggleSelectAll={toggleSelectAll}
             />
           )}
+          </div>
+
+          {/* The name of the list, on a plate astride the panel's own top edge.
+              It is the panel's title, moved out of the panel: inside it, the
+              group name and the head count read as one line — "Riverside Club
+              (37)" was taken for a score — and the two say different enough
+              things to be set apart.
+
+              It starts at the badge's centre rather than at the panel edge, so
+              the ring reads as sitting on the plate rather than as a bead
+              threaded on the end of it. `pl-9` is the half of the ring that
+              overlaps, plus the air the name needs to clear it.
+
+              6.5rem short of the right edge: the switch column is 84px of the
+              panel's 12px-inset content, so this stops about 11px before it. */}
+          <h2
+            className="absolute left-[26px] right-27 top-0 flex h-12 -translate-y-1/2 items-center
+              rounded-lg border border-panel-edge bg-white pl-9 pr-3"
+          >
+            <span
+              className="min-w-0 truncate text-[1.35rem] font-extrabold text-[#222]"
+              title={showAll ? undefined : activeRoster?.name}
+            >
+              {showAll ? 'All Players' : activeRoster?.name}
+            </span>
+          </h2>
+          {/* Three people for a group, a crowd for everybody. The badge is the
+              fastest way to see which list is up, and the group one over the
+              whole pool would say the opposite of the plate beside it. */}
+          <PanelBadge icon={showAll ? CrowdSolidIcon : GroupSolidIcon} />
         </div>
       )}
     </div>
