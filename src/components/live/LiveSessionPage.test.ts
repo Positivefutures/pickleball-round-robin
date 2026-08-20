@@ -34,6 +34,8 @@ let sent: unknown[][] = [];
 
 /** Every start and stop the page asks the alarm layer for, in order. */
 let alarms: string[] = [];
+/** Every gesture spent on unlocking iOS audio. See the tests at the foot. */
+let warmed: string[] = [];
 
 // Only the three that would reach the audio hardware. happy-dom has no
 // AudioContext, and what is being checked here is whether this page asks for a
@@ -45,7 +47,7 @@ vi.mock('../../lib/alarmSounds', async () => {
     ...actual,
     startAlarmLoop: (id: string) => void alarms.push(`start:${id}`),
     stopAlarmLoop: () => void alarms.push('stop'),
-    warmUpAudio: () => {},
+    warmUpAudio: (tone?: string) => void warmed.push(tone ?? 'no tone'),
     previewTone: () => {}
   };
 });
@@ -207,6 +209,7 @@ beforeEach(() => {
   offered = [];
   sent = [];
   alarms = [];
+  warmed = [];
   window.localStorage.clear();
 });
 
@@ -1038,6 +1041,15 @@ describe('the round timer', () => {
   ];
   const sheet = () => container.querySelector('[role="dialog"][aria-label="Round Timer"]');
 
+  /** The one button on a watcher's timer, by the word on it. */
+  function closeTile(): HTMLButtonElement {
+    const found = [...sheet()!.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === 'Close'
+    );
+    if (!found) throw new Error('no Close tile on the timer');
+    return found;
+  }
+
   function timing(roundNumber: number, msLeft: number): SharedRoundTimer {
     return {
       roundNumber,
@@ -1201,9 +1213,7 @@ describe('the round timer', () => {
       expect(held).toBe(1);
 
       // And hands it straight back when the screen is shut.
-      await act(async () => {
-        (sheet()!.querySelector('[aria-label="Close Round Timer"]') as HTMLButtonElement).click();
-      });
+      await act(async () => closeTile().click());
       expect(released).toBe(1);
     });
 
@@ -1281,6 +1291,19 @@ describe('the round timer', () => {
       expect(sheet()!.querySelector('[aria-label="Fewer minutes"]')).toBeNull();
     });
 
+    it('is answered with a Close tile, the way the host’s timer is', async () => {
+      // It was a small key in the corner, which is a poor target for a thumb
+      // and no target at all for one that has just been startled by an alarm.
+      // The host's own sheet has answered with a tile for months. Jeff's call
+      // on 2026-08-20.
+      await openTimer();
+      expect(closeTile()).toBeTruthy();
+
+      // And not both. Two ways out of one sheet is one to read past, which is
+      // the same reason the host's sheet gave its key up.
+      expect(sheet()!.querySelector('[aria-label="Close Round Timer"]')).toBeNull();
+    });
+
     it('starts on whatever the host chose', async () => {
       await openTimer({ soundOn: false, flashOn: true, alarmTone: 'police-whistle' });
 
@@ -1301,13 +1324,61 @@ describe('the round timer', () => {
       expect(window.localStorage.getItem('pb-watch-alerts')).toContain('sess-1');
     });
 
-    it('leaves the switches they did not touch following the host', async () => {
+    it('takes the switches they did not touch from the host, to start', async () => {
       await openTimer({ soundOn: true, flashOn: true });
       await act(async () => {
         toggle('Play Sound').click();
       });
 
       expect(toggle('Flash Screen').getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('stops following the host once it has copied them down', async () => {
+      // The rule Jeff asked for on 2026-08-20, and the reversal of the one this
+      // file used to hold. A watcher who looks at Flash Screen, sees it off and
+      // is content has decided something; the host turning theirs on an hour
+      // later must not silently decide it again for them.
+      await openTimer({ soundOn: true, flashOn: false });
+      expect(toggle('Flash Screen').getAttribute('aria-checked')).toBe('false');
+
+      const louder = shared(undefined, false, {
+        ...timing(1, 30_000),
+        soundOn: false,
+        flashOn: true,
+        alarmTone: 'police-whistle'
+      });
+      if (louder.state !== 'ok') throw new Error('not ok');
+      louder.snapshot.at = new Date(Date.parse(louder.snapshot.at) + 1000).toISOString();
+      answer = louder;
+      await poll();
+
+      // Every one of the three where the watcher left it.
+      expect(toggle('Flash Screen').getAttribute('aria-checked')).toBe('false');
+      expect(toggle('Play Sound').getAttribute('aria-checked')).toBe('true');
+      expect(sheet()!.textContent).not.toContain('Police Whistle');
+    });
+
+    it('keeps an answer given before the host had started anything', async () => {
+      // The switches are offered on the waiting screen precisely so they can be
+      // answered early. An arriving timer copying the host's choice over the
+      // top would make that offer a lie.
+      answer = shared();
+      await open();
+      await act(async () => {
+        clocks()[0].click();
+      });
+      await act(async () => {
+        toggle('Play Sound').click();
+      });
+      expect(toggle('Play Sound').getAttribute('aria-checked')).toBe('false');
+
+      const started = shared(undefined, false, { ...timing(1, 60_000), soundOn: true });
+      if (started.state !== 'ok') throw new Error('not ok');
+      started.snapshot.at = new Date(Date.parse(started.snapshot.at) + 1000).toISOString();
+      answer = started;
+      await poll();
+
+      expect(toggle('Play Sound').getAttribute('aria-checked')).toBe('false');
     });
   });
 
@@ -1373,6 +1444,152 @@ describe('the round timer', () => {
       // their hand, so it has to take effect there and then.
       expect(alarms).toContain('stop');
       expect(alarms.some((a) => a.startsWith('start:'))).toBe(false);
+    });
+  });
+
+  /**
+   * The alarm is the one thing on this page the host cannot reach.
+   *
+   * Everything else here is a view of somebody else's session: they tick DONE
+   * and a round goes pale, they reset the timer and the countdown goes. Not
+   * this. A host answers the alarm on their own phone within a second or two —
+   * they are stood over it — and doing that used to take TIME'S UP off every
+   * watching screen at once, including the one belonging to the player who was
+   * mid-point on the far court with the noise going in their pocket. The person
+   * who most needed telling was the only one who never found out. Jeff's report
+   * on 2026-08-20.
+   */
+  describe('an alarm the host cannot take away', () => {
+    /** A watcher whose own clock has just run round 1 out. */
+    async function ringing() {
+      answer = shared(undefined, false, { ...timing(1, -1000), soundOn: true });
+      await open();
+    }
+
+    /** The host presses Close: the published timer goes away entirely. */
+    async function hostCloses() {
+      const gone = shared();
+      if (gone.state !== 'ok') throw new Error('not ok');
+      gone.snapshot.at = new Date(Date.parse(gone.snapshot.at) + 1000).toISOString();
+      answer = gone;
+      await poll();
+    }
+
+    it('keeps TIME’S UP up after the host has put their own timer away', async () => {
+      await ringing();
+      await act(async () => clocks()[0].click());
+      expect(sheet()!.textContent).toContain('TIME');
+
+      await hostCloses();
+
+      expect(sheet()!.textContent).toContain('TIME');
+      // And emphatically not the screen a watcher gets before a timer exists,
+      // which is what this used to fall back to.
+      expect(sheet()!.textContent).not.toContain('hasn’t started the timer yet');
+      // Still named, so a screen saying TIME'S UP says what for.
+      expect(sheet()!.textContent).toContain('Round 1 Timer');
+    });
+
+    it('goes on ringing', async () => {
+      await ringing();
+      expect(alarms.some((a) => a.startsWith('start:'))).toBe(true);
+      alarms = [];
+
+      await hostCloses();
+
+      // Nothing asked the alarm layer to stop. The phone in a pocket is exactly
+      // the one this is for, and its sheet was never opened.
+      expect(alarms).not.toContain('stop');
+    });
+
+    it('is silenced by this phone’s own Close, and only by that', async () => {
+      await ringing();
+      await act(async () => clocks()[0].click());
+      await hostCloses();
+      alarms = [];
+
+      await act(async () => closeTile().click());
+
+      expect(alarms).toContain('stop');
+      expect(sheet()).toBeNull();
+    });
+
+    it('lets go when the host starts the next round’s countdown', async () => {
+      // The one thing the host does that is allowed to take it down, because it
+      // answers the question the alarm was asking. Otherwise a watcher who
+      // never opened the sheet would be stuck at TIME'S UP all afternoon.
+      await ringing();
+      await hostCloses();
+
+      const next = shared(undefined, false, timing(2, 300_000));
+      if (next.state !== 'ok') throw new Error('not ok');
+      next.snapshot.at = new Date(Date.parse(next.snapshot.at) + 5000).toISOString();
+      answer = next;
+      await poll();
+
+      await act(async () => clocks()[1].click());
+      expect(sheet()!.textContent).not.toContain('TIME');
+      expect(sheet()!.textContent).toContain('Round 2 Timer');
+      expect(alarms).toContain('stop');
+    });
+
+    it('says 0:00 on the round that rang, once the host’s timer has gone', async () => {
+      // A phone making a noise has to say somewhere on the page what about, and
+      // the schedule is where somebody looks first.
+      await ringing();
+      await hostCloses();
+
+      expect(clocks()[0].textContent).toContain('0:00');
+      // And nowhere else. Round 2 never rang.
+      expect(clocks()[1].textContent).not.toContain('0:00');
+    });
+  });
+
+  /**
+   * Whether a watching phone can make a noise at all.
+   *
+   * iOS will not sound an AudioContext that was first built outside a user
+   * gesture, and will not resume one from a timer either. A host unlocks theirs
+   * by pressing Start Timer, with a silent sample pushed through the tap. A
+   * watcher presses nothing at all: they point a camera at a code, read a
+   * schedule and put the phone down, so the alarm minutes later was the first
+   * sound the page had ever tried to make — and on an iPhone it was no sound.
+   * Jeff's report from an iPhone 16 on 2026-08-20.
+   *
+   * What is checked here is that the gesture is spent. Whether the phone then
+   * rings is iOS's answer to a request that is now actually made.
+   */
+  describe('unlocking the audio on a watching phone', () => {
+    it('spends the tap that opens the timer', async () => {
+      answer = shared(undefined, false, { ...timing(1, 60_000), alarmTone: 'police-whistle' });
+      await open();
+      warmed = [];
+
+      await act(async () => clocks()[0].click());
+
+      // With the tone, so the recording is fetched and decoded now rather than
+      // at the moment it is wanted.
+      expect(warmed).toContain('police-whistle');
+    });
+
+    it('spends the first touch anywhere on the page', async () => {
+      // The tap that matters most, because it is the one that happens on a
+      // phone whose owner never opens the timer at all.
+      answer = shared(undefined, false, timing(1, 60_000));
+      await open();
+      warmed = [];
+
+      await act(async () => {
+        document.dispatchEvent(new Event('pointerdown'));
+      });
+      expect(warmed.length).toBe(1);
+
+      // Once. Every tap after it is somebody reading a schedule.
+      await act(async () => {
+        document.dispatchEvent(new Event('pointerdown'));
+        document.dispatchEvent(new Event('pointerdown'));
+      });
+      expect(warmed.length).toBe(1);
     });
   });
 });

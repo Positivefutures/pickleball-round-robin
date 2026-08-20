@@ -95,9 +95,37 @@ function kick(): void {
  * arranged. Each caller below simply does nothing, which is the same outcome as
  * a phone on silent and needs no explaining to anybody.
  */
+/**
+ * Ask iOS to treat this page's sound as playback rather than as ambience.
+ *
+ * The one that matters on a phone. Web Audio on iOS is silenced outright by the
+ * hardware Ring/Silent switch, and a great many phones live with that switch
+ * flicked across — so an alarm can be unlocked, resumed, scheduled and playing,
+ * with the meters moving, and be heard by nobody. Declaring the session as
+ * `playback` is what opts out of it, the same way a video does.
+ *
+ * Safari 16.4 and later, and absent everywhere else, so the whole thing is
+ * feature-detected and failure is silence rather than a broken page. It cannot
+ * be tested here: happy-dom has no audioSession, and neither does the Chrome
+ * the screenshots come from. It is a real iOS behaviour and the code around it
+ * is written to survive not being one.
+ */
+function claimPlayback(): void {
+  if (typeof navigator === 'undefined') return;
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+  if (!session) return;
+  try {
+    session.type = 'playback';
+  } catch {
+    // A browser that exposes the object and refuses the value.
+  }
+}
+
 function getCtx(): AudioContext | null {
   if (!ctx) {
     if (typeof AudioContext === 'undefined') return null;
+    // Before the context exists, so the first sound it makes is already covered.
+    claimPlayback();
     ctx = new AudioContext();
     if (typeof document !== 'undefined' && !listening) {
       listening = true;

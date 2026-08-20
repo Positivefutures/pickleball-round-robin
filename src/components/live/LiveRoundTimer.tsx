@@ -6,6 +6,8 @@ import { TimerIcon } from '../schedule/timerIcons';
 import { TimerSheet } from '../schedule/TimerSheet';
 import { LiveAlertControls } from './LiveAlertControls';
 import type { Alerts } from '../../lib/watchAlerts';
+import { CloseIcon } from '../icons';
+import { TileButton, TILE_ALONE } from '../TileButton';
 
 /**
  * The host's round timer on somebody else's phone.
@@ -28,14 +30,25 @@ import type { Alerts } from '../../lib/watchAlerts';
  * and an empty screen answers it no better than an empty pocket. When the host
  * does start, the field arrives on the next poll and the screen becomes a
  * countdown where it stands. Nobody has to close it and open it again.
+ *
+ * `heldAlarm` is the one thing on this screen the host cannot reach. Once this
+ * phone's own clock has run a round out, TIME'S UP stands here until the person
+ * holding it presses Close — the host putting their timer away does not take it
+ * down. See the latch in LiveSessionPage for why.
  */
 export function LiveRoundTimer({
   timer,
+  heldAlarm,
   alerts,
   onChangeAlerts,
   onClose
 }: {
   timer: SharedRoundTimer | null;
+  /**
+   * The round this phone has run out and not yet been told about, or null.
+   * Outlives the host's own timer on purpose.
+   */
+  heldAlarm: number | null;
   /** The host's choices, with this watcher's own over the top. */
   alerts: Alerts;
   onChangeAlerts: (patch: Partial<Alerts>) => void;
@@ -44,20 +57,25 @@ export function LiveRoundTimer({
   useCountdownTick(timer?.phase === 'running');
 
   const remaining = timer ? sharedRemainingMs(timer) : 0;
-  const alarming = !!timer && sharedAlarming(timer, remaining);
+  const alarming = heldAlarm !== null || (!!timer && sharedAlarming(timer, remaining));
 
   return (
     <TimerSheet
-      roundNumber={timer?.roundNumber ?? null}
+      // The held round when the host's timer has gone out from under it, so a
+      // screen still saying TIME'S UP still says which round's.
+      roundNumber={timer?.roundNumber ?? heldAlarm}
       alarming={alarming}
-      remainingMs={remaining}
+      remainingMs={alarming ? 0 : remaining}
       // Never the white sheet. On the host's panel that is the phase with the
       // minutes still to set, and a watcher's timer is always counting.
       light={false}
       flashOn={alerts.flashOn}
       onClose={onClose}
+      // Close is the tile below, as it is on the host's panel. A key in the
+      // corner as well would be two ways out of one sheet to read past.
+      closeKey={false}
       waiting={
-        timer
+        timer || alarming
           ? undefined
           : 'The host hasn’t started the timer yet. The time will appear here when they do.'
       }
@@ -68,6 +86,15 @@ export function LiveRoundTimer({
       // Offered while waiting too, so the answer can be given before the alarm
       // rather than after it.
       config={<LiveAlertControls alerts={alerts} onChange={onChangeAlerts} />}
+      // One tile, in the shape the host's row of them already has. It is the
+      // only thing on this screen there has ever been to press, and on a
+      // ringing timer it is also the thing that stops the noise — which is
+      // exactly why it had to stop being an eight-pixel key in the corner.
+      actions={
+        <div className={TILE_ALONE}>
+          <TileButton tone="quiet" Icon={CloseIcon} label="Close" onClick={onClose} />
+        </div>
+      }
     />
   );
 }
@@ -90,11 +117,18 @@ export function LiveRoundTimer({
  */
 export function LiveTimerChip({
   timer,
+  heldAlarm,
   roundNumber,
   onOpen,
   ink,
 }: {
   timer: SharedRoundTimer | null;
+  /**
+   * The round this phone has run out and not yet been told about. It reads
+   * 0:00 here for as long as that stands, including after the host's timer has
+   * gone: a phone making a noise has to say somewhere on the page what about.
+   */
+  heldAlarm: number | null;
   /** Which round this chip sits on. */
   roundNumber: number;
   onOpen: () => void;
@@ -106,8 +140,10 @@ export function LiveTimerChip({
 }) {
   // Truthiness, not `!== null`: a document published before the timer field
   // existed has no key at all, and `undefined !== null` is true.
-  const mine = !!timer && timer.roundNumber === roundNumber;
-  useCountdownTick(mine && timer.phase === 'running');
+  const counting = !!timer && timer.roundNumber === roundNumber;
+  const rang = heldAlarm === roundNumber;
+  const mine = counting || rang;
+  useCountdownTick(counting && timer.phase === 'running');
 
   return (
     <button
@@ -119,7 +155,7 @@ export function LiveTimerChip({
       <TimerIcon className="h-6 w-6" />
       {mine && (
         <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>
-          {formatMMSS(sharedRemainingMs(timer))}
+          {formatMMSS(rang || !timer ? 0 : sharedRemainingMs(timer))}
         </span>
       )}
     </button>
