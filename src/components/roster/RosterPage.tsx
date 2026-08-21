@@ -468,6 +468,13 @@ export function RosterPage({
           onRename={onRenameRoster}
           onDelete={onDeleteRoster}
           onDuplicate={onDuplicateRoster}
+          // Switching from in here closes the panel behind it. handleSelectRoster
+          // already drops the stale dialog state and puts the list back on the
+          // group's own members, exactly as the picker's rows do.
+          onSelect={(id) => {
+            handleSelectRoster(id);
+            onManageOpenChange(false);
+          }}
           onClose={() => onManageOpenChange(false)}
         />
       )}

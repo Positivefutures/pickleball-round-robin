@@ -4898,6 +4898,88 @@ describe('duplicating a group', () => {
 });
 
 /**
+ * Going to a group from Manage Groups, through the real app.
+ *
+ * The panel's own tests check that a name is a button and that it asks for the
+ * right group. Only the app can answer the two things that make it useful:
+ * that the panel gets out of the way, and that the app is genuinely on the
+ * other group afterwards rather than merely saying so.
+ */
+describe('switching group from Manage Groups', () => {
+  function seedTwo() {
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'pb-rosters',
+      JSON.stringify([
+        { id: 'g1', name: 'Tuesday' },
+        { id: 'g2', name: 'Thursday' },
+      ])
+    );
+    window.localStorage.setItem('pb-active-roster', JSON.stringify('g1'));
+    window.localStorage.setItem(
+      'pb-roster',
+      JSON.stringify([
+        { id: 'p1', name: 'Ava', rating: 4.0, gender: 'F', rosterIds: ['g1'] },
+        { id: 'p2', name: 'Ben', rating: 3.5, gender: 'M', rosterIds: ['g2'] },
+      ])
+    );
+    runMigrations();
+  }
+
+  beforeEach(seedTwo);
+
+  /** The panel itself, so a row is never read off the page behind it. */
+  function panel(): HTMLElement | undefined {
+    return [...container.querySelectorAll('.fixed.inset-0')].find((d) =>
+      text(d).includes('Manage Groups')
+    ) as HTMLElement | undefined;
+  }
+
+  function activeId(): string {
+    return JSON.parse(window.localStorage.getItem('pb-active-roster')!);
+  }
+
+  function openManage() {
+    mount();
+    clickButton(/^Manage$/);
+    if (!panel()) throw new Error('Manage Groups did not open');
+  }
+
+  it('closes the panel and lands on the group whose name was pressed', () => {
+    openManage();
+    clickButton(/^Thursday/, panel()!);
+    expect(panel()).toBeUndefined();
+    expect(activeId()).toBe('g2');
+  });
+
+  it('shows the new group\'s own members, not the ones it was showing', () => {
+    // The whole point of the switch. Ben is only in Thursday and Ava only in
+    // Tuesday, so the list cannot be right by accident.
+    openManage();
+    clickButton(/^Thursday/, panel()!);
+    const list = container.querySelector('.roster-panel')!;
+    expect(text(list)).toContain('Ben');
+    expect(text(list)).not.toContain('Ava');
+  });
+
+  it('leaves the group alone when the pencil is pressed instead', () => {
+    // Editing a group is not choosing it, and the panel has to stay up for
+    // the rename that was being reached for.
+    openManage();
+    click(container.querySelector('[aria-label="Edit Thursday"]')!);
+    expect(panel()).not.toBeUndefined();
+    expect(activeId()).toBe('g1');
+  });
+
+  it('stays put when the name pressed is the group already open', () => {
+    openManage();
+    clickButton(/^Tuesday/, panel()!);
+    expect(panel()).toBeUndefined();
+    expect(activeId()).toBe('g1');
+  });
+});
+
+/**
  * The Players panel after the Select Players mode was retired. Checkboxes are
  * always on, so the row tap only ever ticks a box, and the one thing it used to
  * reveal is a pencil on every row.

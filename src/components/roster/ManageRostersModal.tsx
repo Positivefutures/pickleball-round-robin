@@ -16,6 +16,11 @@ interface Props {
    * to any number of groups, so they simply belong to both from here on.
    */
   onDuplicate: (id: string, name: string) => void;
+  /**
+   * Switch to a group. The panel closes on the way, so this is the one action
+   * here that is not about editing the list.
+   */
+  onSelect: (id: string) => void;
   onClose: () => void;
 }
 
@@ -50,6 +55,7 @@ export function ManageRostersModal({
   onRename,
   onDelete,
   onDuplicate,
+  onSelect,
   onClose,
 }: Props) {
   const [newName, setNewName] = useState('');
@@ -342,16 +348,30 @@ export function ManageRostersModal({
             </div>
           ) : (
             <div key={r.id} className="flex items-center gap-2">
-              {/* The name is bold, the count beside it is not. The count is
+              {/* The name is the way onto the group, as it is in GroupPicker,
+                  and unlabelled for the same reason: the accessible name is
+                  what is written on it. This panel used to be somewhere you
+                  could rename a group but not go to one, so a host who opened
+                  it meaning to switch had to close it and find the picker.
+
+                  The name is bold, the count beside it is not. The count is
                   how many players are in the group, not part of what it is
                   called, and bolding both makes the row read as one long
-                  label. */}
-              <span className="flex-1 font-bold text-gray-800">
+                  label. The negative margin is so the hover block can have
+                  padding without the name sitting in from every other line in
+                  the panel. */}
+              <button
+                type="button"
+                onClick={() => onSelect(r.id)}
+                title={`Switch to ${r.name}`}
+                className="-ml-2 min-w-0 flex-1 rounded-md px-2 py-2 text-left font-bold
+                  text-gray-800 transition-colors hover:bg-gray-100"
+              >
                 {r.name}
                 <span className="text-gray-400 text-sm font-normal ml-2">
                   ({countFor(r.id)})
                 </span>
-              </span>
+              </button>
               {/* White on a border, as the pencil on the schedule is. The row is
                   a name and one way in, and a tinted button would read as the
                   thing to press rather than the way to change it. */}

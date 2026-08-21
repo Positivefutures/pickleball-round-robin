@@ -38,13 +38,15 @@ const PLAYERS: Player[] = [
 let root: Root;
 let container: HTMLElement;
 
+const onClose = vi.fn();
 const onRename = vi.fn();
 const onDelete = vi.fn();
 const onDuplicate = vi.fn();
 const onAdd = vi.fn();
+const onSelect = vi.fn();
 
 function render(rosters: Roster[] = ROSTERS, players: Player[] = PLAYERS): HTMLElement {
-  for (const fn of [onRename, onDelete, onDuplicate, onAdd]) fn.mockClear();
+  for (const fn of [onRename, onDelete, onDuplicate, onAdd, onSelect, onClose]) fn.mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -57,7 +59,8 @@ function render(rosters: Roster[] = ROSTERS, players: Player[] = PLAYERS): HTMLE
         onRename,
         onDelete,
         onDuplicate,
-        onClose: () => {},
+        onSelect,
+        onClose,
       })
     );
   });
@@ -90,6 +93,15 @@ function edit(name: string) {
   const pencil = container.querySelector(`[aria-label="Edit ${name}"]`);
   if (!pencil) throw new Error(`no pencil for ${name}`);
   click(pencil);
+}
+
+/** A group's own row button, which is its name and the way onto it. */
+function nameButton(name: string): HTMLButtonElement {
+  const found = [...container.querySelectorAll('button')].find((b) =>
+    text(b).startsWith(name)
+  );
+  if (!found) throw new Error(`no row button for ${name} among ${JSON.stringify(faces())}`);
+  return found as HTMLButtonElement;
 }
 
 /** The one text box on screen. Typing through React's own setter, not the DOM's. */
@@ -127,13 +139,46 @@ describe('the list of groups', () => {
     // many are in it. Bolding both makes it read as a single long name.
     // Classes rather than measurements — happy-dom has no type to weigh.
     render();
-    const row = [...container.querySelectorAll('span')].find(
-      (s) => s.textContent?.startsWith('Tuesday Crew')
-    )!;
+    const row = nameButton('Tuesday Crew');
     expect(row.className.split(/\s+/)).toContain('font-bold');
     const count = row.querySelector('span')!;
     expect(text(count)).toBe('(2)');
     expect(count.className.split(/\s+/)).toContain('font-normal');
+  });
+});
+
+describe('going to a group from here', () => {
+  it('makes every name a button, so the list is a way in and not just a label', () => {
+    render();
+    for (const r of ROSTERS) expect(nameButton(r.name).tagName).toBe('BUTTON');
+  });
+
+  it('asks for the group whose name was pressed', () => {
+    render();
+    click(nameButton('Ladies Night'));
+    expect(onSelect).toHaveBeenCalledWith('g3');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('says what pressing it will do, since the face only says the name', () => {
+    render();
+    expect(nameButton('Sunday Social').title).toBe('Switch to Sunday Social');
+  });
+
+  it('keeps the pencil out of it, so editing is not switching', () => {
+    // Both sit on the same row. A host reaching for the pencil to rename a
+    // group must not find themselves moved onto it instead.
+    render();
+    edit('Sunday Social');
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('leaves the row being edited without one, so nothing throws away a rename', () => {
+    // An opened row is a name box and four buttons. A switch among them would
+    // drop whatever had been typed into it.
+    render();
+    edit('Tuesday Crew');
+    expect(() => nameButton('Tuesday Crew')).toThrow();
   });
 });
 
