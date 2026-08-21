@@ -2,12 +2,10 @@ import { sharedRemainingMs, type SharedRoundTimer } from '../../lib/sessionSnaps
 import { formatMMSS } from '../../lib/roundTimer';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { ROUND_HEADING_TEXT, ROUND_TIMER_CHIP } from '../schedule/roundLook';
-import { TimerIcon } from '../schedule/timerIcons';
 import { TimerSheet } from '../schedule/TimerSheet';
 import { LiveAlertControls } from './LiveAlertControls';
 import type { Alerts } from '../../lib/watchAlerts';
-import { CloseIcon } from '../icons';
-import { StopSquareIcon } from '../schedule/timerIcons';
+import { TimerIcon, StopSquareIcon, ExitIcon } from '../schedule/timerIcons';
 import { TileButton, TILE_ALONE, TILE_ROW } from '../TileButton';
 
 /**
@@ -117,7 +115,10 @@ export function LiveRoundTimer({
       // this page must never look like.
       actions={
         <div className={sounding ? TILE_ROW : TILE_ALONE}>
-          <TileButton tone="quiet" Icon={CloseIcon} label="Close" onClick={onClose} />
+          {/* The same door the host's Close wears, pointing the same way. Two
+              tiles in this app say Close and they are these two; everywhere
+              else the X means Cancel. */}
+          <TileButton tone="quiet" Icon={ExitIcon} label="Close" onClick={onClose} />
           {sounding && (
             <TileButton tone="quiet" Icon={StopSquareIcon} label="Stop" onClick={onStop} />
           )}

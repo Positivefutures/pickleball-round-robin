@@ -167,9 +167,10 @@ interface Props {
   /**
    * Whether the sheet draws its own close key in the corner.
    *
-   * The host's timer answers with a row of tiles and Close is the first of
-   * them, so the key up here would be a second way out to read past. A read-only
-   * timer has no tiles at all and keeps it.
+   * Both timers answer with a row of tiles and Close is the first of them, so
+   * the key up here would be a second way out to read past — and both therefore
+   * pass `false`. It defaults to on for a sheet that has no tiles of its own,
+   * which is a shape nothing draws today.
    *
    * Ignored on the `counting` look, which has no header for it to sit against.
    */
