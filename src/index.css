@@ -145,59 +145,20 @@ body {
 }
 
 /**
- * The strip itself — see the story above. Height, hairline and artwork all
- * mirror the banner's first rows exactly: the same 1px rule, the same two
- * images at the same height, pinned and windowed the same way, so the eight
- * pixels land on top of an identical eight and vanish. The height variable is
- * the banner's own clamp from Header.tsx minus the 2px its borders keep, and
- * the window formula is Header.tsx's RIGHT_ASPECT and TITLE_MIN verbatim;
- * src/lib/topPin.test.ts holds the two files to the same numbers.
+ * The strip itself lives in index.html, in an inline <style> in the <head>,
+ * and that placement is the whole point rather than an oddity. Its job is to
+ * own the top of the viewport on the very first frame, before iOS looks; a
+ * rule that arrives with this file arrives after the browser has already
+ * drawn the strip's two banner images at their natural size, which is a
+ * full-screen robin over a full-screen court and reads as a broken app. The
+ * production build hides that, because Vite puts this file in a
+ * render-blocking <link>, so it only ever showed on the dev server. The
+ * static pages solve it the same way: public/terms.html and
+ * public/privacy.html each carry their own copy inline.
  *
- * z-index 10 is `.app-panel`'s own, and #top-pin sits later in the DOM, so it
- * paints over the panel and everything trapped inside it — which is right,
- * because the status bar above it stays cream too. Overlays mounted outside
- * the panel run z-50 and cover it, which is also right.
+ * src/lib/topPin.test.ts reads the rules out of index.html and holds them to
+ * Header.tsx's numbers, so the two cannot drift apart.
  */
-#top-pin {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 8px;
-  z-index: 10;
-  overflow: hidden;
-  pointer-events: none;
-  background: #fbfaf6;
-  border-top: 1px solid #d2d2d2;
-  --top-pin-art: calc(clamp(110px, 26.25vw, 165px) - 2px);
-  transition: opacity 150ms ease;
-}
-
-/* Scrolled away from the top, the strip's sliver of banner over foreign
-   content read as a defect, so lib/topPin.ts fades it out — but only after
-   the launch window in which iOS reads the paint and decides. Mode J of the
-   blur lab is the proof this is safe. */
-#top-pin.ghost {
-  opacity: 0;
-}
-
-#top-pin img {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: var(--top-pin-art);
-  width: auto;
-  max-width: none;
-}
-
-#top-pin > div {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: min(calc(1.3333 * clamp(110px, 26.25vw, 165px)), calc(100% - 11rem));
-  overflow: hidden;
-}
 
 /**
  * The floor under the app's type, raised two pixels.
@@ -380,12 +341,6 @@ body {
   }
 
   .no-print {
-    display: none !important;
-  }
-
-  /* The strip guards a screen edge the sheet does not have. Printed, it would
-     be a stray sliver of banner across the top of page one. */
-  #top-pin {
     display: none !important;
   }
 

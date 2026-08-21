@@ -107,6 +107,89 @@
     <meta name="twitter:image" content="https://app.pbroundrobin.com/og-banner.png" />
 
     <!--
+      The strip's own CSS, inline because it has to be. #top-pin is in the body
+      below, and it exists to own the top of the viewport from the first frame
+      so iOS 26 reads it as the app's bar and stands down. Rules that arrive
+      from src/index.css arrive too late for that: the browser has already laid
+      the strip's two banner images out at their natural size, and a
+      full-screen robin stacked on a full-screen court is what a user sees
+      instead of the app. `vite build` hides it by putting index.css in a
+      render-blocking <link>, so it only ever showed on the dev server, but the
+      element's contract is first-frame paint and this is what honours it.
+      public/terms.html and public/privacy.html carry their own copies for the
+      same reason.
+
+      Height, hairline and artwork all mirror the banner's first rows exactly:
+      the same 1px rule, the same two images at the same height, pinned and
+      windowed the same way, so the eight pixels land on top of an identical
+      eight and vanish. The height variable is the banner's own clamp from
+      Header.tsx minus the 2px its borders keep, and the window formula is
+      Header.tsx's RIGHT_ASPECT and TITLE_MIN verbatim; src/lib/topPin.test.ts
+      holds this file and that one to the same numbers.
+
+      z-index 10 is `.app-panel`'s own, and #top-pin sits later in the DOM, so
+      it paints over the panel and everything trapped inside it, which is right
+      because the status bar above it stays cream too. Overlays mounted outside
+      the panel run z-50 and cover it, which is also right. Specificity, not
+      order, is what keeps these rules over Tailwind's preflight: every
+      selector here carries an id.
+
+      The full story of why the strip exists at all is at the top of
+      src/index.css, and the measurements behind it came from
+      public/blurtest.html on a real iPhone.
+    -->
+    <style>
+      #top-pin {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        z-index: 10;
+        overflow: hidden;
+        pointer-events: none;
+        background: #fbfaf6;
+        border-top: 1px solid #d2d2d2;
+        --top-pin-art: calc(clamp(110px, 26.25vw, 165px) - 2px);
+        transition: opacity 150ms ease;
+      }
+
+      /* Scrolled away from the top, the strip's sliver of banner over foreign
+         content read as a defect, so lib/topPin.ts fades it out — but only after
+         the launch window in which iOS reads the paint and decides. Mode J of the
+         blur lab is the proof this is safe. */
+      #top-pin.ghost {
+        opacity: 0;
+      }
+
+      #top-pin img {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: var(--top-pin-art);
+        width: auto;
+        max-width: none;
+      }
+
+      #top-pin > div {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: min(calc(1.3333 * clamp(110px, 26.25vw, 165px)), calc(100% - 11rem));
+        overflow: hidden;
+      }
+
+      /* The strip guards a screen edge the sheet does not have. Printed, it
+         would be a stray sliver of banner across the top of page one. */
+      @media print {
+        #top-pin {
+          display: none !important;
+        }
+      }
+    </style>
+
+    <!--
       The one inline script in this file, and it has to be inline.
 
       Chrome fires beforeinstallprompt once its install criteria are met, which

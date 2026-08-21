@@ -21,8 +21,8 @@ const header = readFileSync('src/components/layout/Header.tsx', 'utf8');
 
 /** The #top-pin rule block, so assertions cannot match some other selector. */
 function pinRule(): string {
-  const match = css.match(/#top-pin\s*\{[^}]*\}/);
-  if (!match) throw new Error('index.css has no #top-pin rule');
+  const match = html.match(/#top-pin\s*\{[^}]*\}/);
+  if (!match) throw new Error('index.html has no #top-pin rule');
   return match[0];
 }
 
@@ -39,6 +39,21 @@ describe('the strip that keeps iOS from blurring the banner', () => {
     const block = pin.slice(0, pin.indexOf('</div>\n    <script'));
     expect(block).toContain('/header-left.png');
     expect(block).toContain('/header-right.jpg');
+  });
+
+  it('is styled from index.html itself, not from a stylesheet that loads late', () => {
+    // These rules used to live in src/index.css, which in dev arrives through
+    // JavaScript. Until it did, the browser laid the strip's two banner images
+    // out at their natural size: a full-screen robin stacked on a full-screen
+    // court, which is what Jeff reported on 2026-08-20 as the app looking
+    // broken on load. `vite build` hid it behind a render-blocking <link>, so
+    // it only ever showed on the dev server, but an element whose whole job is
+    // to be painted before iOS looks cannot take its geometry from a late
+    // file. Anything the strip needs on the first frame belongs in the
+    // document.
+    const head = html.slice(0, html.indexOf('</head>'));
+    expect(head).toMatch(/<style>[\s\S]*#top-pin\s*\{/);
+    expect(css).not.toMatch(/^\s*#top-pin[^\n]*\{/m);
   });
 
   it('is fixed and painted, the two properties iOS decides by', () => {
@@ -64,20 +79,24 @@ describe('the strip that keeps iOS from blurring the banner', () => {
     // misaligned copy.
     const clamp = 'clamp(110px, 26.25vw, 165px)';
     expect(header).toContain(clamp);
-    expect(css.split(clamp).length).toBeGreaterThanOrEqual(3);
+    expect(html.split(clamp).length).toBeGreaterThanOrEqual(3);
     expect(header).toContain('1.3333');
-    expect(css).toContain('calc(1.3333 * clamp(110px, 26.25vw, 165px))');
+    expect(html).toContain('calc(1.3333 * clamp(110px, 26.25vw, 165px))');
     expect(header).toContain("'11rem'");
-    expect(css).toContain('calc(100% - 11rem)');
+    expect(html).toContain('calc(100% - 11rem)');
+    // Without this the images ignore the height above and Tailwind's preflight
+    // caps them at the strip's own width, which is the unstyled shape again.
+    expect(html).toMatch(/#top-pin img\s*\{[^}]*height:\s*var\(--top-pin-art\)/);
+    expect(html).toMatch(/#top-pin img\s*\{[^}]*max-width:\s*none/);
   });
 
   it('stays off the printed sheet', () => {
-    const print = css.slice(css.indexOf('@media print'));
+    const print = html.slice(html.indexOf('@media print'));
     expect(print).toMatch(/#top-pin\s*\{\s*[^}]*display:\s*none\s*!important/);
   });
 
   it('can ghost, and something actually starts the watcher', () => {
-    expect(css).toMatch(/#top-pin\.ghost\s*\{\s*opacity:\s*0/);
+    expect(html).toMatch(/#top-pin\.ghost\s*\{\s*opacity:\s*0/);
     const main = readFileSync('src/main.tsx', 'utf8');
     expect(main).toContain('startTopPinGhost()');
   });
