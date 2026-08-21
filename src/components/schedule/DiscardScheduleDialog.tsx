@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { CloseIcon, WarningIcon } from '../icons';
+import { CloseIcon, ShareIcon, WarningIcon } from '../icons';
 import { PanelHeading } from '../PanelGlyph';
 import { panelCard } from '../panelStyles';
 import { TileButton, TILE_ROW } from '../TileButton';
@@ -7,12 +7,34 @@ import { TileButton, TILE_ROW } from '../TileButton';
 interface Props {
   heading: string;
   /**
-   * What is about to be lost. A node rather than a string: the one thing this
-   * says is where the host is going, and the destination is set in bold inside
-   * the sentence.
+   * The glyph over the question. Defaults to the warning triangle, which is
+   * what a dialog that only takes something away should open with; the one
+   * asking to go back to a tab wears that tab's own shape instead.
+   */
+  icon?: (props: { className?: string }) => ReactElement;
+  /**
+   * What is about to be lost. A node rather than a string: the group being
+   * deleted is named in bold inside the sentence, where the tab being taken is
+   * named in the heading instead.
    */
   body: ReactNode;
+  /**
+   * The reassuring half, shown under the body on the share glyph.
+   *
+   * Only ever passed when there is a live link: a host who has sent a QR code
+   * to fourteen people needs to know that rebuilding does not ask them all to
+   * scan another one, and a host who has sent nothing should not be told about
+   * a link they have never made. Set apart from the body because it is the one
+   * line here that is good news.
+   */
+  shareNote?: ReactNode;
   cancelLabel: string;
+  /**
+   * The shape on the way out. Defaults to the cross, which is what a dialog
+   * answered with "no" should wear; the one offering to stay puts the tab it
+   * would be staying on there instead.
+   */
+  cancelIcon?: (props: { className?: string }) => ReactElement;
   confirmLabel: string;
   /** The shape on the confirm tile. Every tile in the app carries one. */
   confirmIcon: (props: { className?: string }) => ReactElement;
@@ -34,8 +56,11 @@ interface Props {
  */
 export function DiscardScheduleDialog({
   heading,
+  icon = WarningIcon,
   body,
+  shareNote,
   cancelLabel,
+  cancelIcon = CloseIcon,
   confirmLabel,
   confirmIcon,
   onConfirm,
@@ -47,10 +72,16 @@ export function DiscardScheduleDialog({
         {/* It was a line of body copy in the middle of the box, which read as
             the first half of the warning under it rather than as the question
             being asked. */}
-        <PanelHeading icon={WarningIcon} title={heading} />
-        <p className="mt-2 mb-4 text-sm text-gray-600 text-center">{body}</p>
-        <div className={TILE_ROW}>
-          <TileButton tone="quiet" Icon={CloseIcon} label={cancelLabel} onClick={onCancel} />
+        <PanelHeading icon={icon} title={heading} />
+        <p className="mt-2 text-sm text-gray-600 text-center">{body}</p>
+        {shareNote && (
+          <p className="mt-3 flex items-center justify-center gap-2 text-sm font-medium text-brand-teal">
+            <ShareIcon className="h-4 w-4" />
+            <span>{shareNote}</span>
+          </p>
+        )}
+        <div className={`${TILE_ROW} mt-4`}>
+          <TileButton tone="quiet" Icon={cancelIcon} label={cancelLabel} onClick={onCancel} />
           <TileButton
             tone="red"
             Icon={confirmIcon}

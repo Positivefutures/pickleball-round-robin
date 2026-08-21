@@ -275,7 +275,7 @@ import { toneFor } from './scoreTone';
           </>
         }
       >
-        <IconGrid title="components/icons.tsx" subtitle="54 glyphs · the main set" module={appIcons} />
+        <IconGrid title="components/icons.tsx" subtitle="55 glyphs · the main set" module={appIcons} />
         <IconGrid title="components/schedule/timerIcons.tsx" subtitle="10 glyphs · default className is w-4 h-4" module={timerIcons} />
         <IconGrid title="components/schedule/actionIcons.tsx" subtitle="3 glyphs · badged, ringing their corner disc in --chip-tint" module={actionIcons} />
 

@@ -253,8 +253,8 @@ function generate() {
  */
 function leaveSchedule(target: RegExp) {
   clickButton(target);
-  if (/Abandon This Schedule\?/.test(container.textContent ?? '')) {
-    clickButton(/^Return to /);
+  if (/Return to Setup\?/.test(container.textContent ?? '')) {
+    clickButton(/^Go to /);
   }
 }
 
@@ -2210,8 +2210,8 @@ describe('the step tabs', () => {
    */
   function toSetup() {
     click(setupTab());
-    if (/Abandon This Schedule\?/.test(container.textContent ?? '')) {
-      clickButton(/^Return to Setup/);
+    if (/Return to Setup\?/.test(container.textContent ?? '')) {
+      clickButton(/^Go to Setup/);
     }
   }
 
@@ -2363,15 +2363,15 @@ describe('the step tabs', () => {
     generate();
 
     click(playersTab());
-    expect(container.textContent).not.toContain('Abandon This Schedule?');
+    expect(container.textContent).not.toContain('Return to Setup?');
 
     // Nothing scored, nothing edited, and it asks anyway. "Sessions stay live
     // until the host goes to Setup" is only sayable if it has no exceptions.
     click(setupTab());
-    expect(container.textContent).toContain('Abandon This Schedule?');
+    expect(container.textContent).toContain('Return to Setup?');
 
     // And no is no: the schedule stands and the host has not moved.
-    clickButton(/^Cancel$/);
+    clickButton(/^Keep Schedule$/);
     expect(storedSchedule()).not.toBeNull();
     expect(container.textContent).toContain('Continue to Setup');
   });
@@ -2393,7 +2393,7 @@ describe('the step tabs', () => {
     expect(scoringOn()).toBe(true);
     // Still the same afternoon, still on it, nothing asked.
     expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
-    expect(container.textContent).not.toContain('Abandon This Schedule?');
+    expect(container.textContent).not.toContain('Return to Setup?');
   });
 
   /**
@@ -2674,6 +2674,7 @@ describe('the step tabs', () => {
       editPlayer('Ava', () => clickGroupBox('Test Group'));
 
       // Nothing asked, and the tab is still a door.
+      expect(container.textContent).not.toContain('Return to Setup?');
       expect(container.textContent).not.toContain('Abandon This Schedule?');
       backToSchedule();
       expect(completedRounds()).toEqual([1]);
@@ -2812,20 +2813,19 @@ describe('the step tabs', () => {
 
       click(setupTab());
 
+      // The destination is named in the question, which is the one thing this
+      // dialog is about.
       const heading = dialog()!.querySelector('h2');
-      expect(text(heading!)).toBe('Abandon This Schedule?');
+      expect(text(heading!)).toBe('Return to Setup?');
       // The size every other panel in the app heads itself with.
       expect(heading!.className).toContain('text-[1.35rem]');
       expect(heading!.className).toContain('font-extrabold');
       expect(text(dialog()!)).toContain(
-        'Returning to Setup discards the session including any entered scores.'
+        'Your current schedule will be cleared. Scores and other session changes ' +
+          'won\u2019t carry over.'
       );
-      // The destination is the one word set apart, because it is the one thing
-      // this dialog is about.
-      const bold = [...dialog()!.querySelectorAll('strong')].map(text);
-      expect(bold).toContain('Setup');
-      expect(buttons(/^Return to Setup$/, dialog()!)).toHaveLength(1);
-      expect(buttons(/^Cancel$/, dialog()!)).toHaveLength(1);
+      expect(buttons(/^Go to Setup$/, dialog()!)).toHaveLength(1);
+      expect(buttons(/^Keep Schedule$/, dialog()!)).toHaveLength(1);
     });
 
     it('promises the link will survive when the group has one out', () => {
@@ -2839,9 +2839,7 @@ describe('the step tabs', () => {
       generate();
 
       click(setupTab());
-      expect(text(container)).toContain(
-        'Your link stays the same and will show the new schedule.'
-      );
+      expect(text(container)).toContain('Your shared link stays the same.');
     });
 
     it('says nothing about a link when the group has none', () => {
@@ -2849,7 +2847,7 @@ describe('the step tabs', () => {
       generate();
 
       click(setupTab());
-      expect(text(container)).not.toContain('Your link stays the same');
+      expect(text(container)).not.toContain('Your shared link stays the same');
     });
 
     it('says nothing at all on the way to Players', () => {
@@ -2861,13 +2859,13 @@ describe('the step tabs', () => {
       markComplete(1);
 
       click(playersTab());
-      expect(container.textContent).not.toContain('Abandon This Schedule?');
+      expect(container.textContent).not.toContain('Return to Setup?');
       expect(storedSchedule()).not.toBeNull();
       expect(completedRounds()).toEqual([1]);
       expect(container.textContent).toContain('Continue to Setup');
     });
 
-    it('changes nothing at all on Cancel', () => {
+    it('changes nothing at all on Keep Schedule', () => {
       seed(9, 9, 2, true);
       mount();
       generate();
@@ -2876,7 +2874,7 @@ describe('the step tabs', () => {
       const before = storedSchedule().rounds.map(fingerprint);
 
       click(setupTab());
-      clickButton(/^Cancel$/);
+      clickButton(/^Keep Schedule$/);
 
       // Still on the schedule, with the afternoon exactly as it was.
       expect(container.textContent).toContain('Actions');
@@ -2891,7 +2889,7 @@ describe('the step tabs', () => {
       const ticked = JSON.parse(window.localStorage.getItem('pb-selected-ids')!);
 
       click(setupTab());
-      clickButton(/^Return to Setup$/);
+      clickButton(/^Go to Setup$/);
 
       expect(container.textContent).toContain('Generate Schedule');
       expect(storedSchedule()).toBeNull();
@@ -2919,23 +2917,23 @@ describe('the step tabs', () => {
       expect(lock, 'no padlock on the first court').toBeTruthy();
       click(lock!);
       click(setupTab());
-      expect(container.textContent).toContain('Abandon This Schedule?');
-      clickButton(/^Cancel$/);
+      expect(container.textContent).toContain('Return to Setup?');
+      clickButton(/^Keep Schedule$/);
 
       click(container.querySelector('[aria-label^="Unlock "]')!);
       click(setupTab());
-      expect(container.textContent).toContain('Abandon This Schedule?');
-      clickButton(/^Cancel$/);
+      expect(container.textContent).toContain('Return to Setup?');
+      clickButton(/^Keep Schedule$/);
 
       action(/^Add Round$/);
       clickButton(/^Add 1 Round$/, sheet());
       click(setupTab());
-      expect(container.textContent).toContain('Abandon This Schedule?');
-      clickButton(/^Cancel$/);
+      expect(container.textContent).toContain('Return to Setup?');
+      clickButton(/^Keep Schedule$/);
 
       reshuffle();
       click(setupTab());
-      expect(container.textContent).toContain('Abandon This Schedule?');
+      expect(container.textContent).toContain('Return to Setup?');
     });
   });
 
@@ -2955,9 +2953,10 @@ describe('the step tabs', () => {
 
     click(setupTab());
     expect(text(container)).toContain(
-      'Returning to Setup discards the session including any entered scores.'
+      'Your current schedule will be cleared. Scores and other session changes ' +
+        'won\u2019t carry over.'
     );
-    clickButton(/^Cancel$/);
+    clickButton(/^Keep Schedule$/);
 
     action(/^New Round Robin$/);
     expect(text(sheet())).toContain(

@@ -74,7 +74,9 @@ import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import type { ActionsEntry } from './components/schedule/ActionsSheet';
 import { DiscardScheduleDialog } from './components/schedule/DiscardScheduleDialog';
-import { StepPlayersIcon, StepSetupIcon, TrashIcon } from './components/icons';
+import {
+  SetupReturnIcon, StepPlayersIcon, StepScheduleIcon, StepSetupIcon, TrashIcon,
+} from './components/icons';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
 // Shown in the banner on the Players step, and as the settings drawer's heading.
@@ -1911,19 +1913,26 @@ function App() {
           rather than over the button that rebuilds. */}
       {pendingLeave && (
         <DiscardScheduleDialog
-          heading="Abandon This Schedule?"
+          heading={`Return to ${stepName(pendingLeave)}?`}
+          // The destination's own cog with an arrow swung under it, because the
+          // question here is where the host is going rather than how sorry they
+          // should be about it.
+          icon={pendingLeave === 'roster' ? StepPlayersIcon : SetupReturnIcon}
           body={
             <>
-              Returning to <strong className="font-bold">{stepName(pendingLeave)}</strong>{' '}
-              discards the session including any entered scores.
-              {/* Only when there is a link out to reassure them about. A host
-                  who has sent a QR code to fourteen people needs to know that
-                  rebuilding does not ask them all to scan another one. */}
-              {shareKey ? ' Your link stays the same and will show the new schedule.' : ''}
+              Your current schedule will be cleared. Scores and other session
+              changes won&rsquo;t carry over.
             </>
           }
-          cancelLabel="Cancel"
-          confirmLabel={`Return to ${stepName(pendingLeave)}`}
+          // Only when there is a link out to reassure them about. A host who
+          // has sent a QR code to fourteen people needs to know that rebuilding
+          // does not ask them all to scan another one.
+          shareNote={shareKey ? 'Your shared link stays the same.' : undefined}
+          cancelLabel="Keep Schedule"
+          // Staying is staying on the Schedule tab, so it wears that tab's shape
+          // the way the other tile wears the one it leaves for.
+          cancelIcon={StepScheduleIcon}
+          confirmLabel={`Go to ${stepName(pendingLeave)}`}
           // The tab it lands on, wearing that tab's own shape.
           confirmIcon={pendingLeave === 'roster' ? StepPlayersIcon : StepSetupIcon}
           onConfirm={confirmLeave}

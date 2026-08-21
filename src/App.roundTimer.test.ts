@@ -179,8 +179,8 @@ function generate() {
  */
 function toSetup() {
   click(tab(/^2\. Setup/));
-  if (/Abandon This Schedule\?/.test(container.textContent ?? '')) {
-    clickButton(/^Return to Setup/);
+  if (/Return to Setup\?/.test(container.textContent ?? '')) {
+    clickButton(/^Go to Setup/);
   }
 }
 
