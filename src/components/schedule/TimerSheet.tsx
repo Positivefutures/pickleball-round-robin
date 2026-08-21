@@ -35,6 +35,91 @@ const DISMISS_PX = 90;
 const LIGHT = { bg: '#FFFFFF', ink: '#0D1F44', sub: '#6B7280', icon: '#007d88', handle: '#C4C8CF' };
 const DARK = { bg: '#000000', ink: '#FFFFFF', sub: '#9CA3AF', icon: '#FFFFFF', handle: '#333333' };
 
+/**
+ * The four screens a round timer is ever on, and what differs between them:
+ * how much of the top of the sheet is chrome, how much of what is left the
+ * digits take, and where the room left over goes.
+ *
+ * A table rather than four booleans threaded down from the panel. Every one of
+ * these lines trades against the others — a glyph and a title are 7rem of a
+ * 94dvh sheet, and the digits can only be as large as whatever is left — so
+ * they are worth reading in one place.
+ *
+ * `glyph`/`title` null mean the header is not drawn at all, which also takes
+ * the corner close key with it: the key is positioned against that block.
+ * `digits` null means the countdown is not drawn, which is only ever the host's
+ * settings screen, where the number would be the minutes stepper's own value
+ * said twice at ten times the size.
+ *
+ * `flow` is where the room left over goes, and it is the line that differs
+ * most. A sheet this tall always has slack; centring it puts half above the
+ * content and half below, which is right when the content is one block and
+ * wrong when it is two.
+ *
+ * Every centred one is `justify-center-safe`, never plain `justify-center`. The
+ * box scrolls, and a centred flex child that outgrows its scroller overflows
+ * *both* ways — the top half goes above `scrollTop: 0`, where there is no way
+ * to scroll back to it. On a 375x667 screen that ate the word "Minutes" off the
+ * top of the stepper. Safe alignment gives up the centring at exactly the point
+ * it would start costing content.
+ */
+const LOOKS = {
+  /** A watcher's timer: nothing to press, so it can afford the full header. */
+  watching: {
+    glyph: 'h-12 w-12',
+    title: 'text-[1.6rem]',
+    digits: 'clamp(5rem, 26vw, 13rem)',
+    flow: 'justify-center-safe',
+  },
+  /**
+   * The host before the start. Nothing is counting; the settings are the page,
+   * and they sit a little above the middle so the eye lands on the stepper
+   * rather than halfway between it and the title.
+   *
+   * The bias is bought with padding under the content, and only on a screen
+   * with the height to spare. Below that it is a scrollbar rather than a
+   * flourish: an iPhone SE is 55px short of holding the stepper and the alerts
+   * at all, and 96px of decorative padding on top of that is 96px of extra
+   * scrolling for the sake of where the middle is.
+   */
+  setting: {
+    glyph: 'h-[3.75rem] w-[3.75rem]',
+    title: 'text-3xl',
+    digits: null,
+    flow: 'justify-center-safe [@media(min-height:800px)]:pb-24',
+  },
+  /**
+   * The host once it is counting. Two blocks, not one: the digits, which want
+   * to be as high and as large as the sheet allows, and the alerts, which want
+   * to be under the thumb that is already at the tiles. So the slack goes
+   * between them rather than around them.
+   */
+  counting: {
+    glyph: null,
+    title: null,
+    // Sized off the width, against 99:00 — the brief Jeff set, and comfortably
+    // wider than anything the stepper can actually produce, which stops at
+    // MINUTES_MAX of 60. Tabular figures, so all five glyphs are the same width
+    // whatever the round says and a 1 cannot flatter the measurement. Capped in
+    // rem as well, or a tablet in landscape gets digits taller than the sheet.
+    digits: 'min(30vw, 8.5rem)',
+    flow: 'justify-between',
+  },
+  /**
+   * The host at zero. TIME'S UP is one block and it is the only thing on the
+   * screen, so this is the one host look that still centres. `digits` is unread
+   * here — the alarm draws its own words in their place.
+   */
+  ringing: {
+    glyph: null,
+    title: null,
+    digits: null,
+    flow: 'justify-center-safe',
+  },
+} as const;
+
+export type TimerLook = keyof typeof LOOKS;
+
 interface Props {
   /**
    * Null on a watcher's screen opened before the host has started anything.
@@ -72,8 +157,12 @@ interface Props {
    * The host's timer answers with a row of tiles and Close is the first of
    * them, so the key up here would be a second way out to read past. A read-only
    * timer has no tiles at all and keeps it.
+   *
+   * Ignored on the `counting` look, which has no header for it to sit against.
    */
   closeKey?: boolean;
+  /** Which of the four screens in LOOKS this is. Defaults to a watcher's. */
+  look?: TimerLook;
 }
 
 export function TimerSheet({
@@ -87,7 +176,9 @@ export function TimerSheet({
   config,
   actions,
   closeKey = true,
+  look = 'watching',
 }: Props) {
+  const shape = LOOKS[look];
   // Off the bottom for the first frame, then let the transition carry it up —
   // the same two-step trick TourSheet uses. Mounted fresh each time it opens,
   // so there is nothing to reset on the way out.
@@ -204,30 +295,40 @@ export function TimerSheet({
             The close key is taken out of the flow rather than sat beside them,
             or it would shove both off centre.
 
+            Gone entirely once the host's timer is counting. At that point the
+            glyph says "this is a timer" to somebody who is looking at a running
+            timer, and the title names a round whose card they tapped to get
+            here — 7rem of the sheet spent telling them what they already know,
+            directly above the one thing on it worth reading from a court.
+
             mt-8 clears the drag handle above, and then some. At mt-4 the glyph
             and the close key sat close enough to the top edge that iOS Safari's
             own furniture crowded them, and on an iPhone 11 the top of the clock
             was cut off outright. The height fix in index.css is the other half
             of that; this is the breathing room. */}
-        <div className="relative mt-8 shrink-0 text-center" style={{ color: theme.icon }}>
-          <TimerIcon className="mx-auto h-12 w-12" />
-          <h2 className="mt-1 text-[1.6rem] font-extrabold" style={{ color: theme.ink }}>
-            {roundNumber === null ? 'Round Timer' : `Round ${roundNumber} Timer`}
-          </h2>
-          {closeKey && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close Round Timer"
-              className="absolute -right-2 -top-1 rounded p-2 transition-colors"
-              style={{ color: theme.sub }}
-            >
-              <CloseIcon className="h-8 w-8" strokeWidth={3} />
-            </button>
-          )}
-        </div>
+        {shape.glyph && shape.title && (
+          <div className="relative mt-8 shrink-0 text-center" style={{ color: theme.icon }}>
+            <TimerIcon className={`mx-auto ${shape.glyph}`} />
+            <h2 className={`mt-1 font-extrabold ${shape.title}`} style={{ color: theme.ink }}>
+              {roundNumber === null ? 'Round Timer' : `Round ${roundNumber} Timer`}
+            </h2>
+            {closeKey && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close Round Timer"
+                className="absolute -right-2 -top-1 rounded p-2 transition-colors"
+                style={{ color: theme.sub }}
+              >
+                <CloseIcon className="h-8 w-8" strokeWidth={3} />
+              </button>
+            )}
+          </div>
+        )}
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto py-4">
+        <div
+          className={`flex min-h-0 flex-1 flex-col items-center gap-6 overflow-y-auto py-4 ${shape.flow}`}
+        >
           {waiting ? (
             <p
               className="max-w-sm text-center text-xl font-medium"
@@ -243,12 +344,14 @@ export function TimerSheet({
               TIME&rsquo;S UP
             </p>
           ) : (
-            <p
-              className="text-center font-extrabold tabular-nums"
-              style={{ color: theme.ink, fontSize: 'clamp(5rem, 26vw, 13rem)', lineHeight: 1 }}
-            >
-              {formatMMSS(remainingMs)}
-            </p>
+            shape.digits && (
+              <p
+                className="text-center font-extrabold tabular-nums"
+                style={{ color: theme.ink, fontSize: shape.digits, lineHeight: 1 }}
+              >
+                {formatMMSS(remainingMs)}
+              </p>
+            )
           )}
           {config}
         </div>

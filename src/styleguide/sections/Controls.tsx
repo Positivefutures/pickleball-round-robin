@@ -11,6 +11,7 @@ import { FIELD_LABEL } from '../../components/formLook';
 import { STEPPER_KEY, STEPPER_VALUE } from '../../components/stepperLook';
 import * as account from '../../components/layout/accountStyles';
 import { ShareIcon, TrashIcon, CopyIcon, PencilIcon, MailIcon, SignOutIcon } from '../../components/icons';
+import { PlayTriangleIcon, StopSquareIcon } from '../../components/schedule/timerIcons';
 
 const noop = () => {};
 
@@ -25,13 +26,17 @@ export function Controls() {
             There is one shared button <em>component</em> — <code>TileButton</code> — and it is the
             square glyph tile. The ordinary button is a class string, and there are three competing
             sets of them. All four are shown here because all four are in the app.
+            <br />
+            <code>TileButton</code> has five tones and two sizes. The three pale tones are the
+            ordinary ones; the two solid ones and the large size belong to the round timer, which is
+            read at arm's length from the side of a court, and nothing else should reach for them.
           </>
         }
       >
         <SubHeading>TileButton — the one real component</SubHeading>
         <Example
           name="<TileButton tone=… Icon=… label=… onClick=… />"
-          note="tone: 'quiet' | 'teal' | 'red'"
+          note="tone: 'quiet' | 'teal' | 'red' — the pale family, and the default size"
           source={`import { TileButton, TILE_ROW } from '../TileButton';
 
 <div className={TILE_ROW}>
@@ -44,6 +49,36 @@ export function Controls() {
             <TileButton tone="teal" Icon={ShareIcon} label="Share Link" onClick={noop} />
             <TileButton tone="quiet" Icon={CopyIcon} label="Copy" onClick={noop} />
             <TileButton tone="red" Icon={TrashIcon} label="Stop Sharing" onClick={noop} />
+          </div>
+        </Example>
+
+        <Example
+          name="TileButton — the two solid tones"
+          note="tone: 'solid-green' | 'solid-red'. The round timer's, and nothing else's"
+          source={`<TileButton tone="solid-green" size="lg" Icon={PlayTriangleIcon} label="Start Timer" onClick={start} />
+<TileButton tone="solid-red" size="lg" Icon={StopSquareIcon} label="Stop" onClick={stop} />`}
+        >
+          <div className={TILE_ROW} style={{ maxWidth: '16rem' }}>
+            <TileButton tone="solid-green" size="lg" Icon={PlayTriangleIcon} label="Start Timer" onClick={noop} />
+            <TileButton tone="solid-red" size="lg" Icon={StopSquareIcon} label="Stop" onClick={noop} />
+          </div>
+        </Example>
+
+        <Example
+          name="TileButton — size"
+          note="size: 'md' (the default) | 'lg'. The first named size in the app — see F2"
+          source={`<TileButton tone="teal" Icon={ShareIcon} label="Share Link" onClick={share} />
+<TileButton tone="teal" size="lg" Icon={ShareIcon} label="Share Link" onClick={share} />`}
+        >
+          <div className="flex flex-col gap-3">
+            <div className={TILE_ROW} style={{ maxWidth: '16rem' }}>
+              <TileButton tone="teal" Icon={ShareIcon} label="Share Link" onClick={noop} />
+              <TileButton tone="quiet" Icon={CopyIcon} label="Copy" onClick={noop} />
+            </div>
+            <div className={TILE_ROW} style={{ maxWidth: '16rem' }}>
+              <TileButton tone="teal" size="lg" Icon={ShareIcon} label="Share Link" onClick={noop} />
+              <TileButton tone="quiet" size="lg" Icon={CopyIcon} label="Copy" onClick={noop} />
+            </div>
           </div>
         </Example>
 

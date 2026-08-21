@@ -30,6 +30,8 @@ one shared button component, and it is not the ordinary button.
 | Say this | It means | Where it lives |
 |---|---|---|
 | a **tile** (teal / quiet / red) | `<TileButton tone="teal" …>` | `components/TileButton.tsx` |
+| a **solid tile** (green / red) | `tone="solid-green" \| "solid-red"` — the round timer's Start and Stop, and nowhere else | same file |
+| a **large tile** | `size="lg"` — the timer again, read from the side of a court | same file |
 | the **primary** button | `account.primary` — teal, full width, `text-lg` | `layout/accountStyles.ts` |
 | the **secondary** button | `account.secondary` — grey, bordered | same file |
 | the **danger** button | `account.danger` — `#B42318` | same file |
@@ -45,10 +47,11 @@ one shared button component, and it is not the ordinary button.
 | a **notice** | `account.note` + a tone, or `Problem` for the red one | `layout/accountStyles.ts`, `AccountShell.tsx` |
 | a **round-type pill** | `pillMeta(type)` → `badgeClass` + `badgeEdgeClass` | `lib/roundTypes.ts` |
 
-**Sizes are not named yet.** There is no `size="sm"`. The teal button alone
-appears at five different paddings (`py-2`, `py-2.5`, `py-3`, `py-3.5`,
-`px-6 py-2.5`). If Jeff asks for a size, ask which one he means, or propose
-naming them — that is finding **F2**.
+**Sizes are barely named.** `TileButton` takes `size="md" | "lg"` and that is
+the only named size in the app. Everything else is unnamed: the teal button
+alone appears at five different paddings (`py-2`, `py-2.5`, `py-3`, `py-3.5`,
+`px-6 py-2.5`). If Jeff asks for a size on anything but a tile, ask which one he
+means, or propose naming them — that is finding **F2**.
 
 ### Rules
 
@@ -57,8 +60,10 @@ naming them — that is finding **F2**.
   moment to extract it, not to paste it again.
 - **New colour? Add a token** to `@theme static` in `src/index.css` rather than
   writing a hex. There are already 102 hex literals; see **F11**.
-- **`focus:ring-green-500` is a bug, not a style.** Green is not in the palette.
-  See **F7** — the app's focus handling is its weakest accessibility point.
+- **`focus:ring-green-500` is a bug, not a style.** `--color-start-green` is the
+  one green in the palette and it is the round timer's Start fill. A green focus
+  ring is still a survivor of the pre-brand scheme. See **F7** — the app's focus
+  handling is its weakest accessibility point.
 - **Adding a component? Add it to `/style-guide`** by importing it. Never copy
   its markup onto that page — a copy stops tracking the original, which defeats
   the entire point of the page.

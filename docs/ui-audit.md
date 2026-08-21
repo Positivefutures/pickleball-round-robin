@@ -479,6 +479,12 @@ different red from the last red Delete" cannot happen — and there is one, in
 ones (44px+ targets, `text-lg`); the inline `py-2.5` set is 40px. Pick
 `accountStyles`' proportions, name the sizes, and let panels opt into `w-full`.
 
+**Partly started, 2026-08-21.** `TileButton` — the one real component, and not
+one of the three sets above — now takes `size: 'md' | 'lg'`, the first named
+size anywhere in the app. It is one pair, not a scale, and only the round timer
+asks for `lg`. It does not touch the three class-string sets, which is still the
+whole of this finding.
+
 ### F3 — Five banners, one shape · **high**
 
 `InstallBanner`, `SignInBanner`, `UpdateBanner`, `PrintNotice` and `SwapHint` are
@@ -534,6 +540,12 @@ one-handed on a phone but also on a laptop from the printout flow.
 focus-visible:ring-offset-2` applied by the shared `Button`/`Field`, and delete
 `focus:ring-green-500`. This is the highest-value single change in the list.
 
+**Not affected by `--color-start-green`.** A green was named in `@theme static`
+on 2026-08-21 for the round timer's Start key, where go/stop is read before any
+label is. That is a fill on two tiles, decided and written down; the eight
+`focus:ring-green-500`s are still an unnamed leftover on the wrong control, and
+still the thing to delete.
+
 ### F8 — Three greys doing the panel-edge job, again · **medium**
 
 `--color-panel-edge` was created to end exactly this, and it worked for panels.
@@ -564,7 +576,7 @@ timer one and `LiveShareView` draws the other, in the same app.
 | `STEPPER_EDGE` | [stepperLook.ts:16](src/components/stepperLook.ts#L16) | Exported, imported by nobody — and its value `#CCCFD9` is then written as a literal three more times *in the same file* |
 | `TEAL` | [accountStyles.ts:23](src/components/layout/accountStyles.ts#L23) | Exported, unused inside and outside the file. `ActionsSheet` and `SessionConfig` each declare their own private `TEAL` with the identical value |
 | `TEAL_FILL` | same, `#L33` | Used once inside the file, exported and never imported |
-| `StopSquareIcon` | [timerIcons.tsx:138](src/components/schedule/timerIcons.tsx#L138) | Never used |
+| ~~`StopSquareIcon`~~ | [timerIcons.tsx](src/components/schedule/timerIcons.tsx) | **Fixed 2026-08-21** — the glyph on both Stop keys, the watcher's and the host's |
 | `src/components/schedule/icons.tsx` | whole module | Never imported (see F9) |
 | `CrashTest` | [ErrorBoundary.tsx](src/components/layout/ErrorBoundary.tsx) | Deliberate — a crash-reporting test hook, not dead code |
 

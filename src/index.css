@@ -68,6 +68,26 @@
    * triangle, for the panels that really do take something away.
    */
   --color-notice-yellow: #fdf3c7;
+
+  /**
+   * The two solid media keys on the round timer, and nothing else.
+   *
+   * Green is not a brand colour and this is not an invitation to start using it
+   * as one — see F7, where `focus:ring-green-500` is filed as a bug precisely
+   * because green had crept in unnamed. It is here because Start and Stop on a
+   * countdown are read at arm's length by somebody who is not reading the
+   * label, and go/stop is the one pairing that needs no label. Every other
+   * button in the app stays teal, orange, red or grey.
+   *
+   * Both are solid fills carrying white text: #157f3c is 5.1:1 against white
+   * and #b42318 is 6.6:1, so each clears AA at any size, and the hovers only go
+   * further up. The red is the value `account.danger` has always used, named at
+   * last rather than written out a second time.
+   */
+  --color-start-green: #157f3c;
+  --color-start-green-dark: #11682f;
+  --color-stop-red: #b42318;
+  --color-stop-red-dark: #941c13;
 }
 
 /**

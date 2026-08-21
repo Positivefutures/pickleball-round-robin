@@ -9,13 +9,13 @@ import { useWakeLock } from '../../hooks/useWakeLock';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { Toggle } from '../Toggle';
 import { CloseIcon } from '../icons';
-import { TileButton, TILE_ROW } from '../TileButton';
+import { TileButton, TILE_ROW, TILE_ALONE } from '../TileButton';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { AlarmTonePicker } from './AlarmTonePicker';
 import { TimerSheet } from './TimerSheet';
 import {
   VolumeUpIcon, SilenceIcon, FlashIcon, IphoneOutlineIcon, PlayTriangleIcon, PauseIcon,
-  ReplayIcon,
+  ReplayIcon, StopSquareIcon,
 } from './timerIcons';
 
 /**
@@ -62,6 +62,7 @@ export function RoundTimerPanel() {
   // stays on a white sheet.
   const idle = state.phase === 'idle';
   const running = state.phase === 'running';
+  const alarming = state.phase === 'alarming';
 
   /**
    * Nothing left to pause, and nothing left to start.
@@ -77,7 +78,7 @@ export function RoundTimerPanel() {
    * is that neither belongs: at zero the only two things worth doing are
    * putting it away and setting it up again.
    */
-  const spent = state.phase === 'alarming' || (state.phase === 'paused' && state.remainingMs <= 0);
+  const spent = alarming || (state.phase === 'paused' && state.remainingMs <= 0);
 
   /**
    * Whether a countdown is under way, paused or not.
@@ -92,7 +93,7 @@ export function RoundTimerPanel() {
   return (
     <TimerSheet
       roundNumber={state.roundNumber}
-      alarming={state.phase === 'alarming'}
+      alarming={alarming}
       remainingMs={liveRemainingMs(state)}
       light={idle}
       flashOn={state.flashOn}
@@ -100,6 +101,11 @@ export function RoundTimerPanel() {
       // Close is the first tile in the row below. Two ways out of one sheet is
       // one to read past.
       closeKey={false}
+      // Two screens, not one. Before the start the settings are what the sheet
+      // is for and there is no countdown worth drawing; after it the countdown
+      // is the whole of it and the glyph and title above it are chrome. See
+      // LOOKS in TimerSheet.
+      look={idle ? 'setting' : alarming ? 'ringing' : 'counting'}
       // Dark whenever the sheet is (`light` is `idle` just above), because the
       // box is drawn on the sheet itself and a white-on-white one would be a
       // rectangle of nothing. The two flags have to agree; they are computed
@@ -108,54 +114,95 @@ export function RoundTimerPanel() {
         idle ? (
           <TimerConfig state={state} />
         ) : underway ? (
-          <AlertSwitches state={state} dark />
+          <AlertSwitches
+            state={state}
+            dark
+            tone={<AlarmTonePicker value={state.alarmTone} onChange={setAlarmTone} dark />}
+          />
         ) : undefined
       }
       actions={
         <>
-          {/* The tiles every other panel in the app answers with, so the way
-              out of the timer is the shape a host already knows. Close is
-              always the left one — it stands in for the key that used to sit
-              in the corner of the sheet — and what it sits beside grows from
-              one button to two once the clock is running.
+          {/* A ringing timer is answered with one key and it is the obvious
+              one. Everything a host wants at that moment — stop the noise, put
+              the screen away, leave the clock ready for the next round — is the
+              single thing `dismissRoundTimer` already does, and a row offering
+              Close beside Reset was two words to read while a phone shouted at
+              them. Solid red and a media square, so it is recognised rather
+              than read. */}
+          {alarming ? (
+            <div className={TILE_ALONE}>
+              <TileButton
+                tone="solid-red"
+                size="lg"
+                Icon={StopSquareIcon}
+                label="Stop"
+                onClick={dismissRoundTimer}
+              />
+            </div>
+          ) : (
+            /* The tiles every other panel in the app answers with, so the way
+               out of the timer is the shape a host already knows. Close is
+               always the left one — it stands in for the key that used to sit
+               in the corner of the sheet — and what it sits beside grows from
+               one button to two once the clock is running.
 
-              Pause turns back into Start Timer in place rather than
-              collapsing the row, so Close and Reset stay where the thumb last
-              found them.
+               Pause turns back into Start Timer in place rather than
+               collapsing the row, so Close and Reset stay where the thumb last
+               found them.
 
-              At zero the middle tile goes altogether and the row does collapse
-              to two, which is the one exception to that. There is no honest
-              third thing to put there: a clock with nothing left on it can be
-              put away or set up again, and offering either half of the
-              play/pause pair would be offering a button that does nothing worth
-              doing. Reset moving left is the cost, and it is cheap — the tile it
-              moves into was Pause, and on a ringing timer Pause and Reset both
-              silence it. */}
-          <div className={TILE_ROW}>
-            <TileButton
-              tone="quiet"
-              Icon={CloseIcon}
-              label="Close"
-              onClick={dismissRoundTimer}
-            />
-            {!spent &&
-              (running ? (
-                /* Quiet, not red. Pausing takes nothing away: the clock holds
-                   where it is and Start Timer carries on from there. Red is for
-                   the tiles that end something. */
-                <TileButton tone="quiet" Icon={PauseIcon} label="Pause" onClick={stopTimer} />
-              ) : (
+               At zero the middle tile goes altogether and the row does collapse
+               to two, which is the one exception to that. There is no honest
+               third thing to put there: a clock with nothing left on it can be
+               put away or set up again, and offering either half of the
+               play/pause pair would be offering a button that does nothing worth
+               doing. Reset moving left is the cost, and it is cheap — the tile it
+               moves into was Pause. */
+            <div className={TILE_ROW}>
+              <TileButton
+                tone="quiet"
+                size="lg"
+                Icon={CloseIcon}
+                label="Close"
+                onClick={dismissRoundTimer}
+              />
+              {!spent &&
+                (running ? (
+                  /* Quiet, not red. Pausing takes nothing away: the clock holds
+                     where it is and Start Timer carries on from there. Red is
+                     for the tiles that end something. */
+                  <TileButton
+                    tone="quiet"
+                    size="lg"
+                    Icon={PauseIcon}
+                    label="Pause"
+                    onClick={stopTimer}
+                  />
+                ) : (
+                  /* Solid green, alone on the row in doing so. It is the one
+                     key on either of the host's two screens that starts
+                     something, it is the same key whether the clock is at the
+                     top or held mid-round by a Pause, and go is a colour before
+                     it is a word. */
+                  <TileButton
+                    tone="solid-green"
+                    size="lg"
+                    Icon={PlayTriangleIcon}
+                    label="Start Timer"
+                    onClick={startTimer}
+                  />
+                ))}
+              {!idle && (
                 <TileButton
-                  tone="teal"
-                  Icon={PlayTriangleIcon}
-                  label="Start Timer"
-                  onClick={startTimer}
+                  tone="quiet"
+                  size="lg"
+                  Icon={ReplayIcon}
+                  label="Reset"
+                  onClick={resetTimer}
                 />
-              ))}
-            {!idle && (
-              <TileButton tone="quiet" Icon={ReplayIcon} label="Reset" onClick={resetTimer} />
-            )}
-          </div>
+              )}
+            </div>
+          )}
           {/* Only while something is actually counting. It hung on through the
               alarm as well, under a screen reading TIME'S UP, where "the timer
               keeps running" is simply not true — and it was least visible there
@@ -173,14 +220,15 @@ export function RoundTimerPanel() {
 }
 
 /**
- * Everything that is only worth setting before the countdown starts: how long,
- * and which tone. The two switches under them are worth setting later too, and
- * live in their own component for it.
+ * The settings screen's own half: how long the round is. The switches and the
+ * tone under it are worth setting later too, and live in their own component
+ * for it.
  *
- * What is not here is hidden rather than disabled once the timer is running —
- * a greyed-out minutes stepper would be a thing to read past to see the digits,
- * and the length a round was started at is not a thing that can be changed
- * halfway through anyway.
+ * Only the minutes are really only worth setting before the start, and they are
+ * hidden rather than disabled once the timer is running — a greyed-out stepper
+ * would be a thing to read past to see the digits, and the length a round was
+ * started at is not a thing that can be changed halfway through anyway. The
+ * tone travels with the switches; see AlertSwitches.
  */
 function TimerConfig({ state }: { state: RoundTimerState }) {
   // The Setup tab's own courts stepper, scaled up. Keys stay live at the ends
@@ -237,8 +285,13 @@ function TimerConfig({ state }: { state: RoundTimerState }) {
  * reach it short of resetting the timer they have just started. Jeff's report
  * on 2026-08-20.
  *
- * The tone picker does not come with them. Choosing a tone plays it, which on a
- * court mid-round is a false alarm, and the switch is what the report was about.
+ * The tone picker comes with them. It did not, at first, on the reasoning that
+ * choosing a tone plays it and a sample going off mid-round is a false alarm to
+ * everybody within earshot. Jeff's call on 2026-08-21 is that the host is the
+ * one holding the phone and can judge that for themselves — and a host who has
+ * started a round and found the tone wrong is in exactly the position the
+ * switches were put back for. The sample is the price of hearing what you are
+ * picking, and it is the same price on the settings screen.
  *
  * Nor do they stay for the alarm itself. `setSoundOn` writes a preference and
  * the watchdog reads it when the countdown reaches zero; it does not reach into

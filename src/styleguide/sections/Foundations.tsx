@@ -16,7 +16,7 @@ export function Foundations() {
         title="Colour"
         blurb={
           <>
-            Eight declared tokens, all of them in <code>@theme static</code> in{' '}
+            Twelve declared tokens, all of them in <code>@theme static</code> in{' '}
             <code>src/index.css</code>. <code>static</code> means every one is on the document
             whether or not a utility uses it, so <code>var(--color-…)</code> is safe from an inline
             style. Two primaries: orange leads, teal confirms. The darks are hovers and nothing else.
@@ -38,6 +38,21 @@ export function Foundations() {
             <Swatch varName="--color-brand-teal" role="The button that does the thing, and the switch that is on" ink="light" />
             <Swatch varName="--color-brand-teal-dark" role="Hover only" ink="light" />
             <Swatch varName="--color-brand-teal-light" role="Pale fills: tiles, selected rows, rating badges, stepper value" />
+          </div>
+        </div>
+
+        <div>
+          <SubHeading>The round timer, and nowhere else</SubHeading>
+          <p className="mt-1 text-[0.875rem] leading-snug text-gray-600">
+            Go and stop, on the two solid <code>TileButton</code> tones. Read before the label is,
+            by somebody who has looked up from a court — which is the only reason a green is in
+            here at all. See <code>F7</code>: a green focus ring is still a bug.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <Swatch varName="--color-start-green" role="Start Timer, and the Play it turns back into on a pause" ink="light" />
+            <Swatch varName="--color-start-green-dark" role="Hover and edge only" ink="light" />
+            <Swatch varName="--color-stop-red" role="Stop, the one key a ringing timer is answered with" ink="light" />
+            <Swatch varName="--color-stop-red-dark" role="Hover and edge only. Same value account.danger has always used" ink="light" />
           </div>
         </div>
 

@@ -222,13 +222,17 @@ describe('Round Timer', () => {
     expect(roundCard(1).querySelector('[aria-label="Round timer"]')).toBeNull();
   });
 
-  it('opens the panel for the round it was tapped on, showing the full default length', () => {
+  it('opens the panel for the round it was tapped on, set to the full default length', () => {
     openTimer(1);
 
     const panel = timerPanel();
     expect(panel).not.toBeNull();
     expect(text(panel!)).toContain('Round 1');
-    expect(text(panel!)).toContain('12:00');
+    // The stepper is where the length is said, and now the only place. A 12:00
+    // over it was the same number a second time at ten times the size, on the
+    // one screen where nothing is counting — Jeff's call on 2026-08-21.
+    expect(text(panel!.querySelector('[aria-label="Fewer minutes"]')!.nextElementSibling!)).toBe('12');
+    expect(text(panel!)).not.toContain('12:00');
   });
 
   it('names the round it belongs to in the heading, and only there', () => {
@@ -334,16 +338,19 @@ describe('Round Timer', () => {
     expect(storedTimer().phase).toBe('running');
   });
 
-  it('leaves the tone picker behind when it starts', () => {
-    // Choosing a tone plays it, which mid-round is a false alarm on a court.
-    // Found by its disclosure button rather than by its words: what it says is
-    // the name of whichever tone is currently chosen.
+  it('keeps the tone picker reachable once it starts', () => {
+    // It used to go with the minutes, on the reasoning that choosing a tone
+    // plays it and a sample mid-round is a false alarm on a court. Jeff's call
+    // on 2026-08-21: the host is holding the phone and can judge that, and a
+    // host who has started a round and found the tone wrong has no other way
+    // back to it. Found by its disclosure button rather than by its words:
+    // what it says is the name of whichever tone is currently chosen.
     openTimer(1);
     expect(timerPanel()!.querySelector('button[aria-expanded]')).not.toBeNull();
 
     clickButton(/^Start Timer$/, timerPanel()!);
 
-    expect(timerPanel()!.querySelector('button[aria-expanded]')).toBeNull();
+    expect(timerPanel()!.querySelector('button[aria-expanded]')).not.toBeNull();
   });
 
   it('closing the panel leaves the countdown running in the background', () => {
@@ -457,9 +464,10 @@ describe('Round Timer', () => {
     expect(alarmed).not.toBeNull();
     expect(text(alarmed!)).toContain('TIME’S UP');
 
-    // Reset rather than Pause. There is no Pause on a clock with nothing left
-    // to pause — see the test below — and Reset is what ends the alarm.
-    clickButton(/^Reset$/, alarmed!);
+    // Stop rather than Pause. There is no Pause on a clock with nothing left to
+    // pause — see the test below — and Stop is the whole of what a ringing
+    // timer has to offer.
+    clickButton(/^Stop$/, alarmed!);
     expect(storedTimer().phase).toBe('idle');
   });
 
@@ -468,8 +476,13 @@ describe('Round Timer', () => {
    * which when pressed produced a Start Timer button on a clock reading 0:00.
    * Neither does anything worth doing, and Start Timer there would begin a
    * countdown of no length and ring straight back.
+   *
+   * That left Close and Reset. On 2026-08-21 those went too: they are two words
+   * to read while a phone is shouting, and they do the same thing — Close on a
+   * ringing timer already means silence, reset and go. One key, and it is the
+   * one everybody reaches for.
    */
-  it('offers only Close and Reset once the clock has run out', () => {
+  it('answers a ringing timer with a single Stop', () => {
     openTimer(1);
     const panel = timerPanel()!;
     for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
@@ -483,9 +496,9 @@ describe('Round Timer', () => {
     const alarmed = timerPanel()!;
     const tiles = [...alarmed.querySelectorAll('button')]
       .map((b) => text(b))
-      .filter((t) => ['Close', 'Pause', 'Start Timer', 'Reset'].includes(t));
+      .filter((t) => ['Close', 'Pause', 'Start Timer', 'Reset', 'Stop'].includes(t));
 
-    expect(tiles).toEqual(['Close', 'Reset']);
+    expect(tiles).toEqual(['Stop']);
   });
 
   it('drops the switches for the alarm as well', () => {
@@ -526,8 +539,9 @@ describe('Round Timer', () => {
    *
    * It was not a stray tap being ignored. Panel visibility is
    * `manuallyOpen || phase === 'alarming'`, so lowering the flag while it rang
-   * did exactly nothing and the sheet redrew in place. Close now means the
-   * whole of it: silence, reset, and gone.
+   * did exactly nothing and the sheet redrew in place. Dismissing now means the
+   * whole of it: silence, reset, and gone — and since 2026-08-21 the tile that
+   * does it says Stop.
    */
   it('closes, silences and resets in one tap while the alarm is going', () => {
     openTimer(1);
@@ -542,7 +556,7 @@ describe('Round Timer', () => {
     const alarmed = timerPanel();
     expect(text(alarmed!)).toContain('TIME’S UP');
 
-    clickButton(/^Close$/, alarmed!);
+    clickButton(/^Stop$/, alarmed!);
 
     // Gone on the first tap, and it stays gone.
     expect(timerPanel()).toBeNull();
@@ -551,22 +565,21 @@ describe('Round Timer', () => {
     expect(storedTimer().remainingMs).toBe(60_000);
   });
 
-  it('leaves Reset reachable while the alarm is going', () => {
-    // The other two tiles in the same state, since one being unreachable was
-    // reason enough to check its neighbours.
+  it('takes the glyph and the title off the moment it is counting', () => {
+    // The two of them are 7rem of a sheet whose whole job, once it is running,
+    // is a number read from the far side of a court. They say "this is a timer"
+    // to somebody looking at a running timer, and name a round whose card was
+    // tapped to get here.
     openTimer(1);
-    const panel = timerPanel()!;
-    for (let i = 0; i < 11; i++) clickLabel('Fewer minutes', panel);
-    clickLabel('Play Sound', panel);
-    clickButton(/^Start Timer$/, panel);
+    expect(timerPanel()!.querySelector('h2')).not.toBeNull();
 
-    act(() => {
-      vi.advanceTimersByTime(61_000);
-    });
+    clickButton(/^Start Timer$/, timerPanel()!);
 
+    expect(timerPanel()!.querySelector('h2')).toBeNull();
+
+    // And back again on Reset, which is the way to the settings screen.
     clickButton(/^Reset$/, timerPanel()!);
-    expect(storedTimer().phase).toBe('idle');
-    expect(storedTimer().remainingMs).toBe(60_000);
+    expect(text(timerPanel()!.querySelector('h2')!)).toBe('Round 1 Timer');
   });
 
   it('still leaves a running timer running when Close is tapped', () => {

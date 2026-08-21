@@ -349,10 +349,26 @@ export function FocusProbe({ children }: { children: ReactNode }) {
 }
 
 /** A finding from docs/ui-audit.md, called out where the reader can see it. */
-export function Finding({ id, children }: { id: string; children: ReactNode }) {
+export function Finding({
+  id,
+  fixed = false,
+  children,
+}: {
+  id: string;
+  /**
+   * The finding has since been dealt with. Kept on the page rather than deleted
+   * because the numbers F1–F13 are cited in docs/ui-audit.md and in the repo's
+   * CLAUDE.md, and a gap in the run reads as a finding somebody lost.
+   */
+  fixed?: boolean;
+  children: ReactNode;
+}) {
+  const look = fixed
+    ? 'border-gray-300 bg-gray-50 text-gray-600'
+    : 'border-amber-300 bg-amber-50 text-amber-900';
   return (
-    <p className="flex gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-[0.875rem] leading-snug text-amber-900">
-      <code className="shrink-0 font-bold">{id}</code>
+    <p className={`flex gap-2.5 rounded-lg border px-3.5 py-2.5 text-[0.875rem] leading-snug ${look}`}>
+      <code className="shrink-0 font-bold">{fixed ? `${id} ✓` : id}</code>
       <span className="min-w-0">{children}</span>
     </p>
   );

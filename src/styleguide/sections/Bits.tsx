@@ -286,8 +286,10 @@ import { toneFor } from './scoreTone';
           <strong>both are live</strong>: <code>RoundTimerPanel</code> draws the timer one,{' '}
           <code>LiveShareView</code> draws the other.
         </Finding>
-        <Finding id="F10">
-          <code>StopSquareIcon</code> above is exported and used nowhere.
+        <Finding id="F10" fixed>
+          <code>StopSquareIcon</code> was exported and used nowhere. It is now the glyph on both
+          Stop keys: the watcher's, which silences an alarm the host has not reached yet, and the
+          host's own, which since 2026-08-21 is the single tile a ringing timer is answered with.
         </Finding>
       </Section>
     </>
