@@ -203,14 +203,15 @@ export function Surfaces() {
           <>
             Five components, one shape:{' '}
             <code>flex items-center gap-3 rounded-lg border border-&lt;c&gt;-200 bg-&lt;c&gt;-50 px-4 py-3</code>.
-            Five colours, five files, the dismiss ✕ written out five times. All five are the real
-            components below.
+            Four colours now: the install offer was repainted to match the new-version bar on
+            2026-08-21, and the two share <code>bannerStyles.ts</code>. Still five files, and the
+            dismiss ✕ still written out five times. All five are the real components below.
           </>
         }
       >
         <Example
           name="<InstallBanner onOpen onDismiss />"
-          note="green-200 / green-50 · app logo · teal action"
+          note="orange-200 / orange-50 · app logo · #FA5D02 action, below the words"
           source={`import { InstallBanner } from './InstallBanner';
 
 <InstallBanner onOpen={() => setShowInstall(true)} onDismiss={dismiss} />`}
@@ -220,7 +221,7 @@ export function Surfaces() {
 
         <Example
           name="<SignInBanner onOpen onDismiss />"
-          note="brand-teal / brand-teal-light · ShieldCheckIcon · the only one on brand colours"
+          note="brand-teal / brand-teal-light · ShieldCheckIcon · the only one on brand colours, and the other with its action below the words"
           source={`import { SignInBanner } from './SignInBanner';
 
 <SignInBanner onOpen={() => openAccount()} onDismiss={dismiss} />`}
@@ -230,7 +231,7 @@ export function Surfaces() {
 
         <Example
           name="<UpdateBanner onReload onDismiss />"
-          note="orange-200 / orange-50, and a button in #FA5D02 — a third orange"
+          note="orange-200 / orange-50, and a button in #FA5D02 — a third orange, now shared with InstallBanner"
           source={`import { UpdateBanner } from './UpdateBanner';
 
 <UpdateBanner onReload={applyUpdate} onDismiss={dismiss} />`}
@@ -263,8 +264,11 @@ export function Surfaces() {
 
         <Finding id="F3">
           One <code>&lt;Banner tone icon action onDismiss /&gt;</code> would absorb all five and
-          collect the third orange into the token. Note that only <code>SwapHint</code> sets its
-          body at <code>text-base</code>; the other four use <code>text-sm</code>.
+          collect the third orange into the token — <code>bannerStyles.ts</code> is half a step
+          towards it, naming that orange for the two bars that share it. It would also settle
+          where the action goes: two put it beside the words, two below. Note that only{' '}
+          <code>SwapHint</code> sets its body at <code>text-base</code>; the other four use{' '}
+          <code>text-sm</code>.
         </Finding>
       </Section>
 

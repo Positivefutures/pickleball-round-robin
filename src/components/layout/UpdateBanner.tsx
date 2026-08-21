@@ -1,19 +1,18 @@
 import { NewVersionIcon } from '../icons';
+import { bannerOrange, bannerOrangeEdge, bannerOrangeHover } from './bannerStyles';
 
 interface Props {
   onReload: () => void;
   onDismiss: () => void;
 }
 
-/** The orange Jeff drew the banner in. Tile and button share it. */
-const ORANGE = 'bg-[#FA5D02] hover:bg-[#DE5202]';
-
 /**
  * Shown when a new build has downloaded and is waiting to be let in.
  *
  * Orange, from `INBOX/New Version.png`. It used to be slate and it read as
  * housekeeping, which is not what this is: a fix somebody asked for is sitting
- * behind it. Green stays with the install banner, so the two never look alike.
+ * behind it. The install banner is now painted from the same three strings in
+ * bannerStyles, so this is the shape both of them keep.
  *
  * Dismissing it does not refuse the update, only the interruption: it comes
  * back the next time the app is picked up. That matters more than it used to.
@@ -26,10 +25,10 @@ export function UpdateBanner({ onReload, onDismiss }: Props) {
   return (
     <div
       role="status"
-      className="no-print flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3"
+      className={`no-print flex items-center gap-3 px-4 py-3 ${bannerOrangeEdge}`}
     >
       <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${ORANGE}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${bannerOrange}`}
       >
         <NewVersionIcon className="h-6 w-6 text-white" />
       </span>
@@ -40,7 +39,7 @@ export function UpdateBanner({ onReload, onDismiss }: Props) {
       <button
         type="button"
         onClick={onReload}
-        className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-bold text-white transition-colors ${ORANGE}`}
+        className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-bold text-white transition-colors ${bannerOrange}`}
       >
         Reload
       </button>
@@ -48,7 +47,7 @@ export function UpdateBanner({ onReload, onDismiss }: Props) {
         type="button"
         onClick={onDismiss}
         aria-label="Not now"
-        className="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-orange-100"
+        className={`shrink-0 rounded p-1 text-slate-500 transition-colors ${bannerOrangeHover}`}
       >
         <svg
           width="20" height="20" viewBox="0 0 24 24" fill="none"

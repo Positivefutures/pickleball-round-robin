@@ -228,6 +228,11 @@ function App() {
   const [showInstall, setShowInstall] = useState(false);
   const [installDismissed, setInstallDismissed] = useStoredValue(stores.installDismissed);
   const [signInDismissed, setSignInDismissed] = useStoredValue(stores.signInDismissed);
+  // Which group was seeded, so the account offer below can tell the Sample
+  // Group from one the host made. Null on a device that was never seeded, and
+  // on one that has since taken an account copy — in both cases every group
+  // there is the host's own.
+  const [exampleMeta] = useStoredValue(stores.exampleMeta);
   const [swapHintDismissed, setSwapHintDismissed] = useStoredValue(stores.swapHintDismissed);
 
   const tourView = useSyncExternalStore(subscribeTour, getTourView, getTourView);
@@ -1614,19 +1619,61 @@ function App() {
     setPendingLeave(null);
   }, [pendingLeave, clearSession, setStep]);
 
-  // Both banners wait for a roster worth keeping. Four players is a group
+  // The install offer waits for a roster worth keeping. Four players is a group
   // somebody has typed in by hand, and the first point at which losing it would
   // actually cost them an evening.
   //
-  // Neither is offered during the tour. The Sample Group clears the bar on its
-  // own, so a brand new install would otherwise meet its first card with a
-  // coloured bar above it, pushing Continue to Setup down a page that is locked
-  // and cannot be scrolled to reach it.
+  // Not offered during the tour. The Sample Group clears the bar on its own, so
+  // a brand new install would otherwise meet its first card with a coloured bar
+  // above it, pushing Continue to Setup down a page that is locked and cannot
+  // be scrolled to reach it.
   const worthKeeping = rosterPlayers.length >= 4 && tourView.phase === 'off';
   const offerInstall =
     !installed && !installDismissed && worthKeeping && installRoute({ canPrompt }) !== 'manual';
+
+  /**
+   * Whether the host has a group of their own with four players in it.
+   *
+   * Four sample players are not four players. A fresh install opens holding
+   * fourteen of them, which clears any plain count before anybody has typed a
+   * name, so the seeded group is struck out by id — the one exampleMeta
+   * recorded, not one that merely answers to the name.
+   *
+   * Counted over every group rather than the one in front, because this is a
+   * fact about the host and not about the tab they happen to be on: a host who
+   * built Tuesday Night and then flicked back to the samples has still made
+   * something worth keeping.
+   */
+  const ownGroupReady = useMemo(() => {
+    const own = new Set(
+      rosters.filter((r) => r.id !== exampleMeta?.rosterId).map((r) => r.id)
+    );
+    if (own.size === 0) return false;
+    const counts = new Map<string, number>();
+    for (const p of allPlayers) {
+      for (const id of p.rosterIds) {
+        if (!own.has(id)) continue;
+        const next = (counts.get(id) ?? 0) + 1;
+        if (next >= 4) return true;
+        counts.set(id, next);
+      }
+    }
+    return false;
+  }, [rosters, allPlayers, exampleMeta]);
+
+  // The account offer waits longer, and lives on one tab. Making a group is the
+  // moment there is something of the host's own to lose, and the Players tab is
+  // where they made it, so that is where they meet the offer to keep it — on
+  // that first return and on every one after, until they take it or wave it
+  // away. Jeff's call on 2026-08-21.
   const offerSignIn =
-    ACCOUNTS_ENABLED && isSupabaseConfigured() && !signInDismissed && !signedIn && worthKeeping;
+    ACCOUNTS_ENABLED &&
+    isSupabaseConfigured() &&
+    !signInDismissed &&
+    !signedIn &&
+    step === 'roster' &&
+    tourView.phase === 'off' &&
+    ownGroupReady;
 
   return (
     <div
@@ -1744,9 +1791,10 @@ function App() {
           />
         )}
 
-        {/* One ask at a time. Both banners want the same 4-player roster, and
-            two coloured bars above every step is a page that nags. Install goes
-            first: it is the smaller favour and it was here already. */}
+        {/* One ask at a time. The two can still want the same moment — the
+            Players tab, with a group of four on it — and two coloured bars over
+            one page is a page that nags. Install goes first: it is the smaller
+            favour, and the account offer will still be here next time. */}
         {!offerInstall && offerSignIn && (
           <SignInBanner
             onOpen={() => openAccount()}

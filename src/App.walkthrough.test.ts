@@ -644,7 +644,48 @@ describe('the mark a swap leaves', () => {
  * one-at-a-time rule in App never suppresses this one here.
  */
 describe('the sign-in banner', () => {
-  const LINE = 'Create a free account to keep them safe';
+  const LINE = 'This keeps your data safe, synced';
+
+  /**
+   * Marks the group `seed` wrote as the one runMigrations seeded, and puts the
+   * first-run greeting behind us, which is where a returning host is. Both, or
+   * neither: an exampleMeta with no tour stage beside it is a fresh install,
+   * and the greeting would open over whatever is being asserted.
+   */
+  function sampleSeeded() {
+    window.localStorage.setItem(
+      'pb-example-meta',
+      JSON.stringify({ rosterId: 'g1', playerIds: ['p1'] })
+    );
+    window.localStorage.setItem('pb-tour-stage', JSON.stringify('done'));
+  }
+
+  /**
+   * A second group, typed in by hand, with four people in it. Left inactive on
+   * purpose: the group in front stays the sample one, so this also holds the
+   * rule that the offer is counted over every group rather than the open one.
+   */
+  function addOwnGroup() {
+    const rosters = JSON.parse(window.localStorage.getItem('pb-rosters')!);
+    window.localStorage.setItem(
+      'pb-rosters',
+      JSON.stringify([...rosters, { id: 'g2', name: 'Tuesday' }])
+    );
+    const players = JSON.parse(window.localStorage.getItem('pb-roster')!);
+    window.localStorage.setItem(
+      'pb-roster',
+      JSON.stringify([
+        ...players,
+        ...Array.from({ length: 4 }, (_, i) => ({
+          id: `own${i + 1}`,
+          name: `Own ${i + 1}`,
+          rating: 4,
+          gender: 'M',
+          rosterIds: ['g2'],
+        })),
+      ])
+    );
+  }
 
   /** A build with Supabase configured, which is what production is. */
   function withDatabase(run: () => void) {
@@ -665,7 +706,7 @@ describe('the sign-in banner', () => {
     expect(container.textContent).not.toContain(LINE);
   });
 
-  it('waits for a roster worth keeping', () => {
+  it('waits for a group four strong', () => {
     withDatabase(() => {
       seed(3, 3, 1);
       mount();
@@ -674,6 +715,39 @@ describe('the sign-in banner', () => {
       // Unmounted, not just detached: a store with a live subscriber keeps its
       // cache, so the second mount would read the first one's three players.
       remount(() => seed(4, 4, 1));
+      expect(container.textContent).toContain(LINE);
+    });
+  });
+
+  it('does not count the Sample Group as a group of their own', () => {
+    withDatabase(() => {
+      // A fresh install, near enough: the group runMigrations seeded, with
+      // sample players in it and nothing typed. A plain count of heads would
+      // clear the bar twice over before anybody had made anything.
+      seed(9, 9, 2);
+      sampleSeeded();
+      mount();
+      expect(container.textContent).not.toContain(LINE);
+
+      // And the moment there is a group of their own, it is there.
+      remount(addOwnGroup);
+      expect(container.textContent).toContain(LINE);
+    });
+  });
+
+  it('is on the Players tab and nowhere else', () => {
+    // Where they made the group is where they are offered the way to keep it.
+    // Setup and Schedule are the middle of a job, and this is not an ask worth
+    // interrupting one for.
+    withDatabase(() => {
+      seed(9, 9, 2);
+      mount();
+      expect(container.textContent).toContain(LINE);
+
+      clickButton(/^2\. Setup$/);
+      expect(container.textContent).not.toContain(LINE);
+
+      clickButton(/^1\. Players$/);
       expect(container.textContent).toContain(LINE);
     });
   });
@@ -694,7 +768,7 @@ describe('the sign-in banner', () => {
     withDatabase(() => {
       seed(9, 9, 2);
       mount();
-      clickButton(/^Sign In$/);
+      clickButton(/^Create Free Account$/);
       expect(container.querySelector('img[src="/account-top.png"]')).not.toBeNull();
     });
   });
@@ -825,7 +899,7 @@ describe('the sign-in banner', () => {
         seed(9, 9, 2);
         arriveAt('/');
         mount();
-        clickButton(/^Sign In$/);
+        clickButton(/^Create Free Account$/);
 
         await settle();
         expect(container.textContent).not.toContain('That link');
@@ -927,7 +1001,7 @@ describe('the sign-in banner', () => {
 
         // The banner's own button, which is the same panel the settings menu
         // item opens.
-        clickButton(/^Sign In$/);
+        clickButton(/^Create Free Account$/);
         // The Supabase client is a dynamic import, and the panel says
         // "Checking..." until it answers.
         for (let i = 0; i < 10; i++) {
