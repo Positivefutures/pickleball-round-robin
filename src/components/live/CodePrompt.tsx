@@ -15,6 +15,9 @@ import { useScrollLock } from '../../hooks/useScrollLock';
  * ever means yes. That is also why the boxes come back empty on a refusal
  * rather than waiting to be cleared by hand.
  *
+ * A refusal says only that the code was wrong. Where to get a right one is
+ * already standing above the boxes and does not need saying twice.
+ *
  * What it does not do is decide anything. The database is asked, every time,
  * and the code is carried on to the caller only when the database has said so.
  * Nothing about the answer is worked out on this phone, because everything on
@@ -64,7 +67,7 @@ export function CodePrompt({ shareKey, onUnlocked, onCancel }: Props) {
 
   const message =
     state === 'wrong'
-      ? 'That code is not right. Ask whoever is running this session.'
+      ? 'That code is not correct.'
       : state === 'offline'
         ? 'You are offline. Try again when you are back on.'
         : state === 'error'
@@ -84,8 +87,7 @@ export function CodePrompt({ shareKey, onUnlocked, onCancel }: Props) {
         </div>
 
         <p className="mb-4 text-center text-[15px] leading-snug text-[#3D495A]">
-          Whoever is running this session can give you the four digit code. It
-          lets you change any score here.
+          Ask the host for the four digit code to be able to enter scores.
         </p>
 
         <CodeEntry

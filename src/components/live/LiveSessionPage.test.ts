@@ -335,7 +335,7 @@ describe('changing a score from a watching phone', () => {
     await act(async () => boards()[0].click());
     await typeCode('0000');
 
-    expect(text()).toContain('That code is not right');
+    expect(text()).toContain('That code is not correct.');
     expect(text()).not.toContain('Court 7 Score');
     // And the boxes are empty again, ready to be tried.
     const boxes = [...container.querySelectorAll('input')] as HTMLInputElement[];

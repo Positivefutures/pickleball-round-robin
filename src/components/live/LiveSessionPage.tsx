@@ -4,7 +4,7 @@ import type { SessionSnapshot } from '../../lib/sessionSnapshot';
 import type { CourtScore } from '../../types';
 import { APP_URL } from '../../lib/appInfo';
 import { appScrollTo } from '../../lib/appScroll';
-import { Header } from '../layout/Header';
+import { BADGE_SIZE, Header } from '../layout/Header';
 import { StandingsPanel } from '../schedule/StandingsPanel';
 import { ScoreDialog } from '../schedule/ScoreDialog';
 import {
@@ -72,12 +72,14 @@ const PROBE_MS = 3_000;
 const POLL_MS = 20_000;
 
 /**
- * The way home, worn by the link under the schedule and the one on every
- * notice. Sized as a player's name because it is the one thing on the page a
- * visitor might actually want to press, and orange because everything else
- * down there is grey.
+ * The robin standing over every notice, at twice the size the banner draws it.
+ *
+ * A notice is the whole of what a visitor gets when there is nothing to show
+ * them, and a page of grey type with no mark on it says nothing about where
+ * they are. Sized off the banner's own badge rather than a pixel count, so the
+ * two stay in step at every width the banner clamps to.
  */
-const HOME_LINK = `${PLAYER_NAME_TEXT} font-medium text-brand-orange underline hover:text-brand-orange-dark transition-colors`;
+const NOTICE_LOGO = `calc(2 * ${BADGE_SIZE})`;
 
 /**
  * How long a score this phone sent is shown before it gives up waiting.
@@ -358,10 +360,16 @@ export function LiveSessionPage({ shareKey }: Props) {
         {result === null && <Notice title="Loading this session…" />}
 
         {result?.state === 'gone' && (
-          <Notice
-            title="This session link has ended."
-            body="Ask whoever is running it for a new one."
-          />
+          <>
+            <Notice
+              title="This session link has ended."
+              body="Ask whoever is running it for a new one."
+            />
+            {/* The only notice that carries it. A link that has ended is the
+                one dead end here where there is nothing left to wait for, so
+                the app itself is the only thing left worth offering. */}
+            <MakeYourOwn />
+          </>
         )}
 
         {result?.state === 'outdated' && (
@@ -951,6 +959,18 @@ function Notice({
 }) {
   return (
     <div className="rounded-lg border border-panel-edge bg-white px-4 py-8 text-center shadow">
+      {/* Width alone, with the height left to follow: the file is a hair off
+          square. Its own ring is the edge, so nothing here needs the white
+          disc the banner's badge is held off its artwork by. */}
+      <img
+        src="/logo.png"
+        alt=""
+        aria-hidden="true"
+        width={913}
+        height={907}
+        className="mx-auto mb-5 h-auto select-none"
+        style={{ width: NOTICE_LOGO }}
+      />
       <p className="text-lg font-bold text-[#222]">{title}</p>
       {body && <p className="mt-1 text-sm text-gray-600">{body}</p>}
       {onRetry && (
@@ -963,11 +983,6 @@ function Notice({
           {retrying ? 'Trying…' : 'Try Again'}
         </button>
       )}
-      <p className="mt-6">
-        <a href={APP_URL} className={HOME_LINK}>
-          Make your own round robin
-        </a>
-      </p>
     </div>
   );
 }

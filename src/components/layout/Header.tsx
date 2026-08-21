@@ -52,6 +52,16 @@ const TITLE_MIN = '11rem';
 const BADGE = { left: 40 / 264, top: 76 / 264, width: 102 / 264, height: 104 / 264 };
 
 /**
+ * How wide the badge is drawn, as a CSS length rather than a number.
+ *
+ * Exported for the viewer's notices, which put the same robin over a message
+ * at a multiple of this — `logo.png` is that badge on transparency, ring and
+ * all. A pixel count there would say nothing about the banner and would drift
+ * the moment the banner is resized. This cannot.
+ */
+export const BADGE_SIZE = `calc(${BADGE.width} * ${HEIGHT})`;
+
+/**
  * The disc that hides the robin where another mark stands in for it.
  *
  * The badge is painted as a navy ring on a white disc that carries on past the
