@@ -8,14 +8,13 @@ import {
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { Toggle } from '../Toggle';
-import { CloseIcon } from '../icons';
 import { TileButton, TILE_ROW, TILE_ALONE } from '../TileButton';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { AlarmTonePicker } from './AlarmTonePicker';
 import { TimerSheet } from './TimerSheet';
 import {
   VolumeUpIcon, SilenceIcon, FlashIcon, IphoneOutlineIcon, PlayTriangleIcon, PauseIcon,
-  ReplayIcon, StopSquareIcon,
+  ReplayIcon, StopSquareIcon, ExitIcon,
 } from './timerIcons';
 
 /**
@@ -162,7 +161,7 @@ export function RoundTimerPanel() {
               <TileButton
                 tone="quiet"
                 size="lg"
-                Icon={CloseIcon}
+                Icon={ExitIcon}
                 label="Close"
                 onClick={dismissRoundTimer}
               />

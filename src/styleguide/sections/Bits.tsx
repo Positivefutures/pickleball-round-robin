@@ -268,7 +268,7 @@ import { toneFor } from './scoreTone';
         title="Icons"
         blurb={
           <>
-            66 glyphs across three modules, listed by reading the modules themselves rather than
+            67 glyphs across three modules, listed by reading the modules themselves rather than
             from a written list. Colour always comes from the text beside them —{' '}
             <code>currentColor</code> — and both wrappers set <code>aria-hidden</code>. Size is
             passed per call, not baked in.
@@ -276,7 +276,7 @@ import { toneFor } from './scoreTone';
         }
       >
         <IconGrid title="components/icons.tsx" subtitle="54 glyphs · the main set" module={appIcons} />
-        <IconGrid title="components/schedule/timerIcons.tsx" subtitle="9 glyphs · default className is w-4 h-4" module={timerIcons} />
+        <IconGrid title="components/schedule/timerIcons.tsx" subtitle="10 glyphs · default className is w-4 h-4" module={timerIcons} />
         <IconGrid title="components/schedule/actionIcons.tsx" subtitle="3 glyphs · badged, ringing their corner disc in --chip-tint" module={actionIcons} />
 
         <Finding id="F9">

@@ -51,6 +51,9 @@ const DARK = { bg: '#000000', ink: '#FFFFFF', sub: '#9CA3AF', icon: '#FFFFFF', h
  * settings screen, where the number would be the minutes stepper's own value
  * said twice at ten times the size.
  *
+ * `digitsBox` is how the clock sits in whatever room it is given. Left empty it
+ * is an ordinary line of text that takes its own height.
+ *
  * `flow` is where the room left over goes, and it is the line that differs
  * most. A sheet this tall always has slack; centring it puts half above the
  * content and half below, which is right when the content is one block and
@@ -69,6 +72,7 @@ const LOOKS = {
     glyph: 'h-12 w-12',
     title: 'text-[1.6rem]',
     digits: 'clamp(5rem, 26vw, 13rem)',
+    digitsBox: '',
     flow: 'justify-center-safe',
   },
   /**
@@ -86,13 +90,20 @@ const LOOKS = {
     glyph: 'h-[3.75rem] w-[3.75rem]',
     title: 'text-3xl',
     digits: null,
+    digitsBox: '',
     flow: 'justify-center-safe [@media(min-height:800px)]:pb-24',
   },
   /**
-   * The host once it is counting. Two blocks, not one: the digits, which want
-   * to be as high and as large as the sheet allows, and the alerts, which want
-   * to be under the thumb that is already at the tiles. So the slack goes
-   * between them rather than around them.
+   * The host once it is counting. Two blocks, not one: the alerts sit at the
+   * bottom, under the thumb that is already at the tiles, and the clock takes
+   * the whole of the rest and centres itself in it.
+   *
+   * The clock growing is what does that. `justify-between` alone pinned it to
+   * the very top of the sheet, hard against the drag handle, which is where
+   * Jeff caught it on 2026-08-21 — the slack has to be *around* the digits, not
+   * above them. `grow shrink-0` takes every spare pixel without ever giving up
+   * its own height on a short screen, and centring happens inside the box it
+   * grew into.
    */
   counting: {
     glyph: null,
@@ -103,7 +114,8 @@ const LOOKS = {
     // whatever the round says and a 1 cannot flatter the measurement. Capped in
     // rem as well, or a tablet in landscape gets digits taller than the sheet.
     digits: 'min(30vw, 8.5rem)',
-    flow: 'justify-between',
+    digitsBox: 'flex w-full grow shrink-0 items-center justify-center',
+    flow: 'justify-start',
   },
   /**
    * The host at zero. TIME'S UP is one block and it is the only thing on the
@@ -114,6 +126,7 @@ const LOOKS = {
     glyph: null,
     title: null,
     digits: null,
+    digitsBox: '',
     flow: 'justify-center-safe',
   },
 } as const;
@@ -346,7 +359,7 @@ export function TimerSheet({
           ) : (
             shape.digits && (
               <p
-                className="text-center font-extrabold tabular-nums"
+                className={`text-center font-extrabold tabular-nums ${shape.digitsBox}`}
                 style={{ color: theme.ink, fontSize: shape.digits, lineHeight: 1 }}
               >
                 {formatMMSS(remainingMs)}

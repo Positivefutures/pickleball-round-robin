@@ -1,10 +1,11 @@
 /**
  * Glyphs for the Round Timer only. Everything else the schedule draws lives in
  * `schedule/icons.tsx`; everything the whole app shares lives in
- * `components/icons.tsx`. Six of these are `INBOX/*.svg` verbatim, stripped of
- * their own hard-coded fills so they take `currentColor` like every other icon
- * in the app; two — the plain play triangle and stop square — are drawn here
- * because nothing in `INBOX/` was the right shape for a media control.
+ * `components/icons.tsx`. Seven of these are `INBOX/*.svg`, stripped of their
+ * own hard-coded fills so they take `currentColor` like every other icon in the
+ * app, and one of the seven is mirrored; three — the play triangle, the stop
+ * square and the pause bars — are drawn here because nothing in `INBOX/` was
+ * the right shape for a media control.
  */
 
 /**
@@ -186,6 +187,36 @@ export function PauseIcon({ className = 'w-4 h-4' }: { className?: string }) {
       className={`shrink-0 ${className}`}
     >
       <path d="M7 5h3.2v14H7zm6.8 0H17v14h-3.2z" />
+    </svg>
+  );
+}
+
+/**
+ * `INBOX/logout2.svg`, mirrored. Close, on the round timer.
+ *
+ * A door with an arrow going through it. The file draws the arrow leaving to
+ * the right, which is the sign-out gesture — away, out of the account. Jeff's
+ * call on 2026-08-21 is that this one points left instead: the tile does not
+ * end anything, it steps back out of a screen the timer goes on running
+ * behind, and left is the direction back.
+ *
+ * Mirrored on a `<g>` rather than with a `scale-x-[-1]` class, so the flip
+ * belongs to the artwork. A CSS transform would be one more thing every caller
+ * could accidentally drop or double.
+ */
+export function ExitIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      fill="currentColor"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      <g transform="translate(512,0) scale(-1,1)">
+        <path d="M510.371,226.513c-1.088-2.603-2.645-4.971-4.629-6.955l-63.979-63.979c-8.341-8.32-21.824-8.32-30.165,0 c-8.341,8.341-8.341,21.845,0,30.165l27.584,27.584H320.013c-11.797,0-21.333,9.557-21.333,21.333s9.536,21.333,21.333,21.333 h119.168l-27.584,27.584c-8.341,8.341-8.341,21.845,0,30.165c4.16,4.181,9.621,6.251,15.083,6.251s10.923-2.069,15.083-6.251 l63.979-63.979c1.984-1.963,3.541-4.331,4.629-6.955C512.525,237.606,512.525,231.718,510.371,226.513z" />
+        <path d="M362.68,298.667c-11.797,0-21.333,9.557-21.333,21.333v106.667h-85.333V85.333c0-9.408-6.187-17.728-15.211-20.437 l-74.091-22.229h174.635v106.667c0,11.776,9.536,21.333,21.333,21.333s21.333-9.557,21.333-21.333v-128 C384.013,9.557,374.477,0,362.68,0H21.347c-0.768,0-1.451,0.32-2.197,0.405c-1.003,0.107-1.92,0.277-2.88,0.512 c-2.24,0.576-4.267,1.451-6.165,2.645c-0.469,0.299-1.045,0.32-1.493,0.661C8.44,4.352,8.376,4.587,8.205,4.715 C5.88,6.549,3.939,8.789,2.531,11.456c-0.299,0.576-0.363,1.195-0.597,1.792c-0.683,1.621-1.429,3.2-1.685,4.992 c-0.107,0.64,0.085,1.237,0.064,1.856c-0.021,0.427-0.299,0.811-0.299,1.237V448c0,10.176,7.189,18.923,17.152,20.907 l213.333,42.667c1.387,0.299,2.795,0.427,4.181,0.427c4.885,0,9.685-1.685,13.525-4.843c4.928-4.053,7.808-10.091,7.808-16.491 v-21.333H362.68c11.797,0,21.333-9.557,21.333-21.333V320C384.013,308.224,374.477,298.667,362.68,298.667z" />
+      </g>
     </svg>
   );
 }
