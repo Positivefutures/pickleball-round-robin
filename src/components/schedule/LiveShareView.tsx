@@ -219,12 +219,13 @@ export function LiveShareView({ onCreateAccount }: Props) {
           rather than a way anywhere: this panel is already the panel it opens.
 
           Above the code rather than beside the heading, because what it is
-          telling the host is that the thing directly below it is working. */}
-      <div className="flex justify-center">
+          telling the host is that the thing directly below it is working — and
+          in one block with it rather than as a second item in the card's
+          `space-y-3`. The code carries a four-module white quiet zone inside
+          its own box, about 26px of it, so any gap written here is added on top
+          of white the eye already reads as space. */}
+      <div className="flex flex-col items-center">
         <LivePill />
-      </div>
-
-      <div className="flex justify-center">
         <QrCode value={url} size={220} label="Scan to watch this session" />
       </div>
 

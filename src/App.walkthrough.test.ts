@@ -6865,6 +6865,17 @@ describe('the LIVE pill', () => {
     expect(pills()).toHaveLength(0);
   });
 
+  it('costs the page no height, so nothing below the tabs moves', () => {
+    sharedSession();
+    // happy-dom lays nothing out, so this is asserted on the one property that
+    // decides it: the pill hangs out of the flow. Jeff's call on 2026-08-21 —
+    // the tabs must stand exactly as far off the content below them whether a
+    // session is shared or not.
+    const strip = pills()[0].parentElement!.parentElement!;
+    expect(strip.className).toContain('absolute');
+    expect(strip.className).not.toContain('relative');
+  });
+
   it('stands under the tabs while a link is out, wherever the host is', () => {
     sharedSession();
     expect(pills()).toHaveLength(1);

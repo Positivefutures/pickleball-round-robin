@@ -1800,14 +1800,21 @@ function App() {
             row is the same row wherever the host is standing, and a pill that
             came and went as they moved along it would read as a bug.
 
-            Three columns to hang it in rather than an absolute offset, so it
-            stays centred under the third tab at every width the row is drawn
-            at — and it takes its own line, because overlapping it into the
-            gap below would put it over the first card on the page. */}
+            Out of the flow, and that is the point: it costs the page no height,
+            so the tabs stand exactly as far off the content below them whether
+            a session is shared or not. It hangs in the air `main` already opens
+            under the row. `inset-x-2` rather than `inset-x-0` because an
+            absolute child is placed against the padding box, and the tab row
+            itself sits inside this container's own `px-2`; the three columns
+            then line up with the three tabs at every width.
+
+            Only the pill takes a press. The strip it hangs in is the width of
+            the row and would otherwise swallow taps on whatever is under it. */}
         {shareKey && (
-          <div className="mt-1 grid grid-cols-3 no-print">
+          <div className="pointer-events-none absolute inset-x-2 top-full mt-1 grid grid-cols-3 no-print">
             <div className="col-start-3 flex justify-center">
               <LivePill
+                className="pointer-events-auto"
                 label="This session is live: open Share Live Session"
                 onClick={() => openLiveShare()}
               />
