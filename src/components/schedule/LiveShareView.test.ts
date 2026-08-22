@@ -409,9 +409,12 @@ describe('stopping', () => {
 describe('the LIVE pill', () => {
   it('stands above the code while the session is being shared', () => {
     open(true);
-    expect(container.textContent).toContain('LIVE');
+    // The long form here and nowhere else. On a tab or a group's row the pill
+    // stands beside something that names the session; here it is the whole
+    // statement, so it says the whole thing. Jeff's call on 2026-08-21.
+    expect(container.textContent).toContain('SESSION IS LIVE');
     // A statement, not a way anywhere: this is already the panel it opens.
-    expect(byLabel('LIVE')).toBeUndefined();
+    expect(byLabel('SESSION IS LIVE')).toBeUndefined();
   });
 
   it('goes with the code when sharing stops', () => {

@@ -24,18 +24,25 @@ interface Props {
    */
   onClick?: () => void;
   /**
-   * What a screen reader hears, where "LIVE" alone would not say which session.
-   * The word on the pill is always LIVE.
+   * What a screen reader hears, where the word on the pill alone would not say
+   * which session.
    */
   label?: string;
+  /**
+   * What it says. LIVE everywhere it stands beside something else that names
+   * the session — a tab, a group's row — and the longer form on the Share Live
+   * Session panel, where it is a statement about the code under it rather than
+   * a mark on a list.
+   */
+  text?: string;
   className?: string;
 }
 
-export function LivePill({ onClick, label, className = '' }: Props) {
+export function LivePill({ onClick, label, text = 'LIVE', className = '' }: Props) {
   const inside = (
     <>
       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: GREEN }} aria-hidden="true" />
-      LIVE
+      {text}
     </>
   );
 

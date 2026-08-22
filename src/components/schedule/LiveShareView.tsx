@@ -225,7 +225,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
           its own box, about 26px of it, so any gap written here is added on top
           of white the eye already reads as space. */}
       <div className="flex flex-col items-center">
-        <LivePill />
+        <LivePill text="SESSION IS LIVE" />
         <QrCode value={url} size={220} label="Scan to watch this session" />
       </div>
 

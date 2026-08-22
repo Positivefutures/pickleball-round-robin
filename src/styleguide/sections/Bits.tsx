@@ -118,7 +118,7 @@ const meta = pillMeta(round.roundType);
         </Example>
 
         <Example
-          name="<LivePill onClick? label? />"
+          name="<LivePill onClick? label? text? />"
           note="Green. On a watcher's page it states a fact; on the host's side it is a button that opens Share Live Session"
           source={`import { LivePill } from '../LivePill';
 
@@ -126,7 +126,10 @@ const meta = pillMeta(round.roundType);
 <LivePill />
 
 // The host's side: the tab row, the group picker, Manage Groups.
-<LivePill label="This session is live: open Share Live Session" onClick={openShare} />`}
+<LivePill label="This session is live: open Share Live Session" onClick={openShare} />
+
+// Share Live Session, above the code, where it is the whole statement.
+<LivePill text="SESSION IS LIVE" />`}
         >
           <Row>
             <Labelled label="no onClick — a span">
@@ -134,6 +137,9 @@ const meta = pillMeta(round.roundType);
             </Labelled>
             <Labelled label="onClick — a button">
               <LivePill onClick={() => {}} />
+            </Labelled>
+            <Labelled label='text="SESSION IS LIVE"'>
+              <LivePill text="SESSION IS LIVE" />
             </Labelled>
           </Row>
         </Example>

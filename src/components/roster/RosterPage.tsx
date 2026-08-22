@@ -16,7 +16,6 @@ import {
   CrowdSolidIcon,
   GroupSolidIcon,
   PencilIcon,
-  SlidersIcon,
   TrashIcon,
 } from '../icons';
 
@@ -307,7 +306,12 @@ export function RosterPage({
                 onClick={() => onManageOpenChange(true)}
                 className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
               >
-                <SlidersIcon className="h-[1.125rem] w-[1.125rem]" />
+                {/* The pencil, and the same one the panel it opens puts on
+                    every row: Manage is a way into a list where editing a
+                    group is what each row offers. It wore the sliders from
+                    3.74 until 2026-08-21, which read as settings rather than
+                    as editing. */}
+                <PencilIcon className="h-[1.125rem] w-[1.125rem]" />
                 Manage
               </button>
             </div>
