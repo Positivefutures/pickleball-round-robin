@@ -195,16 +195,16 @@ export function Controls() {
           source={`{/* verbatim from RosterPage.tsx:356, CourtNumberDialog.tsx:98 and 20 others */}
 <button
   type="button"
-  className="px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
+  className="px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold"
 >
   Cancel
 </button>`}
         >
           <Row>
-            <button type="button" className="px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold">
+            <button type="button" className="px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold">
               Cancel
             </button>
-            <button type="button" disabled className="px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="button" disabled className="px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed">
               Cancel
             </button>
           </Row>
@@ -363,11 +363,12 @@ export function Controls() {
         </Finding>
 
         <Example
-          name="<Toggle checked onChange label />"
+          name="<Toggle checked onChange label tone />"
           note="role=switch, so a screen reader says on/off rather than ticked"
           source={`import { Toggle } from '../Toggle';
 
-<Toggle checked={keepScore} onChange={setKeepScore} label="Keep score" />`}
+<Toggle checked={keepScore} onChange={setKeepScore} label="Keep score" />
+<Toggle checked={soundOn} onChange={setSoundOn} label="Play Sound" tone="orange" />`}
         >
           <ToggleDemo />
         </Example>
@@ -442,6 +443,14 @@ function ToggleDemo() {
       </Labelled>
       <Labelled label="checked (fixed)">
         <Toggle checked onChange={noop} label="On" />
+      </Labelled>
+      {/* The one place the switch is not teal: the round timer's alerts, which
+          are only ever read off a black sheet. On black the brand teal is very
+          nearly the background. */}
+      <Labelled label='tone="orange"'>
+        <span className="flex rounded-md bg-black p-2">
+          <Toggle checked onChange={noop} label="On, orange" tone="orange" />
+        </span>
       </Labelled>
     </Row>
   );

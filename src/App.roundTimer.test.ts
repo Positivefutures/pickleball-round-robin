@@ -245,7 +245,7 @@ describe('Round Timer', () => {
     expect(text(panel).match(/Round 2/g)).toHaveLength(1);
   });
 
-  it('keeps Reset in place when Pause turns back into Start Timer', () => {
+  it('keeps Reset in place when Pause turns into Resume', () => {
     openTimer(1);
     clickButton(/^Start Timer$/, timerPanel()!);
 
@@ -256,14 +256,20 @@ describe('Round Timer', () => {
 
     clickButton(/^Pause$/, timerPanel()!);
 
-    // Paused, and still three tiles: only the middle one changed.
-    expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(1);
+    // Paused, and still three tiles: only the middle one changed. It says
+    // Resume, not Start Timer — a clock held part-spent is picked up, not
+    // started, and Start Timer beside Reset read as an offer to go back to the
+    // top. Jeff's call on 2026-08-21.
+    expect(buttons(/^Resume$/, timerPanel()!)).toHaveLength(1);
+    expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(0);
     expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(1);
     expect(buttons(/^Pause$/, timerPanel()!)).toHaveLength(0);
 
-    // Reset is the only way back to two tiles and the settings under them.
+    // Reset is the only way back to two tiles and the settings under them, and
+    // the word goes back with them: nothing is part-spent any more.
     clickButton(/^Reset$/, timerPanel()!);
     expect(buttons(/^Reset$/, timerPanel()!)).toHaveLength(0);
+    expect(buttons(/^Resume$/, timerPanel()!)).toHaveLength(0);
     expect(buttons(/^Start Timer$/, timerPanel()!)).toHaveLength(1);
     expect(timerPanel()!.querySelector('[aria-label="Fewer minutes"]')).not.toBeNull();
   });
@@ -496,7 +502,7 @@ describe('Round Timer', () => {
     const alarmed = timerPanel()!;
     const tiles = [...alarmed.querySelectorAll('button')]
       .map((b) => text(b))
-      .filter((t) => ['Close', 'Pause', 'Start Timer', 'Reset', 'Stop'].includes(t));
+      .filter((t) => ['Close', 'Pause', 'Start Timer', 'Resume', 'Reset', 'Stop'].includes(t));
 
     expect(tiles).toEqual(['Stop']);
   });

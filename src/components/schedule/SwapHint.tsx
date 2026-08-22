@@ -21,7 +21,11 @@ export function SwapHint({ onDismiss }: Props) {
   return (
     <div
       role="status"
-      className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3"
+      /* The edge is the writing's own green, not a pale one. At green-200 the
+         line was a shade off the fill and the banner had no edge to speak of;
+         at the ink's green it is a drawn box, which is what tells a first-time
+         host this line is an aside rather than part of the schedule. */
+      className="flex items-center gap-3 rounded-lg border border-green-900 bg-green-50 px-4 py-3"
     >
       <TipIcon className="w-[42px] h-[42px] text-green-700" />
       <p className="flex-1 text-base text-green-900">

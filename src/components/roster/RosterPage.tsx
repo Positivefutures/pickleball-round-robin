@@ -16,6 +16,7 @@ import {
   CrowdSolidIcon,
   GroupSolidIcon,
   PencilIcon,
+  SlidersIcon,
   TrashIcon,
 } from '../icons';
 
@@ -297,8 +298,9 @@ export function RosterPage({
               </button>
               <button
                 onClick={() => onManageOpenChange(true)}
-                className="flex items-center justify-center min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
+                className="flex items-center justify-center gap-2 min-h-10 px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold"
               >
+                <SlidersIcon className="h-[1.125rem] w-[1.125rem]" />
                 Manage
               </button>
             </div>
@@ -394,7 +396,7 @@ export function RosterPage({
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold"
               >
                 Cancel
               </button>
@@ -422,7 +424,7 @@ export function RosterPage({
             <div className="flex gap-3">
               <button
                 onClick={cancelOrphanDelete}
-                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
+                className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold"
               >
                 Cancel
               </button>

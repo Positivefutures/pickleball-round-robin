@@ -26,15 +26,21 @@ const LOOK = {
     row: 'border-gray-300 bg-white hover:bg-gray-100',
     rowInk: 'text-[#222]',
     chosen: 'border-brand-teal bg-brand-teal-light',
-    tick: 'text-green-700'
+    tick: 'text-green-700',
+    speaker: 'text-brand-teal'
   },
+  // Orange rather than teal, because the dark look is only ever worn inside the
+  // "When time is up" box on a counting timer, and every other mark in that box
+  // is orange there. Teal is a colour chosen to sit on white; on black it is
+  // very nearly the background. See AlertSwitches in RoundTimerPanel.
   dark: {
     label: 'text-white',
     chevron: 'text-gray-500',
     row: 'border-white/20 bg-white/5 hover:bg-white/10',
     rowInk: 'text-white',
-    chosen: 'border-brand-teal bg-brand-teal/25',
-    tick: 'text-green-400'
+    chosen: 'border-brand-orange bg-brand-orange/25',
+    tick: 'text-green-400',
+    speaker: 'text-brand-orange'
   }
 };
 
@@ -74,7 +80,7 @@ export function AlarmTonePicker({ value, onChange, dark = false }: Props) {
         aria-expanded={open}
         className="flex w-full items-center gap-3 py-3 text-left"
       >
-        <VolumeUpIcon className="h-6 w-6 shrink-0 text-brand-teal" />
+        <VolumeUpIcon className={`h-6 w-6 shrink-0 ${look.speaker}`} />
         <span className={`min-w-0 flex-1 text-lg font-bold ${look.label}`}>{current.label}</span>
         <ChevronDownIcon
           className={`h-5 w-5 shrink-0 ${look.chevron} transition-transform ${open ? 'rotate-180' : ''}`}

@@ -53,7 +53,7 @@ values you can grep for.
 |---|---|---|---|---|
 | `gray-50` | `98.5% 0.002 247.8` | `#f9fafb` | 20 bg | Page background (`.app-panel`), hover on white rows |
 | `gray-100` | `96.7% 0.003 264.5` | `#f3f4f6` | 18 bg, 4 border | Keypad keys, sit-out chip, icon-button hover |
-| `gray-200` | `92.8% 0.006 264.5` | `#e5e7eb` | 26 bg, 21 border | **The grey cancel button.** Also toggle-off track |
+| `gray-200` | `92.8% 0.006 264.5` | `#e5e7eb` | 21 border | Toggle-off track, and the grey button's hover. The button's own fill came down to `gray-100` on 2026-08-21 |
 | `gray-300` | `87.2% 0.010 258.3` | `#d1d5dc` | 22 bg, 14 border | Grey button hover; the form-field border |
 | `gray-400` | `70.7% 0.022 261.3` | `#99a1af` | 20 text, 5 border | Empty-state text, chevrons, toggle-off edge |
 | `gray-500` | `55.1% 0.027 264.4` | `#6a7282` | 34 text | Quiet secondary copy |
@@ -237,7 +237,7 @@ five recurring shapes, each written out afresh at every site:
 
 | Shape | Canonical string | Sites | Files |
 |---|---|---|---|
-| **Grey / cancel** | `px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold` | **22** | 18 |
+| **Grey / cancel** | `px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold` | **22** | 18 |
 | **Teal / confirm** | `px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold` | **19** | 15 |
 | **Orange / lead** | `px-4 py-1.5 bg-brand-orange text-white rounded-md hover:bg-brand-orange-dark transition-colors text-sm font-bold` | **8** | 6 |
 | **Red / destructive** | `px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-bold` | 4 | 3 |
@@ -248,7 +248,7 @@ Three of those shapes have a *second*, competing definition:
 | Competing definition | File | Differs how |
 |---|---|---|
 | `accountStyles.primary` | [accountStyles.ts](src/components/layout/accountStyles.ts#L91) | `w-full rounded-lg … px-4 py-3.5 text-lg`, disabled `bg-[#9DC3C7]` — a different radius, size and disabled treatment from the 19 teal buttons |
-| `accountStyles.secondary` | same, `#L96` | `bg-[#F7F7F8]` + `border-panel-edge` rather than `bg-gray-200` + `border-[#999]` |
+| `accountStyles.secondary` | same, `#L96` | `bg-[#F7F7F8]` + `border-panel-edge` rather than `bg-gray-100` + `border-[#999]` |
 | `accountStyles.danger` | same, `#L143` | `bg-[#B42318] hover:bg-[#96170F]` — a different red from `bg-red-600` |
 | `ManageRostersModal.PRIMARY / GREY / DANGER` | [ManageRostersModal.tsx](src/components/roster/ManageRostersModal.tsx#L25) | Private copies of the three shapes, `py-2.5`, with disabled states the inline ones lack |
 
@@ -451,8 +451,8 @@ Recommendations only. Nothing below has been changed.
 
 ### F1 — One grey button, twenty-two times · **high**
 
-`px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md
-hover:bg-gray-300 transition-colors font-bold` is written out 22 times across 18
+`px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md
+hover:bg-gray-200 transition-colors font-bold` is written out 22 times across 18
 files, in two different class orders, sometimes with `disabled:` classes and
 sometimes without, sometimes `w-full` and sometimes `flex-1`. `#999` exists in
 this codebase for no other reason.
@@ -468,7 +468,7 @@ The same three semantic buttons exist three times over:
 | | inline (the 45 sites) | `accountStyles` | `ManageRostersModal` |
 |---|---|---|---|
 | primary | `rounded-md bg-brand-teal px-4 py-2.5` | `rounded-lg bg-brand-teal px-4 py-3.5 text-lg w-full` | `rounded-md … px-4 py-2.5` + disabled |
-| secondary | `bg-gray-200 border-[#999]` | `bg-[#F7F7F8] border-panel-edge` | `bg-gray-200 border-[#999]` + disabled |
+| secondary | `bg-gray-100 border-[#999]` | `bg-[#F7F7F8] border-panel-edge` | `bg-gray-100 border-[#999]` + disabled |
 | danger | `bg-red-600 hover:bg-red-700` | `bg-[#B42318] hover:bg-[#96170F]` | `bg-red-600` + disabled |
 
 `ManageRostersModal`'s own comment says it exists so that "a red Delete that is a

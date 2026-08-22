@@ -3472,9 +3472,9 @@ describe('the Actions sheet', () => {
     }
     expect(sheet().querySelectorAll('ul li svg').length).toBe(3);
 
-    // Cancel goes back to the grid without touching the schedule.
+    // Keep Schedule goes back to the grid without touching the schedule.
     const before = storedSchedule().rounds.map(fingerprint);
-    clickButton(/^Cancel$/, sheet());
+    clickButton(/^Keep Schedule$/, sheet());
     expect(text(sheet())).toContain('Quick changes for this session');
     expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
   });
@@ -3492,7 +3492,7 @@ describe('the Actions sheet', () => {
     action(/^Reshuffle$/);
     expect(text(sheet())).toContain(`Rebuild ${all - 1} Remaining Rounds?`);
     expect(buttons(new RegExp(`^Rebuild ${all - 1} Rounds$`), sheet())).toHaveLength(1);
-    clickButton(/^Cancel$/, sheet());
+    clickButton(/^Keep Schedule$/, sheet());
     clickLabel('Close Actions', sheet());
 
     // Down to the last one, where both lines have to lose the plural.
@@ -3688,9 +3688,11 @@ describe('the Actions sheet', () => {
       for (const [card, labels] of [
         ['Add Round', [/^Cancel$/, /^Add 1 Round$/]],
         ['Add Court', [/^Cancel$/, /^Add the Court$/]],
-        ['New Round Robin', [/^Cancel$/, /^Yes, Start New$/]],
+        // The two panels that would throw a schedule away say what declining
+        // keeps, rather than saying Cancel. See ActionsSheet.
+        ['New Round Robin', [/^Keep Schedule$/, /^Yes, Start New$/]],
         // Counts the rounds it is about to rebuild, so it is matched by shape.
-        ['Reshuffle', [/^Cancel$/, /^Rebuild \d+ Rounds?$/]],
+        ['Reshuffle', [/^Keep Schedule$/, /^Rebuild \d+ Rounds?$/]],
       ] as const) {
         clickButton(new RegExp(`^${card}$`), sheet());
         const tiles = labels.map((l) => buttons(l, sheet())[0]);
@@ -4316,7 +4318,7 @@ describe('the Actions sheet', () => {
         expect(said).toContain('to rebuild the remaining rounds.');
       });
 
-      it('says it in yellow, which is not what the app warns in', () => {
+      it('says it as a note, in a shape no button on the sheet has', () => {
         mount();
         generate();
         action(/^Add Player$/);
@@ -4328,11 +4330,16 @@ describe('the Actions sheet', () => {
         )!;
         expect(notice, 'no box around the full-courts line').toBeTruthy();
         // Nothing is lost by adding somebody to a full session, so this is a
-        // note and not a warning. Orange and the triangle stay with the panels
-        // that really do take something away.
-        expect(notice.className).toContain('bg-notice-yellow');
-        expect(notice.className).toContain('border-2');
+        // note and not a warning: not the orange box with the triangle, and not
+        // the yellow one it wore until 2026-08-21. Grey with a teal spine, and
+        // deliberately not the account panels' quiet teal — NEW_ROW directly
+        // under it is that exact fill, and a note that matches the button below
+        // it looks pressable.
+        expect(notice.className).toContain('border-l-brand-teal');
+        expect(notice.className).toContain('bg-[#F6F7F9]');
+        expect(notice.className).not.toContain('bg-notice-yellow');
         expect(notice.className).not.toContain('bg-brand-orange-light');
+        expect(notice.className).not.toContain('bg-brand-teal-light');
       });
 
       it('draws the Reshuffle shape beside the word, not the word alone', () => {

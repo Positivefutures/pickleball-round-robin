@@ -3,7 +3,7 @@ import * as stores from '../../lib/stores';
 import { formatMMSS, liveRemainingMs } from '../../lib/roundTimer';
 import { useCountdownTick } from '../../hooks/useCountdownTick';
 import { ROUND_HEADING_TEXT, ROUND_TIMER_CHIP } from './roundLook';
-import { TimerIcon } from './timerIcons';
+import { RoundClockIcon } from './timerIcons';
 
 /**
  * The clock at the top of a round, and the time left beside it once that
@@ -45,7 +45,11 @@ export function RoundTimerChip({
       aria-label="Round timer"
       className={`${ROUND_TIMER_CHIP} text-white`}
     >
-      <TimerIcon className="h-6 w-6" />
+      {/* 20% up on the 24px it used to be, and nudged back the 5px the
+          artwork sits in from the left of its own 512 grid. `relative`, so
+          the nudge is optical only: a negative margin would shrink the chip
+          and pull the digits along with it. */}
+      <RoundClockIcon className="relative -left-[5px] h-[1.8rem] w-[1.8rem]" />
       {mine && (
         <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>
           {formatMMSS(liveRemainingMs(state))}

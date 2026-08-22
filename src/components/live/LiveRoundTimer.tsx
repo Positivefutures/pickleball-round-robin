@@ -5,7 +5,7 @@ import { ROUND_HEADING_TEXT, ROUND_TIMER_CHIP } from '../schedule/roundLook';
 import { TimerSheet } from '../schedule/TimerSheet';
 import { LiveAlertControls } from './LiveAlertControls';
 import type { Alerts } from '../../lib/watchAlerts';
-import { TimerIcon, StopSquareIcon, ExitIcon } from '../schedule/timerIcons';
+import { RoundClockIcon, StopSquareIcon, ExitIcon } from '../schedule/timerIcons';
 import { TileButton, TILE_ALONE, TILE_ROW } from '../TileButton';
 
 /**
@@ -181,7 +181,8 @@ export function LiveTimerChip({
       aria-label="Round timer"
       className={`${ROUND_TIMER_CHIP} ${ink}`}
     >
-      <TimerIcon className="h-6 w-6" />
+      {/* The host's chip exactly — see RoundTimerChip for the nudge. */}
+      <RoundClockIcon className="relative -left-[5px] h-[1.8rem] w-[1.8rem]" />
       {mine && (
         <span className={`${ROUND_HEADING_TEXT} font-bold tabular-nums`}>
           {formatMMSS(rang || !timer ? 0 : sharedRemainingMs(timer))}

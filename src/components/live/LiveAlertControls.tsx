@@ -26,6 +26,10 @@ import {
 
 const INK = '#FFFFFF';
 const QUIET = '#9CA3AF';
+/** What a switched-on alert is drawn in here. This box is only ever on the
+ *  black sheet, so it is the orange the host's counting timer uses rather
+ *  than the teal of their settings screen. See AlertSwitches. */
+const ON = 'text-brand-orange';
 
 export function LiveAlertControls({
   alerts,
@@ -59,7 +63,7 @@ export function LiveAlertControls({
       <div className="flex items-center justify-between py-2">
         <div className="flex items-center gap-3">
           {alerts.soundOn ? (
-            <VolumeUpIcon className="h-6 w-6 text-brand-teal" />
+            <VolumeUpIcon className={`h-6 w-6 ${ON}`} />
           ) : (
             <SilenceIcon className="h-6 w-6 text-gray-500" />
           )}
@@ -67,13 +71,13 @@ export function LiveAlertControls({
             Play Sound
           </span>
         </div>
-        <Toggle checked={alerts.soundOn} onChange={setSound} label="Play Sound" />
+        <Toggle checked={alerts.soundOn} onChange={setSound} label="Play Sound" tone="orange" />
       </div>
 
       <div className="flex items-center justify-between border-t border-white/10 py-2">
         <div className="flex items-center gap-3">
           {alerts.flashOn ? (
-            <FlashIcon className="h-6 w-6 text-brand-teal" />
+            <FlashIcon className={`h-6 w-6 ${ON}`} />
           ) : (
             <IphoneOutlineIcon className="h-6 w-6 text-gray-500" />
           )}
@@ -81,7 +85,12 @@ export function LiveAlertControls({
             Flash Screen
           </span>
         </div>
-        <Toggle checked={alerts.flashOn} onChange={(on) => onChange({ flashOn: on })} label="Flash Screen" />
+        <Toggle
+          checked={alerts.flashOn}
+          onChange={(on) => onChange({ flashOn: on })}
+          label="Flash Screen"
+          tone="orange"
+        />
       </div>
 
       <div className="border-t border-white/10">

@@ -35,7 +35,7 @@ one shared button component, and it is not the ordinary button.
 | the **primary** button | `account.primary` — teal, full width, `text-lg` | `layout/accountStyles.ts` |
 | the **secondary** button | `account.secondary` — grey, bordered | same file |
 | the **danger** button | `account.danger` — `#B42318` | same file |
-| the **grey cancel** button | the inline `bg-gray-200 border-[#999]` string | 22 sites, **not exported** |
+| the **grey cancel** button | the inline `bg-gray-100 border-[#999]` string | 22 sites, **not exported**. It was `bg-gray-200` until 2026-08-21 |
 | a **row** | `account.row` + `rowTitle` / `rowNote` / `rowIcon` | `layout/accountStyles.ts` |
 | the **panel edge** | `panelCard` — every dialog's chrome | `components/panelStyles.ts` |
 | a **panel heading** | `<PanelHeading icon title />` | `components/PanelGlyph.tsx` |

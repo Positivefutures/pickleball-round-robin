@@ -3,6 +3,7 @@ import type { Gender, Player, Round, RoundType, Schedule } from '../../types';
 import { effectiveCourtCount } from '../../lib/pairing';
 import { courtsAreFull } from '../../lib/sitout';
 import { ROUND_TYPES, pillMeta } from '../../lib/roundTypes';
+import { ROUND_HEADING_TEXT } from './roundLook';
 import { TypeGlyphs } from '../setup/typeGlyphs';
 import { isScored } from '../../lib/standings';
 import { useScrollLock } from '../../hooks/useScrollLock';
@@ -21,6 +22,7 @@ import {
   ShareIcon,
   ShuffleIcon,
   SitIcon,
+  StepScheduleIcon,
   SuccessIcon,
   SwapPeopleIcon,
   WarningIcon,
@@ -605,16 +607,22 @@ export function ActionsSheet({
             </div>
           ) : (
             <>
+              {/* The header is still the grab area — pull it down and the sheet
+                  closes, exactly as before. What is gone is the grey bar that
+                  used to be drawn across the top of it. Jeff's call on
+                  2026-08-21: the gesture is worth keeping, the furniture
+                  announcing it is not. `pt-5` is what the bar and its margin
+                  were worth in room, so the title sits where it always sat
+                  rather than riding up against the sheet's own edge. */}
               <header
                 {...dragHandlers}
-                className="shrink-0 touch-none select-none px-6 pb-2 pt-3"
+                className="shrink-0 touch-none select-none px-6 pb-2 pt-5"
               >
-                <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-[#C4C8CF]" />
                 {view === 'menu' ? (
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <h2
-                        className="text-[1.35rem] font-extrabold leading-tight"
+                        className="text-2xl font-extrabold leading-tight"
                         style={{ color: NAVY_TEXT }}
                       >
                         {heading.title}
@@ -676,7 +684,7 @@ export function ActionsSheet({
                         </span>
                       )}
                       <h2
-                        className="mt-2 text-[1.35rem] font-extrabold leading-tight"
+                        className="mt-2 text-2xl font-extrabold leading-tight"
                         style={{ color: NAVY_TEXT }}
                       >
                         {heading.title}
@@ -769,22 +777,30 @@ export function ActionsSheet({
                         Sitting Out at the foot of the schedule, which is the
                         one place a host is not looking when they add them. */}
                     {noRoomOnCourt && (
-                      /* Yellow and an i, not orange and a warning triangle.
-                         Nothing here is lost or undone: the session is simply
-                         full, and the two lines say where the next player
-                         lands and how to put them on a court. The orange box
-                         with the triangle is kept for the panels that really
-                         do take something away. */
-                      <div className="flex items-start gap-3 rounded-lg border-2 border-brand-orange bg-notice-yellow p-4">
+                      /* Grey with a teal spine, which is a shape nothing else
+                         on this sheet has. It wore the orange alert box until
+                         2026-08-21, and orange is what the app takes something
+                         away in — nothing is taken here, the session is simply
+                         full, and the two lines say where the next player lands
+                         and how to put them on a court.
+
+                         Not the quiet teal note the account panels use either,
+                         however well that says "a plain fact": NEW_ROW below is
+                         that exact fill and that exact edge, so the two boxes
+                         read as a pair and the top one looks pressable. A note
+                         has to be the one thing on a panel that is obviously
+                         not a button. The spine carries the colour instead, and
+                         the fill stays out of the way. */
+                      <div className="flex items-start gap-3 rounded-lg border border-l-4 border-gray-200 border-l-brand-teal bg-[#F6F7F9] p-4">
                         <span
                           className="flex shrink-0 items-center"
-                          style={{ color: ORANGE }}
+                          style={{ color: TEAL }}
                           aria-hidden="true"
                         >
-                          <InfoIcon className="h-9 w-9" />
+                          <InfoIcon className="h-7 w-7" />
                         </span>
                         <div>
-                          <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: ORANGE }}>
+                          <p className={`font-bold ${RESHUFFLE_LINE}`} style={{ color: NAVY_TEXT }}>
                             All courts are full.
                           </p>
                           <p className={`mt-1 ${RESHUFFLE_LINE}`} style={{ color: QUIET_TEXT }}>
@@ -1043,10 +1059,15 @@ export function ActionsSheet({
                         costs — and the button that does it cannot be the same
                         colour as the warning against doing it. */}
                     <div className={CONFIRM_FOOT}>
+                      {/* Named for what it does rather than for what it
+                          declines. Both tiles on this row act on the schedule,
+                          so the pair reads as a choice between two outcomes —
+                          keep this one or build another — and the calendar off
+                          the Schedule tab says which schedule is meant. */}
                       <TileButton
                         tone="quiet"
-                        Icon={CloseIcon}
-                        label="Cancel"
+                        Icon={StepScheduleIcon}
+                        label="Keep Schedule"
                         onClick={() => setView('menu')}
                       />
                       <TileButton
@@ -1076,14 +1097,15 @@ export function ActionsSheet({
                       The same set of players will be selected again; however, you
                       can change them.
                     </p>
-                    {/* One line, Cancel on the left. The pair reads as a choice
-                        rather than as a button with an afterthought under it,
-                        and the way out is where a way out belongs. */}
+                    {/* One line, the way out on the left. The pair reads as a
+                        choice rather than as a button with an afterthought
+                        under it, and the way out is where a way out belongs. */}
                     <div className={CONFIRM_FOOT}>
+                      {/* Keep Schedule, not Cancel — see the Reshuffle panel. */}
                       <TileButton
                         tone="quiet"
-                        Icon={CloseIcon}
-                        label="Cancel"
+                        Icon={StepScheduleIcon}
+                        label="Keep Schedule"
                         onClick={() => setView('menu')}
                       />
                       <TileButton
@@ -1166,7 +1188,11 @@ export function ActionsSheet({
                         : 'Nobody is waiting, so it starts empty and you can tap players into it.'}
                     </p>
                     {!courtSticks && (
-                      <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      /* Ruled in its own ink, as the swap hint on the schedule
+                         is. On the sheet's white the fill alone was too faint to
+                         read as a box at all, so the one line here that qualifies
+                         what the button does looked like an ordinary paragraph. */
+                      <p className="rounded-md border border-amber-800 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                         There are only {players.length} players, which fills{' '}
                         {effectiveCourtCount(players.length, numCourts)} courts. The new one stays
                         empty, and a reshuffle would drop it again.
@@ -1209,7 +1235,11 @@ export function ActionsSheet({
                             finish(`Court ${court.courtNumber} removed.`);
                           }}
                         >
-                          <span className="font-bold text-gray-800">
+                          {/* The size a court's name is on the schedule itself,
+                              so the thing being picked here is the same shape
+                              as the thing it removes. ROUND_HEADING_TEXT is
+                              what CourtMatchup draws its own heading at. */}
+                          <span className={`font-bold text-gray-800 ${ROUND_HEADING_TEXT}`}>
                             COURT {court.courtNumber}
                           </span>
                           <span className="text-sm" style={{ color: QUIET_TEXT }}>

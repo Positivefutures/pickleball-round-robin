@@ -35,7 +35,7 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
             onClick={() => onChange(step(rating, -0.1))}
             disabled={rating <= MIN}
             aria-label="Lower the default rating"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-100 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-40"
           >
             &minus;
           </button>
@@ -47,7 +47,7 @@ export function DefaultRatingPanel({ rating, onChange, onClose }: Props) {
             onClick={() => onChange(step(rating, 0.1))}
             disabled={rating >= MAX}
             aria-label="Raise the default rating"
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-200 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-300 disabled:opacity-40"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[#999] bg-gray-100 text-lg font-bold text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-40"
           >
             +
           </button>

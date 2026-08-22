@@ -93,7 +93,7 @@ export function AddToGroupDialog({
           <button
             type="submit"
             disabled={!newName.trim()}
-            className="shrink-0 px-4 py-2 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 px-4 py-2 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create
           </button>
@@ -102,7 +102,7 @@ export function AddToGroupDialog({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-bold"
+            className="flex-1 px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold"
           >
             Cancel
           </button>

@@ -186,7 +186,7 @@ export function ScoreDialog({ court, onDone, onCancel, allowClear = true }: Prop
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-md border border-[#999] bg-gray-200 px-4 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-300"
+            className="flex-1 rounded-md border border-[#999] bg-gray-100 px-4 py-2.5 font-bold text-gray-700 transition-colors hover:bg-gray-200"
           >
             Cancel
           </button>

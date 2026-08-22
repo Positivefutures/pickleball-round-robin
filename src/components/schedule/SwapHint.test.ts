@@ -111,7 +111,9 @@ describe('the swap hint', () => {
     render();
     const classes = shown().className.split(/\s+/);
     expect(classes).toContain('bg-green-50');
-    expect(classes).toContain('border-green-200');
+    // The edge is the writing's own green, not a pale one: at green-200 the
+    // line was barely a shade off the fill. Jeff's call on 2026-08-21.
+    expect(classes).toContain('border-green-900');
     // It was text-gray-400 before, which is what made it read as furniture.
     expect(classes.some((c) => c.startsWith('text-gray'))).toBe(false);
   });

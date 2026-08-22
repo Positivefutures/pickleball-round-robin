@@ -220,3 +220,30 @@ export function ExitIcon({ className = 'w-4 h-4' }: { className?: string }) {
     </svg>
   );
 }
+
+/**
+ * `INBOX/timer3.svg`. The clock on a round's header, host side and watcher side.
+ *
+ * A heavier stopwatch than the drawn one above: a solid ring, a crown across the
+ * top and a single thick hand. TimerIcon is line work sized for a sheet 3rem
+ * tall, and the round chip draws its clock at half an inch on a blue card, where
+ * the hairlines were the first thing to go. This is the same object said in
+ * strokes that survive that size.
+ *
+ * Its own 512 grid, and the artwork does not fill it: the crown sits at the top
+ * and the dial hangs a little left of centre, which is why the chips nudge it
+ * back. See RoundTimerChip.
+ */
+export function RoundClockIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      fill="currentColor"
+      aria-hidden="true"
+      className={`shrink-0 ${className}`}
+    >
+      <path d="m479.451 112.98-53.74-53.74c-7.811-7.811-20.474-7.811-28.284 0s-7.811 20.474 0 28.284l12.728 12.728-26.102 26.102c-33.978-28.346-75.292-45.458-119.362-49.441v-36.913h18c11.046 0 20-8.954 20-20s-8.954-20-20-20h-76c-11.046 0-20 8.954-20 20s8.954 20 20 20h18v36.913c-109.724 9.916-198 102.055-198 217.087 0 120.482 97.501 218 218 218 120.482 0 218-97.501 218-218 0-51.511-17.756-100.286-50.354-139.362l26.102-26.102 12.728 12.728c7.81 7.81 20.473 7.811 28.284 0 7.81-7.81 7.81-20.473 0-28.284zm-234.76 359.02c-98.149 0-178-79.851-178-178s79.851-178 178-178 178 79.851 178 178-79.85 178-178 178zm103.923-178c0 11.046-8.954 20-20 20h-83.922c-11.046 0-20-8.954-20-20v-117.675c0-11.046 8.954-20 20-20s20 8.954 20 20v97.675h63.922c11.046 0 20 8.954 20 20z" />
+    </svg>
+  );
+}

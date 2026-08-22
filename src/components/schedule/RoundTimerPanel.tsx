@@ -146,9 +146,9 @@ export function RoundTimerPanel() {
                in the corner of the sheet — and what it sits beside grows from
                one button to two once the clock is running.
 
-               Pause turns back into Start Timer in place rather than
-               collapsing the row, so Close and Reset stay where the thumb last
-               found them.
+               Pause turns back into Resume in place rather than collapsing
+               the row, so Close and Reset stay where the thumb last found
+               them.
 
                At zero the middle tile goes altogether and the row does collapse
                to two, which is the one exception to that. There is no honest
@@ -168,8 +168,8 @@ export function RoundTimerPanel() {
               {!spent &&
                 (running ? (
                   /* Quiet, not red. Pausing takes nothing away: the clock holds
-                     where it is and Start Timer carries on from there. Red is
-                     for the tiles that end something. */
+                     where it is and Resume carries on from there. Red is for
+                     the tiles that end something. */
                   <TileButton
                     tone="quiet"
                     size="lg"
@@ -180,14 +180,19 @@ export function RoundTimerPanel() {
                 ) : (
                   /* Solid green, alone on the row in doing so. It is the one
                      key on either of the host's two screens that starts
-                     something, it is the same key whether the clock is at the
-                     top or held mid-round by a Pause, and go is a colour before
-                     it is a word. */
+                     something, and go is a colour before it is a word.
+
+                     Two words for the one key, because it is two different
+                     acts. From the settings screen it starts a round that has
+                     not begun; from a Pause it picks up a clock that is already
+                     part-spent, and calling that Start Timer read as though it
+                     would go back to the top — which is what Reset beside it
+                     does. Jeff's call on 2026-08-21. */
                   <TileButton
                     tone="solid-green"
                     size="lg"
                     Icon={PlayTriangleIcon}
-                    label="Start Timer"
+                    label={idle ? 'Start Timer' : 'Resume'}
                     onClick={startTimer}
                   />
                 ))}
@@ -312,11 +317,25 @@ function AlertSwitches({
   /** The tone picker, ruled off inside the same box. Only before the start. */
   tone?: ReactNode;
 }) {
-  // The off-state icons are already a mid grey and the switch already carries
-  // its own two colours, so only the box, the rules and the writing move.
+  // The off-state icons are already a mid grey, so only the box, the rules, the
+  // writing and the two on-states move.
   const ink = dark ? '#FFFFFF' : STEPPER_INK;
   const edge = dark ? 'border-white/25' : 'border-gray-200';
   const rule = dark ? 'border-white/15' : 'border-gray-100';
+
+  /**
+   * What an alert that is switched on is drawn in: teal on the settings screen,
+   * orange once the sheet turns black.
+   *
+   * The brand's teal is a dark colour — it is picked to sit on white — and on
+   * black it is nearly the background. Orange is the other half of the same
+   * palette and the one that survives the switch, which matters here more than
+   * anywhere: the counting screen is the one read at a glance from the side of
+   * a court. Jeff's call on 2026-08-21, and the watcher's copy of this box
+   * follows it too. See LiveAlertControls.
+   */
+  const on = dark ? 'text-brand-orange' : 'text-brand-teal';
+  const switchTone = dark ? 'orange' : 'teal';
 
   return (
     <div className={`w-full max-w-sm rounded-xl border p-4 ${edge}`}>
@@ -327,7 +346,7 @@ function AlertSwitches({
       <div className="flex items-center justify-between py-2">
         <div className="flex items-center gap-3">
           {state.soundOn ? (
-            <VolumeUpIcon className="h-6 w-6 text-brand-teal" />
+            <VolumeUpIcon className={`h-6 w-6 ${on}`} />
           ) : (
             <SilenceIcon className="h-6 w-6 text-gray-400" />
           )}
@@ -335,13 +354,13 @@ function AlertSwitches({
             Play Sound
           </span>
         </div>
-        <Toggle checked={state.soundOn} onChange={setSoundOn} label="Play Sound" />
+        <Toggle checked={state.soundOn} onChange={setSoundOn} label="Play Sound" tone={switchTone} />
       </div>
 
       <div className={`flex items-center justify-between border-t py-2 ${rule}`}>
         <div className="flex items-center gap-3">
           {state.flashOn ? (
-            <FlashIcon className="h-6 w-6 text-brand-teal" />
+            <FlashIcon className={`h-6 w-6 ${on}`} />
           ) : (
             <IphoneOutlineIcon className="h-6 w-6 text-gray-400" />
           )}
@@ -349,7 +368,7 @@ function AlertSwitches({
             Flash Screen
           </span>
         </div>
-        <Toggle checked={state.flashOn} onChange={setFlashOn} label="Flash Screen" />
+        <Toggle checked={state.flashOn} onChange={setFlashOn} label="Flash Screen" tone={switchTone} />
       </div>
 
       {tone && <div className={`border-t ${rule}`}>{tone}</div>}

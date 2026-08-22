@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.73';
+export const APP_VERSION = '3.74';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
