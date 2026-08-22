@@ -70,6 +70,8 @@ import {
 import { RosterPage } from './components/roster/RosterPage';
 import { TooFewPlayersDialog } from './components/TooFewPlayersDialog';
 import { GroupPicker } from './components/roster/GroupPicker';
+import { LivePill } from './components/LivePill';
+import { LiveSharePanel } from './components/schedule/LiveSharePanel';
 import { SetupPage } from './components/setup/SetupPage';
 import { SchedulePage } from './components/schedule/SchedulePage';
 import type { ActionsEntry } from './components/schedule/ActionsSheet';
@@ -174,6 +176,14 @@ function App() {
   const [planDraft, setPlanDraft] = useState<RoundPlan | null>(null);
   // Change Groups, opened from the group name in the banner.
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  /**
+   * Share Live Session, opened from a LIVE pill rather than from Actions.
+   *
+   * It is App's rather than the pages', because the pills are spread across the
+   * tab row, the group picker and Manage Groups, and two of those are panels
+   * that have to close before this can open over them.
+   */
+  const [showLiveShare, setShowLiveShare] = useState(false);
   // Manage Groups. It is drawn by RosterPage and opened by the Manage button on
   // that page, but the state is held up here: the panel that closes the tour
   // offers the same button, and it sits above every page.
@@ -575,6 +585,24 @@ function App() {
     switchToGroup(id);
     setShowGroupPicker(false);
   }, []);
+
+  /**
+   * A LIVE pill, pressed.
+   *
+   * The switch first, and it is not a detail. Only the group in the live slot
+   * has a publisher behind it, so the panel can only ever show that group's QR
+   * code — pressing the pill on Tuesday's group while standing in Wednesday's
+   * would otherwise open a card describing the wrong afternoon. Switching costs
+   * nothing: the group being left is parked whole and keeps its own link.
+   */
+  const openLiveShare = useCallback(
+    (id?: string) => {
+      if (id && id !== stores.activeRosterId.get()) switchToGroup(id);
+      setShowGroupPicker(false);
+      setShowLiveShare(true);
+    },
+    []
+  );
 
   /**
    * A group delete waiting on its question, or null while nothing is asked.
@@ -1766,6 +1794,26 @@ function App() {
           answering={answeringSteps}
           onNavigate={handleStepNav}
         />
+        {/* The one mark a live share leaves on the host's own app, and it is
+            under the Schedule tab because the schedule is what is being shared.
+            Drawn on every step rather than only on Schedule and Players: the tab
+            row is the same row wherever the host is standing, and a pill that
+            came and went as they moved along it would read as a bug.
+
+            Three columns to hang it in rather than an absolute offset, so it
+            stays centred under the third tab at every width the row is drawn
+            at — and it takes its own line, because overlapping it into the
+            gap below would put it over the first card on the page. */}
+        {shareKey && (
+          <div className="mt-1 grid grid-cols-3 no-print">
+            <div className="col-start-3 flex justify-center">
+              <LivePill
+                label="This session is live: open Share Live Session"
+                onClick={() => openLiveShare()}
+              />
+            </div>
+          </div>
+        )}
       </div>
       {/* Narrow side margins on purpose: every pixel across is a pixel the
           roster table and the court grid can use on a phone. */}
@@ -1833,6 +1881,7 @@ function App() {
             }}
             manageOpen={showManageGroups}
             onManageOpenChange={setShowManageGroups}
+            onShareLive={openLiveShare}
             defaultRating={defaultRating}
           />
         )}
@@ -1972,7 +2021,24 @@ function App() {
           players={allPlayers}
           activeId={activeRosterId}
           onSelect={switchGroup}
+          onShareLive={openLiveShare}
           onClose={() => setShowGroupPicker(false)}
+        />
+      )}
+
+      {/* Last of the overlays, so it opens over the picker that sent it here
+          rather than under it. The pill on the tab row reaches it directly. */}
+      {showLiveShare && (
+        <LiveSharePanel
+          onClose={() => setShowLiveShare(false)}
+          onOpenAccount={
+            // Same hand-over as the card inside Actions: the way back is this
+            // panel, because that is what the host was in the middle of.
+            () => {
+              setShowLiveShare(false);
+              openAccount(() => setShowLiveShare(true));
+            }
+          }
         />
       )}
 

@@ -231,6 +231,7 @@ one.
 | `RatingStepper` | [RatingStepper.tsx](src/components/RatingStepper.tsx) | `value`, `onChange`. No size prop | 1 | PlayerForm |
 | `Keypad` | [Keypad.tsx](src/components/schedule/Keypad.tsx) | `label`, `onDigit`, `onBackspace`, `extraKey?` | 2 | ScoreDialog, CourtNumberDialog |
 | `ActionsButton` | [ActionsButton.tsx](src/components/schedule/ActionsButton.tsx) | none — one fixed 125×72 orange FAB | 1 | SchedulePage |
+| `LivePill` | [LivePill.tsx](src/components/LivePill.tsx) | `onClick?`, `label?`, `className?`. With `onClick` it is a button; without, a span | 4 importers | App (the tab row), GroupPicker, ManageRostersModal, LiveShareView, LiveSessionPage |
 
 **Everything else is a hand-written `<button>`.** 166 of them. They fall into
 five recurring shapes, each written out afresh at every site:
@@ -296,7 +297,7 @@ one thing they all do share — 10 importers.
 | `FIELD_LABEL` | [formLook.ts](src/components/formLook.ts) | `block text-sm font-bold text-gray-700` | 2 importers (PlayerForm ×3, FeedbackPanel ×3) |
 | `accountStyles.label` | [accountStyles.ts](src/components/layout/accountStyles.ts#L86) | `mb-1.5 block text-sm font-bold text-[#1F293D]` | 3 importers, 4 sites |
 | `accountStyles.field` | same `#L88` | `w-full rounded-lg border border-panel-edge bg-white px-3.5 py-3 text-lg text-[#1F293D] placeholder:text-[#7F8497] focus:border-brand-teal focus:outline-none focus:ring-2 focus:ring-brand-teal/30` | 3 importers, 4 sites |
-| `ManageRostersModal.FIELD` | [ManageRostersModal.tsx](src/components/roster/ManageRostersModal.tsx#L32) | `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent` | 4 sites |
+| `ManageRostersModal.FIELD` | [ManageRostersModal.tsx](src/components/roster/ManageRostersModal.tsx) | `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent` | 4 sites. One of them adds `bg-white`: the edit block is tinted, and Tailwind's reset makes a field transparent |
 | `CodeEntry` | [CodeEntry.tsx](src/components/CodeEntry.tsx) | 4-box code field, `BOX` = `h-16 w-14 rounded-lg border-2 …` | 2 importers |
 | `RatingStepper` | [RatingStepper.tsx](src/components/RatingStepper.tsx) | −/value/+ | 1 |
 | `Toggle` | [Toggle.tsx](src/components/Toggle.tsx) | on/off switch | 5 |

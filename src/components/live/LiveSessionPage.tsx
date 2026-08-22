@@ -31,6 +31,7 @@ import { useSharedAlarm } from '../../hooks/useSharedAlarm';
 import { useWakeLock } from '../../hooks/useWakeLock';
 import { warmUpAudio } from '../../lib/alarmSounds';
 import { MakeYourOwn } from './MakeYourOwn';
+import { LivePill } from '../LivePill';
 
 /**
  * Somebody else's session, read-only.
@@ -347,12 +348,9 @@ export function LiveSessionPage({ shareKey }: Props) {
         title="Pickleball Round Robin Generator"
         titleHref={APP_URL}
         corner={
-          result?.state === 'ok' ? (
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[#149A30] ring-1 ring-[#149A30]/30">
-              <span className="h-2 w-2 rounded-full bg-[#149A30]" aria-hidden="true" />
-              LIVE
-            </span>
-          ) : undefined
+          // No onClick: there is no Share Live Session panel on this side of
+          // the link, and nothing this could usefully open.
+          result?.state === 'ok' ? <LivePill /> : undefined
         }
       />
 

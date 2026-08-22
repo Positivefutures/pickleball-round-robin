@@ -42,6 +42,7 @@ one shared button component, and it is not the ordinary button.
 | a **badge** | `<PanelBadge icon />` — the ring astride a page card’s top-left corner | `components/PanelGlyph.tsx`, on Players ×4 and Setup ×1 |
 | a **name plate** | the bordered box astride the players list's top edge | `roster/RosterPage.tsx`, one site |
 | the **corner dots** | `<CornerDots />`, `<CornerDots smaller />` | `components/CornerDots.tsx` |
+| the **LIVE pill** | `<LivePill />` — green, and the one mark a live share leaves. A span on the watchers' page; a button everywhere on the host's side, and it opens Share Live Session | `components/LivePill.tsx` |
 | the **page card** | `bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6` | 9 sites, **not extracted**. A badged card is the same shape at `pt-7` — `badgedCard` in `roster/RosterPage.tsx` |
 | a **banner** | `InstallBanner` / `SignInBanner` / `UpdateBanner` / `PrintNotice` / `SwapHint` | `layout/`, `schedule/` |
 | a **notice** | `account.note` + a tone, or `Problem` for the red one | `layout/accountStyles.ts`, `AccountShell.tsx` |

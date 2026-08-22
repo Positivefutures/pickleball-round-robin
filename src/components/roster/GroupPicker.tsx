@@ -1,7 +1,9 @@
 import type { Player, Roster } from '../../types';
 import { CheckIcon } from '../icons';
 import { GroupSolidIcon } from '../icons';
+import { LivePill } from '../LivePill';
 import { PanelHeading } from '../PanelGlyph';
+import { useLiveGroups } from '../../hooks/useLiveGroups';
 import { useSuspendsTour } from '../../lib/tourSuspend';
 import { panelCard } from '../panelStyles';
 
@@ -17,6 +19,12 @@ interface Props {
    */
   heading?: string;
   onSelect: (id: string) => void;
+  /**
+   * Opens Share Live Session on a group that is being shared, having switched
+   * to it first. Only a group in the live slot can show its own QR code, so the
+   * pill is a move as well as a panel.
+   */
+  onShareLive: (id: string) => void;
   onClose: () => void;
 }
 
@@ -36,12 +44,17 @@ export function GroupPicker({
   activeId,
   heading = 'My Groups',
   onSelect,
+  onShareLive,
   onClose,
 }: Props) {
   // The first-run tour hands the group name over on its first card, so this can
   // open while the tour is up. It cannot simply stack over it — see
   // lib/tourSuspend — so the tour hides for as long as this is mounted.
   useSuspendsTour();
+
+  // More than one row can carry a pill. A host who set three of tomorrow's
+  // groups up tonight has three links out, and two of those groups are parked.
+  const live = useLiveGroups();
 
   function countFor(rosterId: string) {
     return players.filter((p) => p.rosterIds.includes(rosterId)).length;
@@ -67,30 +80,48 @@ export function GroupPicker({
             const current = g.id === activeId;
             const count = countFor(g.id);
             return (
-              <button
+              /* The row is a box holding two presses rather than one button.
+                 The pill under the name is its own control — it opens Share
+                 Live Session, where the name opens the group — and a button
+                 inside a button is not markup a browser will accept. */
+              <div
                 key={g.id}
-                type="button"
-                onClick={() => onSelect(g.id)}
-                // Not colour alone: the one you are in carries a tick as well.
-                aria-current={current ? 'true' : undefined}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-colors ${
+                className={`w-full rounded-md border transition-colors ${
                   current
                     ? 'border-brand-teal bg-brand-teal-light'
-                    : 'border-gray-300 bg-white hover:bg-gray-100'
+                    : 'border-gray-300 bg-white'
                 }`}
               >
-                <span className="min-w-0 flex-1 break-words text-lg font-bold text-[#222]">
-                  {g.name}
-                </span>
-                <span className="shrink-0 text-sm text-gray-500">
-                  {count} player{count === 1 ? '' : 's'}
-                </span>
-                {/* The slot is there on every row, so one row carrying a tick
-                    does not shunt its own count out of line with the rest. */}
-                <span className="w-5 shrink-0">
-                  {current && <CheckIcon className="w-5 h-5 text-green-700" />}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelect(g.id)}
+                  // Not colour alone: the one you are in carries a tick as well.
+                  aria-current={current ? 'true' : undefined}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-left transition-colors ${
+                    current ? '' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 break-words text-lg font-bold text-[#222]">
+                    {g.name}
+                  </span>
+                  <span className="shrink-0 text-sm text-gray-500">
+                    {count} player{count === 1 ? '' : 's'}
+                  </span>
+                  {/* The slot is there on every row, so one row carrying a tick
+                      does not shunt its own count out of line with the rest. */}
+                  <span className="w-5 shrink-0">
+                    {current && <CheckIcon className="w-5 h-5 text-green-700" />}
+                  </span>
+                </button>
+                {live.has(g.id) && (
+                  <div className="px-4 pb-3 -mt-1">
+                    <LivePill
+                      label={`${g.name} is live: open Share Live Session`}
+                      onClick={() => onShareLive(g.id)}
+                    />
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

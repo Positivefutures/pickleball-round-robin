@@ -4083,7 +4083,7 @@ describe('the Actions sheet', () => {
       const playedAs = fingerprint(storedSchedule().rounds[0]);
 
       action(/^Remove Player$/);
-      expect(text(sheet())).toContain('Who is going home?');
+      expect(text(sheet())).toContain('Who is leaving?');
       clickButton(new RegExp(`^${going.name}`), sheet());
       clickButton(/^Remove$/, sheet());
 
@@ -6827,5 +6827,108 @@ describe('the new version banner', () => {
     clickButton(/^1\. Players$/);
 
     expect(shown()).toBe(false);
+  });
+});
+
+/**
+ * The LIVE pill, on the host's own side of the share.
+ *
+ * A QR code sent to fourteen people used to leave no mark anywhere on the app
+ * that made it. The only way to find out whether a link was still alive was to
+ * open Actions and look, which is a strange thing to have to do about something
+ * fourteen people are already watching.
+ *
+ * Seeded through storage rather than by pressing Share Session: publishing needs
+ * Supabase and an account, and neither exists in a test run. What the pill reads
+ * is `pb-share-key`, which is the same thing sharing leaves behind.
+ */
+describe('the LIVE pill', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  const share = () =>
+    window.localStorage.setItem('pb-share-key', JSON.stringify('ABCDEFGHJK'));
+
+  /** The pill anywhere on screen, however many there are. */
+  const pills = () => buttons(/^LIVE$/);
+
+  function sharedSession() {
+    mount();
+    generate();
+    // A relaunch, because a store hands back its cache while anything is
+    // subscribed: writing the key under a mounted app would not be read.
+    remount(share);
+  }
+
+  it('is absent while nothing is being shared', () => {
+    mount();
+    generate();
+    expect(pills()).toHaveLength(0);
+  });
+
+  it('stands under the tabs while a link is out, wherever the host is', () => {
+    sharedSession();
+    expect(pills()).toHaveLength(1);
+
+    // The tab row is the same row on every step, so the pill is on every step.
+    parkOnPlayers();
+    expect(pills()).toHaveLength(1);
+    parkOnSetup();
+    expect(pills()).toHaveLength(1);
+  });
+
+  it('opens Share Live Session with no way back to Actions', () => {
+    sharedSession();
+    clickButton(/^LIVE$/);
+
+    const panel = container.querySelector('[role="dialog"][aria-label="Share Live Session"]');
+    expect(panel).not.toBeNull();
+    // The chevron belongs to the sheet that came from the card grid. This one
+    // was opened from a pill and there is nothing behind it.
+    expect(panel!.querySelector('[aria-label="Back to Actions"]')).toBeNull();
+    expect(panel!.querySelector('[aria-label="Close Share Live Session"]')).not.toBeNull();
+  });
+
+  it('keeps the chevron on the panel Actions opens', () => {
+    seed(9, 9, 2);
+    mount();
+    generate();
+    action(/^Share Session$/);
+    expect(sheet().querySelector('[aria-label="Back to Actions"]')).not.toBeNull();
+  });
+
+  it('marks the group in My Groups, and opens the panel from there', () => {
+    sharedSession();
+    parkOnPlayers();
+
+    click(container.querySelector('[data-tutorial="group-name"]')!);
+    const picker = container.querySelector('[role="dialog"]') ?? container;
+    const pill = buttons(/^LIVE$/, picker).find((b) =>
+      (b.getAttribute('aria-label') ?? '').startsWith('Test Group is live')
+    );
+    expect(pill).toBeDefined();
+
+    click(pill!);
+    // The picker closes on the way, so the panel is not standing over a list.
+    // Counted rather than read: "My Groups" is also the heading of the card on
+    // the page behind, which never goes anywhere.
+    const open = container.querySelectorAll('[role="dialog"]');
+    expect(open).toHaveLength(1);
+    expect(open[0].getAttribute('aria-label')).toBe('Share Live Session');
+  });
+
+  it('marks the group in Manage Groups too', () => {
+    sharedSession();
+    parkOnPlayers();
+
+    clickButton(/^Manage$/);
+    const pill = pills().find((b) =>
+      (b.getAttribute('aria-label') ?? '').startsWith('Test Group is live')
+    );
+    expect(pill).toBeDefined();
+
+    click(pill!);
+    expect(
+      container.querySelector('[role="dialog"][aria-label="Share Live Session"]')
+    ).not.toBeNull();
   });
 });

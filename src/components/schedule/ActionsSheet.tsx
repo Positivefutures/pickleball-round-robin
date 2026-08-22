@@ -173,8 +173,8 @@ const HEADINGS: Record<View, { title: string; sub?: string }> = {
   'add-player': { title: 'Add Player', sub: 'Who is joining?' },
   'new-player': { title: 'New Player', sub: 'Joins the group and this session' },
   'add-sub': { title: 'Sub Player' },
-  'remove-player': { title: 'Remove Player', sub: 'Who is going home?' },
-  'add-guest': { title: 'Add Guest', sub: 'Plays today only, never saved to the group' },
+  'remove-player': { title: 'Remove Player', sub: 'Who is leaving?' },
+  'add-guest': { title: 'Add Guest', sub: 'Plays today only, not saved to the group' },
   // No sub here. Reshuffle's counts what it is about to rebuild, so it is put
   // together at render time and set larger than the rest: on this panel the line
   // under the title is the question being asked, not a caption on it.

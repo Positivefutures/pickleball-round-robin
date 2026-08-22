@@ -64,6 +64,12 @@ interface Props {
    */
   manageOpen: boolean;
   onManageOpenChange: (open: boolean) => void;
+  /**
+   * Opens Share Live Session on a group that is being shared. Passed straight
+   * through to the two panels that list groups; both close on the way, because
+   * only the group in the live slot can show its own QR code.
+   */
+  onShareLive: (id: string) => void;
   /** Rating a new player starts with — set from Settings. */
   defaultRating: number;
 }
@@ -85,6 +91,7 @@ export function RosterPage({
   onContinue,
   manageOpen,
   onManageOpenChange,
+  onShareLive,
   defaultRating,
 }: Props) {
   // Dialog state is stamped with the roster it was opened under, so a roster
@@ -458,6 +465,10 @@ export function RosterPage({
           players={allPlayers}
           activeId={activeRosterId}
           onSelect={handleSelectRoster}
+          onShareLive={(id) => {
+            setShowPicker(false);
+            onShareLive(id);
+          }}
           onClose={() => setShowPicker(false)}
         />
       )}
@@ -476,6 +487,10 @@ export function RosterPage({
           onSelect={(id) => {
             handleSelectRoster(id);
             onManageOpenChange(false);
+          }}
+          onShareLive={(id) => {
+            onManageOpenChange(false);
+            onShareLive(id);
           }}
           onClose={() => onManageOpenChange(false)}
         />

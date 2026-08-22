@@ -26,11 +26,14 @@ vi.mock('../../lib/liveSession', () => {
     },
     sharingAvailable: () => true,
     startSharing: () => Promise.resolve(),
-    stopSharing: () => Promise.resolve(),
+    // A spy rather than a stub: the question in front of Stop Sharing is only
+    // worth anything if a "no" leaves this uncalled.
+    stopSharing: vi.fn(() => Promise.resolve()),
   };
 });
 
 const { LiveShareView } = await import('./LiveShareView');
+const live = await import('../../lib/liveSession');
 const stores = await import('../../lib/stores');
 
 declare global {
@@ -55,6 +58,7 @@ function open(scoring: boolean): string {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.mocked(live.stopSharing).mockClear();
   stores.scoringEnabled.set(false);
   stores.scoreEditingAllowed.set(false);
   stores.scoreEditCode.set(null);
@@ -84,6 +88,21 @@ const tileRow = () =>
 
 function click(el: Element) {
   act(() => (el as HTMLElement).click());
+}
+
+const byLabel = (label: string) =>
+  [...container.querySelectorAll('button')].find((b) => b.textContent === label);
+
+/**
+ * Stop Sharing, all the way through the question it now asks.
+ *
+ * The press alone stops nothing: it opens a dialog, because the row it is
+ * deleting cannot be brought back and the key goes with it. Every test that
+ * wanted the stopped card wants both halves.
+ */
+function stopSharing() {
+  click(byLabel('Stop Sharing')!);
+  click(byLabel('Yes, Stop')!);
 }
 
 describe('the card the host holds up', () => {
@@ -316,7 +335,7 @@ describe('sharing the standings', () => {
 describe('the one-button panels', () => {
   it('offers a centred teal tile to start again, not a solid green button', () => {
     open(true);
-    click([...container.querySelectorAll('button')].find((b) => b.textContent === 'Stop Sharing')!);
+    stopSharing();
 
     const button = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === 'Share This Session'
@@ -331,5 +350,73 @@ describe('the one-button panels', () => {
     expect(button.className).toContain('flex-col');
     expect(button.parentElement!.className).toContain('mx-auto');
     expect(button.parentElement!.className).toContain('max-w-[11rem]');
+  });
+});
+
+/**
+ * The question in front of Stop Sharing.
+ *
+ * It is the one irreversible press on the card: the row is deleted, the key is
+ * thrown away, and Share This Session mints a new one that everybody has to
+ * scan again. A thumb landing on it by accident used to cost the host exactly
+ * that, with nothing in between.
+ */
+describe('stopping', () => {
+  it('asks before it stops, and a no leaves the link alone', () => {
+    open(true);
+    click(byLabel('Stop Sharing')!);
+
+    expect(container.textContent).toContain('Stop Sharing?');
+    // The promise the dialog is there to make: it is a new link afterwards.
+    expect(container.textContent).toContain('link for them all to scan');
+
+    click(byLabel('Keep Sharing')!);
+    // Back on the card, with the code still on it and nothing taken down.
+    expect(byLabel('Share This Session')).toBeUndefined();
+    expect(byLabel('Stop Sharing')).toBeDefined();
+    expect(live.stopSharing).not.toHaveBeenCalled();
+  });
+
+  it('stops on a yes', () => {
+    open(true);
+    stopSharing();
+
+    expect(byLabel('Share This Session')).toBeDefined();
+    expect(live.stopSharing).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the link is gone, and does not promise the old one back', () => {
+    open(true);
+    stopSharing();
+
+    expect(container.textContent).toContain(
+      'Sharing has stopped and the old link no longer works.'
+    );
+    // The sentence that used to follow it was not true: the key is gone, a new
+    // one is minted, and every phone that scanned the old code has to scan
+    // again. Jeff's call on 2026-08-21.
+    expect(container.textContent).not.toContain('puts this session back');
+  });
+});
+
+/**
+ * The LIVE pill, on the host's own card.
+ *
+ * The same shape the watchers see in the corner of their page. Here it says
+ * that the code directly under it is working, which is the one thing a host
+ * holding a phone up in front of fourteen people wants to know.
+ */
+describe('the LIVE pill', () => {
+  it('stands above the code while the session is being shared', () => {
+    open(true);
+    expect(container.textContent).toContain('LIVE');
+    // A statement, not a way anywhere: this is already the panel it opens.
+    expect(byLabel('LIVE')).toBeUndefined();
+  });
+
+  it('goes with the code when sharing stops', () => {
+    open(true);
+    stopSharing();
+    expect(container.textContent).not.toContain('LIVE');
   });
 });

@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import type { Player, Roster } from '../../types';
 import { CopyIcon, GroupSolidIcon, PencilIcon, TrashIcon } from '../icons';
+import { LivePill } from '../LivePill';
 import { PanelHeading } from '../PanelGlyph';
+import { useLiveGroups } from '../../hooks/useLiveGroups';
 import { panelCard } from '../panelStyles';
 
 interface Props {
@@ -21,6 +23,11 @@ interface Props {
    * here that is not about editing the list.
    */
   onSelect: (id: string) => void;
+  /**
+   * Opens Share Live Session on a group that is being shared, having switched
+   * to it first. The same move the pill makes in GroupPicker.
+   */
+  onShareLive: (id: string) => void;
   onClose: () => void;
 }
 
@@ -29,13 +36,25 @@ interface Props {
 // red Delete is the kind of thing nobody notices until it is pointed out.
 const PRIMARY =
   'px-4 py-2.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
-const GREY =
-  'px-4 py-2.5 border border-[#999] bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
+const GREY_SHAPE =
+  'px-4 py-2.5 border border-[#999] text-gray-700 rounded-md transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
+const GREY = `${GREY_SHAPE} bg-gray-100 hover:bg-gray-200`;
 const DANGER =
   'px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed';
 
 const FIELD =
   'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent';
+/**
+ * The grey button, on the block that opens inside the list.
+ *
+ * That block is tinted, and everything drawn on it was picking the tint up: the
+ * grey buttons were a shade of grey on a shade of grey, and Tailwind's reset
+ * makes a form control's background transparent, so the name field showed the
+ * tint through as well. White lifts all three off their own background. Only
+ * here — the two panels that open over this one stand on white already, and a
+ * white button on white is a button with no fill at all.
+ */
+const GREY_ON_TINT = `${GREY_SHAPE} bg-white hover:bg-gray-100`;
 
 /** Both icon buttons in the edit block wear their icon the same way. */
 const WITH_ICON = 'flex items-center justify-center gap-2';
@@ -56,6 +75,7 @@ export function ManageRostersModal({
   onDelete,
   onDuplicate,
   onSelect,
+  onShareLive,
   onClose,
 }: Props) {
   const [newName, setNewName] = useState('');
@@ -67,6 +87,8 @@ export function ManageRostersModal({
   /** Where the stranded players go. Set when the Delete panel opens. */
   const [moveTo, setMoveTo] = useState('');
   const newNameRef = useRef<HTMLInputElement>(null);
+  /** Which of these groups have links out. More than one can. */
+  const live = useLiveGroups();
 
   // Players who would be left with no group at all if this one went away.
   const stranded = confirmingDelete
@@ -310,7 +332,7 @@ export function ManageRostersModal({
                   }
                   if (e.key === 'Escape') stopEditing();
                 }}
-                className={FIELD}
+                className={`${FIELD} bg-white`}
               />
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -319,7 +341,7 @@ export function ManageRostersModal({
                     setDuplicating(r);
                     setDuplicateName(copyName(r.name));
                   }}
-                  className={`${GREY} ${WITH_ICON}`}
+                  className={`${GREY_ON_TINT} ${WITH_ICON}`}
                 >
                   <CopyIcon className="w-5 h-5" />
                   Duplicate
@@ -345,52 +367,65 @@ export function ManageRostersModal({
                 >
                   Save
                 </button>
-                <button type="button" onClick={stopEditing} className={GREY}>
+                <button type="button" onClick={stopEditing} className={GREY_ON_TINT}>
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div key={r.id} className="flex items-center gap-2">
-              {/* The name is the way onto the group, as it is in GroupPicker,
-                  and unlabelled for the same reason: the accessible name is
-                  what is written on it. This panel used to be somewhere you
-                  could rename a group but not go to one, so a host who opened
-                  it meaning to switch had to close it and find the picker.
+            <div key={r.id}>
+              <div className="flex items-center gap-2">
+                {/* The name is the way onto the group, as it is in GroupPicker,
+                    and unlabelled for the same reason: the accessible name is
+                    what is written on it. This panel used to be somewhere you
+                    could rename a group but not go to one, so a host who opened
+                    it meaning to switch had to close it and find the picker.
 
-                  The name is bold, the count beside it is not. The count is
-                  how many players are in the group, not part of what it is
-                  called, and bolding both makes the row read as one long
-                  label. The negative margin is so the hover block can have
-                  padding without the name sitting in from every other line in
-                  the panel. */}
-              <button
-                type="button"
-                onClick={() => onSelect(r.id)}
-                title={`Switch to ${r.name}`}
-                className="-ml-2 min-w-0 flex-1 rounded-md px-2 py-2 text-left font-bold
-                  text-gray-800 transition-colors hover:bg-gray-100"
-              >
-                {r.name}
-                <span className="text-gray-400 text-sm font-normal ml-2">
-                  ({countFor(r.id)})
-                </span>
-              </button>
-              {/* White on a border, as the pencil on the schedule is. The row is
-                  a name and one way in, and a tinted button would read as the
-                  thing to press rather than the way to change it. */}
-              <button
-                type="button"
-                aria-label={`Edit ${r.name}`}
-                title={`Edit ${r.name}`}
-                onClick={() => {
-                  setEditingId(r.id);
-                  setEditingName(r.name);
-                }}
-                className="flex shrink-0 items-center rounded-md border border-gray-400 bg-white px-2.5 py-2 text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
-              >
-                <PencilIcon className="w-5 h-5" />
-              </button>
+                    The name is bold, the count beside it is not. The count is
+                    how many players are in the group, not part of what it is
+                    called, and bolding both makes the row read as one long
+                    label. The negative margin is so the hover block can have
+                    padding without the name sitting in from every other line in
+                    the panel. */}
+                <button
+                  type="button"
+                  onClick={() => onSelect(r.id)}
+                  title={`Switch to ${r.name}`}
+                  className="-ml-2 min-w-0 flex-1 rounded-md px-2 py-2 text-left font-bold
+                    text-gray-800 transition-colors hover:bg-gray-100"
+                >
+                  {r.name}
+                  <span className="text-gray-400 text-sm font-normal ml-2">
+                    ({countFor(r.id)})
+                  </span>
+                </button>
+                {/* White on a border, as the pencil on the schedule is. The row
+                    is a name and one way in, and a tinted button would read as
+                    the thing to press rather than the way to change it. */}
+                <button
+                  type="button"
+                  aria-label={`Edit ${r.name}`}
+                  title={`Edit ${r.name}`}
+                  onClick={() => {
+                    setEditingId(r.id);
+                    setEditingName(r.name);
+                  }}
+                  className="flex shrink-0 items-center rounded-md border border-gray-400 bg-white px-2.5 py-2 text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+              </div>
+              {/* Under the name and not beside it. Beside it there is the
+                  pencil, and a row that ends in two things to press is a row
+                  where neither is obviously the way in. */}
+              {live.has(r.id) && (
+                <div className="-mt-1 pb-1">
+                  <LivePill
+                    label={`${r.name} is live: open Share Live Session`}
+                    onClick={() => onShareLive(r.id)}
+                  />
+                </div>
+              )}
             </div>
           )
         )}

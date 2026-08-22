@@ -4,6 +4,7 @@ import { Example, Finding, Labelled, Row, Section, SubHeading } from '../kit';
 import { StepIndicator } from '../../components/layout/StepIndicator';
 import type { Step } from '../../lib/steps';
 import { RoundTypeBadge } from '../../components/schedule/RoundTypeBadge';
+import { LivePill } from '../../components/LivePill';
 import { TypeGlyphs } from '../../components/setup/typeGlyphs';
 import { ScorePanel, ScoreColon } from '../../components/schedule/Scoreboard';
 import { PANEL_TONE, type Tone } from '../../components/schedule/scoreTone';
@@ -113,6 +114,27 @@ const meta = pillMeta(round.roundType);
                 </Labelled>
               );
             })}
+          </Row>
+        </Example>
+
+        <Example
+          name="<LivePill onClick? label? />"
+          note="Green. On a watcher's page it states a fact; on the host's side it is a button that opens Share Live Session"
+          source={`import { LivePill } from '../LivePill';
+
+// The watchers' page: nothing to open.
+<LivePill />
+
+// The host's side: the tab row, the group picker, Manage Groups.
+<LivePill label="This session is live: open Share Live Session" onClick={openShare} />`}
+        >
+          <Row>
+            <Labelled label="no onClick — a span">
+              <LivePill />
+            </Labelled>
+            <Labelled label="onClick — a button">
+              <LivePill onClick={() => {}} />
+            </Labelled>
           </Row>
         </Example>
 

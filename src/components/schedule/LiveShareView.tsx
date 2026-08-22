@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { QrCode } from '../QrCode';
 import { CodeEntry } from '../CodeEntry';
+import { LivePill } from '../LivePill';
 import { Toggle } from '../Toggle';
 import { CopyIcon, PersonIcon, ReplayIcon, ShareIcon, StopIcon } from '../icons';
 import { TileButton, TILE_ALONE, TILE_ROW } from '../TileButton';
+import { DiscardScheduleDialog } from './DiscardScheduleDialog';
 import {
   liveStatusStore,
   sharingAvailable,
@@ -60,6 +62,16 @@ export function LiveShareView({ onCreateAccount }: Props) {
   // Set by Stop Sharing, and never cleared except by asking again. Without it
   // the effect below would publish the session again the moment it came down.
   const [stopped, setStopped] = useState(false);
+  /**
+   * Whether Stop Sharing has been pressed but not yet meant.
+   *
+   * It is the one irreversible button on this card. Stopping deletes the row
+   * and throws the key away, and the link that fourteen people have already
+   * scanned cannot be brought back — pressing Share This Session afterwards
+   * mints a new one and everybody has to scan again. A thumb landing on it by
+   * accident costs the host an afternoon of explaining.
+   */
+  const [confirmingStop, setConfirmingStop] = useState(false);
   const asked = useRef(false);
 
   const url = status.state === 'live' || status.state === 'publishing' || status.state === 'problem'
@@ -143,9 +155,12 @@ export function LiveShareView({ onCreateAccount }: Props) {
   if (stopped) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
+        {/* One sentence, and it is the true one. What used to follow it said
+            making another link puts the session back on the phones that scanned
+            the old one, which is not what happens: the key is gone, a new one is
+            minted, and everybody has to scan again. */}
         <p className="text-[15px] leading-snug text-[#3D495A]">
-          Sharing has stopped and the old link no longer works. Making another
-          one puts this session back on the phones that scan it.
+          Sharing has stopped and the old link no longer works.
         </p>
 
         {status.state === 'problem' && (
@@ -199,6 +214,16 @@ export function LiveShareView({ onCreateAccount }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* The same pill the watchers see in the corner of their page, and the
+          same one that now sits under the Schedule tab. Here it is a statement
+          rather than a way anywhere: this panel is already the panel it opens.
+
+          Above the code rather than beside the heading, because what it is
+          telling the host is that the thing directly below it is working. */}
+      <div className="flex justify-center">
+        <LivePill />
+      </div>
+
       <div className="flex justify-center">
         <QrCode value={url} size={220} label="Scan to watch this session" />
       </div>
@@ -228,10 +253,7 @@ export function LiveShareView({ onCreateAccount }: Props) {
           tone="red"
           Icon={StopIcon}
           label="Stop Sharing"
-          onClick={() => {
-            setStopped(true);
-            void stopSharing();
-          }}
+          onClick={() => setConfirmingStop(true)}
         />
       </div>
 
@@ -263,6 +285,34 @@ export function LiveShareView({ onCreateAccount }: Props) {
           </p>
         )}
       </div>
+
+      {/* The same dialog the tabs ask their question with, for the same reason:
+          this is work that cannot be got back. It is `fixed`, and the sheet
+          holding this card is transformed, so it lands over the sheet rather
+          than over the document. That is where it is wanted — the sheet is
+          92vh, and the question belongs on top of the card it is about. */}
+      {confirmingStop && (
+        <DiscardScheduleDialog
+          heading="Stop Sharing?"
+          body={
+            <>
+              The link stops working straight away, and everyone watching loses
+              this session. Sharing again makes a <strong className="font-bold">new</strong>{' '}
+              link for them all to scan.
+            </>
+          }
+          cancelLabel="Keep Sharing"
+          cancelIcon={ShareIcon}
+          confirmLabel="Yes, Stop"
+          confirmIcon={StopIcon}
+          onConfirm={() => {
+            setConfirmingStop(false);
+            setStopped(true);
+            void stopSharing();
+          }}
+          onCancel={() => setConfirmingStop(false)}
+        />
+      )}
     </div>
   );
 }
