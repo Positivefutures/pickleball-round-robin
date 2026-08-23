@@ -218,7 +218,7 @@ export function Surfaces() {
 
         <Example
           name="<AppWordmark size sport? subtitleColor? />"
-          note="the sport, the app's name, and what it is · #051829 caps 16px over brand-orange 26px over #051829 18px, the lower two always 16/26 and 18/26 of the name · sport off where the mark sits on navy, or where MADE WITH has the line above already"
+          note="the sport, the app's name, and what it is · #051829 caps 14px over brand-orange 26px over #051829 18px, the lower two always 14/26 and 18/26 of the name · sport off where the mark sits on navy, or where MADE WITH has the line above already"
           source={`import { AppWordmark } from './AppWordmark';
 
 <AppWordmark size="1.625rem" />`}

@@ -54,12 +54,13 @@ interface AppWordmarkProps {
  * The two other lines, as shares of the name.
  *
  * Three steps down the scale in `docs/ui-audit.md`, one apart: the name at 26,
- * the description at `text-lg` and the sport at `text-base`. Ratios and not
- * sizes, so the whole mark moves together with the clamp its caller gives it
- * and cannot come apart at some width nobody tested.
+ * the description at `text-lg` and the sport at `text-xs`, which this app
+ * overrides to 14. Ratios and not sizes, so the whole mark moves together with
+ * the clamp its caller gives it and cannot come apart at some width nobody
+ * tested.
  */
 const SUBTITLE_RATIO = 18 / 26;
-const SPORT_RATIO = 16 / 26;
+const SPORT_RATIO = 14 / 26;
 
 export function AppWordmark({
   size,
@@ -69,13 +70,14 @@ export function AppWordmark({
 }: AppWordmarkProps) {
   return (
     <span className={`block min-w-0 ${className}`}>
-      {/* Uppercase, and tracked out the way the banner's eyebrow is: caps set
-          tight read as a block rather than as words. Bold rather than the
-          name's own weight, and in the app's near-black, so it states the sport
-          and then hands the eye down to the orange. */}
+      {/* Uppercase and tracked out a little, because caps set tight read as a
+          block rather than as words. Less than the banner's eyebrow takes: that
+          line stands alone, this one sits over a name and should not outrun it.
+          Bold rather than the name's own weight, and in the app's near-black,
+          so it states the sport and then hands the eye down to the orange. */}
       {sport && (
         <span
-          className="block font-bold uppercase leading-none tracking-[0.12em] mb-[0.2em]"
+          className="block font-bold uppercase leading-none tracking-[0.07em] mb-[0.2em]"
           style={{ fontSize: `calc(${size} * ${SPORT_RATIO})`, color: INK }}
         >
           {APP_SPORT}
