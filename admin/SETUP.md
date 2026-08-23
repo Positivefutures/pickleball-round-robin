@@ -96,24 +96,61 @@ preview has no reason to hold a database password. Same for Tasks 3 and 4.
 
 ---
 
-# Task 3 — the Sentry token and two names
+# Task 3 — the Sentry token
 
-1. Go to **https://sentry.io** and open your Round Robin project.
-2. Read the address bar. It looks like
-   `https://SOMETHING.sentry.io/projects/SOMETHINGELSE/`. `SOMETHING` is the
-   **org slug**, `SOMETHINGELSE` is the **project slug**. These are names, not
-   secrets.
-3. Go to **https://sentry.io/settings/auth-tokens/** and **Create New Token**,
-   named `pbrr-admin`. Give it exactly three scopes and nothing else:
-   **`org:read`**, **`project:read`**, **`event:read`**. All three are read.
-4. In Vercel, add three variables:
-   - `SENTRY_AUTH_TOKEN` — the token, **Production only**
-   - `SENTRY_ORG` — the org slug, all three environments
-   - `SENTRY_PROJECT` — the project slug, all three environments
-5. **Save.**
+**Your two names are already settled and already in `.env.local`:**
 
-If Sentry turns out to be more trouble than it is worth, skip this task. Every
-other panel still works, Crashes shows dashes, and the run notes say why.
+- `SENTRY_ORG` = `positive-futures`
+- `SENTRY_PROJECT` = `pickleball-round-robin`
+
+Read off `https://positive-futures.sentry.io/projects/pickleball-round-robin/`.
+Neither is a secret.
+
+## Not an Organization Auth Token
+
+Settings → Auth Tokens creates **Organization Auth Tokens**, and their scope is
+fixed at `org:ci` — source map upload and release creation. Sentry does not let
+you change it, on that page or afterwards. Those tokens deliberately cannot read
+data, so one is no use here. Nothing went wrong; it is the wrong door.
+
+Two doors do work. **Use the first.**
+
+## An Internal Integration (recommended)
+
+It belongs to the organization rather than to your user account, so it survives
+you changing your own password or leaving, and it can be revoked on its own
+without touching anything else you use Sentry for.
+
+1. Go to
+   **https://positive-futures.sentry.io/settings/developer-settings/new-internal/**
+   (or Settings → Developer Settings → **New Internal Integration**).
+2. Name it `pbrr-admin`.
+3. Set exactly three permissions, and leave every other dropdown on **No Access**:
+   - **Organization** → `Read`
+   - **Project** → `Read`
+   - **Issue & Event** → `Read`
+4. **Save**. The page then shows a **Token** — that is the value.
+5. In Vercel, add `SENTRY_AUTH_TOKEN` with that token, **Production only**.
+
+## Or a personal token, if the above is fiddly
+
+**https://positive-futures.sentry.io/settings/account/api/auth-tokens/** →
+**Create New Token** → tick `org:read`, `project:read`, `event:read`.
+
+Same result, except it is tied to your account rather than the organization.
+Fine, just slightly worse.
+
+## Add the two names too
+
+While you are on the Vercel page, add `SENTRY_ORG` = `positive-futures` and
+`SENTRY_PROJECT` = `pickleball-round-robin`, both ticked for all three
+environments. They are names, not secrets.
+
+If Sentry turns out to be more trouble than it is worth, skip this whole task.
+Every other panel still works, Crashes shows dashes, and the run notes say why.
+
+Delete the `pbrr-admin` organization token you already made, if you made one.
+It cannot do anything, but there is no reason for it to exist.
 
 ---
 
