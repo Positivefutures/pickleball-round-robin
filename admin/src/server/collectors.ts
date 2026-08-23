@@ -12,6 +12,8 @@
  * written down at the point they matter rather than in a separate list.
  */
 
+import { createHash } from 'node:crypto';
+
 export interface MetricRow {
   metric: string;
   dimension?: string;
@@ -26,6 +28,23 @@ export interface Collected {
 
 const ok = (rows: MetricRow[]): Collected => ({ rows });
 const failed = (problem: string): Collected => ({ rows: [], problem });
+
+/**
+ * A fingerprint of a secret, safe to print.
+ *
+ * Vercel's "Sensitive" flag makes a value write-only: it cannot be read back in
+ * the dashboard, by the API, or by anyone. That is the right default for a
+ * token, and it means a wrong value and a right one look identical from
+ * outside, which cost an hour of guessing on 2026-08-23.
+ *
+ * So on failure the job says what it is holding, as eight hex characters of a
+ * SHA-256. That is enough to compare against a token you have in your hand and
+ * far too little to reconstruct one. The secret itself is never printed.
+ */
+function fingerprint(secret: string): string {
+  const hash = createHash('sha256').update(secret, 'utf8').digest('hex');
+  return `${secret.length} chars, sha256:${hash.slice(0, 8)}`;
+}
 
 /** Nothing here is worth hanging the daily job on. */
 const TIMEOUT_MS = 15_000;
@@ -101,7 +120,7 @@ export async function collectSentry(env: NodeJS.ProcessEnv): Promise<Collected> 
 
     return ok(rows);
   } catch (e) {
-    return failed(`Sentry: ${(e as Error).message}`);
+    return failed(`Sentry: ${(e as Error).message}. Token is ${fingerprint(token)}.`);
   }
 }
 
@@ -182,7 +201,7 @@ export async function collectResend(env: NodeJS.ProcessEnv): Promise<Collected> 
       { metric: 'resend_listing_may_be_partial', value: 1 },
     ]);
   } catch (e) {
-    return failed(`Resend: ${(e as Error).message}`);
+    return failed(`Resend: ${(e as Error).message}. Key is ${fingerprint(key)}.`);
   }
 }
 
