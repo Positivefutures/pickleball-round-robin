@@ -17,6 +17,7 @@
 
 import { useState } from 'react';
 import { supabase } from '../lib/api';
+import { ADMIN_NAME, LOGO_SRC } from '../lib/appInfo';
 
 type Stage = { name: 'email' } | { name: 'code'; email: string };
 
@@ -61,7 +62,10 @@ export function SignIn() {
 
   return (
     <main className="mx-auto mt-24 max-w-sm px-4">
-      <h1 className="mb-1 text-xl font-semibold">PB Round Robin admin</h1>
+      <div className="mb-1 flex items-center gap-3">
+        <img src={LOGO_SRC} alt="" width={40} height={40} className="h-10 w-10 shrink-0" />
+        <h1 className="m-0 text-xl font-semibold">{ADMIN_NAME}</h1>
+      </div>
       <p className="mb-6 text-sm text-[var(--color-ink-quiet)]">
         Sign in with the owner address. Anything else gets a code and then a refusal.
       </p>

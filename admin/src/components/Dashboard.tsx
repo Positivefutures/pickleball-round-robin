@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { ADMIN_NAME, LOGO_SRC } from '../lib/appInfo';
 import {
   distribution,
   fetchAlerts,
@@ -98,7 +99,7 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
 
 // ------------------------------------------------------------------- shell --
 
-function Shell({
+export function Shell({
   email,
   onSignOut,
   children,
@@ -111,7 +112,16 @@ function Shell({
     <div className="min-h-screen">
       <header className="bg-[var(--color-brand-teal)] px-4 py-3 text-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <h1 className="m-0 text-base font-semibold">PB Round Robin admin</h1>
+          <span className="flex min-w-0 items-center gap-2.5">
+            {/* No background behind it. `logo.png` is the robin on an opaque
+                white disc inside its ring, with only the square's corners
+                transparent, so it carries its own ground and reads on the teal
+                unaided. Checked by rendering it over magenta rather than
+                assumed - the first draft of this line added a white disc the
+                image already had. */}
+            <img src={LOGO_SRC} alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
+            <h1 className="m-0 truncate text-base font-semibold">{ADMIN_NAME}</h1>
+          </span>
           <span className="flex items-center gap-3 text-sm">
             <span className="hidden opacity-90 sm:inline">{email}</span>
             <button

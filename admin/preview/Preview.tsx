@@ -6,6 +6,7 @@
  * the original the moment either changes, which defeats the point of having it.
  */
 
+import { Shell } from '../src/components/Dashboard';
 import { LineChart } from '../src/components/LineChart';
 import { BarChart } from '../src/components/BarChart';
 import { QuotaRow } from '../src/components/QuotaRow';
@@ -94,18 +95,11 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
 
 export function Preview() {
   return (
-    <div className="min-h-screen">
-      <header className="bg-[var(--color-brand-teal)] px-4 py-3 text-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <h1 className="m-0 text-base font-semibold">PB Round Robin admin</h1>
-          <span className="flex items-center gap-3 text-sm">
-            <span className="hidden opacity-90 sm:inline">jeff@positivefutures.com</span>
-            <span className="rounded-md border-2 border-white/80 px-2.5 py-1">Sign out</span>
-          </span>
-        </div>
-      </header>
-
-      <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+    // The real Shell, not a copy of it. This page had its own hand-written
+    // header until 2026-08-23, which is exactly the drift this file's own
+    // docstring warns about: it still said the old product name a rename later,
+    // and nobody looking at it would have known.
+    <Shell email="jeff@positivefutures.com" onSignOut={() => {}}>
         <Panel title="Working?" note="The three things that would make everything below untrue.">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Tile label="Last snapshot" value="6 hours ago" />
@@ -256,7 +250,6 @@ export function Preview() {
             data. The rest is Postgres's own furniture and does not grow with use.
           </p>
         </Panel>
-      </main>
-    </div>
+    </Shell>
   );
 }
