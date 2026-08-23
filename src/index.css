@@ -147,6 +147,32 @@ body,
   height: 100%;
 }
 
+/**
+ * And the top of that 100% is the viewport as it is now, not as it was.
+ *
+ * `100%` on <html> resolves against whatever height iOS says the web view is,
+ * and after a rotation it says the wrong one: the page kept the height it had
+ * a moment ago and the visible window shrank under it. iOS then scrolls the
+ * document down to cover the difference — and the document is `overflow:
+ * hidden` two rules below, so nothing the user can do scrolls it back. The
+ * banner sits off the top of the screen and stays there. Jeff's report on
+ * 2026-08-23, on an iPhone 16 Pro: 62 points of banner gone at the top and 62
+ * points of white at the bottom, from any tab, portrait to landscape and back.
+ *
+ * `dvh` is the one unit that means the viewport as it actually is at this
+ * moment, so the page cannot be left larger than the window it is shown in.
+ * Written after the `100%` and not instead of it, the same way .timer-sheet
+ * writes vh before dvh: a browser that has never heard of the unit keeps the
+ * line above, and the cascade does the choosing.
+ *
+ * lib/rotationReset.ts is the other half. This stops the page outgrowing the
+ * window; that puts the document back at the top if it is ever pushed off it
+ * anyway, which is the symptom and worth killing on its own.
+ */
+html {
+  height: 100dvh;
+}
+
 html,
 body {
   overflow: hidden;

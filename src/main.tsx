@@ -12,6 +12,7 @@ import { ErrorBoundary, CrashTest } from './components/layout/ErrorBoundary'
 import { sharedKeyFromUrl } from './lib/shareKey'
 import { LiveSessionPage } from './components/live/LiveSessionPage'
 import { startTopPinGhost } from './lib/topPin'
+import { startRotationReset } from './lib/rotationReset'
 
 // First, so that a fault in anything below is heard rather than lost. It only
 // attaches two listeners; nothing is loaded and nothing is sent until something
@@ -81,3 +82,8 @@ if (import.meta.env.PROD) startAppUpdates()
 // The anti-blur strip steps aside once the pane has scrolled. Whichever page
 // mounted above, the pane carries [data-app-scroll] and the watcher finds it.
 startTopPinGhost()
+
+// And the document is put back at the top if turning the phone pushes it off,
+// which on iOS it does. Both pages are held to the viewport the same way, so
+// both want this.
+startRotationReset()
