@@ -20,14 +20,18 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { openDb } from '../src/server/db';
+import { openDb, type Db } from '../src/server/db';
 import { run } from './snapshot';
 
 const CONN = process.env.ADMIN_TEST_PG;
 const suite = CONN ? describe : describe.skip;
 
 suite('the daily job, end to end', () => {
-  const db = openDb({ SUPABASE_DB_URL: CONN } as NodeJS.ProcessEnv);
+  // Opened in beforeAll, not here. A skipped suite still evaluates its body,
+  // and openDb throws without a connection string, so building it at this level
+  // fails an ordinary `npm test` on a machine with no scratch database - which
+  // is every machine most of the time.
+  let db: Db;
   const env: NodeJS.ProcessEnv = {
     SENTRY_AUTH_TOKEN: 'test',
     SENTRY_ORG: 'test-org',
@@ -39,6 +43,8 @@ suite('the daily job, end to end', () => {
   const sent: { subject: string }[] = [];
 
   beforeAll(() => {
+    db = openDb({ SUPABASE_DB_URL: CONN } as NodeJS.ProcessEnv);
+
     // Every outside service, answered from here. Nothing in this test reaches
     // the network, so it cannot be slow, flaky, or send Jeff an email.
     vi.stubGlobal('fetch', async (input: string | URL) => {

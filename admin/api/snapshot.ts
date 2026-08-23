@@ -261,7 +261,19 @@ async function readHistory(db: Db, metric: string): Promise<{ day: string; value
   return rows.map((r) => ({ day: r.day, value: Number(r.value) })).reverse();
 }
 
-export default async function handler(request: Request): Promise<Response> {
+/**
+ * Exported as `GET`, not as `default`.
+ *
+ * A default export is read as Node's old `(req, res) => void` signature, and a
+ * `Response` returned from one is thrown away. The request then hangs until the
+ * gateway gives up, which is a far more confusing failure than a crash: the
+ * function had already run, written to the database and possibly sent mail
+ * before the caller saw anything at all. A named HTTP-method export is the
+ * unambiguous form, and Vercel's own warning in the runtime log says so.
+ *
+ * Vercel Cron sends GET, so GET is the only verb here.
+ */
+export async function GET(request: Request): Promise<Response> {
   if (!authorised(request, process.env)) {
     return json({ error: 'Not permitted.' }, 401);
   }
