@@ -28,83 +28,43 @@ Everything in "Already done" was checked against the live services on
       straight to this one database instead. The whole job, including the new
       connection, has been run end to end against a throwaway Postgres.
 
-## Where it got to on 2026-08-23
+## Done, 2026-08-23
 
-The job has run for real against the live database and returned `ok: true` in
-642 ms. It backfilled 15 days, 2026-08-08 to 2026-08-22, which is the whole
-history there is: the first account was made on the 8th.
+Every task is finished and the job has run clean against the live database:
+`ok: true`, `notes: []`, 28 metrics for today, 8 from the outside services,
+1.4 seconds.
 
-- [ ] **Task 1** — `CRON_SECRET` was missing and was added by hand.
-      `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are still missing, which
-      is why the page says "Not configured". See the note below.
-- [x] **Task 2** — `SUPABASE_DB_URL`, and the job is using it
-- [ ] **Task 3** — Sentry answers `401 Unauthorized`. See below.
-- [ ] **Task 4** — Resend reports "not configured", so the key is not reaching
-      the function. See below.
-- [x] **Task 5** — pushed, deployed, run by hand
+- [x] **Task 1** — the five settings are in Vercel
+- [x] **Task 2** — `SUPABASE_DB_URL`, connected
+- [x] **Task 3** — Sentry answering, Crashes panel populated
+- [x] **Task 4** — Resend answering, email quotas populated
+- [x] **Task 5** — pushed, deployed, run by hand, history backfilled
 
-**Sign in now** — the growth, groups and room-left panels are all populated.
-Crashes and the email quotas are the two that are still blank.
+The history runs from **2026-08-08**, the day the first account was made. That
+is the whole of it. Fifteen days is not much of a trend line and it is the
+honest amount there is.
 
-### Task 3, why Sentry says 401
+From here it runs itself: Vercel Cron calls `/api/snapshot` once a day near
+07:00 UTC. Everything below is kept as the record of how it was set up and
+what went wrong, which is the part worth reading if it ever needs doing again.
 
-401 means Sentry does not recognise the token at all, rather than recognising
-it and refusing the scope. The likely cause is the organization auth token from
-the first attempt: those are fixed at `org:ci` and cannot read. Replace the
-value of `SENTRY_AUTH_TOKEN` with a token from an **Internal Integration** —
-Task 3 below has the exact page and the three permissions.
+### What actually went wrong, in order
 
-### Task 4, why Resend says not configured
+Five failures, none of them findable by reading the code:
 
-That message is what the job prints when `RESEND_API_KEY` is absent from its
-environment, so it is a missing or misnamed variable rather than a rejected
-key. Check the name is exactly `RESEND_API_KEY` and that **Production** is
-ticked. Vercel picks a change up on the next invocation; no redeploy needed.
-
-### The two `VITE_` variables are different from the rest
-
-Everything else in this file is read fresh on every invocation of the job, so
-saving it in Vercel is enough and it works on the next run. The two `VITE_`
-values are not: Vite writes them **into the JavaScript at build time**. Adding
-them changes nothing until the project builds again.
-
-Two consequences worth knowing rather than rediscovering:
-
-- Add them, then redeploy. Saving alone leaves the page saying "Not
-  configured", which looks identical to not having added them.
-- Whether they are there can be checked from outside without signing in:
-  fetch the page, find its `assets/index-*.js`, and search it for the project
-  ref. If the ref is absent the build did not have them. The bundle hash also
-  gives it away - a build with no new values produces byte-identical output
-  and keeps the same hash.
-
-Paste them in one at a time rather than as a block. The block paste silently
-dropped variables twice here.
-
-### Vercel's "Sensitive" flag, and the two things it changes
-
-A variable marked **Sensitive** cannot be read back - the Value box is blank
-every time you open it, and the grey `sntrys_aBcDe...` in it is placeholder
-text rather than your value. So the edit dialog can never tell you whether a
-sensitive variable is set, or what it is set to. Do not press Save on a blank
-box to find out.
-
-It also appears to change *when* the value reaches the running function. The
-plain variables here took effect on the next invocation with no redeploy, twice
-over. `SENTRY_AUTH_TOKEN`, the only sensitive one, kept serving its old value
-through a four-minute cold start. Treat a change to a sensitive variable as
-needing a redeploy.
-
-How to tell a wrong value from a missing one without seeing either: the job
-prints "Sentry is not configured." when the variable is absent or empty, and
-passes the service's own error through when it is present and rejected. A 401
-therefore means a value is there and wrong, which is a different fix from a
-value that never arrived.
-
-### One thing to tidy
-
-There is a `SUPABASE_URL` variable in the project. It is left over from a route
-that no longer exists and nothing reads it. Delete it.
+1. `ERR_MODULE_NOT_FOUND`. Vercel transpiles each file under `api/` separately
+   and this package is `"type": "module"`, so extensionless relative imports do
+   not resolve. Every nightly run would have died before executing a line.
+2. The handler hung. A `Response` returned from a default export is discarded
+   by the newer runtime. The job ran, wrote to the database, and the caller got
+   nothing for three minutes. Exported as `GET` now.
+3. Five environment variables existed with empty values, because a pasted
+   `.env` block created the keys and dropped the values. An empty variable
+   looks identical to a correct one in the list view.
+4. The two `VITE_` values need a build, not a save. See below.
+5. A wrong Sentry token, invisible because the variable was marked Sensitive
+   and could never be read back. Solved by making the job print a SHA-256
+   fingerprint of what it is holding, which is now permanent.
 
 ---
 
