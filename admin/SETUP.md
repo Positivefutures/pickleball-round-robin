@@ -34,7 +34,9 @@ The job has run for real against the live database and returned `ok: true` in
 642 ms. It backfilled 15 days, 2026-08-08 to 2026-08-22, which is the whole
 history there is: the first account was made on the 8th.
 
-- [x] **Task 1** — the five settings are in Vercel
+- [ ] **Task 1** — `CRON_SECRET` was missing and was added by hand.
+      `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are still missing, which
+      is why the page says "Not configured". See the note below.
 - [x] **Task 2** — `SUPABASE_DB_URL`, and the job is using it
 - [ ] **Task 3** — Sentry answers `401 Unauthorized`. See below.
 - [ ] **Task 4** — Resend reports "not configured", so the key is not reaching
@@ -58,6 +60,26 @@ That message is what the job prints when `RESEND_API_KEY` is absent from its
 environment, so it is a missing or misnamed variable rather than a rejected
 key. Check the name is exactly `RESEND_API_KEY` and that **Production** is
 ticked. Vercel picks a change up on the next invocation; no redeploy needed.
+
+### The two `VITE_` variables are different from the rest
+
+Everything else in this file is read fresh on every invocation of the job, so
+saving it in Vercel is enough and it works on the next run. The two `VITE_`
+values are not: Vite writes them **into the JavaScript at build time**. Adding
+them changes nothing until the project builds again.
+
+Two consequences worth knowing rather than rediscovering:
+
+- Add them, then redeploy. Saving alone leaves the page saying "Not
+  configured", which looks identical to not having added them.
+- Whether they are there can be checked from outside without signing in:
+  fetch the page, find its `assets/index-*.js`, and search it for the project
+  ref. If the ref is absent the build did not have them. The bundle hash also
+  gives it away - a build with no new values produces byte-identical output
+  and keeps the same hash.
+
+Paste them in one at a time rather than as a block. The block paste silently
+dropped variables twice here.
 
 ### One thing to tidy
 
