@@ -8,9 +8,59 @@
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/logo.png" />
     <title>RoundRobinator Admin</title>
+
+    <!--
+      The strip's own CSS, inline because it has to be.
+
+      Since iOS 26.1 an installed web app gets a system-painted status bar that
+      samples the page's top rows and fades them into itself. The one thing that
+      stops it is a painted position:fixed element owning the top of the
+      viewport from the first frame: iOS reads that as the app's own bar and
+      stands down. 8px of paint is the measured floor, position:sticky does not
+      count, and whether anything scrolls is irrelevant. All of that was
+      established on Jeff's phone with public/blurtest.html in the main app; the
+      long version is in that app's index.html and src/index.css.
+
+      Inline rather than in src/index.css because the contract is *first-frame*
+      paint. In dev, index.css arrives over JavaScript, so a strip styled from
+      there is unpainted for exactly the window in which iOS is deciding, which
+      is the whole ballgame. `vite build` would hide that by turning index.css
+      into a render-blocking <link>, so the mistake passes every production
+      check and only fails on a phone. Every selector here carries an id, so
+      specificity keeps these rules over Tailwind's preflight whichever sheet
+      lands first.
+
+      The colour is the teal of Dashboard.tsx's header bar, which is the first
+      thing on this page and starts at the top of the viewport. So at rest the
+      eight pixels land on an identical eight and vanish.
+      src/lib/topPin.test.ts holds this file and the palette to the same value.
+    -->
+    <style>
+      #top-pin {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        z-index: 10;
+        pointer-events: none;
+        background: #007d88;
+        transition: opacity 150ms ease;
+      }
+
+      /* Scrolled down, an 8px teal bar hanging over white panels reads as a
+         defect rather than as chrome, so lib/topPin.ts fades it — but only
+         after the launch window in which iOS reads the paint and decides. */
+      #top-pin.ghost {
+        opacity: 0;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <!-- After #root, so its z-index beats anything the app paints, and static
+         HTML on purpose: the decision is made at launch, before React boots. -->
+    <div id="top-pin" aria-hidden="true"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
