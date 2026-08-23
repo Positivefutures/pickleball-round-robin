@@ -249,10 +249,12 @@ API at all, by anyone, before RLS is even considered. Belt, then braces.
 paused for inactivity, and it could not join to the app's own data. There is no
 upside.
 
-**No service_role key anywhere.** The snapshot job talks to Supabase through the
-Management API's read-only SQL endpoint using your personal access token, and
-writes its results through one narrow `security definer` function. A service_role
-key is a total RLS bypass sitting in an env var; this avoids minting one.
+**No service_role key anywhere.** ~~The snapshot job talks to Supabase through
+the Management API's read-only SQL endpoint using your personal access token~~ —
+**changed 2026-08-23, see §12.** The conclusion survives, the route did not: the
+job now opens a direct connection to this one database. A service_role key is a
+total RLS bypass sitting in an env var and none is minted; a personal access
+token would have been a larger bypass still.
 
 ### Auth: how you and only you get in
 
@@ -344,7 +346,7 @@ megabytes against a 500 MB ceiling.
 | Signed in this month (Supabase MAU) | `auth.users.last_sign_in_at` | No, only current | no |
 | Shares started | `shared_sessions.created_at` | Partly. Rows are deleted on Stop | no |
 | Database size | `pg_database_size()` | No | no |
-| Project read-only / paused | Management API | No | no |
+| Project read-only / paused | `default_transaction_read_only` on the session | No | no |
 | Sentry events, issues, trend | `stats_v2` + issues API | ~90 days | no |
 | Resend sends today / this month | `GET /emails` | Yes, from their history | no |
 | **Daily active users** | ping | No | **yes** |
@@ -459,23 +461,32 @@ gets forgotten; a card that admits what it does not know does not.
 
 ## 7. Tokens to create
 
+**Revised 2026-08-23.** This table originally asked for a Supabase personal
+access token. It no longer does, and the reason is in §12.
+
 | # | Service | What to make | Scopes | Where it goes |
 |---|---|---|---|---|
-| 1 | Supabase | Personal access token, Account → Access Tokens. Starts `sbp_` | None to choose. **Account-wide, treat it as a root password** | admin project env only |
-| 2 | Supabase | The project ref, from the dashboard URL | n/a | admin project env |
-| 3 | Sentry | Organization auth token, Settings → Developer Settings, or an Internal Integration | `org:read`, `project:read`, `event:read` | admin project env |
-| 4 | Sentry | Your org slug and project slug | n/a | admin project env |
-| 5 | Resend | API key, **Full access** (Sending access cannot list emails) | Full access | admin project env |
-| 6 | Vercel | **None.** I verified the analytics API 404s on Hobby | | |
+| 1 | Supabase | The **transaction pooler connection string**, Connect panel, password filled in | n/a. Reaches this one database | admin project env, **Production only** |
+| 2 | Sentry | Organization auth token, Settings → Auth Tokens | `org:read`, `project:read`, `event:read` | admin project env, Production only |
+| 3 | Sentry | Your org slug and project slug | n/a | admin project env |
+| 4 | Resend | API key, **Full access** (Sending access cannot list emails) | Full access | admin project env, Production only |
+| 5 | Vercel | **None.** I verified the analytics API 404s on Hobby | | |
 
-Two notes. The Supabase PAT is the most powerful credential in this list by a
-distance, since it reaches every project on your account; it belongs in Vercel's
-env vars for the admin project and nowhere else, never in a file. And the Resend
-full-access key can read the bodies of sent emails, including sign-in codes, so it
-gets the same treatment.
+Three notes.
 
-I will add all six to `.env.example` in the admin project with the same commentary
-style the main app's uses, so what each one is for is written down next to it.
+The pooler string rather than the direct one: a free project's direct host is
+IPv6 only and Vercel's functions cannot reach it.
+
+The Resend full-access key can read the bodies of sent emails, including
+sign-in codes. It belongs in Vercel and never in a file.
+
+**Production only, for every secret.** A Preview value is readable by every
+preview deployment, and a preview build has no business holding a database
+password. The two `VITE_` values are public by design and can sit in all three.
+
+All of these are in `.env.example` in the admin project with the same
+commentary style the main app's uses, so what each one is for is written down
+next to it. `admin/SETUP.md` is the click-by-click version.
 
 ---
 
@@ -620,3 +631,43 @@ Nothing blocks the code, but these block it going live.
    about the people with no account.
 
 Everything else I have an answer for and have proceeded on.
+
+
+---
+
+## 13. The credential, revisited (2026-08-23)
+
+The first build ran its SQL through Supabase's Management API using a personal
+access token. Claude in Chrome, asked to put that token into Vercel, refused to
+handle it and objected to the design. The objection was right and worth writing
+down, because the reasoning that produced the token was plausible and wrong.
+
+**What was wrong.** The original note in `db.ts` said a PAT was preferable
+because a service_role key "bypasses every policy in 0001..0009, and one
+all-powerful secret is better than two". That framed it as adding a second
+secret when it was choosing between two, and the comparison it skipped is the
+whole question: a PAT can do everything a service_role key can — it runs
+arbitrary SQL, so it reads every row — **and also** pause and delete every
+project on the account and read their connection strings. It is a strict
+superset. "Fewer secrets" was true and irrelevant.
+
+**Why not a service_role key either.** It is project-scoped, which is the right
+instinct, and it cannot carry this job. PostgREST does not run SQL, and the job
+sends a join (`readQuotas`) and several function calls with arguments. The
+fallback that claimed to handle this matched only `select admin.fn()` and
+dropped every argument, so it would have thrown on the first real query. It was
+dead code presenting itself as a safety net, which is worse than no fallback.
+
+**What it is now.** A direct connection to this one database, over the
+transaction pooler. Blast radius if leaked: read and write on one database,
+rotatable by changing the password. Every line of SQL is unchanged.
+
+**What that cost.** Two readings the Management API gave for free. Whether the
+database is up is now answered by the snapshot returning at all. Read-only mode
+is read from the session — a better measurement, since it is taken from inside
+the same connection the app's own writes travel down. Service health for auth
+and storage is genuinely lost. If that ever matters more than an account-wide
+token costs, it comes back as a deliberate trade.
+
+**The general lesson**, which is the part worth keeping: the question to ask of
+a credential is not how many there are, it is what one does if it leaks.
