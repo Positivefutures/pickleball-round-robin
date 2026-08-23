@@ -27,36 +27,13 @@ step 5 of the build order, and it needs a change to the main app.
 
 ## Getting it running
 
-**1. Run the two migrations**, whole, in the Supabase SQL Editor of the live
-project, in order:
+**[SETUP.md](SETUP.md) is the checklist.** It says what is already done and what
+is left, in order, with the exact pages to click. Read that rather than this.
 
-```
-admin/supabase/migrations/A001_admin_schema.sql
-admin/supabase/migrations/A002_snapshot.sql
-```
-
-They create a new schema and touch nothing the app uses. Safe to re-run.
-
-**2. Create the tokens** listed in [.env.example](.env.example), which says what
-each is for and what breaks without it.
-
-**3. Make the Vercel project.** Same account, new project, pointed at this repo
-with **Root Directory set to `admin`**. That is the whole separation: one repo,
-two projects, two builds, two URLs. Add every variable from `.env.example` to
-that project.
-
-**4. Check the cron.** [vercel.json](vercel.json) asks for `/api/snapshot` once a
-day. Hobby allows one run a day per job and fires within an hour of the time
-asked for, which is why every metric is a daily figure and every write is an
-upsert.
-
-**5. Press it once by hand** to fill the history:
-
-```
-curl -H "Authorization: Bearer $CRON_SECRET" https://<the-url>/api/snapshot
-```
-
-The first run backfills. Later runs see the history is there and skip it.
+The short version of the shape: two migrations in Supabase, three API tokens, a
+second Vercel project whose Root Directory is `admin`, and one hand-fired run of
+`/api/snapshot` to fill the history. The cron in [vercel.json](vercel.json) then
+takes it from there, once a day, which is the most a Hobby account allows.
 
 ---
 

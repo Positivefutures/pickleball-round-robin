@@ -14,8 +14,8 @@
  * the question without the mail being opened. That is most of the value.
  */
 
-import type { Crossing } from '../lib/quota';
-import { describe as sayRunway, type Runway } from '../lib/runway';
+import type { Crossing } from '../lib/quota.js';
+import { describe as sayRunway, type Runway } from '../lib/runway.js';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 

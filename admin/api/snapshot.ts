@@ -26,18 +26,26 @@
  * Step 6 runs even when an earlier step threw. A job that fails silently is the
  * exact failure this whole dashboard exists to prevent elsewhere, and it would
  * be a poor joke to build it with that hole in the middle.
+ *
+ * **The `.js` on the imports below is deliberate. Do not tidy it away.** This
+ * package is `"type": "module"`, and Vercel transpiles each file here on its
+ * own rather than bundling them, so what runs is real Node ESM, where an
+ * extensionless relative import does not resolve. Without the extension the
+ * function died on invocation with ERR_MODULE_NOT_FOUND every night, and the
+ * only place that showed was the runtime log. TypeScript, Vite and vitest all
+ * resolve `./x.js` to `./x.ts`, so the extension costs nothing anywhere else.
  */
 
-import { openDb, sqlJson, type Db } from '../src/server/db';
+import { openDb, sqlJson, type Db } from '../src/server/db.js';
 import {
   collectResend,
   collectSentry,
   collectSupabasePlatform,
   type MetricRow,
-} from '../src/server/collectors';
-import { composeAlert, send } from '../src/server/notify';
-import { crossings, type Quota } from '../src/lib/quota';
-import { project } from '../src/lib/runway';
+} from '../src/server/collectors.js';
+import { composeAlert, send } from '../src/server/notify.js';
+import { crossings, type Quota } from '../src/lib/quota.js';
+import { project } from '../src/lib/runway.js';
 
 export const config = { runtime: 'nodejs' };
 
