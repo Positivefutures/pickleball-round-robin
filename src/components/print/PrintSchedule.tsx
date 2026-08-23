@@ -1,6 +1,6 @@
 import type { Schedule, Player } from '../../types';
 import { formatTeam, getDisplayName } from '../../utils/helpers';
-import { APP_URL } from '../../lib/appInfo';
+import { APP_NAME, APP_URL } from '../../lib/appInfo';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundTypes';
 
 interface Props {
@@ -49,7 +49,7 @@ export function PrintSchedule({ schedule, players }: Props) {
                 }}
               >
                 <img src="/logo.png" alt="" style={{ height: '28pt', width: 'auto' }} />
-                <span>Pickleball Round Robin</span>
+                <span>{APP_NAME}</span>
               </h1>
 
               {schedule.rounds.map((round) => {

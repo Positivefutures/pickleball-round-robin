@@ -1,4 +1,4 @@
-import { APP_VERSION } from './appInfo';
+import { APP_NAME, APP_VERSION } from './appInfo';
 import { friendlyError } from './auth';
 import { forgetAccount } from './sync';
 import { getSupabase } from './supabase';
@@ -37,7 +37,7 @@ type Row = Record<string, unknown>;
  * why they need translating.
  */
 const README = [
-  'This file holds everything your Pickleball Round Robin account has on the server.',
+  `This file holds everything your ${APP_NAME} account has on the server.`,
   'It was made by the Download My Data button in the app. Nobody was sent a copy.',
   '',
   'account: how you sign in, as the server holds it. There is no password, because this app never had one.',
@@ -138,7 +138,7 @@ export async function buildMyDataFile(now = new Date()): Promise<AccountResult<M
     const file = {
       readme: README,
       exported_at: now.toISOString(),
-      app: 'Pickleball Round Robin',
+      app: APP_NAME,
       app_version: APP_VERSION,
       account: {
         user_id: user.id,

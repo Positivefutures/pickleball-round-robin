@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.78';
+export const APP_VERSION = '3.79';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
@@ -99,3 +99,27 @@ export const TERMS_URL = '/terms.html';
  * that check stays meaningful.
  */
 export const DONATE_URL: string = 'https://ko-fi.com/pbroundrobin';
+
+/**
+ * The app's name, and the line that says what it is.
+ *
+ * Two strings rather than one because the banner draws them as two lines in two
+ * colours and two sizes: the coined name in orange over the plain words in
+ * black. `AppWordmark` is the only thing that should be laying them out; every
+ * other caller wants one of the two, or `APP_FULL_NAME`.
+ *
+ * Renamed from "Pickleball Round Robin Generator" on 2026-08-22. The old name
+ * was three other apps' names in a row and could never be searched for or
+ * owned; the reasoning is section 13 of PRODUCT-CONTEXT.md.
+ */
+export const APP_NAME = 'RoundRobinator';
+export const APP_SUBTITLE = 'Round Robin Generator';
+
+/**
+ * Both at once, for the places that get one string and no styling: the browser
+ * tab, the share sheet's subject, the manifest, the static legal pages.
+ *
+ * A colon and not a dash. The name alone would tell a search engine and a
+ * stranger nothing, and the words alone are what every competitor is called.
+ */
+export const APP_FULL_NAME = `${APP_NAME}: ${APP_SUBTITLE}`;

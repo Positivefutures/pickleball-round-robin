@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Pickleball Round Robin Generator",
-  "short_name": "Round Robin",
+  "name": "RoundRobinator: Round Robin Generator",
+  "short_name": "RoundRobinator",
   "description": "Build fair pickleball round robins in seconds. Free, no ads, and no account needed.",
   "scope": "/",
   "start_url": "/",

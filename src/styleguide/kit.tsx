@@ -89,10 +89,26 @@ export function Row({ children }: { children: ReactNode }) {
 }
 
 /** A specimen with its own small caption under it — variant names, mostly. */
-export function Labelled({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * A specimen with its caption under it.
+ *
+ * `full` is for the specimens that are a whole page's width rather than a thing
+ * sitting in one — the banner, and anything else laid across the top of a
+ * screen. Without it the column shrinks to the specimen's own content, which
+ * for a banner means drawing it at half the width it will ever have.
+ */
+export function Labelled({
+  label,
+  full = false,
+  children,
+}: {
+  label: string;
+  full?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex min-w-0 flex-col items-start gap-1.5">
-      <div>{children}</div>
+    <div className={`flex min-w-0 flex-col items-start gap-1.5 ${full ? 'w-full' : ''}`}>
+      <div className={full ? 'w-full' : ''}>{children}</div>
       <code className="text-[0.75rem] leading-tight text-slate-500">{label}</code>
     </div>
   );

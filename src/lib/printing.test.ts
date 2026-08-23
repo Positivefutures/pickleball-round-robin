@@ -97,8 +97,8 @@ describe('handing the document over', () => {
   it('sends the file and the title, and nothing that would ride along in the body', async () => {
     const share = vi.fn(() => Promise.resolve());
     const file = pdf();
-    await sharePdf(file, 'Pickleball Round Robin', share);
-    expect(share).toHaveBeenCalledWith({ files: [file], title: 'Pickleball Round Robin' });
+    await sharePdf(file, 'RoundRobinator', share);
+    expect(share).toHaveBeenCalledWith({ files: [file], title: 'RoundRobinator' });
   });
 
   it('opens the sheet before it awaits anything', () => {

@@ -15,6 +15,7 @@
 
 import type { ReactNode } from 'react';
 import { ChevronDownIcon, GroupSolidIcon } from '../icons';
+import { AppWordmark } from './AppWordmark';
 
 /** The banner's height. Every other measurement here is a multiple of it. */
 const HEIGHT = 'clamp(110px, 26.25vw, 165px)';
@@ -35,8 +36,78 @@ const TITLE_INSET = 0.66;
  * What the title keeps for itself before the court starts being cropped away.
  * Below this the court slides off the right edge rather than squeezing the
  * name any further.
+ *
+ * Raised from 11rem when the banner started carrying the wordmark. A group's
+ * name breaks between words and can take three lines; "Round Robin Generator"
+ * set under the name is one line that either fits or wraps, and on a phone the
+ * difference between it fitting and not was about a centimetre of court.
  */
-const TITLE_MIN = '11rem';
+const TITLE_MIN = '12rem';
+
+/**
+ * The court window's width, which is the picture's own 4:3 until the title's
+ * floor takes precedence. Written once because the padding that keeps the type
+ * off the court is measured from it.
+ */
+const COURT_WIDTH = `min(calc(${RIGHT_ASPECT} * ${HEIGHT}), calc(100% - ${TITLE_MIN}))`;
+
+/**
+ * How far the court's leading diagonal has come in by the time it is level with
+ * the bottom of the title, as a share of the banner's height measured from the
+ * court picture's own left edge.
+ *
+ * Read off `header-right.jpg` rather than judged by eye: sampling the first
+ * non-cream pixel of each row of that 352x264 file gives 0.53H at its middle
+ * and 0.28H at three quarters down, falling almost exactly in a straight line.
+ * The title's last line lands around 0.72 of the banner, and 0.29 is the
+ * diagonal there. Taking it at the title's foot rather than at its middle is
+ * the point: that is the row where the court reaches furthest into the type.
+ *
+ * This replaced a flat `0.95 * HEIGHT`, which was the same measurement taken
+ * once for a three-line title and then left to apply to every other shape.
+ */
+const INK_AT_TITLE_FOOT = 0.29;
+
+/**
+ * The corner row, in pixels, so the title can be told how much of the right
+ * edge is already spoken for.
+ *
+ * These are the row's own Tailwind values read back as numbers: `right-3` is
+ * the 12 it is inset by, `gap-2` the 8 between items, `h-10 w-12` the 48 each
+ * button is. The pill is the one measurement that is not a class on this file —
+ * `LivePill` is `px-2.5` around an 8px dot, a `gap-1.5` and "LIVE" at `text-xs`
+ * bold, which comes to 64. It is only ever the outer term of a `max()`, so a
+ * few pixels either way costs nothing.
+ */
+const CORNER_EDGE = 12;
+const CORNER_GAP = 8;
+const CORNER_BUTTON = 48;
+const CORNER_PILL = 64;
+
+/**
+ * The wordmark's top line in the banner. The line under it follows from it.
+ *
+ * Jeff's size is 26px, and 26 is where this tops out. It cannot simply *be* 26:
+ * "Round Robin Generator" under the name is the wider of the two lines and does
+ * not break between words without looking broken, and on a 360px phone the strip
+ * left between the robin and the court is about 190px — which is 26px of name
+ * and 20px of description overflowing it by a third.
+ *
+ * So it is a clamp, and the middle term is a straight line rather than a bare
+ * `vw`: below 420px the banner's height has bottomed out at 110px, so the robin
+ * and the court cost a fixed number of pixels and the strip left for the title
+ * grows one for one with the viewport. That strip is `100vw - 187px`, and the
+ * description costs a shade under 8px of width for each pixel of type — which
+ * is where `12.5vw - 24px` comes from, with a few pixels held back so a font
+ * that is not the one this was measured in has somewhere to go.
+ *
+ * It reaches Jeff's 26 at 400px and holds there for every screen above it, so
+ * every phone from the iPhone 12 mini up is within about a pixel of full size
+ * and a desktop is exactly it. Below 320px the description wraps, and there is
+ * no size worth reading that would stop it: at that width the robin and the
+ * court have already taken two thirds of the banner.
+ */
+const WORDMARK_SIZE = 'clamp(1.25rem, calc(12.5vw - 24px), 1.625rem)';
 
 /**
  * Where the robin badge sits inside the left-hand piece, as fractions of the
@@ -110,6 +181,14 @@ interface HeaderProps {
   /** Shown in the banner — the app name on the roster step, the group name after. */
   title: string;
   /**
+   * Draws the app's own two-line mark instead of setting `title` as plain type.
+   *
+   * `title` is still required and still what the badge and the link are labelled
+   * with, because the mark is two coloured lines to look at and one name to a
+   * screen reader. Every caller that passes this passes `APP_FULL_NAME`.
+   */
+  wordmark?: boolean;
+  /**
    * Which mark sits beside the title. The robin is the app's own, and is what
    * the artwork is painted with; `groups` covers it with the three-person mark
    * for the steps where the title is a group's name rather than the app's.
@@ -149,6 +228,7 @@ interface HeaderProps {
 
 export function Header({
   title,
+  wordmark = false,
   badge = 'robin',
   settingsOpen = false,
   onToggleSettings,
@@ -158,6 +238,19 @@ export function Header({
   eyebrow,
   corner,
 }: HeaderProps) {
+  // What the corner row actually comes to, which is what the title has to keep
+  // clear of. Nothing here is measured at runtime: the row's contents are known
+  // from the props, and a layout that waited for a measurement would move the
+  // name after the banner had already been drawn.
+  const cornerItems = [
+    corner ? CORNER_PILL : 0,
+    onPrint ? CORNER_BUTTON : 0,
+    onToggleSettings ? CORNER_BUTTON : 0,
+  ].filter(Boolean);
+  const cornerWidth = cornerItems.length
+    ? `${CORNER_EDGE * 2 + cornerItems.reduce((a, b) => a + b, 0) + CORNER_GAP * (cornerItems.length - 1)}px`
+    : '0px';
+
   // Both buttons have to stay legible wherever the diagonal happens to fall
   // behind them, which is teal at their right and cream at their left on a
   // narrow screen. A solid fill reads on either; an outline does not.
@@ -189,9 +282,7 @@ export function Header({
           what goes over the side, which is what should happen on a phone. */}
       <div
         className="pointer-events-none absolute inset-y-0 right-0 overflow-hidden"
-        style={{
-          width: `min(calc(${RIGHT_ASPECT} * ${HEIGHT}), calc(100% - ${TITLE_MIN}))`,
-        }}
+        style={{ width: COURT_WIDTH }}
       >
         <img
           src="/header-right.jpg"
@@ -263,9 +354,14 @@ export function Header({
         className="relative flex h-full items-center"
         style={{
           paddingLeft: `calc(${TITLE_INSET} * ${HEIGHT})`,
-          // Clears the buttons, and the court's diagonal where it reaches
-          // furthest in across the title's lowest line.
-          paddingRight: `max(7.5rem, calc(0.95 * ${HEIGHT}))`,
+          // Two things stand to the title's right and either can be the wider:
+          // the buttons in the corner, and the court's diagonal where it reaches
+          // furthest in across the title's lowest line. The corner term counts
+          // what is actually drawn rather than assuming both buttons — the step
+          // that carries the wordmark is also the one with nothing to print, and
+          // a 48px allowance for a button that is not there was costing the name
+          // a syllable on a phone.
+          paddingRight: `max(${cornerWidth}, calc(${COURT_WIDTH} - ${INK_AT_TITLE_FOOT} * ${HEIGHT}))`,
         }}
       >
         <div className="min-w-0">
@@ -289,14 +385,19 @@ export function Header({
           {/* Clamped rather than truncated: three lines is enough for the longest
               name worth reading, and a fourth would push the banner open. Three
               lines of the largest size still sit inside the banner at every width,
-              which is what holds the clamp's top end where it is. */}
+              which is what holds the clamp's top end where it is.
+
+              The clamp is skipped for the wordmark, which is two lines by
+              construction and sets its own sizes. */}
           <h1
-            className="min-w-0 line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)] font-bold leading-tight tracking-tight"
+            className={`min-w-0 font-bold leading-tight tracking-tight ${
+              wordmark ? '' : 'line-clamp-3 text-[clamp(1.365rem,4.42vw,2.275rem)]'
+            }`}
             style={{ color: NAVY }}
           >
             {titleHref ? (
               <a href={titleHref} className="hover:opacity-70 transition-opacity">
-                {title}
+                {wordmark ? <AppWordmark size={WORDMARK_SIZE} /> : title}
               </a>
             ) : onTitleClick ? (
               /* The whole name is the target, which on a phone is the only tap
@@ -309,7 +410,7 @@ export function Header({
                 aria-haspopup="dialog"
                 className="text-left hover:opacity-70 transition-opacity"
               >
-                {title}
+                {wordmark ? <AppWordmark size={WORDMARK_SIZE} /> : title}
                 {/* Sized against the title rather than in pixels, so it holds its
                     share of the line at every width the banner clamps to. The
                     glyph is a thin chevron inside a 24 box, so it needs most of a
@@ -318,6 +419,8 @@ export function Header({
                   className="ml-[0.15em] inline-block h-[0.9em] w-[0.9em] align-[-0.12em]"
                 />
               </button>
+            ) : wordmark ? (
+              <AppWordmark size={WORDMARK_SIZE} />
             ) : (
               title
             )}

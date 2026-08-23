@@ -375,9 +375,18 @@ rounded-md px-3 py-2` (×1), and `border-amber-300` instead of `-200` in two.
 | Name | File | Variants | Usages |
 |---|---|---|---|
 | `StepIndicator` | [StepIndicator.tsx](src/components/layout/StepIndicator.tsx) | Per step: `active` (orange border + white card + bar), `ready` (`#d3d7de` border, `#fbfbfc` bg), `idle` (flat, disabled), `answering` (flat, pressable). Props: `current`, `available`, `answering?`, `onNavigate` | 1 (App.tsx) |
-| `Header` | [Header.tsx](src/components/layout/Header.tsx) | banner + two chrome buttons (`bg-white/95 ring-1 ring-black/10`), settings toggled state | 2 |
+| `Header` | [Header.tsx](src/components/layout/Header.tsx) | banner + two chrome buttons (`bg-white/95 ring-1 ring-black/10`), settings toggled state. `wordmark` draws the app's own mark instead of plain type; `badge` picks the robin or the groups mark; `eyebrow`, `corner`, `titleHref` and `onTitleClick` are each used by one caller | 2 |
+| `AppWordmark` | [AppWordmark.tsx](src/components/layout/AppWordmark.tsx) | `size`, `subtitleColor?`. The app's name in `brand-orange` over what it is in `#051829`, the second line always 20/26 of the first | 2 (Header, SettingsPanel) |
 | `SettingsPanel` | [SettingsPanel.tsx](src/components/layout/SettingsPanel.tsx) | drawer rows: `flex w-full items-center gap-3 rounded-md px-3 py-3 text-left font-bold hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/60` | 1 |
 | `ActionsButton` + `ActionsSheet` | [schedule/](src/components/schedule/) | The FAB and its 9-tile sheet | 1 each |
+
+`Header` is the one component in the app that sizes itself off the **window**
+rather than off its own box: its height, both pieces of artwork and the wordmark
+inside it are all `vw`. That is why `/style-guide` draws it at `100vw` in a box
+that scrolls sideways, and why the frame buttons on that page do nothing to it.
+`index.html` holds a copy of the same geometry for `#top-pin`, the strip that
+keeps iOS 26 from blurring the banner's top edge, and `topPin.test.ts` fails if
+the two ever drift apart.
 
 `StepIndicator` carries **six colour constants of its own** (`TRACK #f4f5f7`,
 `IDLE_TEXT #61697c`, `IDLE_ICON #6f768d`, `DIVIDER #dee1e7`,

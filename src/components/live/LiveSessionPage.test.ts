@@ -848,7 +848,15 @@ describe('watching a session', () => {
     answer = shared();
     await open();
     const title = container.querySelector('h1 a');
-    expect(title?.textContent).toBe('Pickleball Round Robin Generator');
+    // Two lines, and the second is the one that tells a stranger what this is.
+    // Asserted as two spans rather than as one run of text, because the whole
+    // point of the mark is that the name and the description are not the same
+    // size, the same weight or the same colour.
+    const lines = [...(title?.querySelectorAll('span > span') ?? [])];
+    expect(lines.map((l) => l.textContent)).toEqual([
+      'RoundRobinator',
+      'Round Robin Generator',
+    ]);
     expect(title?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
   });
 
@@ -866,7 +874,7 @@ describe('watching a session', () => {
     // The badge is painted into the banner's artwork, so its link has no words
     // of its own and has to say what it is out loud instead.
     const badge = links.find((a) => (a.textContent ?? '') === '');
-    expect(badge?.getAttribute('aria-label')).toBe('Pickleball Round Robin Generator');
+    expect(badge?.getAttribute('aria-label')).toBe('RoundRobinator: Round Robin Generator');
     expect(links.some((a) => a.textContent === 'MADE WITH')).toBe(true);
   });
 

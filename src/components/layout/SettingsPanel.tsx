@@ -3,6 +3,7 @@ import {
   APP_VERSION, BUILD_ID, COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL,
 } from '../../lib/appInfo';
 import { PersonIcon, ShareIcon, SlidersIcon } from '../icons';
+import { AppWordmark } from './AppWordmark';
 
 interface Props {
   open: boolean;
@@ -198,8 +199,11 @@ export function SettingsPanel({
           height={192}
           className="mb-2 h-14 w-14 rounded-lg"
         />
-        <h2 className="text-xl font-bold tracking-tight">
-          Pickleball Round Robin Generator
+        {/* The same mark as the banner, at the size the drawer's heading was.
+            White under the name rather than black: this panel is navy, and the
+            orange line carries on it as it does on the cream. */}
+        <h2>
+          <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" />
         </h2>
       </div>
       {/* The gap above the footer rides here rather than on the footer itself.

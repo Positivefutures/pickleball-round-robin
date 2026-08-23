@@ -1,4 +1,4 @@
-import { Example, Finding, Row, Section, SubHeading } from '../kit';
+import { Example, Finding, Labelled, Row, Section, SubHeading } from '../kit';
 
 import { panelCard } from '../../components/panelStyles';
 import { PanelBadge, PanelGlyph, PanelHeading } from '../../components/PanelGlyph';
@@ -9,6 +9,10 @@ import { InstallBanner } from '../../components/layout/InstallBanner';
 import { SignInBanner } from '../../components/layout/SignInBanner';
 import { UpdateBanner } from '../../components/layout/UpdateBanner';
 import { PrintNotice } from '../../components/layout/PrintNotice';
+import { Header } from '../../components/layout/Header';
+import { AppWordmark } from '../../components/layout/AppWordmark';
+import { LivePill } from '../../components/LivePill';
+import { APP_FULL_NAME } from '../../lib/appInfo';
 import { SwapHint } from '../../components/schedule/SwapHint';
 import { CourtMissNote } from '../../components/schedule/CourtMissNote';
 import { SpotsFilled } from '../../components/setup/SpotsFilled';
@@ -201,7 +205,8 @@ export function Surfaces() {
         title="Banners"
         blurb={
           <>
-            Five components, one shape:{' '}
+            The banner across the top of every step comes first, because it is the only one of
+            these that is the page rather than a message on it. Then five components, one shape:{' '}
             <code>flex items-center gap-3 rounded-lg border border-&lt;c&gt;-200 bg-&lt;c&gt;-50 px-4 py-3</code>.
             Four colours now: the install offer was repainted to match the new-version bar on
             2026-08-21, and the two share <code>bannerStyles.ts</code>. Still five files, and the
@@ -209,6 +214,72 @@ export function Surfaces() {
           </>
         }
       >
+        <SubHeading>The page banner</SubHeading>
+
+        <Example
+          name="<AppWordmark size subtitleColor? />"
+          note="the app's name over what it is · brand-orange 26px over #051829 20px, the second line always 20/26 of the first"
+          source={`import { AppWordmark } from './AppWordmark';
+
+<AppWordmark size="1.625rem" />`}
+        >
+          <Row>
+            <Labelled label="1.625rem — the banner's top size">
+              <AppWordmark size="1.625rem" />
+            </Labelled>
+            <Labelled label="1.375rem — the settings drawer, on navy">
+              <div className="rounded-lg bg-[#0B2545] p-4">
+                <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" />
+              </div>
+            </Labelled>
+          </Row>
+        </Example>
+
+        <Example
+          name="<Header title wordmark badge onToggleSettings onPrint eyebrow corner titleHref onTitleClick />"
+          note="two pieces of artwork against the edges with live text between them · height clamp(110px, 26.25vw, 165px) · the wordmark clamps from 20px to 26px so its second line stays on one line down to 360px · sizes off the window, so resize rather than using the frame above"
+          source={`import { Header } from './Header';
+
+// The Players step, and any step with no group to name.
+<Header title={APP_FULL_NAME} wordmark onToggleSettings={toggle} />
+
+// Every step after it: the group's name, the groups mark, and a way to another.
+<Header title={roster.name} badge="groups" onTitleClick={pickGroup} onPrint={print} />
+
+// The live view, which has no drawer and says what made the page.
+<Header title={APP_FULL_NAME} wordmark eyebrow="MADE WITH" titleHref={APP_URL} corner={<LivePill />} />`}
+        >
+          {/* Drawn at `100vw` inside a box that scrolls, which is the only way
+              to show this one honestly. The banner sizes itself off the window
+              rather than off its own box — the height, the artwork and the
+              wordmark are all `vw` — so in a column narrower than the window it
+              lays out type for a screen it has not got and wraps where the app
+              does not. Given the window's own width it is the app's banner
+              exactly, and the column scrolls sideways to show the rest of it.
+
+              Which also means the frame buttons above do nothing to this
+              specimen. Resize the window to see the clamps move. */}
+          <div className="flex w-screen flex-col gap-4">
+            <Labelled label="wordmark — the Players step" full>
+              <Header title={APP_FULL_NAME} wordmark onToggleSettings={noop} />
+            </Labelled>
+            <Labelled label="a group's name, with the groups mark and the print button" full>
+              <Header title="Tuesday Night Social" badge="groups" onTitleClick={noop} onPrint={noop} onToggleSettings={noop} />
+            </Labelled>
+            <Labelled label="the live view — eyebrow, LIVE pill, and the whole banner a link" full>
+              <Header
+                title={APP_FULL_NAME}
+                wordmark
+                eyebrow="MADE WITH"
+                titleHref="https://app.pbroundrobin.com/"
+                corner={<LivePill />}
+              />
+            </Labelled>
+          </div>
+        </Example>
+
+        <SubHeading>Messages on the page</SubHeading>
+
         <Example
           name="<InstallBanner onOpen onDismiss />"
           note="orange-200 / orange-50 · app logo · #FA5D02 action, below the words"

@@ -65,7 +65,8 @@ import { isStandalone, isIos, installRoute } from './lib/install';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import type { FeedbackKind } from './lib/feedback';
 import {
-  APP_VERSION, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL, COPYRIGHT,
+  APP_VERSION, APP_FULL_NAME, FEEDBACK_EMAIL, ACCOUNTS_ENABLED, PRIVACY_URL, TERMS_URL,
+  COPYRIGHT,
 } from './lib/appInfo';
 import { RosterPage } from './components/roster/RosterPage';
 import { TooFewPlayersDialog } from './components/TooFewPlayersDialog';
@@ -81,8 +82,11 @@ import {
 } from './components/icons';
 import { PrintSchedule } from './components/print/PrintSchedule';
 
-// Shown in the banner on the Players step, and as the settings drawer's heading.
-const APP_TITLE = 'Pickleball Round Robin Generator';
+// What the banner is labelled with on the Players step, where it draws the
+// app's own mark rather than a group's name. The mark is two lines in two
+// colours; this is the one name behind it, for the badge's link and for anyone
+// listening rather than looking.
+const APP_TITLE = APP_FULL_NAME;
 
 function App() {
   const {
@@ -1768,6 +1772,10 @@ function App() {
       <Header
         // Past the roster step the group being worked on is the useful label
         title={step === 'roster' ? APP_TITLE : activeRoster?.name ?? APP_TITLE}
+        // And where that falls back to the app's own name, it is drawn as the
+        // app's own mark. Tied to the same test the badge is, for the same
+        // reason: the two say one thing between them.
+        wordmark={step === 'roster' || !activeRoster}
         // And the mark beside it follows it. Where the banner reads a group's
         // name, the robin is standing next to something that is not the app's
         // name, so the groups mark goes there instead. Tied to the same test

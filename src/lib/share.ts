@@ -1,6 +1,6 @@
-import { APP_URL } from './appInfo';
+import { APP_FULL_NAME, APP_URL } from './appInfo';
 
-export const SHARE_TITLE = 'Pickleball Round Robin Generator';
+export const SHARE_TITLE = APP_FULL_NAME;
 
 /**
  * `title` is metadata: targets like Mail use it as the subject, and the ones
@@ -84,9 +84,9 @@ export async function shareApp(share = defaultShare()): Promise<ShareOutcome> {
 /**
  * One afternoon, rather than the app.
  *
- * A different title because targets like Mail use it as the subject, and
- * "Pickleball Round Robin Generator" is an odd thing to head a message that
- * means "watch our session".
+ * A different title because targets like Mail use it as the subject, and the
+ * app's own name is an odd thing to head a message that means "watch our
+ * session".
  *
  * Scores are named only when the session keeps them. A link that promises
  * scores and then shows a schedule with no numbers on it reads as broken, and

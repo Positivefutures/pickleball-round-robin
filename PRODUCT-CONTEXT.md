@@ -1,4 +1,4 @@
-# Pickleball Round Robin Generator: product context
+# RoundRobinator: product context
 
 A single description of what this app is, what it does, how it is built, what it
 costs to run, who it competes with, and what has and has not been decided.
@@ -12,7 +12,7 @@ Accurate as of app version **2.11**, 2026-08-11.
 
 ## 1. The one paragraph version
 
-Pickleball Round Robin Generator builds fair doubles matchups for a social round
+RoundRobinator builds fair doubles matchups for a social round
 robin. A host adds their players once, ticks who turned up, says how many courts
 and rounds they have, and gets a schedule where everyone plays with and against
 different people and the sit-outs are shared out evenly. It runs in a browser,
@@ -41,7 +41,8 @@ expect to pay.**
 | Crash reporting | Sentry, Developer (free) plan |
 | Transactional email | Resend, for feedback and bug reports |
 
-A rename to **Roundrobinator** is under consideration. See section 13.
+Renamed to **RoundRobinator** on 2026-08-22, subtitled *Round Robin Generator*.
+See section 13.
 
 ---
 
@@ -450,21 +451,36 @@ not need to be unique. iOS gives 160 indexed characters total: 30 for the name,
 short brandable name plus a keyword-loaded subtitle, because Apple penalises
 keyword stuffing in names anyway.
 
-**Candidate: Roundrobinator.** Search results are clean, with no app, company,
-product or website using it. Fifteen characters. Coined, so trademark-safe and
-ownable. The tradeoff is that it does not contain "pickleball", so sport search
-traffic has to come from the subtitle and keywords. Suggested subtitle:
+**Chosen 2026-08-22: RoundRobinator.** Search results were clean, with no app,
+company, product or website using it. Fourteen characters, camel-cased so the
+two words inside it are still readable. Coined, so trademark-safe and ownable.
+The tradeoff is that it does not contain "pickleball", so sport search traffic
+has to come from the subtitle and keywords. Suggested App Store subtitle:
 "Pickleball Round Robin Maker".
+
+In the app itself the subtitle is **Round Robin Generator**, set under the name
+in the banner: the coined word in brand orange at 26px, the plain words in the
+app's near-black at 20px. That pairing is the whole answer to the tradeoff — the
+name is what becomes ownable, and the line under it is what a stranger reads.
 
 **Still to verify:** the domain on Namecheap or Porkbun (.com, .app, .ca), the
 App Store name in App Store Connect, which is authoritative and instant, and a
 trademark check at CIPO and USPTO TESS. Low risk on a coined word. Grabbing the
 domains is cheap and time-sensitive.
 
-**The cost of renaming** is not zero. The brand today is spread across
-pbroundrobin.com, the app subdomain, jeff@pbroundrobin.com, ko-fi.com/pbroundrobin,
-the manifest, fifteen og: tags, the privacy policy and the terms. It is a day of
-work, and it is much cheaper now than after a launch.
+**What the rename actually cost**, against an estimate of a day. The copy half
+was an afternoon: the banner, the settings drawer, the player's view, the printed
+sheet and the PDF, the share sheet, the data export, the manifest, the og: tags,
+the privacy policy and the terms. All of it now reads from `APP_NAME`,
+`APP_SUBTITLE` and `APP_FULL_NAME` in `src/lib/appInfo.ts`, so the next one would
+be one file.
+
+The half that is not done is the half that was never copy. `pbroundrobin.com`,
+`app.pbroundrobin.com`, `jeff@pbroundrobin.com` and `ko-fi.com/pbroundrobin` all
+still carry the old brand and each needs its own move with its own redirects.
+`og-banner.png` is drawn artwork with the old name in it, so every shared link
+still previews under it until it is redrawn. That is the real bill, and it is
+still much cheaper now than after a launch.
 
 ---
 
@@ -586,9 +602,11 @@ sync, all phases. Guest mode. Share previews. The accounts kill switch.
 
 Carried here so they are not mistaken for settled.
 
-1. **When to rename, if at all.** Roundrobinator is clean and available, and
-   renaming gets more expensive every week. But the domains are unverified and
-   the current brand is already spread across a dozen places.
+1. **What to do about the domain, now that the app is RoundRobinator.**
+   Answered for the app on 2026-08-22 and open for everything around it: the
+   site, the address, the email and the Ko-fi page are all still
+   `pbroundrobin`, and `og-banner.png` still says the old name out loud to
+   anyone who is sent a link. Section 13 lists the four.
 2. **Whether to gate sync.** It is the differentiator and it has a real cost,
    but it is also what makes an account worth having, and accounts are the
    foundation of everything paid.

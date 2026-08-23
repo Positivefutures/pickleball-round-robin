@@ -13,7 +13,7 @@
  */
 import type { Schedule, Player, Round } from '../types';
 import { formatTeam, getDisplayName } from '../utils/helpers';
-import { APP_URL } from './appInfo';
+import { APP_NAME, APP_URL } from './appInfo';
 import { LOGO_IMAGE } from './logoImage';
 import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from './roundTypes';
 import { PAGE_HEIGHT, PAGE_WIDTH, buildPdf, widthOf, wrapText, type PdfOp } from './pdf';
@@ -88,7 +88,7 @@ function rule(top: number, color: string): PdfOp {
 
 /** The logo and the title, centred together as one thing. */
 function titlePart(): Part {
-  const text = 'Pickleball Round Robin';
+  const text = APP_NAME;
   const logoWidth = (LOGO_HEIGHT * LOGO_IMAGE.width) / LOGO_IMAGE.height;
   const textWidth = widthOf(text, TITLE_SIZE, 'bold');
   const groupWidth = logoWidth + LOGO_GAP + textWidth;
@@ -321,7 +321,7 @@ export function layoutSchedule(schedule: Schedule, players: Player[]): PdfOp[][]
 }
 
 /** What the shared file is called, and what the reader shows as its title. */
-export const PDF_TITLE = 'Pickleball Round Robin';
+export const PDF_TITLE = APP_NAME;
 export const PDF_FILE_NAME = 'round-robin-schedule.pdf';
 
 export function scheduleToPdf(schedule: Schedule, players: Player[]): Uint8Array<ArrayBuffer> {

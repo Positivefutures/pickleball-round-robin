@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { fetchShared, fetchSharedAt, submitScoreEdit, type LiveFetch } from '../../lib/liveViewer';
 import type { SessionSnapshot } from '../../lib/sessionSnapshot';
 import type { CourtScore } from '../../types';
-import { APP_URL } from '../../lib/appInfo';
+import { APP_FULL_NAME, APP_URL } from '../../lib/appInfo';
 import { appScrollTo } from '../../lib/appScroll';
 import { BADGE_SIZE, Header } from '../layout/Header';
 import { StandingsPanel } from '../schedule/StandingsPanel';
@@ -345,7 +345,8 @@ export function LiveSessionPage({ shareKey }: Props) {
         // code and may have no idea what they are looking at, so the title says
         // what it is and goes there.
         eyebrow="MADE WITH"
-        title="Pickleball Round Robin Generator"
+        title={APP_FULL_NAME}
+        wordmark
         titleHref={APP_URL}
         corner={
           // No onClick: there is no Share Live Session panel on this side of

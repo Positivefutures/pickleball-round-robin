@@ -42,6 +42,8 @@ one shared button component, and it is not the ordinary button.
 | a **badge** | `<PanelBadge icon />` — the ring astride a page card’s top-left corner | `components/PanelGlyph.tsx`, on Players ×4 and Setup ×1 |
 | a **name plate** | the bordered box astride the players list's top edge | `roster/RosterPage.tsx`, one site |
 | the **corner dots** | `<CornerDots />`, `<CornerDots smaller />` | `components/CornerDots.tsx` |
+| the **wordmark** | `<AppWordmark size />` — "RoundRobinator" in orange over "Round Robin Generator" in near-black. The banner's is 26px at full size and clamps down to 20px on a phone; the settings drawer's is fixed at 1.375rem with a white second line | `layout/AppWordmark.tsx`, 2 sites |
+| the **banner** | `<Header title wordmark? badge? eyebrow? corner? />` — the artwork across the top of every step. Not to be confused with *a banner* below, which is a message | `layout/Header.tsx` |
 | the **LIVE pill** | `<LivePill />` — green, and the one mark a live share leaves. A span on the watchers' page; a button everywhere on the host's side, and it opens Share Live Session | `components/LivePill.tsx` |
 | the **page card** | `bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6` | 9 sites, **not extracted**. A badged card is the same shape at `pt-7` — `badgedCard` in `roster/RosterPage.tsx` |
 | a **banner** | `InstallBanner` / `SignInBanner` / `UpdateBanner` / `PrintNotice` / `SwapHint` | `layout/`, `schedule/` |
@@ -68,6 +70,14 @@ means, or propose naming them — that is finding **F2**.
 - **Adding a component? Add it to `/style-guide`** by importing it. Never copy
   its markup onto that page — a copy stops tracking the original, which defeats
   the entire point of the page.
+- **The app is called RoundRobinator**, and *Round Robin Generator* is the line
+  under it. Never type either into a component. `APP_NAME`, `APP_SUBTITLE` and
+  `APP_FULL_NAME` in `lib/appInfo.ts` are the only places they are written, and
+  the whole app reads from them — banner, drawer, player's view, printed sheet,
+  PDF, share sheet, data export. The static files cannot import, so `index.html`,
+  `site.webmanifest`, `privacy.html` and `terms.html` each hold their own copy.
+  It was "Pickleball Round Robin Generator" until 2026-08-22; the domain, the
+  email, the Ko-fi page and `og-banner.png` still say so, deliberately.
 
 The style guide is excluded from the production build: it lives at
 `style-guide.html` in the repo root, and `vite build` only takes `index.html`.

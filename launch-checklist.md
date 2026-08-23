@@ -57,7 +57,8 @@ that scales with users is Supabase, so that is where the attention belongs.
 
 - [x] Search CIPO, USPTO, the Apple and Google app stores, and the open web
 - [x] Write the findings down, even if clean, so this is never re-litigated
-- [x] Decision: no rename. There is no conflict to act on
+- [x] Decision: no rename *for legal reasons*. There is no conflict to act on.
+      Renamed anyway on 2026-08-22, on the commercial finding below
 
 **Legally clear.** Searched TMview, which aggregates both USPTO and CIPO,
 across Nice classes 9, 41 and 42.
@@ -89,10 +90,24 @@ which is worth knowing given our mascot. On the web, `pickleballscheduler.app`
 is positioned almost identically. `pickleballroundrobin.com` is registered to
 someone else and serves an empty page.
 
-**What follows from this.** No rename, and no letter is coming. But the name
-will not pick this app out of a list of twenty-five, so the assets that
-actually distinguish it are the robin and `pbroundrobin`. Lean on those in
-item 21, and do not expect the name to do any work.
+**What follows from this.** No letter is coming, and none of the above forced a
+rename. But the name would not pick this app out of a list of twenty-five, and
+that is what eventually did.
+
+**Superseded 2026-08-22: renamed to RoundRobinator.** Not for a legal reason —
+everything above still holds — but for the commercial one in the paragraph
+before it. The app is now **RoundRobinator**, with **Round Robin Generator** as
+the line under it, so the coined word carries the identity and the plain words
+carry the search. The banner, the settings drawer, the player's view, the
+printed sheet, the PDF, the manifest, the share sheet, the og: tags and both
+legal pages all say it. Section 13 of PRODUCT-CONTEXT.md has the reasoning.
+
+Three things the rename deliberately did not touch, because they are live
+infrastructure rather than copy: `pbroundrobin.com` and `app.pbroundrobin.com`,
+`jeff@pbroundrobin.com`, and `ko-fi.com/pbroundrobin`. Moving any of them is its
+own job with its own redirects. `og-banner.png` is a fourth: it is drawn artwork
+with the old name in it, and until it is redrawn a shared link still previews
+under the old name.
 
 ### 2. Point the bare domain at the app **[Jeff]** DONE 2026-08-09
 

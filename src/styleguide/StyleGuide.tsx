@@ -3,7 +3,7 @@ import { Foundations } from './sections/Foundations';
 import { Controls } from './sections/Controls';
 import { Surfaces } from './sections/Surfaces';
 import { Bits } from './sections/Bits';
-import { APP_VERSION } from '../lib/appInfo';
+import { APP_NAME, APP_VERSION } from '../lib/appInfo';
 
 /**
  * The living style guide, at /style-guide in dev only.
@@ -89,7 +89,7 @@ export function StyleGuide() {
         <main className="min-w-0 flex-1 px-4 py-8 sm:px-8">
           <header className="mb-10">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              Pickleball Round Robin — UI
+              {APP_NAME} — UI
             </h1>
             <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-slate-600">
               Every specimen below is the real component, imported. Nothing is redrawn, so this page

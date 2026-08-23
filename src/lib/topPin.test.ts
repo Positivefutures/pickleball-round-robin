@@ -82,8 +82,8 @@ describe('the strip that keeps iOS from blurring the banner', () => {
     expect(html.split(clamp).length).toBeGreaterThanOrEqual(3);
     expect(header).toContain('1.3333');
     expect(html).toContain('calc(1.3333 * clamp(110px, 26.25vw, 165px))');
-    expect(header).toContain("'11rem'");
-    expect(html).toContain('calc(100% - 11rem)');
+    expect(header).toContain("'12rem'");
+    expect(html).toContain('calc(100% - 12rem)');
     // Without this the images ignore the height above and Tailwind's preflight
     // caps them at the strip's own width, which is the unstyled shape again.
     expect(html).toMatch(/#top-pin img\s*\{[^}]*height:\s*var\(--top-pin-art\)/);

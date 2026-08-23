@@ -11,6 +11,7 @@ import {
 } from '../icons';
 import { ShareSessionIcon } from '../schedule/actionIcons';
 import { SHOTS } from './instructionShots';
+import { APP_NAME } from '../../lib/appInfo';
 
 interface Props {
   onClose: () => void;
@@ -629,7 +630,7 @@ export function InstructionsPanel({ onClose }: Props) {
           ) : (
             <>
               <p className="mb-4 text-gray-600">
-                This app builds balanced doubles matchups for a round robin — everyone
+                {APP_NAME} builds balanced doubles matchups for a round robin — everyone
                 plays with and against different people, and sit-outs are shared out
                 evenly. Tap a topic to read about it.
               </p>

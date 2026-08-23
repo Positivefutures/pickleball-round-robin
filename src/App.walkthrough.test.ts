@@ -5984,7 +5984,7 @@ describe('changing groups', () => {
     // its chevron are further down the page, on the My Groups panel.
     const header = container.querySelector('header')!;
     expect(buttons(new RegExp(`^${RIVERSIDE}$`), header)).toHaveLength(0);
-    expect(header.textContent).toContain('Pickleball');
+    expect(header.textContent).toContain('RoundRobinator');
   });
 
   /**
@@ -5998,7 +5998,7 @@ describe('changing groups', () => {
     const groupsMark = () => header().querySelectorAll('svg[viewBox="0 0 512 512"]');
 
     // Players reads the app's own name, and keeps the app's own bird.
-    expect(header().textContent).toContain('Pickleball');
+    expect(header().textContent).toContain('RoundRobinator');
     expect(groupsMark()).toHaveLength(0);
 
     clickButton(/^Continue to Setup/);

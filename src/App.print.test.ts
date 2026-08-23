@@ -173,7 +173,7 @@ describe('on an iPhone opened from the home screen', () => {
     expect(sent.files[0].type).toBe('application/pdf');
     expect(sent.files[0].name).toMatch(/\.pdf$/);
     expect(sent.files[0].size).toBeGreaterThan(500);
-    expect(sent.title).toBe('Pickleball Round Robin');
+    expect(sent.title).toBe('RoundRobinator');
   });
 
   it('sends the schedule that is on screen, names and all', async () => {
