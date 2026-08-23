@@ -37,12 +37,7 @@
  */
 
 import { openDb, sqlJson, type Db } from '../src/server/db.js';
-import {
-  collectResend,
-  collectSentry,
-  collectSupabasePlatform,
-  type MetricRow,
-} from '../src/server/collectors.js';
+import { collectResend, collectSentry, type MetricRow } from '../src/server/collectors.js';
 import { composeAlert, send } from '../src/server/notify.js';
 import { crossings, type Quota } from '../src/lib/quota.js';
 import { project } from '../src/lib/runway.js';
@@ -103,6 +98,33 @@ export async function run(
     );
     detail.snapshot = snapshot?.take_snapshot ?? null;
 
+    // Is the project in read-only mode? Supabase puts a free project there when
+    // it passes 500 MB, and when it does, every sync from the app fails. It is
+    // the one fact on this dashboard that makes everything else untrue, so the
+    // Working? panel leads with it.
+    //
+    // Read from the session rather than from a platform API, because a platform
+    // API needs an account-wide token and this needs a connection. Supabase
+    // enforces the mode by setting default_transaction_read_only on the role,
+    // so a session that reports it on is one the app's writes would also fail
+    // in. A proxy, but one measured from inside the thing it describes.
+    //
+    // Both settings are read. `transaction_read_only` alone is enough on a
+    // fresh connection and was checked to be - a session opened against a
+    // read-only role answers "on". It is the reading that stops being true
+    // first, though: it describes the transaction in flight, and it does not
+    // pick up a default that is set during one. `default_transaction_read_only`
+    // is what Supabase actually sets, so it is read too, and either being on
+    // is enough. Both halves were run against a database made read-only on
+    // purpose, which is the only way to find out.
+    const [ro] = await db.query<{ read_only: boolean }>(
+      `select current_setting('default_transaction_read_only') = 'on'
+           or current_setting('transaction_read_only') = 'on' as read_only;`
+    );
+    const readOnly: MetricRow[] = [
+      { metric: 'supabase_readonly', value: ro?.read_only ? 1 : 0 },
+    ];
+
     // ---- 2. Backfill, but only into an empty history.
     //
     // Guarded by a count rather than by a flag file, so it is self-correcting:
@@ -116,23 +138,24 @@ export async function run(
       detail.backfill = filled?.backfill ?? null;
     }
 
-    // ---- 3. The three outside services, in parallel. None can fail the run.
-    const [sentry, resend, platform] = await Promise.all([
-      collectSentry(env),
-      collectResend(env),
-      collectSupabasePlatform(env),
-    ]);
+    // ---- 3. The outside services, in parallel. Neither can fail the run.
+    //
+    // Supabase is absent from this list on purpose. It used to be here, asking
+    // the Management API whether the project was healthy and read-only, and
+    // that cost an account-wide token to learn two things. One of them is now
+    // read from the session above and the other, whether the database is up,
+    // is answered by the fact that step 1 returned at all.
+    const [sentry, resend] = await Promise.all([collectSentry(env), collectResend(env)]);
 
     for (const [step, got] of [
       ['sentry', sentry],
       ['resend', resend],
-      ['supabase-platform', platform],
     ] as const) {
       if (got.problem) notes.push({ step, problem: got.problem });
     }
 
     // ---- 4. Write them.
-    const rows: MetricRow[] = [...sentry.rows, ...resend.rows, ...platform.rows];
+    const rows: MetricRow[] = [...readOnly, ...sentry.rows, ...resend.rows];
     if (rows.length) {
       await db.query(
         `select admin.record_many(current_date, ${sqlJson(
@@ -189,6 +212,11 @@ export async function run(
     } catch {
       // Nothing useful left to do. The response still carries the truth.
     }
+
+    // Let the socket go, but only when this function opened it. A caller that
+    // passed one in owns it, and closing somebody else's connection between
+    // their assertions is a rude way to fail a test.
+    if (!into) await db.close();
   }
 
   return { ok, ms, ...detail };

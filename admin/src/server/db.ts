@@ -1,33 +1,39 @@
 /**
  * How the daily job talks to Postgres.
  *
- * Two routes, and the preferred one is the one that needs no service_role key.
+ * One route: a direct connection to this project's database, using the
+ * connection string from Supabase's Connect panel.
  *
- * **The Management API**, `POST /v1/projects/{ref}/database/query`, runs SQL as
- * the project owner using a Supabase personal access token. That token is
- * account-wide and powerful, but it lives in one place, it is rotatable from a
- * page that lists it, and choosing it means no service_role key has to be
- * minted at all. A service_role key is a total bypass of every policy in
- * 0001..0009, and the fewer of those that exist, the better.
+ * **Why not a personal access token.** The first draft ran SQL through the
+ * Management API, `POST /v1/projects/{ref}/database/query`, authenticated with
+ * a Supabase personal access token. That worked, and it was the wrong choice.
+ * A PAT carries the privileges of the whole account: every project, not this
+ * one, including pausing and deleting them and reading their connection
+ * strings. This job needs to read and write one database. A connection string
+ * reaches exactly that database and nothing else, and it is rotatable from the
+ * dashboard by changing the password.
  *
- * **A service_role key** is the fallback, used only if SUPABASE_SERVICE_ROLE_KEY
- * is set and the token is not. It exists because the query endpoint's
- * availability on the free plan is the one thing in this design I could not
- * verify without Jeff's credentials, and a job that cannot run is worse than a
- * job that runs the second-best way. Delete the fallback once the first route
- * is confirmed working.
+ * **Why not a service_role key.** It is project-scoped, which is the right
+ * instinct, but PostgREST cannot run SQL. Everything below is either a join
+ * (`readQuotas`) or a function call with arguments, and the RPC route could
+ * carry neither. The earlier draft claimed to fall back to it and could not
+ * have: the fallback matched only `select admin.fn()` and dropped every
+ * argument, so the first real query would have thrown. That code is gone
+ * rather than fixed, because this route makes it unnecessary.
  *
- * Either way the job only ever sends `select admin.something(...)`. All the
- * aggregation lives in A002_snapshot.sql. See the header of that file for why.
+ * All the aggregation lives in A002_snapshot.sql and the job only ever sends
+ * `select admin.something(...)`. See the header of that file for why.
  */
 
-const MANAGEMENT = 'https://api.supabase.com/api/v1';
+import postgres from 'postgres';
 
 export interface Db {
-  /** Which route is in use, for the job log and the dashboard's own health row. */
-  readonly route: 'management-api' | 'service-role';
+  /** Named in the job log and the dashboard's own health row. */
+  readonly route: 'postgres';
   /** Run one statement and hand back whatever it selected. */
   query<T = unknown>(sql: string): Promise<T[]>;
+  /** Let the socket go. A serverless invocation that does not is one that hangs. */
+  close(): Promise<void>;
 }
 
 export class DbError extends Error {
@@ -46,13 +52,14 @@ export class DbError extends Error {
 /**
  * Encode a value for inlining into SQL.
  *
- * The Management API takes a SQL string and offers no bind parameters, so
- * anything variable has to be embedded. Rather than escape quotes, which is the
- * approach that eventually gets one case wrong, values go in base64 and come
- * back out in Postgres. The base64 alphabet is `A-Za-z0-9+/=` and contains no
- * quote, no backslash and no dollar, so there is nothing in an encoded value
- * that could end the literal it sits in. That is a property of the alphabet
- * rather than of the escaping being careful, which is why it is used here.
+ * The driver has bind parameters, and they are not used, because the callers
+ * here build whole statements as strings and passing them through unchanged is
+ * what keeps A002 the single place the SQL lives. So anything variable is
+ * embedded, and embedded in base64 rather than quoted: the base64 alphabet is
+ * `A-Za-z0-9+/=` and contains no quote, no backslash and no dollar, so there is
+ * nothing in an encoded value that could end the literal it sits in. That is a
+ * property of the alphabet rather than of the escaping being careful, which is
+ * why it is used here.
  */
 export function sqlJson(value: unknown): string {
   const b64 = Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
@@ -65,97 +72,50 @@ export function sqlText(value: string): string {
   return `convert_from(decode('${b64}', 'base64'), 'utf8')`;
 }
 
-function managementDb(token: string, ref: string): Db {
-  return {
-    route: 'management-api',
-    async query<T>(sql: string): Promise<T[]> {
-      const res = await fetch(`${MANAGEMENT}/projects/${ref}/database/query`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'pbrr-admin/0.1',
-        },
-        body: JSON.stringify({ query: sql }),
-      });
-
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '');
-        throw new DbError(
-          `Management API said ${res.status}. ${detail.slice(0, 300)}`,
-          res.status
-        );
-      }
-
-      // The endpoint returns the rows of the last statement as a bare array.
-      const body = (await res.json()) as unknown;
-      return (Array.isArray(body) ? body : []) as T[];
-    },
-  };
-}
-
-function serviceRoleDb(url: string, key: string): Db {
-  return {
-    route: 'service-role',
-    async query<T>(sql: string): Promise<T[]> {
-      // PostgREST cannot run arbitrary SQL, which is a feature rather than a
-      // gap. This route therefore only supports the shape the job actually
-      // uses: a single `select admin.fn(args)` call, turned into an RPC.
-      const call = /^\s*select\s+admin\.([a-z_]+)\s*\((.*)\)\s*;?\s*$/is.exec(sql);
-      if (!call) {
-        throw new DbError(
-          'The service_role fallback can only call admin functions, not run SQL. ' +
-            'Set SUPABASE_ACCESS_TOKEN to use the Management API route.'
-        );
-      }
-
-      // This route needs `admin` added to Settings > API > Exposed schemas in
-      // the Supabase dashboard, which the Management API route does not.
-      //
-      // Doing so is safe, and worth understanding rather than taking on trust.
-      // PostgREST connects as anon or authenticated, and A001 revokes USAGE on
-      // the schema from both. Exposing a schema tells PostgREST it may route to
-      // it; it does not grant anything. The tables stay unreachable, and this
-      // key gets in because service_role is not either of those roles.
-      const res = await fetch(`${url}/rest/v1/rpc/${call[1]}`, {
-        method: 'POST',
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'Content-Profile': 'admin',
-          'Accept-Profile': 'admin',
-        },
-        body: '{}',
-      });
-
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '');
-        throw new DbError(`PostgREST said ${res.status}. ${detail.slice(0, 300)}`, res.status);
-      }
-      const body = (await res.json()) as unknown;
-      return (Array.isArray(body) ? body : [body]) as T[];
-    },
-  };
-}
-
 /**
- * Pick a route from the environment. Throws rather than returning a broken
- * client, because a job that half works is the thing this whole dashboard
- * exists to stop happening elsewhere.
+ * Open a connection.
+ *
+ * `prepare: false` is not optional. Supabase's pooler in transaction mode hands
+ * a different backend to each statement, and a prepared statement named on one
+ * backend does not exist on the next. It is the standard failure of this pairing
+ * and it appears as a confusing `prepared statement "s1" does not exist` on the
+ * second query rather than the first.
+ *
+ * One connection, because the job runs a dozen statements once a day and a pool
+ * would only be something else to close.
  */
 export function openDb(env: NodeJS.ProcessEnv = process.env): Db {
-  const token = env.SUPABASE_ACCESS_TOKEN;
-  const ref = env.SUPABASE_PROJECT_REF;
-  if (token && ref) return managementDb(token, ref);
+  const url = env.SUPABASE_DB_URL;
+  if (!url) {
+    throw new DbError(
+      'No database route configured. Set SUPABASE_DB_URL to the connection ' +
+        'string from Supabase > Connect, with the password filled in.'
+    );
+  }
 
-  const url = env.SUPABASE_URL;
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (url && key) return serviceRoleDb(url, key);
+  const sql = postgres(url, {
+    max: 1,
+    prepare: false,
+    idle_timeout: 20,
+    connect_timeout: 15,
+    // Supabase terminates TLS with a certificate this does not have the chain
+    // for. The connection is encrypted; it is not certificate-pinned. Anything
+    // stronger means shipping their CA bundle in the lambda.
+    ssl: url.includes('localhost') || url.includes('127.0.0.1') ? false : 'require',
+  });
 
-  throw new DbError(
-    'No database route configured. Set SUPABASE_ACCESS_TOKEN and ' +
-      'SUPABASE_PROJECT_REF (preferred), or SUPABASE_URL and ' +
-      'SUPABASE_SERVICE_ROLE_KEY.'
-  );
+  return {
+    route: 'postgres',
+    async query<T>(statement: string): Promise<T[]> {
+      try {
+        const rows = await sql.unsafe(statement);
+        return rows as unknown as T[];
+      } catch (e) {
+        throw new DbError(`Postgres said: ${(e as Error).message}`);
+      }
+    },
+    async close(): Promise<void> {
+      await sql.end({ timeout: 5 }).catch(() => {});
+    },
+  };
 }

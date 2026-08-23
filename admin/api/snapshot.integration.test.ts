@@ -2,71 +2,37 @@
  * The daily job, run for real against a real Postgres.
  *
  * Skipped unless ADMIN_TEST_PG is set, so an ordinary `npm test` stays fast and
- * needs nothing installed. To run it:
+ * needs nothing installed. scripts/scratch-db.sh builds the database, applies
+ * the app's nine migrations and then both admin ones, and prints the value to
+ * set. Then:
  *
- *   initdb -D /tmp/pbadmin && pg_ctl -D /tmp/pbadmin -o "-p 55432" start
- *   psql -p 55432 -U postgres -f <the scaffold below>
- *   ...then the app's supabase/migrations/*.sql, then admin/supabase/migrations/*.sql
  *   ADMIN_TEST_PG=postgres://postgres@127.0.0.1:55432/postgres npm test
- *
- * scripts/scratch-db.sh does all of that in one go.
  *
  * What this catches that a unit test cannot: whether the SQL in A002 and the
  * TypeScript in snapshot.ts agree about names, argument order and return
  * shapes. Every bug found while building this file was of exactly that kind,
  * including a parameter that shadowed a column and made claim_alert throw on
  * every call.
+ *
+ * It uses openDb, not a stand-in. That is the point of it: the driver, the
+ * statements and the schema are all the real ones, and the only thing stubbed
+ * is the network to Sentry and Resend.
  */
 
-import { execFileSync } from 'node:child_process';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Db } from '../src/server/db';
+import { openDb } from '../src/server/db';
 import { run } from './snapshot';
 
 const CONN = process.env.ADMIN_TEST_PG;
 const suite = CONN ? describe : describe.skip;
 
-/**
- * A Db backed by psql rather than a driver, so the test needs no dependency the
- * app does not already have. Slow, and it does not matter: this runs a dozen
- * statements.
- */
-function psqlDb(conn: string): Db {
-  const run = (statement: string) =>
-    execFileSync('psql', [conn, '-tA', '-X', '--no-psqlrc', '-c', statement], {
-      encoding: 'utf8',
-      env: { ...process.env, PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH}` },
-    });
-
-  return {
-    route: 'management-api',
-    async query<T>(sql: string): Promise<T[]> {
-      const bare = sql.trim().replace(/;\s*$/, '');
-
-      // The Management API hands back JSON rows. psql hands back text, so a
-      // select is wrapped in json_agg to get the same shape. Anything that is
-      // not a select has no rows to shape and is run as it stands, which the
-      // wrapper would otherwise turn into a syntax error.
-      if (!/^\s*select\b/i.test(bare)) {
-        run(bare);
-        return [];
-      }
-
-      const out = run(`select coalesce(json_agg(t), '[]')::text from (${bare}) t`);
-      return JSON.parse(out.trim() || '[]') as T[];
-    },
-  };
-}
-
 suite('the daily job, end to end', () => {
-  const db = psqlDb(CONN!);
+  const db = openDb({ SUPABASE_DB_URL: CONN } as NodeJS.ProcessEnv);
   const env: NodeJS.ProcessEnv = {
     SENTRY_AUTH_TOKEN: 'test',
     SENTRY_ORG: 'test-org',
     SENTRY_PROJECT: 'test-proj',
     RESEND_API_KEY: 'test',
-    SUPABASE_ACCESS_TOKEN: 'test',
-    SUPABASE_PROJECT_REF: 'testref',
     ALERT_TO: 'nobody@example.com',
   };
 
@@ -97,14 +63,14 @@ suite('the daily job, end to end', () => {
         sent.push({ subject: 'sent' });
         return json({ id: 'sent' });
       }
-      if (url.includes('/readonly')) return json({ enabled: false });
-      if (url.includes('/health')) return json([{ name: 'db', healthy: true }]);
-
       throw new Error(`Unexpected fetch in test: ${url}`);
     });
   });
 
-  afterAll(() => vi.unstubAllGlobals());
+  afterAll(async () => {
+    vi.unstubAllGlobals();
+    await db.close();
+  });
 
   it('runs, writes metrics, and records the run', async () => {
     const result = await run(env, db);

@@ -186,42 +186,20 @@ export async function collectResend(env: NodeJS.ProcessEnv): Promise<Collected> 
   }
 }
 
-// -------------------------------------------------- Supabase, the platform --
+// ------------------------------ Supabase, and why it is not collected here --
 //
-// Two facts the database genuinely cannot tell you about itself: whether the
-// project has been put into read-only mode for exceeding 500 MB, and whether it
-// is up at all. Both matter more than any usage number, because both are the
-// state where everything else on this page has stopped being true.
-
-export async function collectSupabasePlatform(env: NodeJS.ProcessEnv): Promise<Collected> {
-  const token = env.SUPABASE_ACCESS_TOKEN;
-  const ref = env.SUPABASE_PROJECT_REF;
-  if (!token || !ref) return failed('No Supabase access token, so platform state is unknown.');
-
-  const auth = { Authorization: `Bearer ${token}` };
-  const rows: MetricRow[] = [];
-  const problems: string[] = [];
-
-  try {
-    const readonly = (await getJson(
-      `https://api.supabase.com/api/v1/projects/${ref}/readonly`,
-      auth
-    )) as { enabled?: boolean };
-    rows.push({ metric: 'supabase_readonly', value: readonly.enabled ? 1 : 0 });
-  } catch (e) {
-    problems.push(`readonly: ${(e as Error).message}`);
-  }
-
-  try {
-    const health = (await getJson(
-      `https://api.supabase.com/api/v1/projects/${ref}/health?services=db,auth`,
-      auth
-    )) as { name?: string; healthy?: boolean }[];
-    const unhealthy = health.filter((h) => h.healthy === false).length;
-    rows.push({ metric: 'supabase_unhealthy_services', value: unhealthy });
-  } catch (e) {
-    problems.push(`health: ${(e as Error).message}`);
-  }
-
-  return { rows, problem: problems.length ? `Supabase platform: ${problems.join('; ')}` : undefined };
-}
+// There used to be a third collector, asking the Management API whether the
+// project was in read-only mode and whether its services were healthy. It is
+// gone, and the reason is worth keeping.
+//
+// It needed a Supabase personal access token, and a personal access token
+// carries the privileges of the whole account: every project, including
+// pausing and deleting them. That is a very large key for two small facts.
+// One of them, read-only mode, is now read straight from the session in
+// api/snapshot.ts, which is a better measurement anyway because it is taken
+// from inside the connection the app's writes also travel down. The other,
+// whether the database is up, is answered by the snapshot returning at all.
+//
+// The service health of auth and storage is genuinely lost. If that ever
+// matters more than the key costs, it comes back - but it should come back as
+// a deliberate trade, not as a token nobody re-examined.

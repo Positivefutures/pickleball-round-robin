@@ -24,133 +24,111 @@ Everything in "Already done" was checked against the live services on
       migration. Nobody else can ever be signed in to this.
 - [x] **The nightly job's crash is fixed.** It was failing on invocation before
       it ran a line of its own code. Committed, not yet pushed.
+- [x] **The job no longer wants an account-wide Supabase token.** It connects
+      straight to this one database instead. The whole job, including the new
+      connection, has been run end to end against a throwaway Postgres.
 
 ## Your five tasks
 
-- [ ] **Task 1** — paste six settings into Vercel *(you, 2 min)*
-- [ ] **Task 2** — Supabase token *(Claude in Chrome)*
-- [ ] **Task 3** — Sentry token *(Claude in Chrome)*
-- [ ] **Task 4** — Resend key *(Claude in Chrome)*
+- [ ] **Task 1** — paste five settings into Vercel *(2 min)*
+- [ ] **Task 2** — the Supabase connection string *(3 min)*
+- [ ] **Task 3** — the Sentry token *(4 min)*
+- [ ] **Task 4** — the Resend key *(2 min)*
 - [ ] **Task 5** — tell Claude Code to finish it *(one paste)*
 
 Then sign in. Tasks 2, 3 and 4 are independent of each other, so their order
 does not matter. Task 1 should come before Task 5.
 
+**You do the copying yourself.** Claude in Chrome will not read a credential
+off a screen and paste it into another form, and that is a fixed rule rather
+than something a better prompt gets around. It can still open the pages and
+check them, which the end of this file uses it for. Each task below is two
+tabs and about ninety seconds.
+
 ---
 
-# Task 1 — paste six settings into Vercel
-
-**You do this one**, because the values are already sitting on your machine and
-copying a file is faster than describing it to anything.
+# Task 1 — paste five settings into Vercel
 
 1. Open **`admin/.env.local`**.
-2. It has two blocks. Select **Block 1** — the six lines from
-   `VITE_SUPABASE_URL` down to `CRON_SECRET` — and copy them.
+2. Select **Block 1** — the five lines from `VITE_SUPABASE_URL` down to
+   `CRON_SECRET` — and copy them.
 3. Go to
    **https://vercel.com/jeff-positivefutus-projects/pbroundrobin-admin/settings/environment-variables**
 4. Paste into the **Key** box. Vercel recognises a pasted `.env` and expands it
-   into six rows at once. If it does not, there is an **Import .env** control on
-   the same page.
-5. Leave every row ticked for all three environments (Production, Preview,
-   Development).
+   into five rows at once. If it does not, there is an **Import .env** control
+   on the same page.
+5. Leave these five ticked for **all three** environments.
 6. **Save.**
 
-Two of those start `VITE_` and are meant to be public — they ship inside the
+Two of them start `VITE_` and are meant to be public — they ship inside the
 page, exactly as they do in the main app. `CRON_SECRET` is the one real secret
-in the batch, and it never leaves Vercel.
+in this batch and it never leaves Vercel.
 
 ---
 
-# Tasks 2 to 4 — Claude in Chrome
+# Task 2 — the Supabase connection string
 
-Each is a self-contained prompt. Open Claude in Chrome and paste one, wait for
-it to finish, then paste the next.
+This used to be a personal access token. It is not any more, and the reason is
+worth thirty seconds: a Supabase access token carries the privileges of your
+whole account, every project, including pausing and deleting them. A connection
+string reaches one database. Same job, much smaller key.
 
-**Watch these rather than walking away.** Two of the three tokens are genuinely
-powerful, and the prompts say so where it matters.
+1. Go to **https://supabase.com/dashboard/project/iiqbeodzhbzgueqcxeqe** and
+   click **Connect** at the top.
+2. Choose the **Transaction pooler** string. Not "Direct connection" — a free
+   project's direct host is IPv6 only and Vercel's functions cannot reach it.
+   It looks like:
 
----
+   ```
+   postgresql://postgres.iiqbeodzhbzgueqcxeqe:[YOUR-PASSWORD]@aws-0-REGION.pooler.supabase.com:6543/postgres
+   ```
+3. Replace `[YOUR-PASSWORD]` with your database password. If you do not have it,
+   **Settings → Database → Reset database password** gives you a new one. That
+   is safe: nothing else in this project uses it.
+4. Go to
+   **https://vercel.com/jeff-positivefutus-projects/pbroundrobin-admin/settings/environment-variables**
+   and add `SUPABASE_DB_URL` with that string as the value.
+5. **Tick Production only.** Untick Preview and Development.
+6. **Save.**
 
-## Task 2 — the Supabase token
-
-> Please do this in two parts, and stop and tell me if anything does not match
-> what I describe.
->
-> **Part one.** Go to https://supabase.com/dashboard/account/tokens and generate
-> a new personal access token named `pbrr-admin dashboard`. Copy the value it
-> shows you — it starts with `sbp_` and Supabase never shows it again.
->
-> **Part two.** Go to
-> https://vercel.com/jeff-positivefutus-projects/pbroundrobin-admin/settings/environment-variables
-> and add a new environment variable with the key `SUPABASE_ACCESS_TOKEN` and
-> that token as its value. Tick all three environments — Production, Preview and
-> Development. Save it.
->
-> Then tell me it is done. Do not paste the token into this chat.
-
-There are no scopes to choose on a Supabase token, and that is worth knowing
-rather than glossing over: this one credential reaches every project on the
-account. It is here instead of a `service_role` key because a `service_role`
-key would bypass every security policy the app relies on, and one very powerful
-secret is easier to keep track of than two.
+Step 5 matters. A Preview value is readable by every preview deployment, and a
+preview has no reason to hold a database password. Same for Tasks 3 and 4.
 
 ---
 
-## Task 3 — the Sentry token and two names
+# Task 3 — the Sentry token and two names
 
-> Please do this in three parts, and stop and tell me if anything does not match
-> what I describe.
->
-> **Part one.** Go to https://sentry.io and open my Round Robin project. Read
-> the address bar: it will look like
-> `https://SOMETHING.sentry.io/projects/SOMETHINGELSE/`. `SOMETHING` is the org
-> slug and `SOMETHINGELSE` is the project slug. Tell me both — these are names,
-> not secrets.
->
-> **Part two.** Go to https://sentry.io/settings/auth-tokens/ and create a new
-> organization auth token named `pbrr-admin`. Give it exactly three scopes and
-> nothing else: `org:read`, `project:read`, `event:read`. If you cannot find one
-> of those three, stop and tell me rather than picking something similar. Copy
-> the token.
->
-> **Part three.** Go to
-> https://vercel.com/jeff-positivefutus-projects/pbroundrobin-admin/settings/environment-variables
-> and add three environment variables, each ticked for Production, Preview and
-> Development:
->
-> - `SENTRY_AUTH_TOKEN` — the token from part two
-> - `SENTRY_ORG` — the org slug from part one
-> - `SENTRY_PROJECT` — the project slug from part one
->
-> Save, then tell me the two slugs and that it is done. Do not paste the token
-> into this chat.
+1. Go to **https://sentry.io** and open your Round Robin project.
+2. Read the address bar. It looks like
+   `https://SOMETHING.sentry.io/projects/SOMETHINGELSE/`. `SOMETHING` is the
+   **org slug**, `SOMETHINGELSE` is the **project slug**. These are names, not
+   secrets.
+3. Go to **https://sentry.io/settings/auth-tokens/** and **Create New Token**,
+   named `pbrr-admin`. Give it exactly three scopes and nothing else:
+   **`org:read`**, **`project:read`**, **`event:read`**. All three are read.
+4. In Vercel, add three variables:
+   - `SENTRY_AUTH_TOKEN` — the token, **Production only**
+   - `SENTRY_ORG` — the org slug, all three environments
+   - `SENTRY_PROJECT` — the project slug, all three environments
+5. **Save.**
 
-Those three scopes are all read. If Sentry turns out to be more trouble than it
-is worth, skip this task entirely — everything else still works, the Crashes
-panel shows dashes, and the run notes say why.
+If Sentry turns out to be more trouble than it is worth, skip this task. Every
+other panel still works, Crashes shows dashes, and the run notes say why.
 
 ---
 
-## Task 4 — the Resend key
+# Task 4 — the Resend key
 
-> Please do this in two parts, and stop and tell me if anything does not match
-> what I describe.
->
-> **Part one.** Go to https://resend.com/api-keys and create a new API key named
-> `pbrr-admin`. Set its permission to **Full access**, not "Sending access".
-> Copy the value.
->
-> **Part two.** Go to
-> https://vercel.com/jeff-positivefutus-projects/pbroundrobin-admin/settings/environment-variables
-> and add a new environment variable with the key `RESEND_API_KEY` and that key
-> as its value, ticked for Production, Preview and Development. Save it.
->
-> Then tell me it is done. Do not paste the key into this chat.
+1. Go to **https://resend.com/api-keys** and **Create API Key**, named
+   `pbrr-admin`.
+2. Permission: **Full access**, not "Sending access".
+3. In Vercel, add `RESEND_API_KEY` with that value, **Production only**.
+4. **Save.**
 
 Full access is needed because the job *counts* emails sent, counting means
-listing, and a sending-only key cannot list. The cost of that is real: a
-full-access key can read the body of a message already sent, including a
-sign-in code. That is exactly why it goes into Vercel and nowhere else.
+listing, and a sending-only key cannot list. The cost is real: a full-access
+key can read the body of a message already sent, including a sign-in code.
+Which is exactly why it is Production only and lives nowhere else.
 
 ---
 
@@ -158,9 +136,8 @@ sign-in code. That is exactly why it goes into Vercel and nowhere else.
 
 Come back to the terminal and paste this:
 
-> Task 1 is done and Claude in Chrome has added the Supabase, Sentry and Resend
-> variables to Vercel. Push the fix, wait for the deploy, run `/api/snapshot` by
-> hand, and tell me what the first run found.
+> All four tasks are done and the variables are in Vercel. Push, wait for the
+> deploy, run `/api/snapshot` by hand, and tell me what the first run found.
 
 Claude will push, watch the build, call the job once using the `CRON_SECRET`,
 check that the history actually backfilled, and report what came back —

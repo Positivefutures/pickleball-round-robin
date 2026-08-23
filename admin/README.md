@@ -30,10 +30,18 @@ step 5 of the build order, and it needs a change to the main app.
 **[SETUP.md](SETUP.md) is the checklist.** It says what is already done and what
 is left, in order, with the exact pages to click. Read that rather than this.
 
-The short version of the shape: two migrations in Supabase, three API tokens, a
-second Vercel project whose Root Directory is `admin`, and one hand-fired run of
-`/api/snapshot` to fill the history. The cron in [vercel.json](vercel.json) then
-takes it from there, once a day, which is the most a Hobby account allows.
+The short version of the shape: two migrations in Supabase, a connection string
+and two API keys, a second Vercel project whose Root Directory is `admin`, and
+one hand-fired run of `/api/snapshot` to fill the history. The cron in
+[vercel.json](vercel.json) then takes it from there, once a day, which is the
+most a Hobby account allows.
+
+**The job reaches Postgres over a plain connection**, `SUPABASE_DB_URL`, and
+that is the only Supabase secret it holds. It used to use a personal access
+token against the Management API. That worked, and it was the wrong size of
+key: a PAT carries the whole account's privileges, every project, including
+deleting them. See the header of [src/server/db.ts](src/server/db.ts) for why a
+service_role key is not the answer either.
 
 ---
 
