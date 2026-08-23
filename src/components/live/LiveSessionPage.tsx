@@ -825,7 +825,9 @@ function Session({
 
               {expanded && (
                 <>
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Two across on a wide screen, never three. See RoundCard:
+                      this is the watcher's copy of the same grid. */}
+                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                     {round.courts.map((court, index) => (
                       <LiveCourt
                         // Keyed by position: two courts in one round can carry the same

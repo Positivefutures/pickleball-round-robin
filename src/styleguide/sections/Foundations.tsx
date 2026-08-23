@@ -1,4 +1,5 @@
 import { Example, Finding, HexSwatch, Labelled, Row, Section, SubHeading, Swatch, TypeSpecimen } from '../kit';
+import { PLAYER_NAME_TEXT } from '../../components/schedule/roundLook';
 
 /**
  * Colour, type, spacing, radius and shadow.
@@ -137,12 +138,14 @@ export function Foundations() {
           <SubHeading>Named absolute sizes</SubHeading>
           <p className="mt-1.5 max-w-2xl text-[0.875rem] leading-relaxed text-slate-600">
             Outside the scale on purpose: these must not move when large-text mode is on, because
-            they are already large and are read at arm's length.
+            they are already large and are read at arm's length. The player name is the one
+            exception: <code>.text-large .player-name</code> takes it to 1.35rem, because the
+            courts are what somebody turns that mode on to read.
           </p>
           <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
             <TypeSpecimen className="text-[1.35rem]" weight="font-extrabold" sample="ROUND 3 · COURT 1 · DONE" note="ROUND_HEADING_TEXT" />
-            <TypeSpecimen className="text-[1.18125rem]" weight="font-bold" sample="Ada Lovelace" note="PLAYER_NAME_TEXT" />
-            <TypeSpecimen className="text-[1.0125rem]" weight="font-bold" sample="3. Schedule" note="StepIndicator label" />
+            <TypeSpecimen className={PLAYER_NAME_TEXT} weight="font-bold" sample="Ada Lovelace" note="PLAYER_NAME_TEXT" />
+            <TypeSpecimen className="text-[1.0125rem]" weight="font-bold" sample="3. Schedule" note="StepIndicator label — its clamp ceiling on a phone; 1.28rem once the bar passes 40rem" />
             <TypeSpecimen className="text-[1.0625rem]" sample="Reshuffle the remaining rounds" note="RESHUFFLE_LINE" />
           </div>
         </div>

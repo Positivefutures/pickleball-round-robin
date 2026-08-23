@@ -18,13 +18,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { APP_VERSION, BUILD_ID } from '../lib/appInfo';
-import { DefaultRatingPanel } from './layout/DefaultRatingPanel';
+import { PreferencesPanel } from './layout/PreferencesPanel';
 import { ImportExportPanel } from './layout/ImportExportPanel';
 import { InstallPanel } from './layout/InstallPanel';
 import { SettingsPanel } from './layout/SettingsPanel';
 import { RoundTypesInfoPanel } from './setup/RoundTypesInfoPanel';
 import { PartnerPairing } from './setup/PartnerPairing';
-import { CourtIcon, LinkIcon, StarIcon, TwoArrowsIcon } from './icons';
+import { CourtIcon, LinkIcon, SlidersIcon, TwoArrowsIcon } from './icons';
 import type { Player } from '../types';
 
 declare global {
@@ -79,10 +79,16 @@ const PLAYERS: Player[] = [
   { id: 'p2', name: 'Bob', rating: 4.0, gender: 'M', rosterIds: ['r1'] },
 ];
 
-describe('Default Player Rating', () => {
-  it('opens with the star, the same mark a rating carries everywhere else', () => {
-    mount(createElement(DefaultRatingPanel, { rating: 3.5, onChange: noop, onClose: noop }));
-    expect(draws(StarIcon)).toBe(true);
+describe('Settings', () => {
+  it('opens with the three sliders, the same mark the menu item carries', () => {
+    mount(
+      createElement(PreferencesPanel, {
+        largeText: false,
+        onToggleLargeText: noop,
+        onClose: noop,
+      })
+    );
+    expect(draws(SlidersIcon)).toBe(true);
   });
 });
 
@@ -184,12 +190,24 @@ describe('Add to Home Screen', () => {
 
 describe('the glyph itself', () => {
   it('is hidden from a screen reader, so the title is not read twice', () => {
-    mount(createElement(DefaultRatingPanel, { rating: 3.5, onChange: noop, onClose: noop }));
+    mount(
+      createElement(PreferencesPanel, {
+        largeText: false,
+        onToggleLargeText: noop,
+        onClose: noop,
+      })
+    );
     expect(opener()?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('takes the primary teal, in every panel that has one', () => {
-    mount(createElement(DefaultRatingPanel, { rating: 3.5, onChange: noop, onClose: noop }));
+    mount(
+      createElement(PreferencesPanel, {
+        largeText: false,
+        onToggleLargeText: noop,
+        onClose: noop,
+      })
+    );
     // Set on the wrapper rather than the artwork: the icons take the colour of
     // the text around them, which is what lets one drawing serve a teal panel
     // heading and a white button face without being drawn twice.
@@ -330,8 +348,7 @@ describe('the settings drawer', () => {
         signedIn: false,
         onOpenInstall: noop,
         showInstallItem: true,
-        onToggleLargeText: noop,
-        onOpenDefaultRating: noop,
+        onOpenSettings: noop,
         onOpenImportExport: noop,
         onOpenInstructions: noop,
         onOpenDonate: noop,
@@ -356,8 +373,7 @@ describe('the settings drawer', () => {
         signedIn: false,
         onOpenInstall: noop,
         showInstallItem: false,
-        onToggleLargeText: noop,
-        onOpenDefaultRating: noop,
+        onOpenSettings: noop,
         onOpenImportExport: noop,
         onOpenInstructions: noop,
         onOpenDonate: noop,
@@ -394,8 +410,7 @@ describe('the foot of the settings drawer', () => {
         signedIn: true,
         onOpenInstall: noop,
         showInstallItem: false,
-        onToggleLargeText: noop,
-        onOpenDefaultRating: noop,
+        onOpenSettings: noop,
         onOpenImportExport: noop,
         onOpenInstructions: noop,
         onOpenDonate: noop,

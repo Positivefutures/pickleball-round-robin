@@ -3,6 +3,8 @@ import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 import { courtMissHeadline, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
+import { useStoredValue } from '../../hooks/useStoredValue';
+import * as stores from '../../lib/stores';
 import { CourtMissNote } from './CourtMissNote';
 import {
   ROUND_EDGE, ROUND_EDGE_DONE, ROUND_FILL, ROUND_FILL_DONE, ROUND_HEADING_TEXT,
@@ -145,7 +147,14 @@ export function RoundCard({
   //
   // Courts only. The question a mark answers is whether the four people on this
   // court are the four the format asked for, and nobody sitting out is on one.
-  const showGender = roundType === 'gendered' || roundType === 'mixed';
+  //
+  // And off altogether if the host has turned the marks off in Settings. A
+  // format still made of men and women, drawn without saying which is which:
+  // the round's own badge already names the format, and a host who knows their
+  // group does not need telling twice.
+  const [genderMarksWanted] = useStoredValue(stores.showGenderMarks);
+  const showGender =
+    genderMarksWanted && (roundType === 'gendered' || roundType === 'mixed');
 
   /**
    * The way down to the table this round feeds. A long session is several
@@ -184,7 +193,7 @@ export function RoundCard({
         // a tight one measures about 51, which is the quarter off Jeff asked
         // for on 2026-08-20. Neither number is guessed — see the note on
         // `collapsed` above and the measurement in the commit.
-        className={`round-card rounded-lg shadow border-2 px-1.5 ${
+        className={`round-card rounded-lg shadow border-2 px-1.5 md:px-4 ${
           collapsed ? 'py-2.5' : 'pt-[0.83rem] pb-[1.2rem]'
         }`}
         style={{ backgroundColor: look.fill, borderColor: look.edge }}
@@ -272,7 +281,12 @@ export function RoundCard({
                   : 'This round is complete and can no longer be edited.'}
               </p>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            {/* Two across on a wide screen, never three. Three courts inside a
+                1024px page is 330px each, and at that width a name of any length
+                wrapped onto a second line on nearly every seat. Two is 496px,
+                which holds them. LiveSessionPage draws the watcher's copy of
+                this grid and says the same thing. */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               {round.courts.map((court, courtIdx) => {
                 const lockedTeams = {
                   team1: locks.some((lp) => lp.courtIdx === courtIdx && lp.team === 'team1'),

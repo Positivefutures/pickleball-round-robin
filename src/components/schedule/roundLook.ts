@@ -133,12 +133,20 @@ export const ROUND_TIMER_CHIP =
 /**
  * A player's name, on a court and in the sit-out list.
  *
- * Absolute for the same reason, and set to what `text-sm` comes out at in
+ * Absolute for the same reason, and set to what `text-xs` comes out at in
  * large-text mode: 0.875rem x 1.35. Large text is untouched and the ordinary
  * mode has caught up with it. This is the line somebody reads with a phone at
  * arm's length, and it was the smallest thing on the page that mattered most.
  *
  * The rating beside it stays on `text-sm` and goes on scaling. It is a number
  * you check, not one you read across a court.
+ *
+ * **`player-name` is not a Tailwind class.** Large-text mode used to leave this
+ * line exactly where it was, which made it the one thing on the schedule that
+ * did not answer the switch — and the schedule is why somebody turns the switch
+ * on. `.text-large .player-name` in index.css takes it up one step, to 1.35rem,
+ * which is `text-sm` in that mode. The ordinary mode is unchanged. The plain
+ * class beats the utility on specificity, so the order of the two here does not
+ * matter; the rule lives in index.css beside the rest of the scale.
  */
-export const PLAYER_NAME_TEXT = 'text-[1.18125rem]';
+export const PLAYER_NAME_TEXT = 'player-name text-[1.18125rem]';

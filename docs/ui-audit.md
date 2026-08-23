@@ -128,8 +128,8 @@ cannot move them:
 | Constant | Value | Usages | What |
 |---|---|---|---|
 | `ROUND_HEADING_TEXT` ([roundLook.ts](src/components/schedule/roundLook.ts#L74)) | `text-[1.35rem]` | 19 in 15 files | ROUND 3 / COURT 1 / DONE, and `PanelHeading`'s title |
-| `PLAYER_NAME_TEXT` ([roundLook.ts](src/components/schedule/roundLook.ts#L92)) | `text-[1.18125rem]` | 5 files | A player's name on a court |
-| StepIndicator label | `text-[1.0125rem]` | 1 | The three nav tabs |
+| `PLAYER_NAME_TEXT` ([roundLook.ts](src/components/schedule/roundLook.ts#L92)) | `text-[1.18125rem]` | 5 files | A player's name on a court. The one exception to the rule above: it also carries a plain `player-name` class, and `.text-large .player-name` in index.css takes it to `1.35rem`. The courts are what somebody turns that mode on to read |
+| StepIndicator label | `text-[1.0125rem]` | 1 | The three nav tabs. `@min-[40rem]:text-[1.28rem]` once the bar is wide enough, which is a container query and not a breakpoint |
 | `RESHUFFLE_LINE` | `text-[1.0625rem]` | 1 | ActionsSheet reshuffle copy |
 
 **Plus 16 unnamed one-off arbitrary sizes**: `text-[15px]` (×4), `text-[13px]`
@@ -278,7 +278,7 @@ Grep for one and you miss the other.
 `RemovePlayerDialog`, `CourtNumberDialog`, `DiscardScheduleDialog`,
 `PlayerMenu`, `ManageRostersModal`, `AddToGroupDialog`, `GroupPicker`,
 `RosterPage`(×2), `SharePanel`, `ImportExportPanel`, `InstructionsPanel`,
-`FeedbackPanel`, `DefaultRatingPanel`, `DonatePanel`, `InstallPanel`,
+`FeedbackPanel`, `PreferencesPanel`, `DonatePanel`, `InstallPanel`,
 `CodePrompt`, `RoundTypePicker`, `RoundTypesInfoPanel`, `TourSheet`,
 `TutorialOverlay`.
 

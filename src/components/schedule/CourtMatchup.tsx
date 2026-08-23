@@ -1,6 +1,8 @@
 import type { CourtAssignment, Player } from '../../types';
 import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
+import { useStoredValue } from '../../hooks/useStoredValue';
+import * as stores from '../../lib/stores';
 import { BalanceIndicator } from './BalanceIndicator';
 import { EditPlayerButton } from './EditPlayerButton';
 import { GenderMark } from './GenderMark';
@@ -148,6 +150,11 @@ function PlayerButton({
    * and a pencil that led to a panel offering to would be a lie.
    */
   const showPencil = !readOnly && !hideSeatEdit && (locked ? pencilOnly : selected);
+  // Read here rather than passed down from the round. It is one boolean for the
+  // whole app and the seat is four levels below the last component that already
+  // holds one, so a prop would have been threaded through three files to arrive
+  // unchanged. Settings is its only writer. See stores.showRatings.
+  const [showRatings] = useStoredValue(stores.showRatings);
   const displayName = getDisplayName(player, allPlayers);
   const slot: CourtSlot = { kind: 'court', roundIdx, courtIdx, team: teamKey, playerIdx };
 
@@ -198,7 +205,9 @@ function PlayerButton({
       {showPencil ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
-        <span className="shrink-0 pl-1 text-gray-500">{player.rating.toFixed(1)}</span>
+        showRatings && (
+          <span className="shrink-0 pl-1 text-gray-500">{player.rating.toFixed(1)}</span>
+        )
       )}
     </button>
   );
@@ -456,7 +465,9 @@ export function CourtMatchup({ court, roundIdx, courtIdx, selectedSlot, pencilSl
   // making: one player covering a whole court is not half a pair. The number
   // still exists, averaged, because the scheduler balances on it — it is only
   // the badge that would invite the wrong reading.
-  const showBalance = courtSize !== 3;
+  // ...and off entirely when the host has turned the pill off in Settings.
+  const [balanceWanted] = useStoredValue(stores.showBalance);
+  const showBalance = courtSize !== 3 && balanceWanted;
 
   return (
     // The same line as the card it sits on, so a court reads as a panel laid on

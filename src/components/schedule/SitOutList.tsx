@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import type { Player } from '../../types';
 import type { PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
+import { useStoredValue } from '../../hooks/useStoredValue';
+import * as stores from '../../lib/stores';
 import { EditPlayerButton } from './EditPlayerButton';
 import {
   PLAYER_NAME_TEXT, ROUND_EDGE, ROUND_EDGE_SWAPPED, SITOUT_FILL_SWAPPED,
@@ -55,6 +57,9 @@ function SitOutBox({
   swapped: boolean;
 }) {
   const interactive = !readOnly;
+  // A chip is a name on the same schedule as a seat, so it answers to the same
+  // switch. See the note beside the one in CourtMatchup.
+  const [showRatings] = useStoredValue(stores.showRatings);
 
   return (
     <button
@@ -94,7 +99,7 @@ function SitOutBox({
       {selected && interactive ? (
         <EditPlayerButton player={player} onOpen={onOpenPlayerMenu} />
       ) : (
-        <span className="text-gray-500">{player.rating.toFixed(1)}</span>
+        showRatings && <span className="text-gray-500">{player.rating.toFixed(1)}</span>
       )}
     </button>
   );

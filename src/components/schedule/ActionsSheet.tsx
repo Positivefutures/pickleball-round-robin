@@ -581,8 +581,13 @@ export function ActionsSheet({
         role="dialog"
         aria-modal="true"
         aria-label={view === 'menu' ? 'Actions' : heading.title}
-        className="sheet-panel absolute inset-x-0 bottom-0 flex flex-col overflow-hidden
-                   rounded-t-2xl bg-white shadow-[0_-6px_24px_rgba(0,0,0,0.18)]"
+        // `max-w-5xl mx-auto` is the page's own width, the one <main> and the
+        // tab bar are held to in App.tsx. A sheet is a phone shape and it kept
+        // that shape at any size, so on a 1440px monitor it ran the full width
+        // of the screen under a 1024px page — the only thing in the app that
+        // did. `inset-x-0` stays: it is what the auto margins centre between.
+        className="sheet-panel absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-5xl flex-col
+                   overflow-hidden rounded-t-2xl bg-white shadow-[0_-6px_24px_rgba(0,0,0,0.18)]"
         style={{
           height: height ? `${height}px` : undefined,
           maxHeight: `${SHEET_FRACTION * 100}vh`,

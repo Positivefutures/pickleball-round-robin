@@ -27,7 +27,7 @@ import { downloadTextFile } from './utils/download';
 import { Header } from './components/layout/Header';
 import { SettingsPanel } from './components/layout/SettingsPanel';
 import { InstructionsPanel } from './components/layout/InstructionsPanel';
-import { DefaultRatingPanel } from './components/layout/DefaultRatingPanel';
+import { PreferencesPanel } from './components/layout/PreferencesPanel';
 import { ImportExportPanel, ALL_GROUPS } from './components/layout/ImportExportPanel';
 import type { ImportResult } from './components/layout/ImportExportPanel';
 import { StepIndicator } from './components/layout/StepIndicator';
@@ -111,7 +111,9 @@ function App() {
   const [partnerships, setPartnerships] = useStoredValue(stores.partnerships);
   const [subPartnerships, setSubPartnerships] = useStoredValue(stores.subPartnerships);
   const [largeText, setLargeText] = useStoredValue(stores.largeText);
-  const [defaultRating, setDefaultRating] = useStoredValue(stores.defaultRating);
+  // Read only: Settings owns the writing of it, straight to the store. What is
+  // left here is the CSV reader's fallback and the two panels that show it.
+  const [defaultRating] = useStoredValue(stores.defaultRating);
   const [numCourts, setNumCourts] = useStoredValue(stores.numCourts);
   const [numRounds, setNumRounds] = useStoredValue(stores.numRounds);
   const [roundPlan, setRoundPlan] = useStoredValue(stores.roundPlan);
@@ -207,7 +209,7 @@ function App() {
    */
   const [settingsRobin, setSettingsRobin] = useState(PLAIN_ROBIN);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [showDefaultRating, setShowDefaultRating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
   const [feedbackKind, setFeedbackKind] = useState<FeedbackKind | null>(null);
   const [showDonate, setShowDonate] = useState(false);
@@ -315,7 +317,7 @@ function App() {
   // let go and re-taken between two of them. Overlays elsewhere hold their own
   // lock; useScrollLock counts its holders, so overlapping ones compose.
   useScrollLock(
-    settingsOpen || showInstructions || showDefaultRating || showImportExport ||
+    settingsOpen || showInstructions || showSettings || showImportExport ||
     !!feedbackKind || showDonate || showShare || showAccount || showInstall ||
     tourView.phase === 'opener' || tourView.phase === 'complete' ||
     (!!tour && !tour.scrolling)
@@ -1720,8 +1722,7 @@ function App() {
         signedIn={signedIn}
         onOpenInstall={() => setShowInstall(true)}
         showInstallItem={!installed}
-        onToggleLargeText={() => setLargeText((v) => !v)}
-        onOpenDefaultRating={() => setShowDefaultRating(true)}
+        onOpenSettings={() => setShowSettings(true)}
         onOpenImportExport={() => setShowImportExport(true)}
         onOpenInstructions={() => setShowInstructions(true)}
         onOpenDonate={() => setShowDonate(true)}
@@ -1730,10 +1731,15 @@ function App() {
       />
 
       {/* The whole app rides on this panel. Opening settings slides it left far
-          enough to leave a fifth of it — including the settings button — on screen. */}
+          enough to uncover the drawer behind it, leaving the rest of the app —
+          including the settings button — on screen.
+
+          `min(80%, 380px)` is the drawer's own width written a second time; see
+          the note on it in SettingsPanel.tsx. Travel further than the drawer is
+          wide and the surplus is bare grey with no menu on it. */}
       <div
         className={`app-panel relative z-10 h-full bg-gray-50 transition-transform duration-300 ease-in-out ${
-          settingsOpen ? '-translate-x-[80%] shadow-2xl shadow-black/50' : ''
+          settingsOpen ? '-translate-x-[min(80%,380px)] shadow-2xl shadow-black/50' : ''
         }`}
       >
       {/* With the drawer open the whole panel is a way back out, including the
@@ -2131,11 +2137,11 @@ function App() {
         />
       )}
 
-      {showDefaultRating && (
-        <DefaultRatingPanel
-          rating={defaultRating}
-          onChange={setDefaultRating}
-          onClose={() => setShowDefaultRating(false)}
+      {showSettings && (
+        <PreferencesPanel
+          largeText={largeText}
+          onToggleLargeText={setLargeText}
+          onClose={() => setShowSettings(false)}
         />
       )}
 

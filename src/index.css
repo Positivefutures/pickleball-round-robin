@@ -217,6 +217,21 @@ body {
   --text-xl: calc(1.25rem * 1.35);
 }
 
+/* A player's name on a court, one step up in large-text mode.
+
+   roundLook.ts sets it absolutely at 1.18125rem so it does not move between the
+   two modes, which is right for every other line it draws — but the names on
+   the courts are the thing somebody turns this mode on to read, and they were
+   the one thing on the schedule that stayed put. 1.35rem is `--text-sm` in this
+   mode, so the name and the rating beside it are back in step.
+
+   Class rather than a variant on the utility: `PLAYER_NAME_TEXT` is one string
+   in five places, and a plain class beats an arbitrary-value utility on
+   specificity whichever order the sheet lands in. */
+.text-large .player-name {
+  font-size: 1.35rem;
+}
+
 /* Large-text mode makes the roster table wide enough to clip the Edit/Remove
    buttons of a selected row on a phone. When it's on, tighten everything around
    that table: less panel padding, less margin to the screen edge, and unscaled
@@ -439,6 +454,10 @@ body {
   }
 
   /* Large-text mode must never affect printed output */
+  .text-large .player-name {
+    font-size: 1.18125rem;
+  }
+
   .text-large {
     font-size: 12pt;
     --text-xs: 0.75rem;

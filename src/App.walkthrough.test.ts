@@ -5599,9 +5599,17 @@ describe('the player roster panel', () => {
 describe('the settings drawer', () => {
   beforeEach(() => seed(6, 6, 0));
 
-  /** The panel is slid aside only while the drawer is open. */
+  /**
+   * The panel is slid aside only while the drawer is open.
+   *
+   * The distance is `min(80%, 380px)` and not a bare 80%, because the drawer it
+   * uncovers is capped at 380px on a wide screen. The two are one number: see
+   * the note on the drawer's width in SettingsPanel.tsx.
+   */
   function slidAside(): boolean {
-    return container.querySelector('.app-panel')!.className.includes('-translate-x-[80%]');
+    return container
+      .querySelector('.app-panel')!
+      .className.includes('-translate-x-[min(80%,380px)]');
   }
 
   /** The sheet of nothing over the panel that takes the click. */

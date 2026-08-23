@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import {
   APP_VERSION, BUILD_ID, COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL,
 } from '../../lib/appInfo';
-import { PersonIcon, ShareIcon } from '../icons';
+import { PersonIcon, ShareIcon, SlidersIcon } from '../icons';
 
 interface Props {
   open: boolean;
@@ -22,8 +22,7 @@ interface Props {
   onOpenInstall: () => void;
   /** Hidden once launched from a home-screen icon — nothing left to install. */
   showInstallItem: boolean;
-  onToggleLargeText: () => void;
-  onOpenDefaultRating: () => void;
+  onOpenSettings: () => void;
   onOpenImportExport: () => void;
   onOpenInstructions: () => void;
   onOpenDonate: () => void;
@@ -54,27 +53,6 @@ function AddToHomeScreenIcon() {
       <rect x="5" y="2" width="14" height="20" rx="2" />
       <line x1="12" y1="8" x2="12" y2="14" />
       <line x1="9" y1="11" x2="15" y2="11" />
-    </Icon>
-  );
-}
-
-// The same two-A glyph the old header button used, so the action stays recognisable.
-function FontSizeIcon() {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex w-6 shrink-0 items-end justify-center gap-0.5 leading-none"
-    >
-      <span className="text-[0.7rem] font-bold leading-none">A</span>
-      <span className="text-[1.15rem] font-bold leading-none">A</span>
-    </span>
-  );
-}
-
-function StarIcon() {
-  return (
-    <Icon>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </Icon>
   );
 }
@@ -177,8 +155,7 @@ export function SettingsPanel({
   signedIn,
   onOpenInstall,
   showInstallItem,
-  onToggleLargeText,
-  onOpenDefaultRating,
+  onOpenSettings,
   onOpenImportExport,
   onOpenInstructions,
   onOpenDonate,
@@ -196,7 +173,17 @@ export function SettingsPanel({
       // A column, so the block at the foot can be pushed to the bottom of the
       // screen and stay there. On a short screen the menu fills the drawer, the
       // auto margin goes to nothing and the whole thing scrolls as before.
-      className={`no-print fixed inset-y-0 right-0 z-0 flex w-4/5 flex-col overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white transition-[visibility] duration-0 ${
+      //
+      // Four fifths of the screen, but never more than 380px. A fifth of a
+      // phone is a sensible margin to leave the app in; a fifth of a 1440px
+      // monitor is a 1150px menu of ten short words. The cap only ever bites
+      // above 475px, so no phone sees a change.
+      //
+      // **The panel's slide in App.tsx must say the same thing.** It moves the
+      // whole app left to uncover this, and the two numbers are one number: if
+      // the panel travels further than the drawer is wide, the extra is bare
+      // grey backdrop with nothing on it.
+      className={`no-print fixed inset-y-0 right-0 z-0 flex w-4/5 max-w-[380px] flex-col overflow-y-auto overscroll-contain bg-gray-800 px-5 py-4 text-white transition-[visibility] duration-0 ${
         open ? 'visible delay-0' : 'invisible delay-300'
       }`}
     >
@@ -238,15 +225,14 @@ export function SettingsPanel({
             onClick={onOpenAccount}
           />
         )}
+        {/* Font size and the default rating used to be two of the items here.
+            They were the only two that changed something rather than opening
+            somewhere, sitting in a list of doors, and a third and a fourth of
+            their kind were coming. They are behind this one now. */}
         <SettingsItem
-          icon={<FontSizeIcon />}
-          label="Toggle Font Size"
-          onClick={onToggleLargeText}
-        />
-        <SettingsItem
-          icon={<StarIcon />}
-          label="Default Player Rating"
-          onClick={onOpenDefaultRating}
+          icon={<SlidersIcon className="h-6 w-6" />}
+          label="Settings"
+          onClick={onOpenSettings}
         />
         <SettingsItem
           icon={<ImportExportIcon />}

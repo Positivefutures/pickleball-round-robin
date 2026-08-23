@@ -110,7 +110,14 @@ export function StepIndicator({ current, available, answering = [], onNavigate }
               // `overflow-hidden` is the backstop for a width no clamp can
               // answer: the label is cut rather than allowed to push the page
               // wider than the phone, which is what the old wrap was avoiding.
-              className={`relative flex-1 flex items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl py-3 text-[clamp(0.75rem,5.4cqi,1.0125rem)] font-bold transition-colors ${
+              //
+              // Two steps larger once the bar has room for it. The clamp above
+              // tops out at 1.0125rem, a size chosen so a 320px phone can hold
+              // three tabs — and it was still that size on a 1024px page, where
+              // each tab has 336px for a word that wants 92. `@min-[40rem]` is
+              // the bar's own width, not the viewport's, which is the same unit
+              // everything else here is measured in. A phone never reaches it.
+              className={`relative flex-1 flex items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl py-3 text-[clamp(0.75rem,5.4cqi,1.0125rem)] @min-[40rem]:text-[1.28rem] font-bold transition-colors ${
                 isActive ? 'bg-white shadow-sm' : ''
               }`}
               style={

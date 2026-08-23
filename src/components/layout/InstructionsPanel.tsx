@@ -481,9 +481,10 @@ function Settings() {
       <Item term="Share App">
         sends a link to the app however you normally share — text, email, AirDrop.
       </Item>
-      <Item term="Toggle Font Size">bigger text for reading at arm's length.</Item>
-      <Item term="Default Player Rating">
-        the rating new players start at, so you're not adjusting every time.
+      <Item term="Settings">
+        font size, the rating new players start at, and what a court card shows: the
+        ratings beside each name, the Diff pill, and the gender marks on Gendered and
+        Mixed rounds. These stay on the device you set them on.
       </Item>
       <Item term="Import / Export Groups">
         saves a group as a spreadsheet file, or loads one in. Importing always creates

@@ -411,3 +411,23 @@ export const exampleMeta = createStoredValue<ExampleMeta | null>(KEYS.exampleMet
  */
 export type TourStage = 'none' | 'running' | 'done';
 export const tourStage = createStoredValue<TourStage>('pb-tour-stage', 'none');
+
+// -------------------------------------------------------- What a court shows
+// Three marks a court card can carry, each switchable from Settings. All three
+// are on, because all three are what the app drew before there was a switch and
+// nobody's schedule should change under them the day this ships.
+//
+// The device's rather than the person's, and deliberately not synced. A host
+// reads a phone at arm's length and a laptop at a desk, and how crowded a court
+// card is allowed to be is a different answer on each. Adding them to
+// preferences would also have meant a tenth migration and the PGRST204 hazard
+// described in sync.ts, for a setting that gains nothing by travelling.
+
+/** The number beside each name on a court and in the sit-out list. */
+export const showRatings = createStoredValue<boolean>('pb-show-ratings', true);
+
+/** The Diff pill in a court's header, saying how close the two sides are. */
+export const showBalance = createStoredValue<boolean>('pb-show-balance', true);
+
+/** The man/woman mark hung on each name, on Gendered and Mixed rounds only. */
+export const showGenderMarks = createStoredValue<boolean>('pb-show-gender', true);
