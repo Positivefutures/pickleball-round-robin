@@ -28,22 +28,41 @@ Everything in "Already done" was checked against the live services on
       straight to this one database instead. The whole job, including the new
       connection, has been run end to end against a throwaway Postgres.
 
-## Your five tasks
+## Where it got to on 2026-08-23
 
-- [ ] **Task 1** — paste five settings into Vercel *(2 min)*
-- [ ] **Task 2** — the Supabase connection string *(3 min)*
-- [ ] **Task 3** — the Sentry token *(4 min)*
-- [ ] **Task 4** — the Resend key *(2 min)*
-- [ ] **Task 5** — tell Claude Code to finish it *(one paste)*
+The job has run for real against the live database and returned `ok: true` in
+642 ms. It backfilled 15 days, 2026-08-08 to 2026-08-22, which is the whole
+history there is: the first account was made on the 8th.
 
-Then sign in. Tasks 2, 3 and 4 are independent of each other, so their order
-does not matter. Task 1 should come before Task 5.
+- [x] **Task 1** — the five settings are in Vercel
+- [x] **Task 2** — `SUPABASE_DB_URL`, and the job is using it
+- [ ] **Task 3** — Sentry answers `401 Unauthorized`. See below.
+- [ ] **Task 4** — Resend reports "not configured", so the key is not reaching
+      the function. See below.
+- [x] **Task 5** — pushed, deployed, run by hand
 
-**You do the copying yourself.** Claude in Chrome will not read a credential
-off a screen and paste it into another form, and that is a fixed rule rather
-than something a better prompt gets around. It can still open the pages and
-check them, which the end of this file uses it for. Each task below is two
-tabs and about ninety seconds.
+**Sign in now** — the growth, groups and room-left panels are all populated.
+Crashes and the email quotas are the two that are still blank.
+
+### Task 3, why Sentry says 401
+
+401 means Sentry does not recognise the token at all, rather than recognising
+it and refusing the scope. The likely cause is the organization auth token from
+the first attempt: those are fixed at `org:ci` and cannot read. Replace the
+value of `SENTRY_AUTH_TOKEN` with a token from an **Internal Integration** —
+Task 3 below has the exact page and the three permissions.
+
+### Task 4, why Resend says not configured
+
+That message is what the job prints when `RESEND_API_KEY` is absent from its
+environment, so it is a missing or misnamed variable rather than a rejected
+key. Check the name is exactly `RESEND_API_KEY` and that **Production** is
+ticked. Vercel picks a change up on the next invocation; no redeploy needed.
+
+### One thing to tidy
+
+There is a `SUPABASE_URL` variable in the project. It is left over from a route
+that no longer exists and nothing reads it. Delete it.
 
 ---
 
