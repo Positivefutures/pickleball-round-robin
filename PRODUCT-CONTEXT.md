@@ -475,12 +475,38 @@ the privacy policy and the terms. All of it now reads from `APP_NAME`,
 `APP_SUBTITLE` and `APP_FULL_NAME` in `src/lib/appInfo.ts`, so the next one would
 be one file.
 
-The half that is not done is the half that was never copy. `pbroundrobin.com`,
-`app.pbroundrobin.com`, `jeff@pbroundrobin.com` and `ko-fi.com/pbroundrobin` all
-still carry the old brand and each needs its own move with its own redirects.
-`og-banner.png` is drawn artwork with the old name in it, so every shared link
-still previews under it until it is redrawn. That is the real bill, and it is
-still much cheaper now than after a launch.
+**The infrastructure half followed on 2026-08-23**, a day later and in about two
+hours. `roundrobinator.com` was registered at Namecheap; the `.com` was the only
+one taken, and the app now lives at `app.roundrobinator.com`. Mail moved by
+adding the new domain as a Google Workspace alias, so `jeff@roundrobinator.com`
+and the old address both land in one inbox and neither breaks. Resend verifies
+the new domain, so bug reports and admin alerts send under it. Ko-fi is at
+`ko-fi.com/roundrobinator`, and Ko-fi kept the old handle resolving to the same
+page, so that link did not break either. `og-banner.png` was redrawn with the
+new name and the new address, with one caveat recorded below.
+
+Four old hostnames survive. `pbroundrobin.com`, `www.pbroundrobin.com` and
+`www.roundrobinator.com` all redirect to the app, temporarily rather than
+permanently, because item 20 still wants a landing page at the bare domain and a
+permanent redirect would be cached past it.
+
+**`app.pbroundrobin.com` is the exception and serves the app directly, forever.**
+Printed QR codes carry it, and a browser keeps a site's stored data per address,
+so every install made before the move keeps its rosters there. Redirecting it
+would erase those hosts' groups. It is the one move in this rebrand that could
+destroy user data, which is why it is written into CLAUDE.md and into the
+comment above `APP_URL` as well as here.
+
+**The banner's one open flaw.** iOS crops `og:image` to its middle square before
+showing it in Messages, and "RoundRobinator" is one long word where the old
+title was three short stacked ones, so both title lines are clipped in that
+crop. Every other platform shows the full wide image. Shipped as it stands, on
+the grounds that a clipped correct name beats an uncropped wrong one; the fix
+when the file is next open is to keep all text inside the middle two thirds of
+the width.
+
+What the whole rename cost, against an estimate of a day: an afternoon of copy,
+two hours of DNS and dashboards, and a banner redrawn.
 
 ---
 
@@ -602,11 +628,12 @@ sync, all phases. Guest mode. Share previews. The accounts kill switch.
 
 Carried here so they are not mistaken for settled.
 
-1. **What to do about the domain, now that the app is RoundRobinator.**
-   Answered for the app on 2026-08-22 and open for everything around it: the
-   site, the address, the email and the Ko-fi page are all still
-   `pbroundrobin`, and `og-banner.png` still says the old name out loud to
-   anyone who is sent a link. Section 13 lists the four.
+1. ~~**What to do about the domain.**~~ **Settled 2026-08-23.** The address, the
+   email, the Ko-fi page and the share banner all moved to `roundrobinator`;
+   section 13 has what was done and the four old hostnames that survive. What is
+   left of it is narrower and not urgent: whether the redirects should become
+   permanent, which is worth revisiting once item 20's landing page exists and
+   there is search traffic worth consolidating. Today there is neither.
 2. **Whether to gate sync.** It is the differentiator and it has a real cost,
    but it is also what makes an account worth having, and accounts are the
    foundation of everything paid.

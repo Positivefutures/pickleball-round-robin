@@ -422,7 +422,7 @@ describe('the foot of the settings drawer', () => {
 
   it('keeps the whole email address on one line', () => {
     // It used to break wherever the line ran out, which left "m" alone under
-    // jeff@pbroundrobin.co and read as two addresses rather than one. Whole or
+    // jeff@roundrobinator.co and read as two addresses rather than one. Whole or
     // wrapped entire, never split: break-all is the class that split it.
     openDrawer();
     const link = container.querySelector('a[href^="mailto:"]')!;

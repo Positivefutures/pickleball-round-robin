@@ -271,7 +271,7 @@ export function Surfaces() {
                 title={APP_FULL_NAME}
                 wordmark
                 eyebrow="MADE WITH"
-                titleHref="https://app.pbroundrobin.com/"
+                titleHref="https://app.roundrobinator.com/"
                 corner={<LivePill />}
               />
             </Labelled>

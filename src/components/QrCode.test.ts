@@ -18,7 +18,7 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-const LINK = 'https://app.pbroundrobin.com/?s=K7M2QXV9TB';
+const LINK = 'https://app.roundrobinator.com/?s=K7M2QXV9TB';
 
 let root: Root;
 let container: HTMLElement;

@@ -13,12 +13,12 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createElement, act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-const url = 'https://app.pbroundrobin.com/?s=ABCDEFGHJK';
+const url = 'https://app.roundrobinator.com/?s=ABCDEFGHJK';
 
 vi.mock('../../lib/liveSession', () => {
   // One object, handed back every time. useSyncExternalStore compares
   // snapshots by identity, so a fresh one per call is an infinite render.
-  const status = { state: 'live', url: 'https://app.pbroundrobin.com/?s=ABCDEFGHJK' };
+  const status = { state: 'live', url: 'https://app.roundrobinator.com/?s=ABCDEFGHJK' };
   return {
     liveStatusStore: {
       get: () => status,

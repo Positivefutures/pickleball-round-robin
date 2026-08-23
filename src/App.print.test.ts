@@ -222,7 +222,7 @@ describe('on an iPhone opened from the home screen', () => {
     expect(print).not.toHaveBeenCalled();
     expect(share).not.toHaveBeenCalled();
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'This device cannot print from the home screen app. Open app.pbroundrobin.com in Safari instead.'
+      'This device cannot print from the home screen app. Open app.roundrobinator.com in Safari instead.'
     );
   });
 

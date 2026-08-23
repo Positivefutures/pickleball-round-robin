@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { route, isStale, cacheKey, NEVER_CACHE, CACHE_PREFIX } from './sw';
 
-const ORIGIN = 'https://app.pbroundrobin.com';
+const ORIGIN = 'https://app.roundrobinator.com';
 
 /** A realistic list, including one hashed script and both static pages. */
 const PRECACHE = [

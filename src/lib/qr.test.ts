@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { qrModules, qrPath, qrSize, QUIET_ZONE, type QrModules } from './qr';
 
-const LINK = 'https://app.pbroundrobin.com/?s=K7M2QXV9TB';
+const LINK = 'https://app.roundrobinator.com/?s=K7M2QXV9TB';
 
 /**
  * The 7x7 block in a corner of every QR code: a solid ring, a light ring
@@ -62,7 +62,7 @@ describe('encoding a link', () => {
 
   it('gives a different square for a different link', async () => {
     const one = await qrModules(LINK);
-    const other = await qrModules('https://app.pbroundrobin.com/?s=ZZZZZZZZZZ');
+    const other = await qrModules('https://app.roundrobinator.com/?s=ZZZZZZZZZZ');
     expect(other).not.toEqual(one);
   });
 

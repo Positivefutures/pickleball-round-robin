@@ -76,8 +76,18 @@ means, or propose naming them — that is finding **F2**.
   the whole app reads from them — banner, drawer, player's view, printed sheet,
   PDF, share sheet, data export. The static files cannot import, so `index.html`,
   `site.webmanifest`, `privacy.html` and `terms.html` each hold their own copy.
-  It was "Pickleball Round Robin Generator" until 2026-08-22; the domain, the
-  email, the Ko-fi page and `og-banner.png` still say so, deliberately.
+  It was "Pickleball Round Robin Generator" until 2026-08-22.
+- **The app lives at `app.roundrobinator.com`**, and `APP_URL`, `FEEDBACK_EMAIL`
+  and `DONATE_URL` in `lib/appInfo.ts` are the only places an address is typed.
+  `index.html` writes the host out again for the share scrapers, which is why
+  `appDomain.test.ts` checks the two against each other. Moved from
+  `pbroundrobin.com` on 2026-08-23, along with the email and the Ko-fi page.
+
+  **`app.pbroundrobin.com` must keep serving this app forever.** Printed QR
+  codes carry it, and every install made before the move keeps its rosters in
+  that origin's storage — a browser keeps a site's data per address. Pointing it
+  anywhere else erases those hosts' groups with no way back. The other three old
+  hostnames redirect and are free to change; that one is not.
 
 The style guide is excluded from the production build: it lives at
 `style-guide.html` in the repo root, and `vite build` only takes `index.html`.

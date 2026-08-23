@@ -85,7 +85,7 @@ export async function send(mail: AlertMail, env: NodeJS.ProcessEnv): Promise<Sen
   if (!key) return { sent: false, problem: 'No Resend key, so nothing was sent.' };
 
   const to = env.ALERT_TO ?? 'jeff@positivefutures.com';
-  const from = env.ALERT_FROM ?? 'PB Round Robin <admin@pbroundrobin.com>';
+  const from = env.ALERT_FROM ?? 'RoundRobinator <admin@roundrobinator.com>';
 
   try {
     const res = await fetch(RESEND_ENDPOINT, {

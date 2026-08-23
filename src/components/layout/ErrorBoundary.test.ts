@@ -75,7 +75,7 @@ beforeEach(() => {
         navigations.push(value);
       },
       get href() {
-        return 'https://app.pbroundrobin.com/';
+        return 'https://app.roundrobinator.com/';
       },
       reload: () => {},
     },

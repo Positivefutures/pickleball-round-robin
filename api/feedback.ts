@@ -5,7 +5,7 @@ import { FEEDBACK_EMAIL } from '../src/lib/appInfo';
  * Suggest a Feature and Report a Bug, sent for real.
  *
  * The one piece of server this app has. It exists because the Resend key is a
- * password: anything that can send mail as pbroundrobin.com has to stay out of
+ * password: anything that can send mail as roundrobinator.com has to stay out of
  * the browser bundle, so the browser posts here and this posts to Resend.
  *
  * Deployed by the same push to main that deploys the app. The only thing it
@@ -60,10 +60,10 @@ export default async function handler(request: Request): Promise<Response> {
 
   const key = process.env.RESEND_API_KEY;
   // Overridable, but the defaults are the ones to run with. The from address
-  // has to sit on a domain verified in Resend, which pbroundrobin.com already
+  // has to sit on a domain verified in Resend, which roundrobinator.com already
   // is: it is where the sign-in codes come from.
   const to = process.env.FEEDBACK_TO ?? FEEDBACK_EMAIL;
-  const from = process.env.FEEDBACK_FROM ?? 'PB Round Robin <feedback@pbroundrobin.com>';
+  const from = process.env.FEEDBACK_FROM ?? 'RoundRobinator <feedback@roundrobinator.com>';
 
   if (!key) {
     return json({ error: 'Sending is not set up right now. Please try again later.' }, 503);

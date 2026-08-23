@@ -102,12 +102,17 @@ carry the search. The banner, the settings drawer, the player's view, the
 printed sheet, the PDF, the manifest, the share sheet, the og: tags and both
 legal pages all say it. Section 13 of PRODUCT-CONTEXT.md has the reasoning.
 
-Three things the rename deliberately did not touch, because they are live
-infrastructure rather than copy: `pbroundrobin.com` and `app.pbroundrobin.com`,
-`jeff@pbroundrobin.com`, and `ko-fi.com/pbroundrobin`. Moving any of them is its
-own job with its own redirects. `og-banner.png` is a fourth: it is drawn artwork
-with the old name in it, and until it is redrawn a shared link still previews
-under the old name.
+**The infrastructure followed on 2026-08-23.** The app is at
+`app.roundrobinator.com`, the contact address at `jeff@roundrobinator.com`, the
+Ko-fi page at `ko-fi.com/roundrobinator`, and the share banner is redrawn.
+`pbroundrobin.com`, `www.pbroundrobin.com` and `www.roundrobinator.com` all
+redirect to the app, still temporarily. Section 13 of PRODUCT-CONTEXT.md has the
+detail.
+
+**`app.pbroundrobin.com` keeps serving the app directly and must never
+redirect.** Printed QR codes carry it, and a browser keeps a site's stored data
+per address, so every install made before the move keeps its rosters there.
+Redirecting it erases them.
 
 ### 2. Point the bare domain at the app **[Jeff]** DONE 2026-08-09
 

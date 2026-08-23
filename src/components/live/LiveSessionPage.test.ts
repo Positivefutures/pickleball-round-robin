@@ -821,7 +821,7 @@ describe('watching a session', () => {
     const open_ = [...container.querySelectorAll('a')].find(
       (a) => a.textContent === 'Create a round robin'
     );
-    expect(open_?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+    expect(open_?.getAttribute('href')).toBe('https://app.roundrobinator.com/');
   });
 
   it('breaks the heading into two lines without running the words together', async () => {
@@ -857,7 +857,7 @@ describe('watching a session', () => {
       'RoundRobinator',
       'Round Robin Generator',
     ]);
-    expect(title?.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+    expect(title?.getAttribute('href')).toBe('https://app.roundrobinator.com/');
   });
 
   it('takes the badge and the small line to the app as well as the name', async () => {
@@ -868,7 +868,7 @@ describe('watching a session', () => {
     const links = [...container.querySelectorAll('header a')];
     expect(links).toHaveLength(3);
     for (const link of links) {
-      expect(link.getAttribute('href')).toBe('https://app.pbroundrobin.com/');
+      expect(link.getAttribute('href')).toBe('https://app.roundrobinator.com/');
     }
 
     // The badge is painted into the banner's artwork, so its link has no words
@@ -897,7 +897,7 @@ describe('when there is nothing to watch', () => {
     answer = { state: 'gone' };
     await open();
     const home = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    expect(home).toContain('https://app.pbroundrobin.com/');
+    expect(home).toContain('https://app.roundrobinator.com/');
   });
 
   it('asks for a reload when the document is from a newer app', async () => {

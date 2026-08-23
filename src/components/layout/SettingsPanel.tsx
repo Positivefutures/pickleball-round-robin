@@ -264,7 +264,7 @@ export function SettingsPanel({
         <p className="text-sm text-white/70">
           Contact the creator:{' '}
           {/* Kept whole. It used to break wherever the line ran out, which put
-              "m" on a line of its own under jeff@pbroundrobin.co and read like
+              "m" on a line of its own under jeff@roundrobinator.co and read like
               two addresses. Now the whole address moves down together. */}
           <a
             href={`mailto:${FEEDBACK_EMAIL}`}

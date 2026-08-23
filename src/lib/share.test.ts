@@ -30,7 +30,7 @@ describe('sharePayload', () => {
  * the body, so both are read by a person who was not in the conversation.
  */
 describe('sessionPayload', () => {
-  const url = 'https://app.pbroundrobin.com/?s=ABCDEFGHJK';
+  const url = 'https://app.roundrobinator.com/?s=ABCDEFGHJK';
 
   it('names the scores when the session is keeping them', () => {
     expect(sessionPayload(url, true)).toEqual({

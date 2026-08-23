@@ -157,8 +157,8 @@ describe('scrub', () => {
   });
 
   it('removes what a link carries, because the sign-in code rides there', () => {
-    expect(scrub('failed at https://app.pbroundrobin.com/?code=abc123def')).toBe(
-      'failed at https://app.pbroundrobin.com/?[removed]'
+    expect(scrub('failed at https://app.roundrobinator.com/?code=abc123def')).toBe(
+      'failed at https://app.roundrobinator.com/?[removed]'
     );
   });
 
@@ -354,7 +354,7 @@ describe('scrubEvent', () => {
     const event = scrubEvent({
       message: 'trouble for Katherine',
       exception: { values: [{ value: 'also Katherine' }] },
-      request: { url: 'https://app.pbroundrobin.com/?code=secret' },
+      request: { url: 'https://app.roundrobinator.com/?code=secret' },
       user: { id: 'abc' },
     });
 

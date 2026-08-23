@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** "https://ko-fi.com/pbroundrobin" -> "ko-fi.com/pbroundrobin" */
+/** "https://ko-fi.com/roundrobinator" -> "ko-fi.com/roundrobinator" */
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }

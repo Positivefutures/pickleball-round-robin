@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.79';
+export const APP_VERSION = '3.80';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
@@ -66,11 +66,17 @@ export const ACCOUNTS_ENABLED = true;
  * Not quite the one place to change: `index.html` writes this host out again in
  * its og:url and og:image, because share-preview scrapers need absolute URLs and
  * static HTML cannot import a constant. Change this and change those too.
+ * `appDomain.test.ts` holds the two together.
+ *
+ * Moved here from `app.pbroundrobin.com` on 2026-08-23, with the rename. That
+ * host is banned from this source and must stay alive on the internet forever:
+ * printed QR codes carry it, and every install made before the move keeps its
+ * rosters in that origin's storage. Retiring it would erase them.
  */
-export const APP_URL = 'https://app.pbroundrobin.com/';
+export const APP_URL = 'https://app.roundrobinator.com/';
 
 /** Where Suggest a Feature and Report a Bug are sent. */
-export const FEEDBACK_EMAIL = 'jeff@pbroundrobin.com';
+export const FEEDBACK_EMAIL = 'jeff@roundrobinator.com';
 
 /**
  * The privacy policy, as a real address rather than a panel.
@@ -98,7 +104,7 @@ export const TERMS_URL = '/terms.html';
  * so there is never a dead button. Typed as string rather than the literal so
  * that check stays meaningful.
  */
-export const DONATE_URL: string = 'https://ko-fi.com/pbroundrobin';
+export const DONATE_URL: string = 'https://ko-fi.com/roundrobinator';
 
 /**
  * The app's name, and the line that says what it is.

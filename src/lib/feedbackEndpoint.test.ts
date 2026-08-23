@@ -23,7 +23,7 @@ const REPORT = {
 
 /** A POST as the browser would make it, from a fresh address each time. */
 function post(body: unknown, ip = `10.0.0.${Math.floor(Math.random() * 250)}`) {
-  return new Request('https://app.pbroundrobin.com/api/feedback', {
+  return new Request('https://app.roundrobinator.com/api/feedback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-forwarded-for': ip },
     body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -98,7 +98,7 @@ describe('what it refuses', () => {
 
   it('will not be read from with a GET', async () => {
     const response = await handler(
-      new Request('https://app.pbroundrobin.com/api/feedback', { method: 'GET' })
+      new Request('https://app.roundrobinator.com/api/feedback', { method: 'GET' })
     );
     expect(response.status).toBe(405);
     expect(fetchMock).not.toHaveBeenCalled();
