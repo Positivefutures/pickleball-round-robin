@@ -347,6 +347,10 @@ export function LiveSessionPage({ shareKey }: Props) {
         eyebrow="MADE WITH"
         title={APP_FULL_NAME}
         wordmark
+        // No sport line here. Whoever is reading this scanned a code at the
+        // court they are standing on, so the word tells them nothing, and the
+        // MADE WITH above the name has this banner's spare line already.
+        sport={false}
         titleHref={APP_URL}
         corner={
           // No onClick: there is no Share Live Session panel on this side of

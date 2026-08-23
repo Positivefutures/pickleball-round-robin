@@ -217,8 +217,8 @@ export function Surfaces() {
         <SubHeading>The page banner</SubHeading>
 
         <Example
-          name="<AppWordmark size subtitleColor? />"
-          note="the app's name over what it is · brand-orange 26px over #051829 20px, the second line always 20/26 of the first"
+          name="<AppWordmark size sport? subtitleColor? />"
+          note="the sport, the app's name, and what it is · #051829 caps 16px over brand-orange 26px over #051829 18px, the lower two always 16/26 and 18/26 of the name · sport off where the mark sits on navy, or where MADE WITH has the line above already"
           source={`import { AppWordmark } from './AppWordmark';
 
 <AppWordmark size="1.625rem" />`}
@@ -227,16 +227,19 @@ export function Surfaces() {
             <Labelled label="1.625rem — the banner's top size">
               <AppWordmark size="1.625rem" />
             </Labelled>
+            <Labelled label="sport={false} — the watchers' page">
+              <AppWordmark size="1.625rem" sport={false} />
+            </Labelled>
             <Labelled label="1.375rem — the settings drawer, on navy">
               <div className="rounded-lg bg-[#0B2545] p-4">
-                <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" />
+                <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" sport={false} />
               </div>
             </Labelled>
           </Row>
         </Example>
 
         <Example
-          name="<Header title wordmark badge onToggleSettings onPrint eyebrow corner titleHref onTitleClick />"
+          name="<Header title wordmark sport badge onToggleSettings onPrint eyebrow corner titleHref onTitleClick />"
           note="two pieces of artwork against the edges with live text between them · height clamp(110px, 26.25vw, 165px) · the wordmark clamps from 20px to 26px so its second line stays on one line down to 360px · sizes off the window, so resize rather than using the frame above"
           source={`import { Header } from './Header';
 
@@ -247,7 +250,7 @@ export function Surfaces() {
 <Header title={roster.name} badge="groups" onTitleClick={pickGroup} onPrint={print} />
 
 // The live view, which has no drawer and says what made the page.
-<Header title={APP_FULL_NAME} wordmark eyebrow="MADE WITH" titleHref={APP_URL} corner={<LivePill />} />`}
+<Header title={APP_FULL_NAME} wordmark sport={false} eyebrow="MADE WITH" titleHref={APP_URL} corner={<LivePill />} />`}
         >
           {/* Drawn at `100vw` inside a box that scrolls, which is the only way
               to show this one honestly. The banner sizes itself off the window
@@ -270,6 +273,7 @@ export function Surfaces() {
               <Header
                 title={APP_FULL_NAME}
                 wordmark
+                sport={false}
                 eyebrow="MADE WITH"
                 titleHref="https://app.roundrobinator.com/"
                 corner={<LivePill />}

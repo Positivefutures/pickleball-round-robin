@@ -220,6 +220,15 @@ interface HeaderProps {
    */
   eyebrow?: string;
   /**
+   * Whether the wordmark carries the sport above the name. On everywhere the
+   * host sees, off on the watchers' page, which says MADE WITH above the name
+   * already and is read by somebody standing on the court in question.
+   *
+   * Ignored unless `wordmark` is set: with a group's name in the banner there
+   * is no mark to put a line above.
+   */
+  sport?: boolean;
+  /**
    * Sits where the buttons do, before them. The live view's LIVE pill, on a
    * page that has neither button to keep it company.
    */
@@ -236,6 +245,7 @@ export function Header({
   titleHref,
   onPrint,
   eyebrow,
+  sport = true,
   corner,
 }: HeaderProps) {
   // What the corner row actually comes to, which is what the title has to keep
@@ -397,7 +407,7 @@ export function Header({
           >
             {titleHref ? (
               <a href={titleHref} className="hover:opacity-70 transition-opacity">
-                {wordmark ? <AppWordmark size={WORDMARK_SIZE} /> : title}
+                {wordmark ? <AppWordmark size={WORDMARK_SIZE} sport={sport} /> : title}
               </a>
             ) : onTitleClick ? (
               /* The whole name is the target, which on a phone is the only tap
@@ -410,7 +420,7 @@ export function Header({
                 aria-haspopup="dialog"
                 className="text-left hover:opacity-70 transition-opacity"
               >
-                {wordmark ? <AppWordmark size={WORDMARK_SIZE} /> : title}
+                {wordmark ? <AppWordmark size={WORDMARK_SIZE} sport={sport} /> : title}
                 {/* Sized against the title rather than in pixels, so it holds its
                     share of the line at every width the banner clamps to. The
                     glyph is a thin chevron inside a 24 box, so it needs most of a
@@ -420,7 +430,7 @@ export function Header({
                 />
               </button>
             ) : wordmark ? (
-              <AppWordmark size={WORDMARK_SIZE} />
+              <AppWordmark size={WORDMARK_SIZE} sport={sport} />
             ) : (
               title
             )}

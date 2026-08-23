@@ -42,7 +42,7 @@ one shared button component, and it is not the ordinary button.
 | a **badge** | `<PanelBadge icon />` — the ring astride a page card’s top-left corner | `components/PanelGlyph.tsx`, on Players ×4 and Setup ×1 |
 | a **name plate** | the bordered box astride the players list's top edge | `roster/RosterPage.tsx`, one site |
 | the **corner dots** | `<CornerDots />`, `<CornerDots smaller />` | `components/CornerDots.tsx` |
-| the **wordmark** | `<AppWordmark size />` — "RoundRobinator" in orange over "Round Robin Generator" in near-black. The banner's is 26px at full size and clamps down to 20px on a phone; the settings drawer's is fixed at 1.375rem with a white second line | `layout/AppWordmark.tsx`, 2 sites |
+| the **wordmark** | `<AppWordmark size sport? />` — "PICKLEBALL" in near-black caps over "RoundRobinator" in orange over "Round Robin Generator" in near-black. The banner's name is 26px at full size and clamps down to 20px on a phone, with the other two lines at 16/26 and 18/26 of it; the settings drawer's is fixed at 1.375rem with a white second line. `sport={false}` drops the caps line, which the drawer and the watchers' page both do | `layout/AppWordmark.tsx`, 2 sites |
 | the **banner** | `<Header title wordmark? badge? eyebrow? corner? />` — the artwork across the top of every step. Not to be confused with *a banner* below, which is a message | `layout/Header.tsx` |
 | the **LIVE pill** | `<LivePill />` — green, and the one mark a live share leaves. A span on the watchers' page; a button everywhere on the host's side, and it opens Share Live Session | `components/LivePill.tsx` |
 | the **page card** | `bg-white rounded-lg shadow border border-panel-edge px-3 pt-[1.125rem] pb-6` | 9 sites, **not extracted**. A badged card is the same shape at `pt-7` — `badgedCard` in `roster/RosterPage.tsx` |
@@ -76,7 +76,9 @@ means, or propose naming them — that is finding **F2**.
   the whole app reads from them — banner, drawer, player's view, printed sheet,
   PDF, share sheet, data export. The static files cannot import, so `index.html`,
   `site.webmanifest`, `privacy.html` and `terms.html` each hold their own copy.
-  It was "Pickleball Round Robin Generator" until 2026-08-22.
+  It was "Pickleball Round Robin Generator" until 2026-08-22. `APP_SPORT`
+  ("PICKLEBALL") joined them on 2026-08-23 and belongs to the drawn mark alone —
+  it is not part of `APP_FULL_NAME`, and nothing but `AppWordmark` reads it.
 - **The app lives at `app.roundrobinator.com`**, and `APP_URL`, `FEEDBACK_EMAIL`
   and `DONATE_URL` in `lib/appInfo.ts` are the only places an address is typed.
   `index.html` writes the host out again for the share scrapers, which is why

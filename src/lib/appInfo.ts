@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.80';
+export const APP_VERSION = '3.81';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
@@ -120,6 +120,20 @@ export const DONATE_URL: string = 'https://ko-fi.com/roundrobinator';
  */
 export const APP_NAME = 'RoundRobinator';
 export const APP_SUBTITLE = 'Round Robin Generator';
+
+/**
+ * The sport, drawn above the name in the banner.
+ *
+ * Not part of the name and not in `APP_FULL_NAME`: the app was deliberately
+ * renamed off "Pickleball" so it could be owned and searched for, and the word
+ * is here as the one thing a stranger needs to know at a glance from across a
+ * court. It belongs to the drawn mark only, which is why `AppWordmark` is the
+ * only thing that reads it and why the watchers' page leaves it off.
+ *
+ * Uppercase in the constant rather than in a class, so grep for the word that
+ * is actually on the screen finds it.
+ */
+export const APP_SPORT = 'PICKLEBALL';
 
 /**
  * Both at once, for the places that get one string and no styling: the browser

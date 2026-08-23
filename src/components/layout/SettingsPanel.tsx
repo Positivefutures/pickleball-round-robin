@@ -203,7 +203,10 @@ export function SettingsPanel({
             White under the name rather than black: this panel is navy, and the
             orange line carries on it as it does on the cream. */}
         <h2>
-          <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" />
+          {/* No sport line here either: this one is on navy, where the mark's
+              black caps would not be readable, and anybody who has the drawer
+              open is already inside the app. */}
+          <AppWordmark size="1.375rem" subtitleColor="#FFFFFF" sport={false} />
         </h2>
       </div>
       {/* The gap above the footer rides here rather than on the footer itself.
