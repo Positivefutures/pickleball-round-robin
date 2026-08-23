@@ -81,6 +81,26 @@ Two consequences worth knowing rather than rediscovering:
 Paste them in one at a time rather than as a block. The block paste silently
 dropped variables twice here.
 
+### Vercel's "Sensitive" flag, and the two things it changes
+
+A variable marked **Sensitive** cannot be read back - the Value box is blank
+every time you open it, and the grey `sntrys_aBcDe...` in it is placeholder
+text rather than your value. So the edit dialog can never tell you whether a
+sensitive variable is set, or what it is set to. Do not press Save on a blank
+box to find out.
+
+It also appears to change *when* the value reaches the running function. The
+plain variables here took effect on the next invocation with no redeploy, twice
+over. `SENTRY_AUTH_TOKEN`, the only sensitive one, kept serving its old value
+through a four-minute cold start. Treat a change to a sensitive variable as
+needing a redeploy.
+
+How to tell a wrong value from a missing one without seeing either: the job
+prints "Sentry is not configured." when the variable is absent or empty, and
+passes the service's own error through when it is present and rejected. A 401
+therefore means a value is there and wrong, which is a different fix from a
+value that never arrived.
+
 ### One thing to tidy
 
 There is a `SUPABASE_URL` variable in the project. It is left over from a route
