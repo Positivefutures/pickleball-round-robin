@@ -13,14 +13,30 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
 
+const NOT_CONFIGURED =
+  'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set. See .env.example.';
+
+/**
+ * Why `supabase()` would throw, or null if it would not.
+ *
+ * Split out from the client so that a render may ask the question. It reads
+ * two variables Vite has already baked into the bundle and builds nothing, so
+ * it is pure, it cannot change while the tab is open, and calling it twice
+ * costs nothing. `supabase()` itself is not pure — it memoises a client on
+ * first call — which is why App.tsx settles this here rather than by catching.
+ */
+export function configProblem(): string | null {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  return url && key ? null : NOT_CONFIGURED;
+}
+
 export function supabase(): SupabaseClient {
   if (!client) {
     const url = import.meta.env.VITE_SUPABASE_URL;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!url || !key) {
-      throw new Error(
-        'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set. See .env.example.'
-      );
+      throw new Error(NOT_CONFIGURED);
     }
     client = createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true },

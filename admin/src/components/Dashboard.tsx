@@ -41,12 +41,24 @@ import { ago, bytes, count } from '../lib/format';
 
 const RANGE_DAYS = 90;
 
+/** How often the page re-reads the clock. Finer than anything it displays. */
+const TICK_MS = 60_000;
+
 export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () => void }) {
   const [points, setPoints] = useState<MetricPoint[] | null>(null);
   const [quotas, setQuotas] = useState<QuotaData[]>([]);
   const [runs, setRuns] = useState<JobRun[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
+
+  // One clock reading for the whole page, so nothing below reads it during
+  // render, and so "3 hours ago" stops being however long ago the page loaded.
+  // A minute is finer than anything on this page can show.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), TICK_MS);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const until = new Date().toISOString().slice(0, 10);
@@ -88,7 +100,7 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
 
   return (
     <Shell email={email} onSignOut={onSignOut}>
-      <Health points={points} runs={runs} />
+      <Health points={points} runs={runs} now={now} />
       <Growth points={points} />
       <Quotas points={points} quotas={quotas} alerts={alerts} />
       <Shape points={points} />
@@ -161,17 +173,22 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
 
 // ------------------------------------------------------------------ health --
 
-function Health({ points, runs }: { points: MetricPoint[]; runs: JobRun[] }) {
+function Health({ points, runs, now }: { points: MetricPoint[]; runs: JobRun[]; now: number }) {
   const last = runs[0];
   const readonly = latest(points, 'supabase_readonly');
   const quiet = latest(points, 'days_since_app_write');
   const notes = last?.detail?.notes ?? [];
 
+  // `now` is passed in rather than read from the clock here. Reading it during
+  // render made this panel say whatever the time was when the page last
+  // happened to render: a tab left open overnight went on reporting a snapshot
+  // as fresh, on the one panel whose entire job is to say whether the job is
+  // still running. Dashboard ticks it once a minute.
   const bad =
     !last ||
     last.ok === false ||
     readonly === 1 ||
-    Date.now() - Date.parse(last.started_at) > 2 * 86_400_000;
+    now - Date.parse(last.started_at) > 2 * 86_400_000;
 
   return (
     <Panel
@@ -181,7 +198,7 @@ function Health({ points, runs }: { points: MetricPoint[]; runs: JobRun[] }) {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Tile
           label="Last snapshot"
-          value={last ? ago(last.started_at) : 'never'}
+          value={last ? ago(last.started_at, now) : 'never'}
           note={last?.ok === false ? 'It failed.' : undefined}
         />
         <Tile
