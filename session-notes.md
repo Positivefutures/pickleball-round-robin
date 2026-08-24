@@ -858,7 +858,7 @@ rather than defended.
 
 ---
 
-## Current State — 2026-08-14
+## Snapshot — 2026-08-14 (superseded, kept for its open questions)
 
 **`3.20` is live at https://app.pbroundrobin.com**, commit `0a5f90f`, verified
 against the live bundle (carries "3.20" and `sitOutOrder`). Suite is **1330
@@ -896,3 +896,131 @@ launch-checklist.md, per the standing memory).
   its own: ~5 avoidable repeats per 8-round schedule remain there, and ~20% of
   its courts run past 0.5 (couples constrain everything). Accepted for now.
 - All older open questions in the 2026-08-08 snapshot above still stand.
+
+---
+
+## 2026-08-23 / 24 — The admin robin, and the feedback form found broken
+
+Three commits, all deployed. Version went 3.83 → **3.84**.
+
+| Commit | What |
+|---|---|
+| `76b1ea3` | Give the admin dashboard its own robin, in a collar and tie |
+| `ca75336` | Stop the feedback note claiming a domain Resend never verified |
+| `cdefd87` | Ship 3.84: close the two feedback doors while sending is broken |
+
+### What was built
+
+**The admin dashboard gets its own mark.** Jeff supplied a robin in glasses, a
+collar and tie with a calculator under its wing. It is now the favicon, the
+header mark and the sign-in mark, all from `LOGO_SRC` in
+`admin/src/lib/appInfo.ts`. Two files: `robin-admin.png` at 256 and
+`robin-admin-32.png` cut at the size a tab actually draws. Named for the bird
+rather than for the favicon because the header reads the same file. The admin
+copy of `logo.png` was deleted once nothing referenced it.
+
+The source was measured rather than trimmed by eye: the ring runs x 28..1223,
+y 4..1239, an ellipse slightly taller than wide on an opaque near-white ground
+with no alpha at all. Cropped square on the taller axis, then masked to a disc
+so the corners are transparent, which is the treatment `logo.png` already had
+and the reason it reads on the teal header and on a dark tab strip.
+
+**Both feedback forms were found broken, and are now hidden.** Jeff reported
+Suggest a Feature and Report a Bug both failing with "That did not send."
+
+### Decisions and findings worth remembering
+
+- **The cause was 3.80's own rename.** That commit moved the sending address to
+  `feedback@roundrobinator.com` under a comment asserting the domain was
+  already verified in Resend "because it is where the sign-in codes come from".
+  Both halves were false. Resend answers
+  `403 This API key is not authorized to send emails from roundrobinator.com`.
+- **This app sends mail two unrelated ways.** Feedback goes through
+  `api/feedback.ts` to Resend. Sign-in codes are sent by Supabase through Gmail
+  SMTP as `jeff@pbroundrobin.com`, and land in Jeff's own Sent folder, which is
+  how you can tell. One working is never evidence about the other. Saved as a
+  standing memory.
+- **The endpoint was ruled healthy before blaming it.** A GET returns
+  `405 Post it.` and an empty POST returns `400 No message.`, and reaching
+  validation proves the key is present, since a missing key answers 503 first.
+  Neither probe can send mail. The exact refusal came from the Vercel runtime
+  log via the MCP connector.
+- **The destination moved too, and is unproven.** `FEEDBACK_EMAIL` is now
+  `jeff@roundrobinator.com` and nothing has ever been delivered to it in Jeff's
+  Gmail. Fixing only the sender would turn a visible failure into reports that
+  vanish, which is worse. Note that `appDomain.test.ts` bans the old host from
+  the source, so pointing the constant back is not a quiet edit.
+- **A door that always fails is worse than no door.** Both menu items are gated
+  on `FEEDBACK_ENABLED` in `src/lib/appInfo.ts`, written the way
+  `ACCOUNTS_ENABLED` is, with the two conditions for turning it back on
+  recorded above it. Nothing was ripped out: the panel, the endpoint and all
+  their tests stay, so it is one word to restore.
+- **Instructions lost the entry describing the two items**, or the manual
+  explains doors that are not there.
+- **`APP_VERSION` was deliberately not bumped for `ca75336`.** That commit only
+  touched an edge function, so the client bundle was byte-identical and 3.83
+  stayed accurate. Bumping would have pushed a Reload banner to every user for
+  a comment. The banner keys off the service worker, not the version.
+
+### Gotchas
+
+- The strings "Report a Bug" and "Suggest a Feature" are still in the shipped
+  bundle, once each. That is the retained panel component, not the menu.
+  Checking the bundle proves nothing here; drive the drawer.
+- `SettingsPanel.test.ts` is new and walks the rendered menu rather than reading
+  the source. It asserts against the flag rather than against `false`, so it
+  keeps its meaning when the flag flips. All three of its claims were proved by
+  breaking them.
+- Driving the app headlessly now needs the tutorial dismissed first: a
+  `fixed inset-0 z-50` sheet intercepts every click until Skip Tutorial is
+  pressed.
+- `sharp` lives in the root `node_modules` and resolves at
+  `node_modules/sharp/dist/index.cjs`, not `lib/index.js`.
+
+---
+
+## Current State — 2026-08-24
+
+**`3.84` is live at https://app.roundrobinator.com**, commit `cdefd87`,
+verified by driving the live site rather than by reading the bundle: the drawer
+shows seven items and neither feedback one. Suite is **1972 passing across 100
+files** (3 skipped), with `tsc -b` and `npx eslint src` clean. The admin
+dashboard's new mark is live at pbroundrobin-admin.vercel.app.
+
+### Completed this session
+
+The admin dashboard's own robin, on the tab, the header and the sign-in page.
+The feedback outage diagnosed to a Resend 403 and dated to 3.80. The false
+comment that caused it corrected. Both feedback menu items hidden behind a
+documented flag and shipped as 3.84.
+
+### In progress
+
+Nothing mid-edit. Tracked tree clean apart from this notes update; the INBOX
+and PLANS leftovers from earlier sessions remain untracked.
+
+### Immediate next step
+
+**Jeff's, and he has said it will be a few days.** In Resend: check whether
+`roundrobinator.com` is verified, and whether the production API key is
+restricted to a single domain, which its wording suggests. Then either update
+`RESEND_API_KEY` in Vercel or set `FEEDBACK_FROM` to
+`RoundRobinator <feedback@pbroundrobin.com>` as a stopgap, and redeploy, since
+environment values bind when the function is built.
+
+Then set `FEEDBACK_ENABLED` back to `true` and deploy. The tests follow the
+flag and need no edits.
+
+### Open questions and pending decisions
+
+- **Does `jeff@roundrobinator.com` receive mail at all?** Unproven, and it is
+  now the only way to reach Jeff from inside the app, through the drawer's
+  contact link and the crash screen's mailto. One test send settles it; Jeff
+  has not yet said go.
+- **The sign-in emails never got renamed.** They work, but they come from
+  `jeff@pbroundrobin.com` and still read "Sign in to Pickleball Round Robin".
+  Fixing them means editing both Supabase templates, Magic Link and Confirm
+  Sign Up, or new users get nothing.
+- The admin Vercel project is still called `pbroundrobin-admin`, so its URL
+  carries the old name. Cosmetic.
+- All older open questions in the 2026-08-14 snapshot above still stand.
