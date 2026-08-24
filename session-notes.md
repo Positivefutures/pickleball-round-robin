@@ -979,45 +979,162 @@ Suggest a Feature and Report a Bug both failing with "That did not send."
 
 ---
 
-## Current State — 2026-08-24
+## 2026-08-24 — The admin favicon, the purity rules, and a JWT scare
 
-**`3.84` is live at https://app.roundrobinator.com**, commit `cdefd87`,
-verified by driving the live site rather than by reading the bundle: the drawer
-shows seven items and neither feedback one. Suite is **1972 passing across 100
-files** (3 skipped), with `tsc -b` and `npx eslint src` clean. The admin
-dashboard's new mark is live at pbroundrobin-admin.vercel.app.
+### What was built
+
+**The admin's icon set, properly this time.** The previous day's favicon was
+correct and still did not appear. The two `<link>` tags were right, the PNGs
+were committed, and all three of the dashboard's hostnames served them with
+`200 image/png`. What was missing was `/favicon.ico`, which 404'd everywhere.
+That is the URL a browser retries once it has recorded "this site has no icon"
+for an origin, and the only one anything that will not parse HTML asks for.
+The dashboard now ships the same shape of set the app does: an `.ico` carrying
+16, 32 and 48, a PNG at each size, and a 180 for a home-screen bookmark
+flattened onto white, because iOS drops the alpha and would otherwise ring the
+circle in black. `admin/scripts/admin-icons.mjs` cuts all of it from
+`robin-admin.png`, which stays under its own name because `LOGO_SRC` draws it
+in the header and on the sign-in page. `robin-admin-32.png` was removed;
+`favicon-32x32.png` is the same cut under the name the rest of the set uses.
+
+**Two purity errors, and one real fault inside them.** `admin/` reported two
+`react-hooks/purity` errors. The code had not changed, the rule set had:
+`eslint-plugin-react-hooks` v7 turns on the React Compiler rules by default.
+The app's own `src/` trips neither. The `Health` panel decided whether the last
+snapshot was stale by comparing `Date.parse` against `Date.now()` during
+render, so the answer was frozen at whatever the clock said when the page last
+happened to render. A tab left open overnight went on reporting a snapshot as
+fresh, on the one panel whose job is to say whether the nightly job still runs.
+`ago()` was stale the same way. `Dashboard` now holds one clock reading, ticks
+it every minute and passes it down. The second error was cosmetic: `App`
+caught the missing-variables throw inside its effect and pushed it back with
+`setState`, drawing the page once before correcting it. That moved into the
+`useState` initialiser, which meant splitting the question `supabase()` answers
+into a pure `configProblem()`, since `supabase()` memoises a client and an
+initialiser runs during render.
+
+**A refused token now says what to do.** The dashboard showed
+`JWT issued at future` verbatim. `unwrap()` had one shape for this already in
+`NotPermitted`, and `StaleSession` sits beside it: the panel says the sign-in
+is no longer accepted, offers a button that clears it, and keeps the server's
+own sentence in small print. `looksStale()` is exported and tested against the
+wordings PostgREST and GoTrue actually emit, with timeouts, missing relations
+and RLS refusals listed as things that must **not** match. Later,
+`tokenTiming()` was added so the panel prints what the held token claims as its
+`iat` and how far that sits from the device's clock.
+
+### Decisions and findings worth remembering
+
+- **The `.ico` is assembled by hand.** An ICO entry may hold a PNG rather than
+  a bitmap, so no BMP encoding is needed: a 6-byte header, 16 bytes per entry,
+  then the PNG blobs. `sharp` resolves from the repo root's `node_modules`
+  because Node walks up out of `admin/`. Chrome was made to *decode* all five
+  files off the built site before it landed, because a container every tool
+  calls valid can still be one no browser draws.
+- **A lazy `useState` initialiser is allowed to be impure.**
+  `useState(() => Date.now())` passes the purity rule; the render body is what
+  must stay pure. Verified by running the linter, not by reasoning.
+- **`signOut()` clears the local session even when the server rejects the
+  token.** `auth-js` deliberately ignores 401, 403 and 404 from the logout
+  endpoint and removes the session anyway, so the "Sign in again" button works
+  in exactly the situation it exists for.
+- **No new test for the purity fixes.** The lint rules are themselves the
+  guard, and they are the guard that caught it. A regex test asserting "no
+  `Date.now()` in render" would be more brittle than the linter.
+
+### The JWT scare, and what it cost
+
+`JWT issued at future` appeared on Jeff's phone, then on his desktop, and
+survived a fresh sign-in. It cleared on both devices the moment each discarded
+its cached copy, desktop by hard reload and phone by hard close. **The root
+cause was never confirmed.** Ruled out with evidence: not this session's
+commits (the string is in neither our code nor the bundle, and nothing
+auth-related was touched), not the device clock (set automatically, and both
+devices failed), not a token a fresh sign-in would replace, and not Supabase,
+Vercel or Cloudflare drifting (all measured accurate to ±0.5s). The one thing
+never measured was the Postgres instance's own clock: `SUPABASE_DB_URL` is
+empty in `admin/.env.local` and exists only in Vercel, and the `select
+clock_timestamp()` Jeff ran could not be timed tightly enough through chat to
+tell drift from message latency.
+
+Two explanations were offered before that and both were wrong, each guessed
+without a number on screen. `tokenTiming()` exists so the next occurrence is
+read rather than guessed.
+
+### Gotchas
+
+- **Jeff reads the admin from a home-screen icon, not Safari.** An iOS web clip
+  keeps its own snapshot and its own storage jar, and served a days-old bundle
+  despite `cache-control: max-age=0, must-revalidate` and no service worker. A
+  hard close is what makes it fetch again.
+- **The unclassified-error panel is pixel-identical to the old one**, by
+  design: white card, red text. So a screenshot of that error cannot tell "old
+  bundle" from "new bundle, classification missed it". Settle which bundle is
+  on screen first, by comparing the live `/assets/index-*.js` hash against what
+  a local `npm run build` produces, and by driving the *live* URL in Playwright
+  with the failure stubbed.
+- **`admin/`'s lint runs only by hand.** Nothing on push does it, which is how
+  two errors sat unnoticed.
+- **Vercel aliases propagate for about a minute.** `favicon.ico` answered 200,
+  then 404, then 200 on the primary hostname during a rollout. Check three
+  times before believing a 404 straight after a deploy.
+
+---
+
+## Current State — 2026-08-24 (end of day)
+
+**`3.84` is live at https://app.roundrobinator.com**, commit `cdefd87`. Nothing
+in `src/` changed today, so the app itself is untouched and `APP_VERSION` did
+not move. The **admin dashboard** is live at `pbroundrobin-admin.vercel.app` at
+commit `1029db1`, verified by hash: the deployed `/assets/index-DsxjqZeR.js`
+matches what a local `npm run build` produces. Admin suite is **75 passing
+across 5 files** (4 skipped), with `tsc -b` and `eslint src api` clean. Nothing
+unpushed.
 
 ### Completed this session
 
-The admin dashboard's own robin, on the tab, the header and the sign-in page.
-The feedback outage diagnosed to a Resend 403 and dated to 3.80. The false
-comment that caused it corrected. Both feedback menu items hidden behind a
-documented flag and shipped as 3.84.
+- The admin's full favicon set, including the `/favicon.ico` that was missing
+  and was the whole reason the previous attempt did not show. Live.
+- Both `react-hooks/purity` errors in `admin/`, one of which was a real fault:
+  the health panel's staleness never updated while a tab sat open.
+- A `StaleSession` panel that explains a refused token and offers the button
+  that clears it, plus `tokenTiming()` so the next occurrence reports how far
+  out the token actually is.
+- Five commits: `50d5af6`, `ac62b70`, `013e87b`, `1029db1`, and `2a2106a` from
+  the previous session's notes. All pushed and deployed.
 
 ### In progress
 
-Nothing mid-edit. Tracked tree clean apart from this notes update; the INBOX
-and PLANS leftovers from earlier sessions remain untracked.
+Nothing mid-edit. The tracked tree is clean apart from this notes update.
+`PRODUCT-CONTEXT.md` and `launch-checklist.md` carry Jeff's own uncommitted
+edits, and the `INBOX/`, `PLANS/` and `site/` leftovers remain untracked. None
+of those were touched.
 
 ### Immediate next step
 
-**Jeff's, and he has said it will be a few days.** In Resend: check whether
+**Jeff's, and unchanged from the previous session.** In Resend: check whether
 `roundrobinator.com` is verified, and whether the production API key is
-restricted to a single domain, which its wording suggests. Then either update
-`RESEND_API_KEY` in Vercel or set `FEEDBACK_FROM` to
-`RoundRobinator <feedback@pbroundrobin.com>` as a stopgap, and redeploy, since
-environment values bind when the function is built.
-
-Then set `FEEDBACK_ENABLED` back to `true` and deploy. The tests follow the
-flag and need no edits.
+restricted to a single domain. Then either update `RESEND_API_KEY` in Vercel or
+set `FEEDBACK_FROM` to `RoundRobinator <feedback@pbroundrobin.com>` as a
+stopgap, and redeploy, since environment values bind when the function is
+built. Then set `FEEDBACK_ENABLED` back to `true` and deploy. The tests follow
+the flag and need no edits.
 
 ### Open questions and pending decisions
 
-- **Does `jeff@roundrobinator.com` receive mail at all?** Unproven, and it is
-  now the only way to reach Jeff from inside the app, through the drawer's
-  contact link and the crash screen's mailto. One test send settles it; Jeff
-  has not yet said go.
-- **The sign-in emails never got renamed.** They work, but they come from
+- **What actually caused `JWT issued at future`?** Unconfirmed. It cleared on
+  both devices by discarding cached client state, which points device-local
+  rather than server-side, but that is inference and not measurement. If it
+  returns, the panel now prints the token's `iat` against the device clock and
+  one screenshot settles it. The unmeasured suspect is the Postgres instance's
+  own clock.
+- **Should `admin/`'s lint run on push?** Two errors sat unnoticed because the
+  only thing that runs `eslint` is a person choosing to. Wiring it into the
+  Vercel build is a small separate job, not started.
+- **Does `jeff@roundrobinator.com` receive mail at all?** Still unproven, and
+  still the only way to reach Jeff from inside the app. One test send settles
+  it; Jeff has not yet said go.
+- **The sign-in emails never got renamed.** They work, but come from
   `jeff@pbroundrobin.com` and still read "Sign in to Pickleball Round Robin".
   Fixing them means editing both Supabase templates, Magic Link and Confirm
   Sign Up, or new users get nothing.
