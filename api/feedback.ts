@@ -8,8 +8,9 @@ import { FEEDBACK_EMAIL } from '../src/lib/appInfo';
  * password: anything that can send mail as roundrobinator.com has to stay out of
  * the browser bundle, so the browser posts here and this posts to Resend.
  *
- * Deployed by the same push to main that deploys the app. The only thing it
- * needs is RESEND_API_KEY, in Vercel > Settings > Environment Variables. Where
+ * Deployed by the same push to main that deploys the app. It needs
+ * RESEND_API_KEY, in Vercel > Settings > Environment Variables, and that key
+ * has to be allowed to send from whatever domain `from` below names. Where
  * the mail goes is FEEDBACK_EMAIL, the same constant the rest of the app shows
  * people, so the address cannot drift into two. Without the key it answers 503
  * and the panel says so, which is a tested state rather than a crash.
@@ -60,8 +61,11 @@ export default async function handler(request: Request): Promise<Response> {
 
   const key = process.env.RESEND_API_KEY;
   // Overridable, but the defaults are the ones to run with. The from address
-  // has to sit on a domain verified in Resend, which roundrobinator.com already
-  // is: it is where the sign-in codes come from.
+  // has to sit on a domain the Resend key is allowed to send from, and moving
+  // the app to a new domain does not move Resend with it. 3.80 changed this to
+  // roundrobinator.com on the assumption it was covered, and Resend answered
+  // 403 to every report after that. Sign-in codes are not evidence either way,
+  // because they do not go through Resend at all.
   const to = process.env.FEEDBACK_TO ?? FEEDBACK_EMAIL;
   const from = process.env.FEEDBACK_FROM ?? 'RoundRobinator <feedback@roundrobinator.com>';
 
