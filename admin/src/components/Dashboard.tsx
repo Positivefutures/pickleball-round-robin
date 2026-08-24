@@ -29,6 +29,7 @@ import {
   series,
   NotPermitted,
   StaleSession,
+  heldTokenTiming,
   type AlertRow,
   type JobRun,
   type MetricPoint,
@@ -46,7 +47,9 @@ const RANGE_DAYS = 90;
  * Why the page has nothing to show. `stale` is the one the reader can clear
  * themselves, so it is the one that gets a button rather than a sentence.
  */
-type Problem = { kind: 'stale'; said: string } | { kind: 'other'; message: string };
+type Problem =
+  | { kind: 'stale'; said: string; timing: { iat: number; ahead: number } | null }
+  | { kind: 'other'; message: string };
 
 /** How often the page re-reads the clock. Finer than anything it displays. */
 const TICK_MS = 60_000;
@@ -83,7 +86,12 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
       })
       .catch((e: unknown) => {
         if (e instanceof StaleSession) {
-          setProblem({ kind: 'stale', said: e.message });
+          // The token's own claim, read for the panel to print. A refusal that
+          // cannot say how far out it is has to be guessed at, and this one
+          // was guessed at twice before the numbers were put on screen.
+          void heldTokenTiming().then((timing) =>
+            setProblem({ kind: 'stale', said: e.message, timing })
+          );
         } else if (e instanceof NotPermitted) {
           setProblem({
             kind: 'other',
@@ -113,6 +121,16 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
                 this turns out to be something other than an aged token. */}
             <p className="mt-3 mb-0 text-xs text-[var(--color-ink-faint)]">
               The database said: {problem.said}
+              {problem.timing && (
+                <>
+                  <br />
+                  This device's token says it was minted{' '}
+                  {new Date(problem.timing.iat * 1000).toISOString().replace('T', ' ').slice(0, 19)}
+                  {' UTC, which is '}
+                  {Math.abs(problem.timing.ahead)}s{' '}
+                  {problem.timing.ahead >= 0 ? 'ahead of' : 'behind'} this device's clock.
+                </>
+              )}
             </p>
           </div>
         ) : (

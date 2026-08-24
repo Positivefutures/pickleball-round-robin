@@ -130,6 +130,38 @@ export function looksStale(message: string, code?: string): boolean {
   return STALE.test(message) || (code !== undefined && STALE_CODES.includes(code));
 }
 
+/**
+ * When the held token says it was minted, against this device's clock.
+ *
+ * Only ever called to explain a refusal. "Issued at future" by a second is a
+ * race between two of Supabase's own clocks and clears itself; by an hour it
+ * is something else entirely, and the two numbers say which without anyone
+ * having to attach a debugger to a phone. `ahead` is how far the token's claim
+ * sits in front of this device: near zero means the device and whatever minted
+ * the token agree, and the server doing the refusing is the one that is out.
+ *
+ * The payload is read, not verified. Nothing is trusted on the strength of it
+ * and nothing is decided by it. It is printed for a person to look at.
+ */
+export function tokenTiming(accessToken: string): { iat: number; ahead: number } | null {
+  const payload = accessToken.split('.')[1];
+  if (!payload) return null;
+  try {
+    const { iat } = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof iat !== 'number') return null;
+    return { iat, ahead: Math.round(iat - Date.now() / 1000) };
+  } catch {
+    return null;
+  }
+}
+
+/** `tokenTiming` for whichever token this device is currently holding. */
+export async function heldTokenTiming(): Promise<{ iat: number; ahead: number } | null> {
+  const { data } = await supabase().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? tokenTiming(token) : null;
+}
+
 function unwrap<T>(res: { data: T | null; error: { message: string; code?: string } | null }): T {
   if (res.error) {
     const { message, code } = res.error;

@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { looksStale } from './api';
+import { looksStale, tokenTiming } from './api';
 
 describe('a token the server will not take', () => {
   it.each([
@@ -61,5 +61,37 @@ describe('everything else is left alone', () => {
     // letters does not send the reader to the sign-in page.
     expect(looksStale('column "jwtoken_audit" does not exist')).toBe(false);
     expect(looksStale('relation "myjwt" does not exist')).toBe(false);
+  });
+});
+
+describe('reading the held token so a refusal can say how far out it is', () => {
+  /** A JWT with the given payload. Unsigned: nothing here verifies one. */
+  const token = (payload: object) =>
+    `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`;
+
+  it('reports a token minted now as level with this device', () => {
+    const iat = Math.floor(Date.now() / 1000);
+    expect(tokenTiming(token({ iat }))?.ahead).toBeLessThanOrEqual(1);
+  });
+
+  it('reports how far ahead a future-stamped token is', () => {
+    const iat = Math.floor(Date.now() / 1000) + 3600;
+    const t = tokenTiming(token({ iat }));
+    expect(t?.iat).toBe(iat);
+    expect(t?.ahead).toBeGreaterThan(3590);
+  });
+
+  it('reports a past-stamped token as behind', () => {
+    const t = tokenTiming(token({ iat: Math.floor(Date.now() / 1000) - 600 }));
+    expect(t!.ahead).toBeLessThan(-590);
+  });
+
+  it('gives up quietly on anything it cannot read', () => {
+    // It is only ever used to decorate an error, so it must never raise one.
+    expect(tokenTiming('')).toBeNull();
+    expect(tokenTiming('not-a-jwt')).toBeNull();
+    expect(tokenTiming('a.!!!not-base64!!!.c')).toBeNull();
+    expect(tokenTiming(token({ sub: 'no-iat-here' }))).toBeNull();
+    expect(tokenTiming(token({ iat: 'not a number' }))).toBeNull();
   });
 });
