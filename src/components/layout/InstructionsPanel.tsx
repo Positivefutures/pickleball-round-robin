@@ -10,6 +10,7 @@ import {
   TipIcon,
 } from '../icons';
 import { ShareSessionIcon } from '../schedule/actionIcons';
+import { FEEDBACK_ENABLED } from '../../lib/appInfo';
 import { SHOTS } from './instructionShots';
 import { APP_NAME } from '../../lib/appInfo';
 
@@ -494,10 +495,14 @@ function Settings() {
       <Item term="Donate">
         this app is free; if you'd like to chip in, this opens my Ko-fi page.
       </Item>
-      <Item term="Suggest a Feature / Report a Bug">
-        sends your message from inside the app. Bug reports carry your app version and
-        browser — never any player details.
-      </Item>
+      {/* Described only while the menu offers it, or Instructions explains two
+          doors that are not there. */}
+      {FEEDBACK_ENABLED && (
+        <Item term="Suggest a Feature / Report a Bug">
+          sends your message from inside the app. Bug reports carry your app version and
+          browser — never any player details.
+        </Item>
+      )}
     </>
   );
 }

@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.83';
+export const APP_VERSION = '3.84';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
@@ -59,6 +59,27 @@ export const COPYRIGHT = '© 2026 Jeff Baker. All rights reserved.';
  * has always worked without one, and nobody loses data by not signing in.
  */
 export const ACCOUNTS_ENABLED = true;
+
+/**
+ * Master switch for Suggest a Feature and Report a Bug.
+ *
+ * Off since 2026-08-23, and the reason is not in the app. 3.80 moved the
+ * sending address to feedback@roundrobinator.com, and the Resend key is not
+ * allowed to send from that domain, so Resend answers 403 and the panel tells
+ * everyone their report did not send. A door that always fails is worse than
+ * no door, and the only other way to reach Jeff is the address at the foot of
+ * the menu, which stays.
+ *
+ * Nothing here is broken and nothing was ripped out. The panel, its tests and
+ * the endpoint are all still in place, so this is one word to turn back on.
+ *
+ * **Two things have to be true before it goes back to true.** The key has to
+ * be allowed to send from whatever domain `api/feedback.ts` names as `from`,
+ * and mail to FEEDBACK_EMAIL has to actually reach a mailbox. Getting the
+ * first right and not the second turns a visible failure into reports that
+ * quietly vanish, which is the worse of the two.
+ */
+export const FEEDBACK_ENABLED = false;
 
 /**
  * Public address of the app — what Share App sends.

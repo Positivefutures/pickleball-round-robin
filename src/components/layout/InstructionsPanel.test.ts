@@ -18,7 +18,7 @@ import { readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InstructionsPanel } from './InstructionsPanel';
 import { SHOTS } from './instructionShots';
-import { ACCOUNTS_ENABLED } from '../../lib/appInfo';
+import { ACCOUNTS_ENABLED, FEEDBACK_ENABLED } from '../../lib/appInfo';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -151,10 +151,16 @@ describe('claims that went stale once', () => {
     }
   });
 
-  it('knows feedback sends from inside the app', () => {
+  it('knows feedback sends from inside the app, and says nothing when it cannot', () => {
     const text = allText();
+    // The stale claim stays banned either way. It is the mail-app wording that
+    // went, and it must not come back when the feature does.
     expect(text).not.toContain('opens your email app');
-    expect(text).toContain('from inside the app');
+    if (FEEDBACK_ENABLED) {
+      expect(text).toContain('from inside the app');
+    } else {
+      expect(text).not.toContain('Suggest a Feature / Report a Bug');
+    }
   });
 
   it('knows switching groups parks the session rather than clearing it', () => {

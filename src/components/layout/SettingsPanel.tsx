@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import {
-  APP_VERSION, BUILD_ID, COPYRIGHT, DONATE_URL, FEEDBACK_EMAIL, PRIVACY_URL, TERMS_URL,
+  APP_VERSION, BUILD_ID, COPYRIGHT, DONATE_URL, FEEDBACK_ENABLED, FEEDBACK_EMAIL,
+  PRIVACY_URL, TERMS_URL,
 } from '../../lib/appInfo';
 import { PersonIcon, ShareIcon, SlidersIcon } from '../icons';
 import { AppWordmark } from './AppWordmark';
@@ -251,12 +252,19 @@ export function SettingsPanel({
         {DONATE_URL && (
           <SettingsItem icon={<GiftIcon />} label="Donate" onClick={onOpenDonate} />
         )}
-        <SettingsItem
-          icon={<LightbulbIcon />}
-          label="Suggest a Feature"
-          onClick={onOpenFeature}
-        />
-        <SettingsItem icon={<BugIcon />} label="Report a Bug" onClick={onOpenBug} />
+        {/* Both doors close together while sending is broken, the same rule
+            Donate follows above: no item beats an item that always fails.
+            FEEDBACK_ENABLED in appInfo.ts says what has to be true first. */}
+        {FEEDBACK_ENABLED && (
+          <>
+            <SettingsItem
+              icon={<LightbulbIcon />}
+              label="Suggest a Feature"
+              onClick={onOpenFeature}
+            />
+            <SettingsItem icon={<BugIcon />} label="Report a Bug" onClick={onOpenBug} />
+          </>
+        )}
       </nav>
 
       {/* Everything from the rule down sits at the foot of the screen. The menu
