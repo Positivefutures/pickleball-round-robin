@@ -88,10 +88,56 @@ export interface AlertRow {
  */
 export class NotPermitted extends Error {}
 
-function unwrap<T>(res: { data: T | null; error: { message: string } | null }): T {
+/**
+ * A token the server will not take, which signing in again would replace.
+ *
+ * PostgREST checks the `iat` and `exp` claims against its own clock and allows
+ * no skew at all, so a token stamped a second into the future is refused for
+ * as long as it is held. `persistSession` keeps it in the device's storage, so
+ * it does not age out of the problem on its own: the tab goes on presenting
+ * the same rejected token every time it is opened.
+ *
+ * Worth its own shape because the wording the server uses is no use to the
+ * person reading it. "JWT issued at future" is a true and complete description
+ * of a condition whose entire remedy is to sign in again, which is what the
+ * page says instead. The server's own words are kept on the error so the panel
+ * can still show them in small print.
+ */
+export class StaleSession extends Error {}
+
+/**
+ * What the server calls a token it will not accept.
+ *
+ * The optional `error` is not decoration: PostgREST reports a bad signature as
+ * "JWSError JWSInvalidSignature", where the letters run straight into the next
+ * word and a plain \b after them never matches. The test caught that.
+ */
+const STALE = /\bjw[st](?:error)?\b|token is expired|invalid claim/i;
+
+/** PostgREST's codes for an expired and a missing-claim token. */
+const STALE_CODES = ['PGRST301', 'PGRST302'];
+
+/**
+ * Whether a refusal is about the token rather than about the request.
+ *
+ * Exported so it can be tested against the real wordings rather than guessed
+ * at, because both ways of being wrong cost something. Miss one and the reader
+ * is back to reading "JWT issued at future". Match too much and the page tells
+ * them to sign in again over a fault that signing in will not touch, which is
+ * worse: it hides a real error behind a confident wrong instruction.
+ */
+export function looksStale(message: string, code?: string): boolean {
+  return STALE.test(message) || (code !== undefined && STALE_CODES.includes(code));
+}
+
+function unwrap<T>(res: { data: T | null; error: { message: string; code?: string } | null }): T {
   if (res.error) {
-    if (/not permitted/i.test(res.error.message)) throw new NotPermitted(res.error.message);
-    throw new Error(res.error.message);
+    const { message, code } = res.error;
+    // The allowlist refusal is checked first: it is a deliberate Postgres
+    // exception and must not be mistaken for anything the token did wrong.
+    if (/not permitted/i.test(message)) throw new NotPermitted(message);
+    if (looksStale(message, code)) throw new StaleSession(message);
+    throw new Error(message);
   }
   return (res.data ?? []) as T;
 }

@@ -28,6 +28,7 @@ import {
   latest,
   series,
   NotPermitted,
+  StaleSession,
   type AlertRow,
   type JobRun,
   type MetricPoint,
@@ -41,6 +42,12 @@ import { ago, bytes, count } from '../lib/format';
 
 const RANGE_DAYS = 90;
 
+/**
+ * Why the page has nothing to show. `stale` is the one the reader can clear
+ * themselves, so it is the one that gets a button rather than a sentence.
+ */
+type Problem = { kind: 'stale'; said: string } | { kind: 'other'; message: string };
+
 /** How often the page re-reads the clock. Finer than anything it displays. */
 const TICK_MS = 60_000;
 
@@ -49,7 +56,10 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
   const [quotas, setQuotas] = useState<QuotaData[]>([]);
   const [runs, setRuns] = useState<JobRun[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
-  const [problem, setProblem] = useState<string | null>(null);
+  // A stale token is told apart from everything else because it is the one
+  // failure the reader can clear themselves, and the panel offers the button
+  // that clears it.
+  const [problem, setProblem] = useState<Problem | null>(null);
 
   // One clock reading for the whole page, so nothing below reads it during
   // render, and so "3 hours ago" stops being however long ago the page loaded.
@@ -72,20 +82,44 @@ export function Dashboard({ email, onSignOut }: { email: string; onSignOut: () =
         setAlerts(a);
       })
       .catch((e: unknown) => {
-        setProblem(
-          e instanceof NotPermitted
-            ? `${email} is not on the allowlist, so there is nothing to show. That is the database refusing, not this page.`
-            : (e as Error).message
-        );
+        if (e instanceof StaleSession) {
+          setProblem({ kind: 'stale', said: e.message });
+        } else if (e instanceof NotPermitted) {
+          setProblem({
+            kind: 'other',
+            message: `${email} is not on the allowlist, so there is nothing to show. That is the database refusing, not this page.`,
+          });
+        } else {
+          setProblem({ kind: 'other', message: (e as Error).message });
+        }
       });
   }, [email]);
 
   if (problem) {
     return (
       <Shell email={email} onSignOut={onSignOut}>
-        <p role="alert" className="rounded-md bg-white p-4 text-[var(--color-critical)] shadow-sm">
-          {problem}
-        </p>
+        {problem.kind === 'stale' ? (
+          <div role="alert" className="rounded-md bg-white p-4 shadow-sm">
+            <p className="m-0 text-[var(--color-critical)]">
+              This device's sign-in is no longer accepted. Sign in again to carry on.
+            </p>
+            <button
+              onClick={onSignOut}
+              className="mt-3 rounded-md bg-[var(--color-brand-teal)] px-4 py-2.5 text-base font-medium text-white hover:bg-[var(--color-brand-teal-dark)] focus:outline-2 focus:outline-offset-2 focus:outline-[var(--color-brand-teal)]"
+            >
+              Sign in again
+            </button>
+            {/* The server's own words, kept because they are the only clue if
+                this turns out to be something other than an aged token. */}
+            <p className="mt-3 mb-0 text-xs text-[var(--color-ink-faint)]">
+              The database said: {problem.said}
+            </p>
+          </div>
+        ) : (
+          <p role="alert" className="rounded-md bg-white p-4 text-[var(--color-critical)] shadow-sm">
+            {problem.message}
+          </p>
+        )}
       </Shell>
     );
   }
