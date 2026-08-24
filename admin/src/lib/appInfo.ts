@@ -25,7 +25,10 @@ export const ADMIN_NAME = 'RoundRobinator Admin';
  * this page depend on the app being up, which is precisely the thing this page
  * exists to tell you about.
  *
- * `index.html` names the same file again for the favicon. Static HTML cannot
- * import, so that copy is unavoidable.
+ * This file is also the master the tab icons are cut from. The favicon set is
+ * a separate list of files in `public/`, written by
+ * `admin/scripts/admin-icons.mjs` and named in `index.html`, so re-cut them
+ * after replacing the drawing here. `admin/src/lib/favicon.test.ts` fails if
+ * this path stops resolving to something on disk.
  */
 export const LOGO_SRC = '/robin-admin.png';
