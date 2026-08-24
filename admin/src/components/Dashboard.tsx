@@ -113,12 +113,12 @@ export function Shell({
       <header className="bg-[var(--color-brand-teal)] px-4 py-3 text-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2.5">
-            {/* No background behind it. `logo.png` is the robin on an opaque
-                white disc inside its ring, with only the square's corners
-                transparent, so it carries its own ground and reads on the teal
-                unaided. Checked by rendering it over magenta rather than
-                assumed - the first draft of this line added a white disc the
-                image already had. */}
+            {/* No background behind it. `robin-admin.png` is the robin on an
+                opaque white disc inside its ring, with only the square's
+                corners transparent, so it carries its own ground and reads on
+                the teal unaided. Checked by rendering it over magenta rather
+                than assumed - the first draft of this line added a white disc
+                the image already had. */}
             <img src={LOGO_SRC} alt="" width={28} height={28} className="h-7 w-7 shrink-0" />
             <h1 className="m-0 truncate text-base font-semibold">{ADMIN_NAME}</h1>
           </span>

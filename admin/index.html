@@ -6,7 +6,14 @@
     <!-- Belt and braces on top of the database gate: nothing here should ever
          turn up in a search result, and this page has no reason to be indexed. -->
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="icon" href="/logo.png" />
+    <!-- The dashboard's own robin, in a collar and tie with a calculator, so
+         this tab is not mistaken for the app's. The same file is the mark in
+         the header and on the sign-in page, which is why it is not named for
+         the favicon: `LOGO_SRC` in src/lib/appInfo.ts reads the 256 too. The
+         32 is here because that is the size a tab actually draws, and a cut
+         made at that size beats one the browser makes on the way past. -->
+    <link rel="icon" href="/robin-admin-32.png" sizes="32x32" />
+    <link rel="icon" href="/robin-admin.png" sizes="256x256" />
     <title>RoundRobinator Admin</title>
 
     <!--

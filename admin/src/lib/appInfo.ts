@@ -16,8 +16,16 @@
 export const ADMIN_NAME = 'RoundRobinator Admin';
 
 /**
- * The robin badge, copied from the app's `public/logo.png` rather than linked.
- * A cross-project URL would make this page depend on the app being up, which
- * is precisely the thing this page exists to tell you about.
+ * The dashboard's own robin: the app's bird in a collar and tie, with a
+ * calculator under its wing. It is a separate drawing rather than the app's
+ * `public/logo.png`, so a tab, a header and a sign-in page all say which of
+ * the two sites you are looking at.
+ *
+ * Local rather than a cross-project URL. Pulling it from the app would make
+ * this page depend on the app being up, which is precisely the thing this page
+ * exists to tell you about.
+ *
+ * `index.html` names the same file again for the favicon. Static HTML cannot
+ * import, so that copy is unavoidable.
  */
-export const LOGO_SRC = '/logo.png';
+export const LOGO_SRC = '/robin-admin.png';
