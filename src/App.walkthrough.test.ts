@@ -7280,41 +7280,89 @@ describe('Generate builds what Setup shows', () => {
     expect(JSON.parse(window.localStorage.getItem('pb-selected-ids') ?? '[]')).toHaveLength(9);
   });
 
-  it('seats a standing couple at the head of the grid, and unchecking one frees both', () => {
+  it('keeps a couple in their alphabetical seats, linked instead of ticked', () => {
     mount();
     clickButton(/^Continue to Setup/);
     clickButton(/^Set Partners$/);
     clickButton(/^Ava/);
-    clickButton(/^Ben/);
+    clickButton(/^Cara/);
     clickButton(/^Done Pairing$/);
 
-    // The couple heads the grid, a box apiece with the link between them,
-    // both ticked, and the Partners panel above still lists them. Every
-    // name in the count is now a box on the page.
+    // Ava and Cara sit exactly where the alphabet puts them, Ben still
+    // between them, in the couple's colours with a link where the checkbox
+    // was. Nothing about the couple can be ticked or unticked on this grid.
     const panel = container.querySelector('[data-tutorial="select-players"]')!;
-    const boxes = () =>
-      [...panel.querySelectorAll('label')].filter((l) =>
-        l.querySelector('input[type="checkbox"]')
-      );
-    expect(boxes().slice(0, 2).map((l) => text(l))).toEqual(['Ava', 'Ben']);
-    for (const l of boxes().slice(0, 2)) {
-      expect((l.querySelector('input') as HTMLInputElement).checked).toBe(true);
+    const cells = () => [...panel.querySelectorAll<HTMLElement>('.grid > *')];
+    const order = ['Ava', 'Ben', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy'];
+    expect(cells().length).toBe(9);
+    order.forEach((name, i) => {
+      expect(text(cells()[i]), name).toMatch(new RegExp(`^${name}`));
+    });
+    const cell = (name: string) => cells().find((el) => text(el).startsWith(name))!;
+    for (const name of ['Ava', 'Cara']) {
+      expect(cell(name).querySelector('input'), name).toBeNull();
+      expect(cell(name).className, name).toContain('border-indigo-300');
+      expect(cell(name).querySelector('svg'), name).not.toBeNull();
     }
-    expect(container.textContent).toContain('Partners');
+    expect((cell('Ben').querySelector('input') as HTMLInputElement).checked).toBe(true);
+    // Both halves still count: pairing changed no ticks.
+    expect(text(panel)).toContain('9 of 8 Spots Filled');
+  });
 
-    // Unticking one breaks the couple: nothing left on file, both back in the
-    // alphabetical list with the gender and rating on the row, and only the
-    // tapped box out of the count.
-    tickBox('Ben');
+  it('says why a linked box cannot be unticked, until the link is broken above', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Set Partners$/);
+    clickButton(/^Ava/);
+    clickButton(/^Cara/);
+    clickButton(/^Done Pairing$/);
+
+    const panel = container.querySelector('[data-tutorial="select-players"]')!;
+    const cell = (name: string) =>
+      [...panel.querySelectorAll<HTMLElement>('.grid > *')].find((el) =>
+        text(el).startsWith(name)
+      )!;
+    const note = () =>
+      [...panel.querySelectorAll<HTMLElement>('.grid > *')].find((el) =>
+        text(el).includes('Unlink partner above to uncheck them')
+      );
+
+    // Tapping a linked box explains itself, directly under that box.
+    act(() => {
+      cell('Ava').click();
+    });
+    expect(note()).toBeTruthy();
+    expect(cell('Ava').nextElementSibling).toBe(note());
+
+    // The note follows the finger to the other half.
+    act(() => {
+      cell('Cara').click();
+    });
+    expect(cell('Cara').nextElementSibling).toBe(note());
+
+    // A tap anywhere else takes it away.
+    act(() => {
+      panel.querySelector('h3')!.click();
+    });
+    expect(note()).toBeUndefined();
+
+    // Broken above while the note is up: the note goes with the link, and
+    // the couple get their checkboxes back, still ticked.
+    act(() => {
+      cell('Ava').click();
+    });
+    expect(note()).toBeTruthy();
+    const unlink = container.querySelector('[aria-label="Separate Ava and Cara"]') as HTMLElement;
+    act(() => {
+      unlink.click();
+    });
+    expect(note()).toBeUndefined();
     expect(JSON.parse(window.localStorage.getItem('pb-partnerships') ?? '[]')).toEqual([]);
-    expect(text(boxes()[0])).toMatch(/^Ava/);
-    expect(text(boxes()[1])).toMatch(/^Ben/);
-    const box = (name: string) =>
-      boxes()
-        .find((l) => text(l).startsWith(name))!
-        .querySelector('input') as HTMLInputElement;
-    expect(box('Ava').checked).toBe(true);
-    expect(box('Ben').checked).toBe(false);
+    for (const name of ['Ava', 'Cara']) {
+      const input = cell(name).querySelector('input') as HTMLInputElement;
+      expect(input, name).not.toBeNull();
+      expect(input.checked, name).toBe(true);
+    }
   });
 
   it('builds the couple onto the schedule with everybody else ticked', () => {

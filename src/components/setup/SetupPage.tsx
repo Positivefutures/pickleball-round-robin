@@ -110,19 +110,13 @@ export function SetupPage({
 
   const selectedPlayers = players.filter((p) => selectedIds.includes(p.id));
 
-  // Couples head the checkbox grid as linked cells, in the Partners panel's
-  // colours, and the panel above lists them too — Jeff's call on 2026-08-25,
-  // after a host counting checkboxes shipped every standing couple on top of
-  // his count. A ticked box the host cannot see is what that was; now every
-  // name in the number is a box on the page.
+  // A couple's halves keep their alphabetical seats on the checkbox grid, in
+  // the Partners panel's colours with a link where the checkbox was, and only
+  // that panel can break them apart — Jeff's call on 2026-08-25, replacing a
+  // morning of pair cells at the head of the grid. Every name in the count is
+  // still a box on the page, and a linked box can only be counted in.
   const pairs = resolvePairs(partnerships, selectedPlayers);
 
-  // Unticking half a couple: the link goes, both drop back into the list,
-  // and only the box that was tapped comes out of the count.
-  function handleUnpairTick(id1: string, id2: string, tapped: string) {
-    onRemovePartnership(id1, id2);
-    onTogglePlayer(tapped);
-  }
 
   function handleGenerate() {
     if (canGenerate) {
@@ -299,7 +293,6 @@ export function SetupPage({
             selectedIds={selectedIds}
             numCourts={numCourts}
             onToggle={onTogglePlayer}
-            onUnpairTick={handleUnpairTick}
             onSelectAll={onSelectAll}
             onDeselectAll={onDeselectAll}
           />
