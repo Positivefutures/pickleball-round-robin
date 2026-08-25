@@ -7111,3 +7111,97 @@ describe('the LIVE pill', () => {
     ).not.toBeNull();
   });
 });
+
+/**
+ * Generate builds what Setup shows.
+ *
+ * The malfunction reported on 2026-08-24: names on the schedule nobody ticked.
+ * The scheduler was never the fault — pairing.containment.test.ts holds that
+ * side — the leaks were in what the button did with the press. The press key
+ * compared a list with the removals subtracted, so unticking somebody who had
+ * already gone home changed nothing and the press replayed the old afternoon;
+ * and a fresh build read the group list where every other path reads the
+ * session's, so a still-ticked guest was counted, named in the summaries, and
+ * left off the courts.
+ */
+describe('Generate builds what Setup shows', () => {
+  beforeEach(() => seed(9, 9, 2));
+
+  /** Fills a text input the way a person does, so React sees the change. */
+  function typeInto(input: HTMLInputElement, value: string) {
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  const nameBox = () => sheet().querySelector('input[type="text"]') as HTMLInputElement;
+
+  /** Everybody a round holds, courts and bench together. */
+  const roundNames = (r: Round) => [...onCourt(r), ...r.sitOuts.map((p) => p.name)];
+
+  /** Ticks or unticks one player's box on the Setup grid. */
+  function tickBox(name: string) {
+    const row = [...container.querySelectorAll('label')]
+      .filter((l) => l.querySelector('input[type="checkbox"]'))
+      .find((l) => text(l).startsWith(name));
+    if (!row) throw new Error(`no checkbox row for ${name}`);
+    click(row.querySelector('input')!);
+  }
+
+  it('really rebuilds when a removal is pending, instead of replaying the old afternoon', () => {
+    mount();
+    generate();
+    markComplete(1);
+    // Somebody on a court in round 2 goes home. Round 1 is history and keeps
+    // them; the rounds still to come are rebuilt without them.
+    const victim = onCourt(storedSchedule().rounds[1])[0];
+    takeOff(victim, 2);
+
+    parkOnSetup();
+    clickButton(/^Generate Schedule/);
+
+    // A press that rebuilt: nothing played, and the whole ticked list — the
+    // one who went home is still ticked, and the page says so — on every round.
+    expect(completedRounds()).toEqual([]);
+    const everyone = NAMES.slice(0, 9).sort();
+    for (const r of storedSchedule().rounds) {
+      expect(roundNames(r).sort(), `Round ${r.roundNumber}`).toEqual(everyone);
+    }
+  });
+
+  it('hands back the parked afternoon when nothing changed', () => {
+    mount();
+    generate();
+    markComplete(1);
+    const before = storedSchedule().rounds.map(fingerprint);
+
+    parkOnSetup();
+    clickButton(/^Generate Schedule/);
+
+    // The same schedule, rounds played and all. A press that changed nothing
+    // must not throw away an afternoon.
+    expect(completedRounds()).toEqual([1]);
+    expect(storedSchedule().rounds.map(fingerprint)).toEqual(before);
+  });
+
+  it('puts a still-ticked guest on the new schedule rather than counting a name it leaves off', () => {
+    mount();
+    generate();
+    action(/^Add Guest$/);
+    typeInto(nameBox(), 'Sam');
+    clickButton(/^Add Guest$/, sheet());
+
+    parkOnSetup();
+    // A real change, so the press is a rebuild and not a replay.
+    tickBox('Ben');
+    clickButton(/^Generate Schedule/);
+
+    // Sam was ticked, so Sam plays. Exactly the ticked list, nobody else.
+    const expected = ['Ava', 'Cara', 'Dan', 'Eve', 'Finn', 'Gus', 'Hana', 'Ivy', 'Sam'].sort();
+    for (const r of storedSchedule().rounds) {
+      expect(roundNames(r).sort(), `Round ${r.roundNumber}`).toEqual(expected);
+    }
+  });
+});

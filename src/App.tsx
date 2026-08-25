@@ -750,9 +750,19 @@ function App() {
     if (tour?.id === 'actions') nextCard();
   }, [tour]);
 
+  /**
+   * Who Generate builds from: everybody ticked, guests included. One list,
+   * shared with the press comparison and with attendingPlayers below, so what
+   * the button builds, what the key describes and what the page shows can
+   * never disagree about membership. removedIds is deliberately not
+   * subtracted: a fresh schedule has no removals, and clearing them is one of
+   * the first things a build does.
+   */
+  const generatePlayers = sessionPlayers.filter((p) => selectedIds.includes(p.id));
+
   // Setup's Generate: a brand new schedule, starting the session over.
   const handleGenerate = useCallback(() => {
-    const attending = rosterPlayers.filter((p) => selectedIds.includes(p.id));
+    const attending = generatePlayers;
     if (attending.length < 4) return;
     // The box above the button has been answered by the press.
     setPromptGenerate(false);
@@ -791,12 +801,12 @@ function App() {
     // too few ticked for the courts — leaves the card where it was, with the
     // error underneath it saying why.
     if (tour?.id === 'select-players') nextCard();
-  }, [rosterPlayers, selectedIds, partnerships, numCourts, numRounds, roundPlan, planDraft,
+  }, [generatePlayers, partnerships, numCourts, numRounds, roundPlan, planDraft,
       activeRosterId, tour, setSchedule, setCompletedRounds, setRemovedIds, setRoundPlan,
       setScheduleEdited, setScheduleRosterId, setSessionId, setStep, setSubPartnerships]);
 
-  const attendingPlayers = sessionPlayers.filter(
-    (p) => selectedIds.includes(p.id) && !removedIds.includes(p.id)
+  const attendingPlayers = generatePlayers.filter(
+    (p) => !removedIds.includes(p.id)
   );
 
   /** The session as it stands, in the shape the basis key is made from. */
@@ -836,8 +846,18 @@ function App() {
    * committed plan, so the comparison has to as well: a host with the list open
    * and a round changed is looking at something the parked schedule does not
    * match, whatever the store still says.
+   *
+   * The same goes for who: the build takes everybody ticked and clears the
+   * removals, so the comparison reads generatePlayers rather than
+   * attendingPlayers. Compared minus the removals, unticking somebody who had
+   * already gone home changed nothing, and the press handed back a schedule
+   * that still contained them — the malfunction reported on 2026-08-24.
    */
-  const pressBasis = { ...liveBasis, roundPlan: planDraft ?? roundPlan };
+  const pressBasis = {
+    ...liveBasis,
+    attending: generatePlayers,
+    roundPlan: planDraft ?? roundPlan,
+  };
   /**
    * Whether the parked schedule is the one this press would have built, and so
    * whether Generate hands it back rather than making another.
