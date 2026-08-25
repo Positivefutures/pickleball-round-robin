@@ -26,10 +26,11 @@ export function PlayerSelector({
 }: Props) {
   const pairedIds = new Set(pairs.flatMap((pr) => [pr.p1.id, pr.p2.id]));
   /**
-   * The linked box last tapped, which is where the why-not note sits. A tap
-   * anywhere else clears it: the note is an answer to one press, not a state
-   * of the page. Checked against pairedIds before use, so breaking the link
-   * in the panel above takes the note with it.
+   * The linked box last tapped, which is where the why-not note sits. The
+   * same box tapped again, or a tap anywhere else, clears it: the note is an
+   * answer to one press, not a state of the page. Checked against pairedIds
+   * before use, so breaking the link in the panel above takes the note with
+   * it.
    */
   const [hintFor, setHintFor] = useState<string | null>(null);
   const hintId = hintFor && pairedIds.has(hintFor) ? hintFor : null;
@@ -86,7 +87,7 @@ export function PlayerSelector({
                     // it from one linked box to another would hide and show
                     // in the same press.
                     e.stopPropagation();
-                    setHintFor(player.id);
+                    setHintFor((cur) => (cur === player.id ? null : player.id));
                   }}
                   className="flex items-center gap-2 p-2.5 rounded-md border border-indigo-300 bg-indigo-50 text-left"
                 >

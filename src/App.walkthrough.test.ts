@@ -7334,6 +7334,17 @@ describe('Generate builds what Setup shows', () => {
     expect(note()).toBeTruthy();
     expect(cell('Ava').nextElementSibling).toBe(note());
 
+    // The same box tapped again puts the note away, and a third tap brings
+    // it back.
+    act(() => {
+      cell('Ava').click();
+    });
+    expect(note()).toBeUndefined();
+    act(() => {
+      cell('Ava').click();
+    });
+    expect(note()).toBeTruthy();
+
     // The note follows the finger to the other half.
     act(() => {
       cell('Cara').click();
