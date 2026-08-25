@@ -7279,4 +7279,65 @@ describe('Generate builds what Setup shows', () => {
     }
     expect(JSON.parse(window.localStorage.getItem('pb-selected-ids') ?? '[]')).toHaveLength(9);
   });
+
+  it('seats a standing couple at the head of the grid, and unchecking one frees both', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Set Partners$/);
+    clickButton(/^Ava/);
+    clickButton(/^Ben/);
+    clickButton(/^Done Pairing$/);
+
+    // The couple heads the grid as one linked cell, both boxes ticked, and
+    // the Partners panel above still lists them. Every name in the count is
+    // now a box on the page.
+    const panel = container.querySelector('[data-tutorial="select-players"]')!;
+    const boxes = () =>
+      [...panel.querySelectorAll('label')].filter((l) =>
+        l.querySelector('input[type="checkbox"]')
+      );
+    expect(boxes().slice(0, 2).map((l) => text(l))).toEqual(['Ava', 'Ben']);
+    for (const l of boxes().slice(0, 2)) {
+      expect((l.querySelector('input') as HTMLInputElement).checked).toBe(true);
+    }
+    expect(container.textContent).toContain('Partners');
+
+    // Unticking one breaks the couple: nothing left on file, both back in the
+    // alphabetical list with the gender and rating on the row, and only the
+    // tapped box out of the count.
+    tickBox('Ben');
+    expect(JSON.parse(window.localStorage.getItem('pb-partnerships') ?? '[]')).toEqual([]);
+    expect(text(boxes()[0])).toMatch(/^Ava/);
+    expect(text(boxes()[1])).toMatch(/^Ben/);
+    const box = (name: string) =>
+      boxes()
+        .find((l) => text(l).startsWith(name))!
+        .querySelector('input') as HTMLInputElement;
+    expect(box('Ava').checked).toBe(true);
+    expect(box('Ben').checked).toBe(false);
+  });
+
+  it('builds the couple onto the schedule with everybody else ticked', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Set Partners$/);
+    clickButton(/^Ava/);
+    clickButton(/^Ben/);
+    clickButton(/^Done Pairing$/);
+    clickButton(/^Generate Schedule/);
+
+    const everyone = NAMES.slice(0, 9).sort();
+    for (const r of storedSchedule().rounds) {
+      expect(roundNames(r).sort(), `Round ${r.roundNumber}`).toEqual(everyone);
+      // The couple plays as one wherever both are on court. One of them alone
+      // on the bench is allowed — a bench one seat wide splits a pair.
+      const courtNames = onCourt(r);
+      if (courtNames.includes('Ava') && courtNames.includes('Ben')) {
+        const team = r.courts
+          .flatMap((c) => [c.team1, c.team2])
+          .find((t) => t.some((pl) => pl.name === 'Ava'))!;
+        expect(team.map((pl) => pl.name)).toContain('Ben');
+      }
+    }
+  });
 });

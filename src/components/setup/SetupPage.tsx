@@ -110,12 +110,19 @@ export function SetupPage({
 
   const selectedPlayers = players.filter((p) => selectedIds.includes(p.id));
 
-  // Paired players are listed in the pairs panel instead of the checkbox grid,
-  // so the two views never show the same player twice. Unlinking a pair drops
-  // both back into the grid, still selected.
+  // Couples head the checkbox grid as linked cells, in the Partners panel's
+  // colours, and the panel above lists them too — Jeff's call on 2026-08-25,
+  // after a host counting checkboxes shipped every standing couple on top of
+  // his count. A ticked box the host cannot see is what that was; now every
+  // name in the number is a box on the page.
   const pairs = resolvePairs(partnerships, selectedPlayers);
-  const pairedIds = new Set(pairs.flatMap((pr) => [pr.p1.id, pr.p2.id]));
-  const selectablePlayers = players.filter((p) => !pairedIds.has(p.id));
+
+  // Unticking half a couple: the link goes, both drop back into the list,
+  // and only the box that was tapped comes out of the count.
+  function handleUnpairTick(id1: string, id2: string, tapped: string) {
+    onRemovePartnership(id1, id2);
+    onTogglePlayer(tapped);
+  }
 
   function handleGenerate() {
     if (canGenerate) {
@@ -287,10 +294,12 @@ export function SetupPage({
       >
         {mode === 'select' ? (
           <PlayerSelector
-            players={selectablePlayers}
+            players={players}
+            pairs={pairs}
             selectedIds={selectedIds}
             numCourts={numCourts}
             onToggle={onTogglePlayer}
+            onUnpairTick={handleUnpairTick}
             onSelectAll={onSelectAll}
             onDeselectAll={onDeselectAll}
           />
