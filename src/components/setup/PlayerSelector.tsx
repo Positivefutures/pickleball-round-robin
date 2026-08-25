@@ -63,14 +63,15 @@ export function PlayerSelector({
         <SpotsFilled numPlayers={selectedIds.length} numCourts={numCourts} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {/* Couples first, each as one cell in the Partners panel's colours, so
-            a box counted in the number above is always a box on this grid.
-            Names only: two of everything else would not fit the width, and the
-            couple's own panel above already reads the same way. */}
+        {/* Couples first, a box apiece in the Partners panel's colours with
+            the link drawn in the gap between them, so a box counted in the
+            number above is always a box on this grid. Names only: half a
+            column will not take the gender and rating too, and the couple's
+            own panel above already reads the same way. */}
         {pairs.map(({ p1, p2 }) => (
           <div
             key={`${p1.id}|${p2.id}`}
-            className="col-span-2 flex items-center gap-2 p-2.5 rounded-md border border-indigo-300 bg-indigo-50"
+            className="col-span-2 flex items-center gap-1"
           >
             {[p1, p2].map((member, i) => (
               <Fragment key={member.id}>
@@ -79,7 +80,7 @@ export function PlayerSelector({
                     <LinkIcon className="w-4 h-4" />
                   </span>
                 )}
-                <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                <label className="flex flex-1 min-w-0 items-center gap-2 p-2.5 rounded-md border border-indigo-300 bg-indigo-50 cursor-pointer">
                   <input
                     type="checkbox"
                     checked

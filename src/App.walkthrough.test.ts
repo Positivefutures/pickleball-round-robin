@@ -7288,9 +7288,9 @@ describe('Generate builds what Setup shows', () => {
     clickButton(/^Ben/);
     clickButton(/^Done Pairing$/);
 
-    // The couple heads the grid as one linked cell, both boxes ticked, and
-    // the Partners panel above still lists them. Every name in the count is
-    // now a box on the page.
+    // The couple heads the grid, a box apiece with the link between them,
+    // both ticked, and the Partners panel above still lists them. Every
+    // name in the count is now a box on the page.
     const panel = container.querySelector('[data-tutorial="select-players"]')!;
     const boxes = () =>
       [...panel.querySelectorAll('label')].filter((l) =>
