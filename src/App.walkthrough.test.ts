@@ -239,6 +239,12 @@ function onCourt(round: Round): string[] {
 
 function generate() {
   clickButton(/^Continue to Setup/);
+  // With an afternoon already on the board the button asks first. Tests that
+  // need one still standing on Setup park there instead — see parkOnSetup —
+  // so a yes here can never mask what a test meant to keep.
+  if (/Return to Setup\?/.test(container.textContent ?? '')) {
+    clickButton(/^Go to /);
+  }
   clickButton(/^Generate Schedule/);
 }
 
@@ -7203,5 +7209,74 @@ describe('Generate builds what Setup shows', () => {
     for (const r of storedSchedule().rounds) {
       expect(roundNames(r).sort(), `Round ${r.roundNumber}`).toEqual(expected);
     }
+  });
+
+  it('asks at Continue to Setup when an afternoon is on the board', () => {
+    mount();
+    generate();
+    markComplete(1);
+    clickButton(/^1\. Players$/);
+    clickButton(/^Continue to Setup/);
+    expect(container.textContent).toContain('Return to Setup?');
+
+    // Keeping it keeps all of it.
+    clickButton(/^Keep Schedule$/);
+    expect(storedSchedule()).not.toBeNull();
+    expect(completedRounds()).toEqual([1]);
+
+    // A yes ends the afternoon and keeps the crowd, the way the tab's door does.
+    clickButton(/^Continue to Setup/);
+    clickButton(/^Go to Setup$/);
+    expect(storedSchedule()).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem('pb-selected-ids') ?? '[]')).toHaveLength(9);
+  });
+
+  it("cannot show last session's schedule for a walk back through Players", () => {
+    mount();
+    generate();
+    markComplete(1);
+    const victim = onCourt(storedSchedule().rounds[1])[0];
+    takeOff(victim, 2);
+
+    // The reported walk: Schedule to Players to Continue to Setup, untick the
+    // one who went home, press Generate. Three presses used to give the same
+    // wrong answer, because not one of them built anything.
+    clickButton(/^1\. Players$/);
+    clickButton(/^Continue to Setup/);
+    if (/Return to Setup\?/.test(container.textContent ?? '')) {
+      clickButton(/^Go to Setup$/);
+    }
+    tickBox(victim);
+    clickButton(/^Generate Schedule/);
+
+    expect(completedRounds()).toEqual([]);
+    const expected = NAMES.slice(0, 9).filter((n) => n !== victim).sort();
+    for (const r of storedSchedule().rounds) {
+      expect(roundNames(r).sort(), `Round ${r.roundNumber}`).toEqual(expected);
+    }
+  });
+
+  it('clears a lingering guest at the door rather than carrying the name along', () => {
+    mount();
+    generate();
+    action(/^Add Guest$/);
+    typeInto(nameBox(), 'Sam');
+    clickButton(/^Add Guest$/, sheet());
+
+    clickButton(/^1\. Players$/);
+    clickButton(/^Continue to Setup/);
+    if (/Return to Setup\?/.test(container.textContent ?? '')) {
+      clickButton(/^Go to Setup$/);
+    }
+    clickButton(/^Generate Schedule/);
+
+    // The guest went with the afternoon: not on the sheet, not in the
+    // summaries, not ticked anywhere the next build reads.
+    expect(storedGuests()).toEqual([]);
+    expect(container.textContent).not.toContain('Sam');
+    for (const r of storedSchedule().rounds) {
+      expect(roundNames(r)).not.toContain('Sam');
+    }
+    expect(JSON.parse(window.localStorage.getItem('pb-selected-ids') ?? '[]')).toHaveLength(9);
   });
 });

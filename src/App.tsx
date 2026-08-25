@@ -1683,7 +1683,10 @@ function App() {
     clearSession(true);
     setStep(pendingLeave);
     setPendingLeave(null);
-  }, [pendingLeave, clearSession, setStep]);
+    // Continue to Setup during the players tour can land here now, and the
+    // card the button was handed still has to move with the press.
+    if (tour?.id === 'players' && pendingLeave === 'setup') nextCard();
+  }, [pendingLeave, clearSession, setStep, tour]);
 
   // The install offer waits for a roster worth keeping. Four players is a group
   // somebody has typed in by hand, and the first point at which losing it would
@@ -1919,6 +1922,16 @@ function App() {
             onAddPlayersToRosters={addPlayersToRosters}
             onDeletePlayer={handleRosterDeletePlayer}
             onContinue={() => {
+              // The same door the Setup tab is. With an afternoon on the board
+              // the press asks, and a yes is what ends the session. Walking on
+              // through this button used to keep the old afternoon live under
+              // a page that showed no sign of it, which is how a Generate
+              // press could answer with last session's schedule. Before the
+              // player count, for the reason handleStepNav gives.
+              if (schedule) {
+                setPendingLeave('setup');
+                return;
+              }
               // The button is greyed rather than disabled below four, so this
               // is where the press is answered. See TooFewPlayersDialog.
               if (rosterPlayers.length < 4) {
