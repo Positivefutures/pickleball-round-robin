@@ -6670,16 +6670,37 @@ describe('a linked player', () => {
 describe('a padlock clicked on by hand', () => {
   beforeEach(() => seed(10, 9, 2));
 
-  /** Locks the first pair on Round 1 and returns their two names. */
-  function lockFirstPair(): string[] {
-    const card = roundCard(1);
-    const lock = card.querySelector('[aria-label="Lock pair"]') as HTMLElement;
+  /**
+   * Locks one pair on a round and returns their two names.
+   *
+   * The padlocks come in the order they are drawn: court 1's top side, court 1's
+   * bottom side, court 2's top side, and so on down the card.
+   */
+  function lockPair(nth = 0, round = 1): string[] {
+    const card = roundCard(round);
+    const lock = [...card.querySelectorAll('[aria-label="Lock pair"]')][nth] as HTMLElement;
+    if (!lock) throw new Error(`no ${nth}th free pair on round ${round}`);
     const column = lock.parentElement as HTMLElement;
     const names = [...column.children]
       .filter((el) => el !== lock && el.tagName === 'BUTTON')
       .map((el) => NAMES.find((n) => text(el).startsWith(n)) ?? '?');
     click(lock);
     return names;
+  }
+
+  /** Locks the first pair on a round and returns their two names. */
+  function lockFirstPair(round = 1): string[] {
+    return lockPair(0, round);
+  }
+
+  /** Whether two players share a team anywhere on a round. */
+  function together(roundNumber: number, a: string, b: string): boolean {
+    const round = storedSchedule().rounds.find((r) => r.roundNumber === roundNumber)!;
+    return round.courts.some((c) =>
+      [c.team1, c.team2].some(
+        (t) => t.some((p) => p.name === a) && t.some((p) => p.name === b)
+      )
+    );
   }
 
   function padlockedNames(round = 1): string[] {
@@ -6721,6 +6742,120 @@ describe('a padlock clicked on by hand', () => {
       expect(round.courts, `round ${round.roundNumber}`).toHaveLength(2);
       expect(round.sitOuts, `round ${round.roundNumber}`).toHaveLength(0);
     }
+  });
+
+  it('holds its pair through somebody else going home', () => {
+    mount();
+    generate();
+    const [first, second] = lockFirstPair();
+
+    // Anybody but the two the padlock names. Their leaving rebuilds every round
+    // still to be played, and the padlock is an instruction to that rebuild
+    // rather than a note about where people happened to be standing.
+    const leaver = onCourt(storedSchedule().rounds[0]).find(
+      (name) => name !== first && name !== second
+    )!;
+    takeOff(leaver, 1);
+
+    expect(together(1, first, second)).toBe(true);
+    const names = padlockedNames(1);
+    expect(names).toContain(first);
+    expect(names).toContain(second);
+  });
+
+  it('holds a pair locked on a later round too', () => {
+    mount();
+    generate();
+    const [first, second] = lockFirstPair(3);
+
+    const leaver = onCourt(storedSchedule().rounds[2]).find(
+      (name) => name !== first && name !== second
+    )!;
+    takeOff(leaver, 3);
+
+    expect(together(3, first, second)).toBe(true);
+    expect(padlockedNames(3)).toEqual(expect.arrayContaining([first, second]));
+  });
+
+  it('leaves every round playable after the removal it survived', () => {
+    mount();
+    generate();
+    lockFirstPair();
+
+    takeOff(onCourt(storedSchedule().rounds[0])[3], 1);
+
+    // Eight left and two courts: everybody plays every round. A padlock handed
+    // to the rebuild naming somebody who is not there costs the whole round.
+    for (const round of storedSchedule().rounds) {
+      expect(round.courts, `round ${round.roundNumber}`).toHaveLength(2);
+      expect(round.sitOuts, `round ${round.roundNumber}`).toHaveLength(0);
+    }
+  });
+
+  it('holds its pair when another court is taken away', () => {
+    seed(12, 12, 3);
+    mount();
+    generate();
+    // The last court, so the one that goes is below them and every court left
+    // slides up a place. A padlock read off the place alone would land on
+    // whoever is standing there now, which is nobody it was set on.
+    const [first, second] = lockPair(4);
+
+    action(/^Remove Court$/);
+    clickButton(/^COURT 1/, sheet());
+
+    expect(together(1, first, second)).toBe(true);
+    expect(padlockedNames(1)).toEqual(expect.arrayContaining([first, second]));
+  });
+
+  it('lets its pair go when their own court is taken away', () => {
+    seed(12, 12, 3);
+    mount();
+    generate();
+    const [first, second] = lockFirstPair();
+
+    action(/^Remove Court$/);
+    clickButton(/^COURT 1/, sheet());
+
+    // Both of them are on the bench and there is nothing left to hold together.
+    expect(padlockedNames(1)).toEqual([]);
+    expect(storedSchedule().rounds[0].sitOuts.map((p) => p.name)).toEqual(
+      expect.arrayContaining([first, second])
+    );
+  });
+
+  it('leaves the rounds playable when one of its own pair goes home', () => {
+    mount();
+    generate();
+    const [first] = lockFirstPair();
+
+    takeOff(first, 1);
+
+    // The padlock named somebody who is now not in the room, so it goes with
+    // them. Handed to the rebuild as it stood, it would cost every round: the
+    // scheduler throws away each attempt it makes at a round it cannot fill and
+    // returns one with no courts on it and everybody stood on the side.
+    for (const round of storedSchedule().rounds) {
+      expect(round.courts, `round ${round.roundNumber}`).toHaveLength(2);
+      expect(round.sitOuts, `round ${round.roundNumber}`).toHaveLength(0);
+    }
+  });
+
+  it('comes off with one tap after its court has moved under it', () => {
+    seed(12, 12, 3);
+    mount();
+    generate();
+    lockPair(4);
+
+    action(/^Remove Court$/);
+    clickButton(/^COURT 1/, sheet());
+
+    // The padlock is drawn where the pair are standing now, so the tap that
+    // takes it off arrives at a seat the padlock was not set on. It is still
+    // the same padlock, and one tap is still all it takes.
+    click([...roundCard(1).querySelectorAll('[aria-label="Unlock pair"]')][0]);
+
+    expect(padlockedNames(1)).toEqual([]);
   });
 
   it('never lands on a pair the host did not lock', () => {

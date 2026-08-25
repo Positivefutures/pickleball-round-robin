@@ -97,7 +97,16 @@ interface Props {
   ) => void;
   onUpdateSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
-  onRemovePlayer: (playerId: string) => void;
+  /**
+   * Somebody going home. The padlocks and the couples broken for a single round
+   * travel with the call, because the rounds still to come are rebuilt around
+   * the smaller group and this page is the only place either is written down.
+   */
+  onRemovePlayer: (
+    playerId: string,
+    locks: Record<number, LockedPair[]>,
+    brokenPairs: Record<number, string[]>
+  ) => void;
   /** Name, rating and gender, saved against the player and written through the rounds. */
   onEditPlayer: (playerId: string, name: string, rating: number, gender: Gender) => void;
   /** False once the host has closed the swap hint, which is remembered for good. */
@@ -178,26 +187,46 @@ function partnershipLocksForRound(
 }
 
 /**
- * The padlocks on a round that still mean what they said.
+ * The padlocks on a round, each pointed at where its pair is standing now.
  *
- * A padlock the host set by hand names two players and a place. Both can come
- * apart underneath it: a player is subbed off, or somebody goes home and the
- * remaining rounds are rebuilt around the smaller group, which leaves the same
- * court and side holding two entirely different people.
+ * A padlock the host set by hand names two players and a place, and the place
+ * can move underneath it. A court arriving or leaving shuffles the rounds still
+ * to be played, and on a night with couples in it the solver that keeps a
+ * padlocked pair together is free to choose which court it puts them on.
  *
- * Neither is cosmetic. The padlock is drawn from the place alone, so a stale one
- * appears around a pair the host never locked; and the scheduler, handed a lock
- * naming somebody who is not there, throws away every attempt it makes and
- * returns a round with no courts on it and everybody sitting out. So a lock is
- * only honoured while the two it names are still standing where it left them.
+ * The pair is what the host locked, so the pair is what is followed: a padlock
+ * is re-read off wherever those two are sitting together, and only let go when
+ * they are not sitting together at all. That last case is not cosmetic. The
+ * padlock is drawn from the place, so a stale one appears around a pair the host
+ * never locked; and the scheduler, handed a lock naming somebody who is not
+ * there, throws away every attempt it makes and returns a round with no courts
+ * on it and everybody sitting out.
  */
-function locksInPlace(round: Round, roundLocks: LockedPair[]): LockedPair[] {
-  return roundLocks.filter((lp) => {
-    const team = round?.courts[lp.courtIdx]?.[lp.team];
-    if (team?.length !== 2) return false;
-    const here = new Set([team[0].id, team[1].id]);
-    return here.has(lp.player1Id) && here.has(lp.player2Id);
-  });
+function locksNow(round: Round | undefined, roundLocks: LockedPair[]): LockedPair[] {
+  const result: LockedPair[] = [];
+  for (const lp of roundLocks) {
+    const at = seatOfPair(round, lp.player1Id, lp.player2Id);
+    if (at) result.push({ ...lp, ...at });
+  }
+  return result;
+}
+
+/** Where two players are sitting together on a round, if they are. */
+function seatOfPair(
+  round: Round | undefined,
+  player1Id: string,
+  player2Id: string
+): { courtIdx: number; team: 'team1' | 'team2' } | null {
+  if (!round) return null;
+  for (let courtIdx = 0; courtIdx < round.courts.length; courtIdx++) {
+    for (const team of ['team1', 'team2'] as const) {
+      const t = round.courts[courtIdx][team];
+      if (t.length !== 2) continue;
+      const here = new Set([t[0].id, t[1].id]);
+      if (here.has(player1Id) && here.has(player2Id)) return { courtIdx, team };
+    }
+  }
+  return null;
 }
 
 /** A partnerKey with one member swapped out, or unchanged if they are not in it. */
@@ -450,7 +479,7 @@ export function SchedulePage({
 
   function handleConfirmRemove() {
     if (!removeCandidate) return;
-    onRemovePlayer(removeCandidate.id);
+    removePlayer(removeCandidate.id);
     setRemoveCandidate(null);
     clearTaps();
   }
@@ -490,8 +519,12 @@ export function SchedulePage({
 
     setLocks((prev) => {
       const roundLocks = prev[roundIdx] || [];
+      // Found by who is sitting there rather than by the seat. A padlock keeps
+      // the place it was set on until something moves the pair, and the tap that
+      // takes it off again has to reach it wherever it has got to since.
+      const here = new Set(teamPlayers.map((p) => p.id));
       const existingIdx = roundLocks.findIndex(
-        (lp) => lp.courtIdx === courtIdx && lp.team === team
+        (lp) => here.has(lp.player1Id) && here.has(lp.player2Id)
       );
 
       if (existingIdx >= 0) {
@@ -506,9 +539,6 @@ export function SchedulePage({
         return newLocks;
       } else {
         // Lock: capture current player IDs
-        const round = schedule.rounds[roundIdx];
-        const court = round.courts[courtIdx];
-        const teamPlayers = court[team];
         if (teamPlayers.length !== 2) return prev;
 
         const newLock: LockedPair = {
@@ -734,11 +764,43 @@ export function SchedulePage({
     });
   }
 
-  // Somebody going home needs no padlocks swept up after them. locksInPlace is
-  // the one rule, and it covers this and more: the removal rebuilds every round
-  // still to be played, so a padlock is not stale merely because it names a
-  // player who has left, it is stale because the place it was put on now holds
-  // two different people. A sweep keyed on who went home would miss that.
+  /**
+   * Every padlock that still names two people who are here, at the seat they
+   * are on now, ready to be handed to a rebuild.
+   *
+   * A stale one is worse than useless: the scheduler, given a lock naming
+   * somebody who is not in the room, throws away every attempt it makes at that
+   * round and hands back a round with no courts on it and everybody sitting out.
+   *
+   * `leavingId` is the player on their way home, who is still in the schedule
+   * this reads. A padlock naming them cannot be honoured by a rebuild they are
+   * not in, so it goes with them.
+   */
+  function livePadlocks(leavingId?: string): Record<number, LockedPair[]> {
+    const live: Record<number, LockedPair[]> = {};
+    for (const [key, roundLocks] of Object.entries(locks)) {
+      const roundIdx = Number(key);
+      const kept = locksNow(schedule.rounds[roundIdx], roundLocks).filter(
+        (lp) => lp.player1Id !== leavingId && lp.player2Id !== leavingId
+      );
+      if (kept.length > 0) live[roundIdx] = kept;
+    }
+    return live;
+  }
+
+  /**
+   * Somebody going home, with the work on the screen sent after them.
+   *
+   * The rounds still to be played are rebuilt around the smaller group, and the
+   * rebuild is the page's own to feed: the padlocks and the couples broken for a
+   * single round are held here and nowhere else. Without them the rebuild is
+   * free to split a pair the host locked an hour ago, which is the one thing a
+   * padlock exists to prevent, and to quietly re-link a couple they had chosen
+   * to separate.
+   */
+  function removePlayer(playerId: string) {
+    onRemovePlayer(playerId, livePadlocks(playerId), brokenPairs);
+  }
 
   // The sheet's reshuffle is this page's reshuffle: the padlocks and the couples
   // broken for one round are held here, and a rebuild that ignored them would
@@ -746,16 +808,7 @@ export function SchedulePage({
   const sheetActions: ScheduleActions = {
     ...actions,
     onReshuffle: () => {
-      // Only the padlocks still holding the pair they were put on. See
-      // locksInPlace: a stale one hands the scheduler a player who is not here,
-      // and it answers with a round nobody is playing in.
-      const live: Record<number, LockedPair[]> = {};
-      for (const [key, roundLocks] of Object.entries(locks)) {
-        const roundIdx = Number(key);
-        const kept = locksInPlace(schedule.rounds[roundIdx], roundLocks);
-        if (kept.length > 0) live[roundIdx] = kept;
-      }
-      onRegenerate(live, brokenPairs);
+      onRegenerate(livePadlocks(), brokenPairs);
       clearTaps();
     },
     onSubstitute: (outgoingId, incomingId) => {
@@ -773,7 +826,7 @@ export function SchedulePage({
     // instead. It is this page's prop rather than App's actions object so that
     // both routes end in one call and cannot come apart.
     onRemovePlayer: (playerId) => {
-      onRemovePlayer(playerId);
+      removePlayer(playerId);
       // The rounds still to come are rebuilt around the smaller group, so a
       // pencil left showing would be sitting on a place that now holds somebody
       // else entirely, and it would open their panel.
@@ -829,7 +882,7 @@ export function SchedulePage({
       {orderedRounds.map(({ round, roundIdx, complete }) => {
         // Show ad-hoc locks plus every intact couple in this round (deduped by
         // court+team so a couple never renders as two overlapping locks).
-        const manualLocks = locksInPlace(round, locks[roundIdx] || []);
+        const manualLocks = locksNow(round, locks[roundIdx] || []);
         const partnerLocks = hasPartnerships
           ? partnershipLocksForRound(
               round, partnerships, new Set(brokenPairs[roundIdx] || [])

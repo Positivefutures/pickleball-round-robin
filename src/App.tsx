@@ -917,7 +917,17 @@ function App() {
   // Removes a player from every round that isn't marked complete and rebuilds
   // those rounds around the smaller group. Completed rounds — any subset — are
   // kept verbatim.
-  const handleRemovePlayer = useCallback((playerId: string) => {
+  //
+  // The padlocks and the couples broken for a single round come from the
+  // Schedule page, which is the only place either is held. They are the host's
+  // own instructions to a rebuild, so a rebuild is exactly when they have to be
+  // honoured: without them, one player going home would split every pair the
+  // host had pinned by hand.
+  const handleRemovePlayer = useCallback((
+    playerId: string,
+    locks: Record<number, LockedPair[]>,
+    brokenPairs: Record<number, string[]>
+  ) => {
     if (!schedule) return;
     const remaining = attendingPlayers.filter((p) => p.id !== playerId);
     if (remaining.length < 4) return;
@@ -932,7 +942,7 @@ function App() {
         schedule.rounds,
         regenerateRemaining(
           remaining, numCourts, schedule.rounds, completedRounds,
-          roundPlan, activePartnerships
+          roundPlan, activePartnerships, locks, brokenPairs
         ).rounds
       ),
     });
