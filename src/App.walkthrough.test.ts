@@ -6532,8 +6532,10 @@ describe('a linked player', () => {
 
     reshuffle();
 
-    // Every round from here on has Jo and Ben on the same team, or neither of
-    // them on a court at all. That is what a linked pair means.
+    // Every round from here on that has both of them playing has them on the
+    // same team. That is what a linked pair means. The bench here is one seat
+    // wide, so a round can also sit one of them and play the other, which is
+    // the only way a couple ever takes its turn on a bench that narrow.
     for (const round of storedSchedule().rounds) {
       const together = round.courts.some((c) =>
         [c.team1, c.team2].some(
@@ -6541,7 +6543,30 @@ describe('a linked player', () => {
         )
       );
       const playing = onCourt(round);
-      if (playing.includes('Jo') || playing.includes('Ben')) expect(together).toBe(true);
+      if (playing.includes('Jo') && playing.includes('Ben')) expect(together).toBe(true);
+    }
+  });
+
+  it('takes its turn on the bench when only one seat is going', () => {
+    seedLinked();
+
+    // Nine playing over two courts is one seat on the bench, and a couple has
+    // never fitted it: they played every round while the seven unpaired players
+    // carried every sit-out between them. They take it one at a time now.
+    const benched = storedSchedule().rounds.flatMap((r) => r.sitOuts.map((p) => p.name));
+    expect(benched.some((name) => name === 'Ava' || name === 'Ben')).toBe(true);
+
+    // And they are still a couple: whenever they are both playing they are on
+    // the same team.
+    for (const round of storedSchedule().rounds) {
+      const playing = onCourt(round);
+      if (!playing.includes('Ava') || !playing.includes('Ben')) continue;
+      const together = round.courts.some((c) =>
+        [c.team1, c.team2].some(
+          (t) => t.some((p) => p.name === 'Ava') && t.some((p) => p.name === 'Ben')
+        )
+      );
+      expect(together, `round ${round.roundNumber}`).toBe(true);
     }
   });
 

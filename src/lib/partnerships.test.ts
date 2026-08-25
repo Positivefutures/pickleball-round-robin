@@ -104,8 +104,11 @@ describe('generateSchedule with partnerships', () => {
     }
   });
 
-  it('with one sit-out, an unpaired player always sits (never a couple)', () => {
+  it('sits the spare on an all-couples night, every round', () => {
     // 13 players: 6 couples + 1 single, 3 courts -> exactly 1 sits each round.
+    // Everybody who has a partner has one, so the night is a round robin between
+    // the six teams and the fixture list decides who plays. The thirteenth is in
+    // no team, so there is no round for them to be in.
     const players = makePlayers(13);
     const partnerships = pairFirst(6);
     const single = players[12];
@@ -115,6 +118,62 @@ describe('generateSchedule with partnerships', () => {
       expect(r.sitOuts[0].id).toBe(single.id);
     }
     expect(couplesAlwaysIntact(s, partnerships)).toBe(true);
+  });
+
+  /**
+   * A bench one seat wide, on a night that is not all couples.
+   *
+   * A couple is one unit at the sit-out line, and a unit of two has never fitted
+   * a bench of one. So the couple played every round of the session and the
+   * unpaired players carried every sit-out between them, some of them twice
+   * over. On a nine-player night that is the couple getting nine games while
+   * somebody else gets seven.
+   *
+   * The couple takes the seat one at a time instead, and their partner plays the
+   * round unlinked. Two rounds and they have each had their turn.
+   */
+  describe('a couple on a one-seat bench', () => {
+    // 9 players: 1 couple + 7 singles, 2 courts -> exactly 1 sits each round.
+    const players = makePlayers(9);
+    const partnerships = pairFirst(1);
+
+    it('gives everybody exactly one sit-out over a full cycle', () => {
+      const s = generateSchedule(players, 2, 9, [], partnerships);
+      const sat = new Map(players.map((p) => [p.id, 0]));
+      for (const r of s.rounds) {
+        expect(r.sitOuts).toHaveLength(1);
+        for (const p of r.sitOuts) sat.set(p.id, sat.get(p.id)! + 1);
+      }
+      // Nine seats and nine players. Both halves of the couple are in here:
+      // before this they took none of the nine between them.
+      expect([...sat.values()]).toEqual(players.map(() => 1));
+    });
+
+    it('keeps them on the same team whenever they are both playing', () => {
+      const s = generateSchedule(players, 2, 9, [], partnerships);
+      for (const r of s.rounds) {
+        const onCourt = r.courts.flatMap((c) => [...c.team1, ...c.team2]).map((p) => p.id);
+        if (!onCourt.includes('p0') || !onCourt.includes('p1')) continue;
+        const together = r.courts.some((c) =>
+          [c.team1, c.team2].some(
+            (t) => t.some((p) => p.id === 'p0') && t.some((p) => p.id === 'p1')
+          )
+        );
+        expect(together, `round ${r.roundNumber}`).toBe(true);
+      }
+    });
+
+    it('splits them for the bench and nowhere else', () => {
+      const s = generateSchedule(players, 2, 9, [], partnerships);
+      for (const r of s.rounds) {
+        const sitIds = r.sitOuts.map((p) => p.id);
+        // One seat, so a couple can never be sat whole. Never both, and the one
+        // who is not sitting is on a court rather than lost between the two.
+        expect(sitIds).not.toEqual(expect.arrayContaining(['p0', 'p1']));
+        const everyone = [...r.courts.flatMap((c) => [...c.team1, ...c.team2]), ...r.sitOuts];
+        expect(everyone).toHaveLength(9);
+      }
+    });
   });
 
   it('with two sit-outs, couples sit out together', () => {

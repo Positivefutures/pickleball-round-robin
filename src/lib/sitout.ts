@@ -125,8 +125,8 @@ export function replacePlayerInRounds(
   });
 }
 
-// A sit-out candidate unit: a single player, or a fixed pair that must sit
-// together. Partnered players are never split across the sit-out line.
+// A sit-out candidate unit: a single player, or a fixed pair that sits together.
+// A pair is split only where it cannot be seated whole — a bench one seat wide.
 interface SitOutUnit {
   players: Player[];
   avgGames: number;
@@ -173,34 +173,37 @@ export function determineSitOuts(
   const cyclePos = new Map(cycleOrder.map((id, i) => [id, i]));
   const posOf = (p: Player) => cyclePos.get(p.id) ?? Infinity;
 
+  const games = (p: Player) => history.gamesPlayed[p.id] ?? 0;
+  const sat = (p: Player) => (previousSitOutIds ? previousSitOutIds.has(p.id) : false);
+
+  // Drawn once per player, not inside the comparator: `Math.random() - 0.5`
+  // as a comparator is a biased shuffle, and it made whoever was first in
+  // the roster sit out round 1 about twice as often as anyone else.
+  const rand = new Map(candidates.map((p) => [p.id, Math.random()]));
+
+  /** Who is owed the rest more, of two players. Sorts the one who sits first. */
+  const sitsFirst = (a: Player, b: Player) => {
+    if (games(b) !== games(a)) return games(b) - games(a);
+
+    // Avoid consecutive sit-outs: prefer sitting players who did NOT sit last round
+    if (previousSitOutIds) {
+      const aPrev = sat(a) ? 1 : 0;
+      const bPrev = sat(b) ? 1 : 0;
+      if (aPrev !== bPrev) return aPrev - bPrev; // non-previous first
+    }
+
+    // Everything else equal, sit whoever has already had this round type
+    if (missCounts && missed(a) !== missed(b)) return missed(a) - missed(b);
+
+    // Keep the established cycle order; players yet to sit rank last
+    if (posOf(a) !== posOf(b)) return posOf(a) - posOf(b);
+
+    return (rand.get(a.id) ?? 0) - (rand.get(b.id) ?? 0);
+  };
+
   // No partnerships → per-player behaviour.
   if (!partnerships || partnerships.length === 0) {
-    // Drawn once per player, not inside the comparator: `Math.random() - 0.5`
-    // as a comparator is a biased shuffle, and it made whoever was first in
-    // the roster sit out round 1 about twice as often as anyone else.
-    const rand = new Map(candidates.map((p) => [p.id, Math.random()]));
-    const sorted = [...candidates].sort((a, b) => {
-      const aPlayed = history.gamesPlayed[a.id] ?? 0;
-      const bPlayed = history.gamesPlayed[b.id] ?? 0;
-      if (bPlayed !== aPlayed) return bPlayed - aPlayed;
-
-      // Avoid consecutive sit-outs: prefer sitting players who did NOT sit last round
-      if (previousSitOutIds) {
-        const aPrev = previousSitOutIds.has(a.id) ? 1 : 0;
-        const bPrev = previousSitOutIds.has(b.id) ? 1 : 0;
-        if (aPrev !== bPrev) return aPrev - bPrev; // non-previous first
-      }
-
-      // Everything else equal, sit whoever has already had this round type
-      if (missCounts && missed(a) !== missed(b)) return missed(a) - missed(b);
-
-      // Keep the established cycle order; players yet to sit rank last
-      if (posOf(a) !== posOf(b)) return posOf(a) - posOf(b);
-
-      return rand.get(a.id)! - rand.get(b.id)!;
-    });
-
-    return sorted.slice(0, numSitOuts);
+    return [...candidates].sort(sitsFirst).slice(0, numSitOuts);
   }
 
   // Partnership-aware: build sit-out units so couples sit together. Nobody sits
@@ -212,12 +215,14 @@ export function determineSitOuts(
   // court-feasible. Parity also always resolves: numSitOuts has the same parity
   // as the candidate count, and an odd candidate count guarantees an unpaired
   // single exists, so a greedy fill by fairness always reaches the exact target.
+  //
+  // The one bench a couple cannot be seated on whole is a bench of one, and
+  // there they take the seat in turn instead. The partner left playing is one
+  // more free single for the round, which the court solvers already expect: both
+  // of them skip a partnership whose second member is not on the list.
   const byId = new Map(candidates.map((p) => [p.id, p]));
   const claimed = new Set<string>();
   const units: SitOutUnit[] = [];
-
-  const games = (p: Player) => history.gamesPlayed[p.id] ?? 0;
-  const sat = (p: Player) => (previousSitOutIds ? previousSitOutIds.has(p.id) : false);
 
   // Pair units first, from partnerships whose members are both sit-out candidates.
   for (const pr of partnerships) {
@@ -263,6 +268,20 @@ export function determineSitOuts(
     if (u.players.length <= remaining) {
       result.push(...u.players);
       remaining -= u.players.length;
+      continue;
+    }
+    // A bench one seat wide cannot take a couple whole, and a couple that is
+    // never taken is a couple that never sits: the unpaired players carry every
+    // sit-out in the session between them, some of them twice over, while the
+    // couple plays every round.
+    //
+    // So a couple owed a rest takes the seat one at a time. Whichever of them
+    // is owed it more sits, and their partner plays the round unlinked; two
+    // rounds and they have each had their turn. Only on a one-seat bench —
+    // anything wider can seat them side by side, and does.
+    if (numSitOuts === 1) {
+      result.push([...u.players].sort(sitsFirst)[0]);
+      remaining = 0;
     }
   }
 
