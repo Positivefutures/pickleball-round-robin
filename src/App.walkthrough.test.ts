@@ -6321,11 +6321,11 @@ describe('the partner play notice', () => {
   it('appears as soon as the last couple is made', () => {
     mount();
     clickButton(/^Continue to Setup/);
-    expect(container.textContent).not.toContain('Partner play:');
+    expect(container.textContent).not.toContain('Partner Play Mode:');
 
     pairEveryone();
 
-    expect(container.textContent).toContain('Partner play: 4 teams');
+    expect(container.textContent).toContain('Partner Play Mode: 4 teams');
   });
 
   it('stays up after Done Pairing', () => {
@@ -6334,7 +6334,7 @@ describe('the partner play notice', () => {
     pairEveryone();
     clickButton(/^Done Pairing$/);
 
-    expect(container.textContent).toContain('Partner play: 4 teams');
+    expect(container.textContent).toContain('Partner Play Mode: 4 teams');
   });
 
   it('says it louder than the sentence under it', () => {
@@ -6344,7 +6344,7 @@ describe('the partner play notice', () => {
     clickButton(/^Done Pairing$/);
 
     const title = [...container.querySelectorAll('p')].find((p) =>
-      text(p).startsWith('Partner play:')
+      text(p).startsWith('Partner Play Mode:')
     )!;
     expect(title.className).toContain('text-lg');
   });
@@ -6357,7 +6357,7 @@ describe('the partner play notice', () => {
     clickButton(/^Continue to Setup/);
     pairEveryone(); // eight of the nine, leaving Ivy
 
-    expect(container.textContent).toContain('Partner play: 4 teams');
+    expect(container.textContent).toContain('Partner Play Mode: 4 teams');
     expect(container.textContent).toContain('Ivy');
     expect(container.textContent).toContain('will sit out every round');
 
@@ -6373,7 +6373,7 @@ describe('the partner play notice', () => {
     clickButton(/^Done Pairing$/);
     clickButton(/^Unlink All$/);
 
-    expect(container.textContent).not.toContain('Partner play:');
+    expect(container.textContent).not.toContain('Partner Play Mode:');
   });
 });
 

@@ -385,7 +385,7 @@ export function Surfaces() {
         <Example
           name="Amber note — 8 sites, four sets of measurements"
           note="the shape drifts: rounded-md px-3 py-2 (×5), rounded-xl px-3.5 py-3 (×2), border-amber-300 (×2)"
-          source={`{/* the commonest of the four, from PartnerPlayNotice.tsx:51 */}
+          source={`{/* the commonest of the four, from PartnerPlayNotice.tsx:66 */}
 <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
   Partner play needs an even number of pairs.
 </p>`}

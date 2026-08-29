@@ -1,5 +1,7 @@
 import type { Player, Partnership } from '../../types';
 import { partnerPlayTeams } from '../../lib/partnerPlay';
+import { PanelBadge } from '../PanelGlyph';
+import { StepPlayersIcon } from '../icons';
 
 /**
  * What tonight will be, once enough of the room is paired up to change it.
@@ -33,10 +35,23 @@ export function PartnerPlayNotice({
   const spare = partnerPlay.spares[0];
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border border-[#615fff] bg-[#eef2ff] px-3 py-2.5">
+    /* mt-1.5 because the ring hangs 26px above the box and the gap the page
+       leaves above it is 24. Two pixels of overlap is all it would be, and it
+       would land on the Generate button. */
+    <div className="mt-1.5 space-y-4">
+      {/* pt-7 is the badged cards' figure: 26px of ring inside the box, plus
+          two so the heading is not touching it. */}
+      <div className="relative rounded-md border border-[#615fff] bg-[#eef2ff] px-3 pt-7 pb-2.5">
+        {/* The Players tab's own shape. Who is in the room is what decides
+            this, and the ring takes the panel's edge rather than the grey the
+            white cards use. */}
+        <PanelBadge
+          icon={StepPlayersIcon}
+          edgeClassName="border-[#615fff]"
+          inkClassName="text-[#3730a3]"
+        />
         <p className="text-lg font-bold text-[#312c85]">
-          Partner play: {partnerPlay.teams.length} teams
+          Partner Play Mode: {partnerPlay.teams.length} teams
         </p>
         <p className="mt-0.5 text-sm text-[#3730a3]">
           {/* "Special Round Type rounds" would say round twice in four words,

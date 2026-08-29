@@ -46,22 +46,33 @@ export function PanelGlyph({
  *
  * Grey rather than the dialogs' teal. These sit on the page, where teal is the
  * colour of a thing you can press.
+ *
+ * A badge on a coloured panel takes that panel's edge instead, so the ring
+ * reads as part of the box rather than as grey furniture dropped on it. The
+ * ink then goes a shade darker than the edge, which is the same relation the
+ * grey pair has.
  */
 export function PanelBadge({
   icon: Icon,
   iconClassName = 'h-[30px] w-[30px]',
+  edgeClassName = 'border-panel-edge',
+  inkClassName = 'text-[#60697c]',
 }: {
   icon: (props: { className?: string }) => ReactElement;
   /** The artwork's own size, which is not the same in every drawing. */
   iconClassName?: string;
+  /** The ring's border, for a badge sitting on a panel that is not white. */
+  edgeClassName?: string;
+  /** The artwork's ink, which moves with the edge. */
+  inkClassName?: string;
 }) {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute left-0 top-0 flex h-13 w-13 -translate-y-1/2
-        items-center justify-center rounded-full border border-panel-edge bg-white"
+      className={`pointer-events-none absolute left-0 top-0 flex h-13 w-13 -translate-y-1/2
+        items-center justify-center rounded-full border bg-white ${edgeClassName}`}
     >
-      <Icon className={`${iconClassName} text-[#60697c]`} />
+      <Icon className={`${iconClassName} ${inkClassName}`} />
     </span>
   );
 }
