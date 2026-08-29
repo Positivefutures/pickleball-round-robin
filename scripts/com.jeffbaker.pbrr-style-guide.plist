@@ -27,8 +27,13 @@
     <string>style-guide</string>
   </array>
 
+  <!-- ~/Developer, not Dropbox. The repo moved out of CloudStorage on
+       2026-08-29: Dropbox had evicted 80% of node_modules and 98% of .git to
+       the cloud, and a cold read of an evicted file is a ~1.2s network fetch
+       against 0.1ms off local disk. A dev server touching a thousand modules
+       on its first request could not start inside any sane timeout. -->
   <key>WorkingDirectory</key>
-  <string>/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-round-robin</string>
+  <string>/Users/jeffbaker/Developer/pickleball-round-robin</string>
 
   <!-- launchd hands a job a bare PATH, and npm has to find node next door. -->
   <key>EnvironmentVariables</key>

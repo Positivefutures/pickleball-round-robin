@@ -11,7 +11,7 @@ which today is Jeff.
 Once a week, open Terminal and run two commands:
 
 ```
-cd "/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-round-robin"
+cd ~/Developer/pickleball-round-robin
 ./scripts/backup-db.sh
 ```
 
@@ -296,5 +296,5 @@ Worth knowing, so none of this is a surprise later:
 Both commands are run from the app's folder:
 
 ```
-cd "/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-round-robin"
+cd ~/Developer/pickleball-round-robin
 ```

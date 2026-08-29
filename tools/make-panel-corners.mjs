@@ -22,7 +22,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const ROOT = '/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-round-robin';
+const ROOT = '/Users/jeffbaker/Developer/pickleball-round-robin';
 const { chromium } = await import(pathToFileURL(join(ROOT, 'node_modules/playwright-core/index.mjs')));
 
 function findChrome() {

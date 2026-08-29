@@ -16,14 +16,21 @@
 # nothing is passed as an argument where `ps` would show it, and nothing lands
 # in the repository, which is public.
 #
-# Output goes to a sibling of the repo rather than inside it, for the same
-# reason. That location is inside Dropbox, so a dump is replicated off this
-# machine within seconds of being written, which is what makes this a backup
-# rather than a second copy on the same failing disk.
+# Output goes outside the repo, for the same reason. That location is inside
+# Dropbox, so a dump is replicated off this machine within seconds of being
+# written, which is what makes this a backup rather than a second copy on the
+# same failing disk.
+#
+# The path is absolute rather than a sibling of the repo. It was `../..` until
+# 2026-08-29, when the repo moved out of Dropbox to ~/Developer — which would
+# have silently redirected every dump to ~/pickleball-backups, still on this
+# disk, still lost with it, and with nothing to show that the one property that
+# makes these backups worth taking had gone. Being in Dropbox is the whole
+# point, so Dropbox is what the path now names. Override with BACKUP_DIR.
 
 set -euo pipefail
 
-OUT_DIR="${BACKUP_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/pickleball-backups}"
+OUT_DIR="${BACKUP_DIR:-/Users/jeffbaker/Library/CloudStorage/Dropbox/AI PROJECTS - DROPBOX/pickleball-backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$OUT_DIR/pbrr-$STAMP.sql.gz"
 
