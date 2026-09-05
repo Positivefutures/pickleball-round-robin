@@ -420,6 +420,7 @@ describe('sit-out fairness', () => {
       shortGameCounts: {},
       specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
       teamMatchCounts: {},
+      serveCounts: {},
     };
     for (const p of players) {
       history.gamesPlayed[p.id] = 0;

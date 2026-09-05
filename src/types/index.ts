@@ -163,4 +163,15 @@ export interface PairingHistory {
    * Empty on every other kind of session.
    */
   teamMatchCounts: Record<string, number>;
+  /**
+   * How many games a player has started on the serving side — `team1`, the
+   * left-hand column of a court, which the printed sheet heads SERVING. The
+   * serving side supplies the ball and, outdoors, may have the sun or the wind.
+   *
+   * Read by dealSides, which is the only thing that decides which side of a
+   * court a team takes. Like courtCounts it is not in the cost function: the
+   * sides are dealt after the pairings are chosen, so it can never change who
+   * plays whom.
+   */
+  serveCounts: Record<string, number>;
 }

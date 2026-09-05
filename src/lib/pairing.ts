@@ -4,6 +4,7 @@ import type {
 } from '../types';
 import { determineSitOuts } from './sitout';
 import { rotateCourts } from './courtRotation';
+import { dealSides } from './sides';
 import { partnerKey } from './partnerships';
 import { ROUND_TYPES, courtMatchesType, roundTypeOf } from './roundTypes';
 import { planAt } from './roundPlan';
@@ -41,6 +42,7 @@ function initHistory(players: Player[]): PairingHistory {
     courtCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
     teamMatchCounts: {},
+    serveCounts: {},
   };
   for (const p of players) {
     history.partnerCounts[p.id] = {};
@@ -49,6 +51,7 @@ function initHistory(players: Player[]): PairingHistory {
     history.gamesPlayed[p.id] = 0;
     history.shortGameCounts[p.id] = 0;
     history.courtCounts[p.id] = {};
+    history.serveCounts[p.id] = 0;
     for (const t of ROUND_TYPES) history.specialMissCounts[t][p.id] = 0;
   }
   return history;
@@ -81,6 +84,11 @@ function updateHistory(
     }
   });
   for (const court of courts) {
+    // Replayed out of the stored rounds as well as counted while building, so
+    // who has been serving survives a reshuffle and a reload.
+    for (const p of court.team1) {
+      history.serveCounts[p.id] = (history.serveCounts[p.id] ?? 0) + 1;
+    }
     for (const team of [court.team1, court.team2]) {
       if (team.length === 2) {
         incrementBidirectional(history.partnerCounts, team[0].id, team[1].id);
@@ -192,7 +200,7 @@ function buildRound(
     const fixtures = fixtureList(teams.length);
     const capacity = Math.min(effectiveCourts, Math.floor(teams.length / 2));
     const matches = nextMatches(teams, fixtures, history, capacity);
-    const courts = rotateCourts(matchesToCourts(teams, matches), history);
+    const courts = dealSides(rotateCourts(matchesToCourts(teams, matches), history), history);
 
     const playing = new Set(courts.flatMap((c) => [...c.team1, ...c.team2]).map((p) => p.id));
     const sitOuts = players.filter((p) => !playing.has(p.id));
@@ -309,7 +317,11 @@ function buildRound(
   const keepFrom = roundType
     ? result.courts.findIndex((c) => !courtMatchesType(c, roundType))
     : -1;
-  const courts = rotateCourts(result.courts, history, { pinned: hasLocks, keepFrom });
+  const courts = dealSides(
+    rotateCourts(result.courts, history, { pinned: hasLocks, keepFrom }),
+    history,
+    { pinned: hasLocks }
+  );
   updateHistory(history, courts, allSitOuts);
 
   if (roundType) {

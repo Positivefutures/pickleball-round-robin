@@ -37,6 +37,7 @@ function emptyHistory(): PairingHistory {
     courtCounts: {},
     specialMissCounts: { gendered: {}, mixed: {}, skill: {} },
     teamMatchCounts: {},
+    serveCounts: {},
   };
 }
 
