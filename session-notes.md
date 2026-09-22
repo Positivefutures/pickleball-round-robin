@@ -1081,7 +1081,74 @@ read rather than guessed.
 
 ---
 
-## Current State — 2026-08-24 (end of day)
+## 2026-09-21 — The group's name on the printed schedule
+
+Two commits, deployed. Version went 3.92 → **3.93**.
+
+| Commit | What |
+|---|---|
+| `c3ca815` | Name the group on the printed sheet and the shared PDF |
+| `39a08ce` | Bump the version to 3.93 |
+
+### What was built
+
+**A two-ended header.** The app's mark moved from the centre of the page to the
+top left, and the group's name now sits at the top right, both at the title
+size (18pt bold). Jeff chose equal weight over a smaller muted name: the sheet
+answers two questions of the same importance, what made this and whose session
+it is. The name is drawn on page one only, like the mark it sits beside.
+
+**The address went up half again**, 10pt → 15pt, on both sheets. It is the one
+line on the page that tells a player where to get the app.
+
+**Both renderers changed together**, which `schedulePdf.parity.test.ts`
+requires — it asserts the browser-printed sheet and the shared PDF say the same
+thing in the same order. The parity fixture now carries a group name, so the
+new header is inside what it compares rather than beside it.
+
+### Decisions and findings worth remembering
+
+- **A long group name has no length limit anywhere in the app**, so the header
+  needed a collision rule. It wraps right-aligned to the space beside the mark;
+  a name with no space in it at all (which cannot wrap) drops onto its own line
+  below the mark, where it has the full width. Overlapping the logo was the one
+  outcome ruled out. The PDF measures this in Helvetica widths, the DOM lets the
+  browser do it, so the two can break a long name at different words — parity
+  compares text with whitespace stripped, so that is allowed and intended.
+- **The footer size is written twice and could not be otherwise.** `FOOTER_SIZE`
+  in `schedulePdf.ts` and `font-size` on `.print-footer` in `index.css`, because
+  CSS cannot import. The sabotage pass found nothing guarding the CSS copy, so
+  `schedulePdf.test.ts` now reads `index.css` and checks the two against each
+  other, the same trick `appDomain.test.ts` uses on `index.html`.
+- **`PrintSchedule` is up to 16 inline style objects** from 14. Both places that
+  recorded the count — `docs/ui-audit.md` and the Tables note on
+  `/style-guide` — were corrected.
+- **File name and reader title were deliberately left alone.** Jeff's call: the
+  shared file stays `round-robin-schedule.pdf`.
+
+### Gotchas
+
+- **Never use `git checkout <file>` to undo a deliberate test sabotage.** It
+  restores from the index, which holds HEAD, so it reverts the sabotage *and*
+  the uncommitted change being proved — silently, with a reassuring "Updated 1
+  path from the index". It cost a full re-run today: the CSS sabotage and the
+  fix were the same line, so the revert left the file at 10pt and the guard
+  looked broken. Reverse the edit in Python instead.
+- **Git was dead for the first half of the session** — every command, `status`
+  included, exited with "You have not agreed to the Xcode license agreements".
+  Jeff cleared it with `sudo xcodebuild -license`. While it was failing, each
+  `git checkout` was a no-op, so sabotages stacked and the failure counts meant
+  nothing. Worth checking `git status` actually answers before starting
+  anything that ends in a commit.
+- **Confirming the deploy needs the quoted version.** A bare grep for `3.93`
+  matches SVG path data in the bundle and reports live too early. Today it was
+  confirmed twice over: `"3.93"` quoted in the served JS, and
+  `print-footer{...font-size:15pt...}` in the served CSS, which proves *this*
+  work shipped rather than merely that a build went out.
+
+---
+
+## Snapshot — 2026-08-24 (superseded, kept for its open questions)
 
 **`3.84` is live at https://app.roundrobinator.com**, commit `cdefd87`. Nothing
 in `src/` changed today, so the app itself is untouched and `APP_VERSION` did
@@ -1141,3 +1208,49 @@ the flag and need no edits.
 - The admin Vercel project is still called `pbroundrobin-admin`, so its URL
   carries the old name. Cosmetic.
 - All older open questions in the 2026-08-14 snapshot above still stand.
+
+---
+
+## Current State — 2026-09-21 (end of day)
+
+**`3.93` is live at https://app.roundrobinator.com**, commit `39a08ce`,
+confirmed by the quoted version in the served bundle and by the 15pt print
+footer in the served CSS. `origin/main` matches local. Full suite **2020
+passing** across 103 files (3 skipped), `tsc -b` and `npm run lint` clean, and
+`npm run build` succeeds.
+
+### Completed this session
+
+- The group's name now appears on both printed schedules, the browser's and the
+  shared PDF, with the app's mark moved to the top left and the address under
+  the sheet half again its old size. Live.
+- A new cross-file guard tying the printed sheet's footer size to the PDF's, so
+  the two copies of that number cannot drift apart unnoticed.
+- Seven guards proved by deliberate sabotage, each turning a different test red.
+
+### In progress
+
+Nothing mid-edit. `session-notes.md` carries this update and is **uncommitted**,
+as are Jeff's own earlier edits to `PRODUCT-CONTEXT.md` and
+`launch-checklist.md`. The `INBOX/`, `PLANS/` and `site/` leftovers remain
+untracked. None of those were touched.
+
+### Immediate next step
+
+**Jeff's call.** Nothing is half-finished, so the queue is whatever he picks:
+the first unticked box in `launch-checklist.md`, or one of the 14 findings in
+`PLANS/usability-review-september-2026.md`, which is still waiting on him to
+choose.
+
+### Open questions and pending decisions
+
+- **One test failed once and was never identified.** A full run reported a
+  single failure; the output was not captured, and it has not recurred in five
+  full runs since, including the one immediately before the deploy. This repo
+  has a history of probabilistic pairing tests asserting absolutes, which is the
+  likeliest explanation, but it is inference. If it returns, capture the name
+  with `--reporter=json` rather than a tail.
+- **The open questions in the 2026-08-24 snapshot above have not been revisited
+  this session** and several are a month old — the Resend domain, the unrenamed
+  sign-in emails, whether `jeff@roundrobinator.com` receives mail. Treat that
+  list as unverified rather than current.
