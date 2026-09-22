@@ -2,11 +2,12 @@
  * Lays the schedule out as PDF pages.
  *
  * A deliberate copy of what `PrintSchedule` puts on paper, down to the point
- * sizes: same title, same round headings and badges, same three columns, same
- * "(normal game)" note, same sit-out line. Someone who prints from a laptop and
- * someone who shares a PDF from a phone should be able to put the two sheets
- * side by side and see one schedule. `schedulePdf.parity.test.ts` is what keeps
- * that true, by rendering both and comparing what they say.
+ * sizes: same header of mark and group name, same round headings and badges,
+ * same three columns, same "(normal game)" note, same sit-out line. Someone who
+ * prints from a laptop and someone who shares a PDF from a phone should be able
+ * to put the two sheets side by side and see one schedule.
+ * `schedulePdf.parity.test.ts` is what keeps that true, by rendering both and
+ * comparing what they say.
  *
  * The layout knows nothing about the DOM, which is what lets it be tested
  * without a browser and measured without one.
@@ -29,9 +30,25 @@ const BADGE_SIZE = 9;
 const LABEL_SIZE = 10;
 const NAME_SIZE = 12.5;
 
+/**
+ * The address under the sheet, half again the size of a column heading.
+ *
+ * Its own constant rather than a multiple used at the call site, because the
+ * printed sheet has to match it and `.print-footer` in `index.css` is where
+ * that copy is written.
+ */
+const FOOTER_SIZE = 15;
+
 /** The logo beside the title, and the space between the two. */
 const LOGO_HEIGHT = 28;
 const LOGO_GAP = 10;
+
+/**
+ * The least space allowed between the app's mark and the group's name, which
+ * sit at opposite ends of the same line. Wide enough that the two never read as
+ * one run of words.
+ */
+const TITLE_GAP = 16;
 
 const CELL_PAD_X = 8;
 const CELL_PAD_Y = 4;
@@ -86,27 +103,59 @@ function rule(top: number, color: string): PdfOp {
   return { kind: 'line', x: MARGIN, y: top, length: CONTENT_WIDTH, width: 0.5, color };
 }
 
-/** The logo and the title, centred together as one thing. */
-function titlePart(): Part {
-  const text = APP_NAME;
+/**
+ * The app's mark at the left of the page and the group's name at the right.
+ *
+ * Both ends are set at the title size, because the sheet is answering two
+ * questions of equal weight: what made this, and whose session it is. The name
+ * is measured back from the right margin rather than forward from anything,
+ * which is what keeps it flush however long it runs.
+ */
+function titlePart(groupName?: string): Part {
   const logoWidth = (LOGO_HEIGHT * LOGO_IMAGE.width) / LOGO_IMAGE.height;
-  const textWidth = widthOf(text, TITLE_SIZE, 'bold');
-  const groupWidth = logoWidth + LOGO_GAP + textWidth;
-  const left = MARGIN + (CONTENT_WIDTH - groupWidth) / 2;
-  const height = Math.max(lineHeight(TITLE_SIZE), LOGO_HEIGHT) + 12;
+  const markWidth = logoWidth + LOGO_GAP + widthOf(APP_NAME, TITLE_SIZE, 'bold');
+  // Optically centred against the logo rather than sat on its top edge.
+  const textTop = (LOGO_HEIGHT - lineHeight(TITLE_SIZE)) / 2;
+
+  const name = groupName?.trim() ?? '';
+  const beside = CONTENT_WIDTH - markWidth - TITLE_GAP;
+  let groupLines = name ? wrapText(name, beside, TITLE_SIZE, 'bold') : [];
+  let groupTop = textTop;
+  // A name with no break in it wide enough to reach the mark drops below it
+  // instead, where it has the whole width. Overlapping the logo is the one
+  // outcome this must not have.
+  if (groupLines.some((line) => widthOf(line, TITLE_SIZE, 'bold') > beside)) {
+    groupLines = wrapText(name, CONTENT_WIDTH, TITLE_SIZE, 'bold');
+    groupTop = LOGO_HEIGHT + 4;
+  }
+
+  const height =
+    Math.max(
+      LOGO_HEIGHT,
+      textTop + lineHeight(TITLE_SIZE),
+      groupTop + groupLines.length * lineHeight(TITLE_SIZE)
+    ) + 12;
+
   return {
     height,
     draw: (top) => [
-      { kind: 'image', x: left, y: top, width: logoWidth, height: LOGO_HEIGHT },
+      { kind: 'image', x: MARGIN, y: top, width: logoWidth, height: LOGO_HEIGHT },
       {
         kind: 'text',
-        x: left + logoWidth + LOGO_GAP,
-        // Optically centred against the logo rather than sat on its top edge.
-        y: top + (LOGO_HEIGHT - lineHeight(TITLE_SIZE)) / 2,
-        text,
+        x: MARGIN + logoWidth + LOGO_GAP,
+        y: top + textTop,
+        text: APP_NAME,
         size: TITLE_SIZE,
         font: 'bold',
       },
+      ...groupLines.map((text, i) => ({
+        kind: 'text' as const,
+        x: MARGIN + CONTENT_WIDTH - widthOf(text, TITLE_SIZE, 'bold'),
+        y: top + groupTop + i * lineHeight(TITLE_SIZE),
+        text,
+        size: TITLE_SIZE,
+        font: 'bold' as const,
+      })),
     ],
   };
 }
@@ -125,12 +174,12 @@ export function withFooters(pages: PdfOp[][]): PdfOp[][] {
     ...ops,
     {
       kind: 'text',
-      x: MARGIN + (CONTENT_WIDTH - widthOf(PDF_FOOTER, LABEL_SIZE, 'regular')) / 2,
+      x: MARGIN + (CONTENT_WIDTH - widthOf(PDF_FOOTER, FOOTER_SIZE, 'regular')) / 2,
       // Below the content margin, in the strip the browser used to print the
       // address into.
       y: PAGE_HEIGHT - MARGIN + 12,
       text: PDF_FOOTER,
-      size: LABEL_SIZE,
+      size: FOOTER_SIZE,
       font: 'regular',
     },
   ]);
@@ -252,7 +301,11 @@ function sitOutPart(round: Round, players: Player[]): Part | null {
  * court off the bottom of the page, and a court missing from a printed sheet is
  * the one failure this must not have.
  */
-export function layoutSchedule(schedule: Schedule, players: Player[]): PdfOp[][] {
+export function layoutSchedule(
+  schedule: Schedule,
+  players: Player[],
+  groupName?: string
+): PdfOp[][] {
   const pages: PdfOp[][] = [];
   let page: PdfOp[] = [];
   let y = MARGIN;
@@ -268,7 +321,7 @@ export function layoutSchedule(schedule: Schedule, players: Player[]): PdfOp[][]
   };
   const remaining = () => PAGE_HEIGHT - MARGIN - y;
 
-  place(titlePart());
+  place(titlePart(groupName));
 
   for (const round of schedule.rounds) {
     const heading = headingPart(round, false);
@@ -324,6 +377,10 @@ export function layoutSchedule(schedule: Schedule, players: Player[]): PdfOp[][]
 export const PDF_TITLE = APP_NAME;
 export const PDF_FILE_NAME = 'round-robin-schedule.pdf';
 
-export function scheduleToPdf(schedule: Schedule, players: Player[]): Uint8Array<ArrayBuffer> {
-  return buildPdf(withFooters(layoutSchedule(schedule, players)), PDF_TITLE);
+export function scheduleToPdf(
+  schedule: Schedule,
+  players: Player[],
+  groupName?: string
+): Uint8Array<ArrayBuffer> {
+  return buildPdf(withFooters(layoutSchedule(schedule, players, groupName)), PDF_TITLE);
 }

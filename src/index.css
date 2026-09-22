@@ -439,14 +439,16 @@ body {
     height: 0.6in;
   }
 
-  /* Painted into the bottom band, on every page, because it is fixed. */
+  /* Painted into the bottom band, on every page, because it is fixed.
+     15pt is FOOTER_SIZE in schedulePdf.ts; the two sheets carry the address at
+     one size, and schedulePdf.test.ts checks this copy against that one. */
   .print-footer {
     position: fixed;
     bottom: 0.3in;
     left: 0;
     right: 0;
     text-align: center;
-    font-size: 10pt;
+    font-size: 15pt;
   }
 
   /* The screen holds everything to the viewport and scrolls the .app-scroll

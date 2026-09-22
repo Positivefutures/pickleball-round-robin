@@ -6,9 +6,11 @@
  * finished, and the only sign is a match nobody turns up for. So the counting
  * tests here matter more than the pretty ones.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type { Player, Round, Schedule } from '../types';
-import { layoutSchedule, scheduleToPdf, PDF_TITLE, PDF_FOOTER } from './schedulePdf';
+import { layoutSchedule, scheduleToPdf, withFooters, PDF_TITLE, PDF_FOOTER } from './schedulePdf';
 import { widthOf, type PdfOp } from './pdf';
 import { APP_URL } from './appInfo';
 
@@ -241,17 +243,45 @@ describe('the title and the address', () => {
     expect(title.y).toBeLessThan(logo.y + logo.height);
   });
 
-  it('centres the pair on the page', () => {
+  it('stands the pair at the left margin rather than centring it', () => {
     const page = layoutSchedule(schedule(1, 1), [])[0];
     const logo = page.find((op) => op.kind === 'image')!;
-    const title = page.find((op) => op.kind === 'text' && op.text === PDF_TITLE)!;
-    const left = logo.x;
-    const right = title.x + widthOf(PDF_TITLE, title.size, title.font);
-    expect((left + right) / 2).toBeCloseTo(612 / 2, 1);
+    expect(logo.x).toBe(54);
   });
 
   it('is the address the app is served at, not one typed in twice', () => {
     expect(PDF_FOOTER).toBe(new URL(APP_URL).host);
+  });
+
+  it('sets the address half again the size of a column heading', () => {
+    // The one line on the sheet that says where the app came from, and 15pt is
+    // also what `.print-footer` is set to in index.css.
+    const footer = withFooters([[]])[0].find((op) => op.kind === 'text')!;
+    expect(footer.text).toBe(PDF_FOOTER);
+    const heading = layoutSchedule(schedule(1, 1), [])
+      .flat()
+      .find((op) => op.kind === 'text' && op.text === 'SERVING')!;
+    expect(footer.size).toBe(heading.size * 1.5);
+    expect(footer.size).toBe(15);
+  });
+
+  it('carries the address at one size on both sheets', () => {
+    // The printed sheet's copy of the size is CSS, and CSS cannot import, so
+    // the number is written twice on purpose. This is the seam where the two
+    // would drift apart, the way appDomain.test.ts watches index.html.
+    const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
+    const block = /\.print-footer\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    const printed = /font-size:\s*([\d.]+)pt/.exec(block)?.[1];
+    const footer = withFooters([[]])[0].find((op) => op.kind === 'text')!;
+    expect(printed).toBe(String(footer.size));
+  });
+
+  it('keeps the address centred, and inside the page', () => {
+    const footer = withFooters([[]])[0].find((op) => op.kind === 'text')!;
+    const middle = footer.x + widthOf(footer.text, footer.size, footer.font) / 2;
+    expect(middle).toBeCloseTo(612 / 2, 1);
+    // A taller line sits lower: the baseline still has to land on the paper.
+    expect(footer.y + footer.size).toBeLessThan(792);
   });
 
   it('puts the address on every page of the finished file', () => {
@@ -263,6 +293,83 @@ describe('the title and the address', () => {
     const file = Array.from(scheduleToPdf(s, []), (b) => String.fromCharCode(b)).join('');
     expect(file.split(`(${PDF_FOOTER}) Tj`)).toHaveLength(pageCount + 1);
     expect(allTexts(layoutSchedule(s, []))).not.toContain(PDF_FOOTER);
+  });
+});
+
+describe('the group on the sheet', () => {
+  const GROUP = 'Tuesday Nighters';
+
+  /** Every text drawn that is not part of the schedule below the header. */
+  function header(pages: PdfOp[][], name?: string) {
+    const page = pages[0];
+    const logo = page.find((op) => op.kind === 'image')!;
+    const mark = page.find((op) => op.kind === 'text' && op.text === PDF_TITLE)!;
+    const group = page.filter(
+      (op) => op.kind === 'text' && name !== undefined && name.includes(op.text)
+    );
+    return { logo, mark, group };
+  }
+
+  it('names the group the session was built from', () => {
+    expect(allTexts(layoutSchedule(schedule(1, 1), [], GROUP))).toContain(GROUP);
+  });
+
+  it('sets it flush to the right margin, at the size of the app name', () => {
+    const { mark, group } = header(layoutSchedule(schedule(1, 1), [], GROUP), GROUP);
+    expect(group).toHaveLength(1);
+    const right = group[0].x + widthOf(group[0].text, group[0].size, group[0].font);
+    expect(right).toBeCloseTo(612 - 54, 1);
+    expect(group[0].size).toBe(mark.size);
+    expect(group[0].font).toBe('bold');
+  });
+
+  it('sits on the same line as the mark without reaching it', () => {
+    const { logo, mark, group } = header(layoutSchedule(schedule(1, 1), [], GROUP), GROUP);
+    expect(group[0].y).toBe(mark.y);
+    expect(group[0].y).toBeGreaterThanOrEqual(logo.y);
+    const markRight = mark.x + widthOf(PDF_TITLE, mark.size, mark.font);
+    expect(group[0].x).toBeGreaterThan(markRight);
+  });
+
+  it('is drawn once, on the first page, like the mark it answers', () => {
+    const pages = layoutSchedule(schedule(9, 3, 4), [], GROUP);
+    expect(pages.length).toBeGreaterThan(1);
+    expect(allTexts(pages).filter((t) => t === GROUP)).toHaveLength(1);
+  });
+
+  it('draws nothing extra when there is no group to name', () => {
+    const without = layoutSchedule(schedule(1, 1), []);
+    const blank = layoutSchedule(schedule(1, 1), [], '   ');
+    expect(allTexts(blank)).toEqual(allTexts(without));
+    expect(texts(without[0])[0]).toBe(PDF_TITLE);
+  });
+
+  it('pushes the first round down far enough to clear a wrapped name', () => {
+    // A name too long for one line takes two, and the round below has to start
+    // under both of them rather than through the second.
+    const long = 'Wednesday Morning Advanced Ladder and Social Play';
+    const lines = layoutSchedule(schedule(1, 1), [], long)[0].filter(
+      (op) => op.kind === 'text' && long.includes(op.text)
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    const lowest = Math.max(...lines.map((op) => op.y + op.size));
+    const heading = layoutSchedule(schedule(1, 1), [], long)[0].find(
+      (op) => op.kind === 'text' && op.text === 'ROUND 1'
+    )!;
+    expect(heading.y).toBeGreaterThan(lowest);
+  });
+
+  it('drops a name with no break in it below the mark rather than over it', () => {
+    // One unbreakable word can be wider than the space beside the mark, and
+    // there is nowhere to wrap it. Overlapping the logo is the one outcome
+    // this must not have.
+    const long = 'Wednesdaymorningadvancedladderandsocialplay';
+    const page = layoutSchedule(schedule(1, 1), [], long)[0];
+    const logo = page.find((op) => op.kind === 'image')!;
+    const mark = page.find((op) => op.kind === 'text' && op.text === PDF_TITLE)!;
+    const group = page.find((op) => op.kind === 'text' && op.text === long)!;
+    expect(group.y).toBeGreaterThanOrEqual(logo.y + logo.height);
+    expect(group.y).toBeGreaterThan(mark.y);
   });
 });
 

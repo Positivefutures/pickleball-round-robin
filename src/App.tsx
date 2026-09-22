@@ -924,15 +924,17 @@ function App() {
     }
     if (!schedule) return;
 
-    const file = new File([scheduleToPdf(schedule, attendingPlayers)], PDF_FILE_NAME, {
-      type: 'application/pdf',
-    });
+    const file = new File(
+      [scheduleToPdf(schedule, attendingPlayers, activeRoster?.name)],
+      PDF_FILE_NAME,
+      { type: 'application/pdf' }
+    );
     void sharePdf(file, PDF_TITLE).then((outcome) => {
       // Closing the sheet is an answer, so only a sheet that never opened is
       // worth saying anything about.
       if (outcome === 'failed' || outcome === 'unsupported') setPrintProblem('failed');
     });
-  }, [installed, schedule, attendingPlayers]);
+  }, [installed, schedule, attendingPlayers, activeRoster]);
 
   // Removes a player from every round that isn't marked complete and rebuilds
   // those rounds around the smaller group. Completed rounds — any subset — are
@@ -2270,7 +2272,11 @@ function App() {
 
       {/* Outside the sliding panel so a print started from the drawer is never
           caught mid-slide. */}
-      <PrintSchedule schedule={schedule} players={attendingPlayers} />
+      <PrintSchedule
+        schedule={schedule}
+        players={attendingPlayers}
+        groupName={activeRoster?.name}
+      />
     </div>
   );
 }

@@ -519,7 +519,7 @@ export function Surfaces() {
             Four tables, no shared styling between them: <code>PlayerList</code> (
             <code>roster-table</code>, with its own large-text rules in <code>index.css</code>),{' '}
             <code>StandingsPanel</code> (<code>w-full text-sm</code>), <code>PartnerSummary</code> (
-            <code>text-xs</code>) and <code>PrintSchedule</code> (the print sheet, with 14 inline
+            <code>text-xs</code>) and <code>PrintSchedule</code> (the print sheet, with 16 inline
             style objects). Each needs live session data, so they are named here rather than drawn.
           </p>
         </div>

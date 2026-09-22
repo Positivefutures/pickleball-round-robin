@@ -399,7 +399,7 @@ the two ever drift apart.
 | `PlayerList` | [PlayerList.tsx](src/components/roster/PlayerList.tsx) | `<table class="roster-table w-full">`. Has dedicated `.text-large .roster-table` rules in [index.css](src/index.css#L241) |
 | `StandingsPanel` | [StandingsPanel.tsx](src/components/schedule/StandingsPanel.tsx#L139) | `<table class="w-full text-sm border-collapse">` |
 | `PartnerSummary` | [PartnerSummary.tsx](src/components/schedule/PartnerSummary.tsx#L73) | `<table class="text-xs border-collapse">` |
-| `PrintSchedule` | [PrintSchedule.tsx](src/components/print/PrintSchedule.tsx) | `.print-sheet` table with empty thead/tfoot reserving page bands. 14 inline `style` objects |
+| `PrintSchedule` | [PrintSchedule.tsx](src/components/print/PrintSchedule.tsx) | `.print-sheet` table with empty thead/tfoot reserving page bands. 16 inline `style` objects |
 
 **Row patterns** — two definitions of the same row, in two files:
 

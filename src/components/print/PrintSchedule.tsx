@@ -6,13 +6,17 @@ import { ROUND_TYPE_META, courtMatchesType, roundTypeOf } from '../../lib/roundT
 interface Props {
   schedule: Schedule | null;
   players: Player[];
+  /** The group the session was built from, drawn at the right of the header. */
+  groupName?: string;
 }
 
 /** Written once so it cannot drift from the address the app is served at. */
 const HOST = new URL(APP_URL).host;
 
-export function PrintSchedule({ schedule, players }: Props) {
+export function PrintSchedule({ schedule, players, groupName }: Props) {
   if (!schedule) return null;
+
+  const group = groupName?.trim() ?? '';
 
   return (
     <div className="hidden print-only">
@@ -37,19 +41,28 @@ export function PrintSchedule({ schedule, players }: Props) {
         <tbody>
           <tr>
             <td>
+              {/* The mark at the left edge and the group at the right, the
+                  same two ends `titlePart` in schedulePdf.ts draws. A name too
+                  long to sit beside the mark wraps rather than running off the
+                  paper, which is the fallback there too. */}
               <h1
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '10pt',
+                  justifyContent: 'space-between',
+                  gap: '16pt',
                   fontSize: '18pt',
                   fontWeight: 'bold',
                   marginBottom: '12pt',
                 }}
               >
-                <img src="/logo.png" alt="" style={{ height: '28pt', width: 'auto' }} />
-                <span>{APP_NAME}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10pt' }}>
+                  <img src="/logo.png" alt="" style={{ height: '28pt', width: 'auto' }} />
+                  <span>{APP_NAME}</span>
+                </span>
+                {group && (
+                  <span style={{ textAlign: 'right', overflowWrap: 'anywhere' }}>{group}</span>
+                )}
               </h1>
 
               {schedule.rounds.map((round) => {

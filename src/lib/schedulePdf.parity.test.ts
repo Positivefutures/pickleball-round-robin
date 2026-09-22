@@ -32,6 +32,9 @@ const NAMES = [
   'Ivy', 'Jo', 'Bartholomew', 'Maximilian', 'O’Brien', 'José',
 ];
 
+/** Long enough to wrap beside the mark, which the PDF and the DOM do alike. */
+const GROUP_NAME = 'Wednesday Morning Open Play';
+
 const players: Player[] = NAMES.map((name, i) => ({
   id: `p${i}`,
   name,
@@ -81,7 +84,7 @@ function printed(): string {
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
-    root.render(createElement(PrintSchedule, { schedule, players }));
+    root.render(createElement(PrintSchedule, { schedule, players, groupName: GROUP_NAME }));
   });
   const sheet = container.querySelector('.print-sheet');
   if (!sheet) throw new Error('no .print-sheet rendered');
@@ -90,7 +93,7 @@ function printed(): string {
 
 /** What the PDF would say, in the order it draws it. */
 function shared(): string {
-  return layoutSchedule(schedule, players)
+  return layoutSchedule(schedule, players, GROUP_NAME)
     .flat()
     .flatMap((op) => (op.kind === 'text' ? [op.text] : []))
     .join('')
@@ -107,6 +110,7 @@ describe('the printed sheet and the shared PDF', () => {
     const text = printed();
     expect(text.length).toBeGreaterThan(200);
     expect(text).toContain(PDF_TITLE.replace(/\s+/g, ''));
+    expect(text).toContain(GROUP_NAME.replace(/\s+/g, ''));
     expect(text).toContain('O’Brien');
     expect(text).toContain('Sittingout:');
     expect(text).toContain('(normalgame)');
