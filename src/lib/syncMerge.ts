@@ -195,7 +195,10 @@ export function remapSession(session: SessionRefs, changes: IdChanges): SessionR
           team1: court.team1.map(remapPlayer),
           team2: court.team2.map(remapPlayer)
         })),
-        sitOuts: round.sitOuts.map(remapPlayer)
+        sitOuts: round.sitOuts.map(remapPlayer),
+        // Left absent where it was absent, so a round with no locks is still
+        // exactly the round it was.
+        ...(round.lockedSitOutIds && { lockedSitOutIds: round.lockedSitOutIds.map(player) })
       }))
     },
     selectedIds: unique(session.selectedIds.map(player)),

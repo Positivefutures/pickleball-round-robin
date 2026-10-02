@@ -78,6 +78,19 @@ export interface Round {
    * `roundTypeOf` rather than either field directly.
    */
   isGendered?: boolean;
+  /**
+   * Sit-outs the host has locked to this round, by player id, in the order they
+   * were chosen. Set from the Choose Sit-Outs page or by the padlock under a
+   * sit-out's name on the schedule, and honoured by every rebuild of the round.
+   * Absent when there are none, which is every round of every schedule made
+   * before the feature.
+   *
+   * Ids rather than a flag on the player in `sitOuts`, so a swap elsewhere on
+   * the bench cannot carry a lock to somebody else. Every place that rewrites a
+   * player id in a round rewrites these too: replacePlayerInRounds and the sync
+   * merge.
+   */
+  lockedSitOutIds?: string[];
 }
 
 export interface Schedule {

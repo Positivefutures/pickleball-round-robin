@@ -1,5 +1,5 @@
 import type { Round, Player, LockedPair } from '../../types';
-import type { CourtSlot, PlayerSlot } from './SchedulePage';
+import type { CourtSlot, SitOutSlot, PlayerSlot } from './SchedulePage';
 import { CourtMatchup } from './CourtMatchup';
 import { SitOutList } from './SitOutList';
 import { courtMissHeadline, courtMissReason, roundTypeOf } from '../../lib/roundTypes';
@@ -22,9 +22,11 @@ interface Props {
   allPlayers: Player[];
   locks: LockedPair[];
   onToggleLock: (roundIdx: number, courtIdx: number, team: 'team1' | 'team2') => void;
-  /** The one locked seat showing its pencil. See CourtMatchup. */
-  pencilSlot: CourtSlot | null;
-  onLockedTap: (slot: CourtSlot) => void;
+  /** The one locked seat or sit-out showing its pencil. See CourtMatchup. */
+  pencilSlot: CourtSlot | SitOutSlot | null;
+  onLockedTap: (slot: CourtSlot | SitOutSlot) => void;
+  /** The padlock under a sit-out's name. See Round.lockedSitOutIds. */
+  onToggleSitOutLock: (roundIdx: number, playerId: string) => void;
   onOpenPlayerMenu: (player: Player) => void;
   isComplete: boolean;
   isExpanded: boolean;
@@ -115,6 +117,7 @@ export function RoundCard({
   onToggleLock,
   pencilSlot,
   onLockedTap,
+  onToggleSitOutLock,
   onOpenPlayerMenu,
   isComplete,
   isExpanded,
@@ -310,7 +313,7 @@ export function RoundCard({
                       swappedIds={swappedIds}
                       swapSeq={swapSeq}
                       selectedSlot={selectedSlot}
-                      pencilSlot={pencilSlot}
+                      pencilSlot={pencilSlot?.kind === 'court' ? pencilSlot : null}
                       onPlayerTap={onPlayerTap}
                       onLockedTap={onLockedTap}
                       allPlayers={allPlayers}
@@ -349,6 +352,10 @@ export function RoundCard({
               allPlayers={allPlayers}
               readOnly={isComplete}
               action={standingsLink}
+              lockedIds={round.lockedSitOutIds}
+              pencilSlot={pencilSlot?.kind === 'sitout' ? pencilSlot : null}
+              onLockedTap={onLockedTap}
+              onToggleLock={onToggleSitOutLock}
             />
             {/* Nobody sitting out, so there is no line for it to share. It keeps
                 the place it has always had. */}

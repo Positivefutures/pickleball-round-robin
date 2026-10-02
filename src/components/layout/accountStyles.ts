@@ -109,6 +109,20 @@ export const rowDangerTitle = 'block font-bold text-[#9B2C2C]';
 /** The bin, in the same red as the words next to it. */
 export const rowIconDanger = 'h-8 w-8 text-[#9B2C2C]';
 
+/**
+ * The grey cancel button: the way out of a dialog without doing what it is
+ * open to do.
+ *
+ * Shape and colour only. The width and padding are left to each caller, because
+ * the copies written out by hand before this was named use four different
+ * paddings between them and there is no agreed size yet (F2 in the UI audit).
+ * Choose Sit-Outs is the first to import it. The others still carry their own
+ * copy of the string.
+ */
+export const cancel =
+  'rounded-md border border-[#999] bg-gray-100 font-bold text-gray-700 transition-colors ' +
+  'hover:bg-gray-200';
+
 export const danger =
   'w-full rounded-lg bg-[#B42318] px-4 py-3.5 text-lg font-bold text-white transition-colors ' +
   'hover:bg-[#96170F] disabled:cursor-not-allowed disabled:bg-[#DDB3AF]';

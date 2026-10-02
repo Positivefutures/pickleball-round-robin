@@ -2,7 +2,7 @@ import type {
   Player, CourtAssignment, Round, Schedule, PairingHistory, LockedPair, Partnership,
   RoundType, RoundPlan,
 } from '../types';
-import { determineSitOuts } from './sitout';
+import { determineSitOuts, sitOutSeats } from './sitout';
 import { rotateCourts } from './courtRotation';
 import { dealSides } from './sides';
 import { partnerKey } from './partnerships';
@@ -152,8 +152,56 @@ function buildRound(
     roundLocks?: LockedPair[];
     partnerships?: Partnership[];
     previousSitOutIds?: Set<string>;
+    /** Sit-outs the host locked to this round. See Round.lockedSitOutIds. */
+    pinnedSitOutIds?: string[];
+    /** Sit-outs locked into later rounds, per player. See determineSitOuts. */
+    owedRests?: Record<string, number>;
+    // The three below are set only by the call this function makes on itself
+    // for a round with locked sit-outs.
+    /** Already on the bench, ahead of anybody the rotation adds. */
+    benched?: Player[];
+    /** Everybody in the session, for the scorer's who-has-met-whom term. */
+    roster?: Player[];
+    /** False keeps a night of partner play out of the fixture list this round. */
+    partnerPlay?: false;
   }
 ): Round {
+  // A locked sit-out is somebody the host has already put on the bench, so the
+  // round is built from everybody else with that many fewer seats to fill:
+  // determineSitOuts benches the roster less four a court, and the roster is
+  // that many shorter. Anybody no longer here is let go, and so is anybody past
+  // the bench's width — a court added or a player gone home can narrow it under
+  // a lock — keeping whoever was chosen first.
+  //
+  // Their partner plays without them, so a couple naming them is dropped for
+  // the round, and so is a padlock. A night of partner play steps out of its
+  // fixture list for the round, the same as it does for a padlock, because one
+  // of its teams is a player short.
+  const present = new Map(players.map((p) => [p.id, p]));
+  const pinned = [...new Set(opts.pinnedSitOutIds ?? [])]
+    .map((id) => present.get(id))
+    .filter((p): p is Player => !!p)
+    .slice(0, sitOutSeats(players.length, effectiveCourts));
+  if (pinned.length > 0) {
+    const out = new Set(pinned.map((p) => p.id));
+    const free = (pair: { player1Id: string; player2Id: string }) =>
+      !out.has(pair.player1Id) && !out.has(pair.player2Id);
+    const round = buildRound(
+      roundNumber, players.filter((p) => !out.has(p.id)), effectiveCourts, history,
+      {
+        ...opts,
+        pinnedSitOutIds: undefined,
+        partnerships: (opts.partnerships ?? []).filter(free),
+        roundLocks: (opts.roundLocks ?? []).filter(free),
+        benched: pinned,
+        roster: players,
+        partnerPlay: false,
+      }
+    );
+    return { ...round, lockedSitOutIds: pinned.map((p) => p.id) };
+  }
+  const roster = opts.roster ?? players;
+
   const roundLocks = opts.roundLocks ?? [];
   const partnerships = opts.partnerships ?? [];
   const hasLocks = roundLocks.length > 0;
@@ -192,7 +240,7 @@ function buildRound(
   // round by hand and a special round type splits the couples it does not suit,
   // and in both cases the round is outside the sequence: it spends no fixtures
   // and the round robin picks up where it left off afterwards.
-  const partnerPlay = !roundType && !hasLocks
+  const partnerPlay = !roundType && !hasLocks && opts.partnerPlay !== false
     ? partnerPlayTeams(players, partnerships)
     : null;
   if (partnerPlay) {
@@ -218,11 +266,15 @@ function buildRound(
     ? new Set(roundLocks.flatMap((lp) => [lp.player1Id, lp.player2Id]))
     : undefined;
 
-  const sitOuts = determineSitOuts(
-    players, effectiveCourts, history, lockedIds, opts.previousSitOutIds,
-    hasPartnerships ? sitOutUnits : undefined,
-    roundType ? history.specialMissCounts[roundType] : undefined
-  );
+  const sitOuts = [
+    ...(opts.benched ?? []),
+    ...determineSitOuts(
+      players, effectiveCourts, history, lockedIds, opts.previousSitOutIds,
+      hasPartnerships ? sitOutUnits : undefined,
+      roundType ? history.specialMissCounts[roundType] : undefined,
+      opts.owedRests
+    ),
+  ];
   const sitOutIds = new Set(sitOuts.map((p) => p.id));
   const activePlayers = players.filter((p) => !sitOutIds.has(p.id));
 
@@ -277,18 +329,18 @@ function buildRound(
   let result: Assignment;
   if (roundType) {
     result = findSpecialAssignment(
-      roundType, courtPlayers, sizes.length, history, keepTogether, players
+      roundType, courtPlayers, sizes.length, history, keepTogether, roster
     );
   } else if (hasPartnerships) {
     result = findBestAssignmentWithPartners(
-      courtPlayers, fullCourts, history, sitOutUnits, players
+      courtPlayers, fullCourts, history, sitOutUnits, roster
     );
   } else if (fullCourtLocks.length > 0) {
     result = findBestAssignmentWithLocks(
-      courtPlayers, fullCourts, history, fullCourtLocks, players
+      courtPlayers, fullCourts, history, fullCourtLocks, roster
     );
   } else {
-    result = findBestAssignment(courtPlayers, fullCourts, history, players);
+    result = findBestAssignment(courtPlayers, fullCourts, history, roster);
   }
 
   if (rotateShort && shortPlayers.length === shortSize) {
@@ -336,23 +388,71 @@ function buildRound(
   };
 }
 
+/**
+ * The locked sit-outs a round will really hold: people still here, each once,
+ * no more of them than the bench has seats, first chosen first. buildRound
+ * settles them the same way, and this is for counting the rests owed ahead of
+ * it, which must not count a lock the round is about to let go.
+ */
+function settlePins(
+  ids: string[] | undefined,
+  present: Set<string>,
+  seats: number
+): string[] {
+  if (!ids || ids.length === 0) return [];
+  return [...new Set(ids)].filter((id) => present.has(id)).slice(0, seats);
+}
+
+/**
+ * Hands each round, in the order they are built, the locked sit-outs still to
+ * come after it. Undefined for a round with none ahead, which is every round of
+ * a schedule with no locks, so determineSitOuts never sees the argument there.
+ */
+function restsOwed(pinsInOrder: string[][]): () => Record<string, number> | undefined {
+  const ahead: Record<string, number> = {};
+  for (const ids of pinsInOrder) {
+    for (const id of ids) ahead[id] = (ahead[id] ?? 0) + 1;
+  }
+  let next = 0;
+  return () => {
+    for (const id of pinsInOrder[next++] ?? []) ahead[id] -= 1;
+    const owed = Object.entries(ahead).filter(([, n]) => n > 0);
+    return owed.length > 0 ? Object.fromEntries(owed) : undefined;
+  };
+}
+
+/**
+ * @param sitOutPins Sit-outs the host chose on Choose Sit-Outs, by round number.
+ *   Each lands on the bench in its round and is locked there. Everybody else is
+ *   rotated around them, counting the locked rests as rests: somebody benched
+ *   for round 1 plays until everyone else has sat.
+ */
 export function generateSchedule(
   players: Player[],
   numCourts: number,
   numRounds: number,
   plan: RoundPlan = [],
-  partnerships: Partnership[] = []
+  partnerships: Partnership[] = [],
+  sitOutPins: Record<number, string[]> = {}
 ): Schedule {
   const history = initHistory(players);
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
   const rounds: Round[] = [];
   let previousSitOutIds: Set<string> | undefined;
 
+  const present = new Set(players.map((p) => p.id));
+  const seats = sitOutSeats(players.length, effectiveCourts);
+  const pins: string[][] = [];
+  for (let r = 1; r <= numRounds; r++) pins.push(settlePins(sitOutPins[r], present, seats));
+  const owed = restsOwed(pins);
+
   for (let r = 1; r <= numRounds; r++) {
     const round = buildRound(r, players, effectiveCourts, history, {
       roundType: planAt(plan, r),
       partnerships,
       previousSitOutIds,
+      pinnedSitOutIds: pins[r - 1],
+      owedRests: owed(),
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
     rounds.push(round);
@@ -415,6 +515,16 @@ export function regenerateRemaining(
 
   const effectiveCourts = effectiveCourtCount(players.length, numCourts);
 
+  // Sit-outs the host has locked are read off the rounds themselves, so every
+  // rebuild keeps them — a reshuffle, a player going home, a round type moved —
+  // without any caller having to remember to pass them.
+  const seats = sitOutSeats(players.length, effectiveCourts);
+  const pins = allRounds
+    .filter((r) => !completedSet.has(r.roundNumber))
+    .map((r) => settlePins(r.lockedSitOutIds, remainingIds, seats));
+  const owed = restsOwed(pins);
+  let pinIdx = 0;
+
   const rounds = allRounds.map((r, roundIdx) => {
     if (completedSet.has(r.roundNumber)) return r; // keep verbatim
 
@@ -429,6 +539,8 @@ export function regenerateRemaining(
       roundLocks: locks[roundIdx] || [],
       partnerships: roundPartnerships,
       previousSitOutIds,
+      pinnedSitOutIds: pins[pinIdx++],
+      owedRests: owed(),
     });
     previousSitOutIds = new Set(round.sitOuts.map((p) => p.id));
     return round;

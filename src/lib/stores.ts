@@ -70,6 +70,15 @@ export const numRounds = createStoredValue(KEYS.numRounds, 8);
 export const scoringEnabled = createStoredValue<boolean>('pb-scoring-enabled', false);
 
 /**
+ * Whether Generate opens Choose Sit-Outs before it builds.
+ *
+ * Kept like Keep Score, and kept while the switch is out of sight: it only
+ * shows while somebody will be sitting out, and a host who unticks a player
+ * and ticks them again should find it the way they left it.
+ */
+export const chooseSitOuts = createStoredValue<boolean>('pb-choose-sit-outs', false);
+
+/**
  * What each round is played as: gendered, mixed, equal-skill, or an ordinary
  * round robin. One entry per round from round 1, set by the host in Setup.
  *

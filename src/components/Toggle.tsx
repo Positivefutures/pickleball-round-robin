@@ -58,3 +58,27 @@ export function Toggle({
     </button>
   );
 }
+
+/**
+ * A switch with its question beside it, as Keep Score is drawn.
+ *
+ * Choose Sit-Outs is drawn the same, over the player list, and the two are
+ * meant to read as one kind of thing. One component is what keeps them so.
+ */
+export function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  /** The question, ending in a question mark. Also what the switch reads out. */
+  label: string;
+  checked: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-4">
+      <h3 className="text-lg font-semibold text-gray-800">{label}</h3>
+      <Toggle checked={checked} onChange={onChange} label={label} />
+    </div>
+  );
+}

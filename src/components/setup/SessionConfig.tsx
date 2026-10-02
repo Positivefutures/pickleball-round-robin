@@ -3,7 +3,7 @@ import type { RoundPlan } from '../../types';
 import { clearPlan, planHasTypes, planTypesUsed } from '../../lib/roundPlan';
 import { pillMeta } from '../../lib/roundTypes';
 import { BallIcon, ChevronDownIcon, InfoIcon } from '../icons';
-import { Toggle } from '../Toggle';
+import { ToggleRow } from '../Toggle';
 import { STEPPER_INK, STEPPER_KEY, STEPPER_VALUE } from '../stepperLook';
 import { RoundTypePlanner } from './RoundTypePlanner';
 import { TypeGlyphs } from './typeGlyphs';
@@ -217,10 +217,7 @@ export function SessionConfig({
 
       {/* Above the round types now. It is one switch with one answer, and it was
           sitting under a list that can be sixteen rounds long. */}
-      <div className="flex items-center gap-4">
-        <h3 className="text-lg font-semibold text-gray-800">Keep Score?</h3>
-        <Toggle checked={scoringEnabled} onChange={onScoringChange} label="Keep Score?" />
-      </div>
+      <ToggleRow label="Keep Score?" checked={scoringEnabled} onChange={onScoringChange} />
 
       <div>
         {/* Wraps rather than clips. The three fit on one line on a 390px phone,

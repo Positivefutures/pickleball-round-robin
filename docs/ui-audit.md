@@ -471,6 +471,12 @@ this codebase for no other reason.
 `size="sm|md|lg"`, absorbing all 22. Keep the class strings in one module the
 way `panelCard` already is, so the migration can be done a file at a time.
 
+**Started 2026-10-02.** The shape and colour are now exported as
+`account.cancel` in `layout/accountStyles.ts`, without width or padding, which
+wait on F2. Choose Sit-Outs is its first importer, for its picker's Cancel and
+its Back button. The 22 hand-written copies are untouched and can move over one
+file at a time.
+
 ### F2 — Three button systems, none of them the default · **high**
 
 The same three semantic buttons exist three times over:

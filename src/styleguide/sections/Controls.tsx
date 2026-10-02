@@ -3,7 +3,7 @@ import { Example, Finding, FocusProbe, Labelled, Row, Section, StateBox, SubHead
 
 // Every control below is the real one, imported. Nothing here re-draws a button.
 import { TileButton, TILE_ROW, TILE_ALONE } from '../../components/TileButton';
-import { Toggle } from '../../components/Toggle';
+import { Toggle, ToggleRow } from '../../components/Toggle';
 import { RatingStepper } from '../../components/RatingStepper';
 import { CodeEntry } from '../../components/CodeEntry';
 import { Keypad } from '../../components/schedule/Keypad';
@@ -190,6 +190,19 @@ export function Controls() {
         </p>
 
         <Example
+          name="account.cancel — the grey cancel, named"
+          note="shape and colour only; width and padding stay with the caller (F2). Choose Sit-Outs is the first importer"
+          source={`import { cancel } from '../layout/accountStyles';
+
+<button type="button" className={\`\${cancel} px-4 py-2.5\`} onClick={close}>Cancel</button>`}
+        >
+          <Row>
+            <button type="button" className={`${account.cancel} px-4 py-2.5`}>Cancel</button>
+            <button type="button" className={`${account.cancel} px-4 py-3.5`}>&larr; Back</button>
+          </Row>
+        </Example>
+
+        <Example
           name="Grey / cancel — 22 sites, 18 files"
           note="not exported anywhere. Written out at each site, in two class orders"
           source={`{/* verbatim from RosterPage.tsx:356, CourtNumberDialog.tsx:98 and 20 others */}
@@ -374,6 +387,17 @@ export function Controls() {
         </Example>
 
         <Example
+          name="<ToggleRow label checked onChange />"
+          note="a switch with its question beside it. Keep Score and Choose Sit-Outs, identical by construction"
+          source={`import { ToggleRow } from '../Toggle';
+
+<ToggleRow label="Keep Score?" checked={scoringEnabled} onChange={onScoringChange} />
+<ToggleRow label="Choose Sit-Outs?" checked={chooseSitOuts} onChange={onChooseSitOutsChange} />`}
+        >
+          <ToggleRowDemo />
+        </Example>
+
+        <Example
           name="<RatingStepper value onChange />"
           note="painted from stepperLook, sized for a crowded row"
           source={`import { RatingStepper } from '../RatingStepper';
@@ -453,6 +477,17 @@ function ToggleDemo() {
         </span>
       </Labelled>
     </Row>
+  );
+}
+
+function ToggleRowDemo() {
+  const [score, setScore] = useState(true);
+  const [sitOuts, setSitOuts] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <ToggleRow label="Keep Score?" checked={score} onChange={setScore} />
+      <ToggleRow label="Choose Sit-Outs?" checked={sitOuts} onChange={setSitOuts} />
+    </div>
   );
 }
 

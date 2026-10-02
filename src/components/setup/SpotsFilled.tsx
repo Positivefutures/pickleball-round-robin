@@ -1,5 +1,6 @@
 import { StepPlayersIcon } from '../icons';
 import { STEPPER_INK } from '../stepperLook';
+import { sitOutSeats } from '../../lib/sitout';
 
 /**
  * How many of the session's places are taken, and who that leaves sitting.
@@ -20,7 +21,7 @@ interface Props {
 
 export function SpotsFilled({ numPlayers, numCourts }: Props) {
   const spotsNeeded = numCourts * 4;
-  const sitOutsPerRound = Math.max(0, numPlayers - spotsNeeded);
+  const sitOutsPerRound = sitOutSeats(numPlayers, numCourts);
 
   return (
     <div className="flex items-center gap-3">

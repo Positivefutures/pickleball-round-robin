@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import type { Player } from '../../types';
 import { LinkIcon } from '../icons';
 import { SpotsFilled } from './SpotsFilled';
+import { ToggleRow } from '../Toggle';
+import { sitOutSeats } from '../../lib/sitout';
 
 interface Props {
   players: Player[];
@@ -13,6 +15,9 @@ interface Props {
   onToggle: (id: string) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
+  /** Whether Generate opens Choose Sit-Outs first. See stores.chooseSitOuts. */
+  chooseSitOuts: boolean;
+  onChooseSitOutsChange: (on: boolean) => void;
 }
 
 export function PlayerSelector({
@@ -23,6 +28,8 @@ export function PlayerSelector({
   onToggle,
   onSelectAll,
   onDeselectAll,
+  chooseSitOuts,
+  onChooseSitOutsChange,
 }: Props) {
   const pairedIds = new Set(pairs.flatMap((pr) => [pr.p1.id, pr.p2.id]));
   /**
@@ -69,6 +76,19 @@ export function PlayerSelector({
           change it are the same glance. */}
       <div className="mb-4">
         <SpotsFilled numPlayers={selectedIds.length} numCourts={numCourts} />
+        {/* Under the line that says somebody will sit out, and gone with it:
+            with nobody sitting out there is nobody to choose. Set in from the
+            left by the count's own disc and gap, so it hangs under the words
+            rather than under the icon. */}
+        {sitOutSeats(selectedIds.length, numCourts) > 0 && (
+          <div className="mt-3 pl-14">
+            <ToggleRow
+              label="Choose Sit-Outs?"
+              checked={chooseSitOuts}
+              onChange={onChooseSitOutsChange}
+            />
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {sorted.map((player) => {

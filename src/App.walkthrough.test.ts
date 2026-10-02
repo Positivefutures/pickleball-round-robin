@@ -243,7 +243,7 @@ function generate() {
   // need one still standing on Setup park there instead — see parkOnSetup —
   // so a yes here can never mask what a test meant to keep.
   if (/Return to Setup\?/.test(container.textContent ?? '')) {
-    clickButton(/^Go to /);
+    clickButton(/^Return to /);
   }
   clickButton(/^Generate Schedule/);
 }
@@ -260,7 +260,7 @@ function generate() {
 function leaveSchedule(target: RegExp) {
   clickButton(target);
   if (/Return to Setup\?/.test(container.textContent ?? '')) {
-    clickButton(/^Go to /);
+    clickButton(/^Return to /);
   }
 }
 
@@ -2217,7 +2217,7 @@ describe('the step tabs', () => {
   function toSetup() {
     click(setupTab());
     if (/Return to Setup\?/.test(container.textContent ?? '')) {
-      clickButton(/^Go to Setup/);
+      clickButton(/^Return to Setup/);
     }
   }
 
@@ -2827,11 +2827,69 @@ describe('the step tabs', () => {
       expect(heading!.className).toContain('text-[1.35rem]');
       expect(heading!.className).toContain('font-extrabold');
       expect(text(dialog()!)).toContain(
-        'Your current schedule will be cleared. Scores and other session changes ' +
-          'won\u2019t carry over.'
+        'This schedule will be cleared. Scores and other session changes will be discarded.'
       );
-      expect(buttons(/^Go to Setup$/, dialog()!)).toHaveLength(1);
+      expect(buttons(/^Return to Setup$/, dialog()!)).toHaveLength(1);
       expect(buttons(/^Keep Schedule$/, dialog()!)).toHaveLength(1);
+    });
+
+    it('puts Return to Setup on the left and Keep Schedule on the right', () => {
+      mount();
+      generate();
+      click(setupTab());
+      const tiles = buttons(/^(Return to Setup|Keep Schedule)$/, dialog()!).map(text);
+      expect(tiles).toEqual(['Return to Setup', 'Keep Schedule']);
+    });
+
+    // Jeff, 2026-10-02: a schedule nobody has touched costs nothing to leave,
+    // and the dialog should not warn about scores that do not exist.
+    const UNTOUCHED = 'This generated schedule will be cleared.';
+    const TOUCHED =
+      'This schedule will be cleared. Scores and other session changes will be discarded.';
+
+    it('says only that the schedule goes, when nothing has been done to it', () => {
+      mount();
+      generate();
+      click(setupTab());
+      expect(text(dialog()!)).toContain(UNTOUCHED);
+      expect(text(dialog()!)).not.toContain('discarded');
+    });
+
+    it('does not count a padlock as work', () => {
+      mount();
+      generate();
+      click(container.querySelector('[aria-label^="Lock "]')!);
+      click(setupTab());
+      expect(text(dialog()!)).toContain(UNTOUCHED);
+    });
+
+    it('says what is lost once a round is done', () => {
+      mount();
+      generate();
+      markComplete(1);
+      click(setupTab());
+      expect(text(dialog()!)).toContain(TOUCHED);
+      expect(text(dialog()!)).not.toContain(UNTOUCHED);
+    });
+
+    it('says what is lost once two players have swapped', () => {
+      mount();
+      generate();
+      const round = storedSchedule().rounds[1];
+      const [a, b] = [round.courts[0].team1[0].name, round.courts[1].team2[0].name];
+      clickButton(new RegExp(`^${a}`), roundCard(2));
+      clickButton(new RegExp(`^${b}`), roundCard(2));
+      click(setupTab());
+      expect(text(dialog()!)).toContain(TOUCHED);
+    });
+
+    it('says what is lost once a score is written', () => {
+      seed(9, 9, 2, true);
+      mount();
+      generate();
+      scoreFirstCourt('11', '7');
+      click(setupTab());
+      expect(text(dialog()!)).toContain(TOUCHED);
     });
 
     it('promises the link will survive when the group has one out', () => {
@@ -2895,7 +2953,7 @@ describe('the step tabs', () => {
       const ticked = JSON.parse(window.localStorage.getItem('pb-selected-ids')!);
 
       click(setupTab());
-      clickButton(/^Go to Setup$/);
+      clickButton(/^Return to Setup$/);
 
       expect(container.textContent).toContain('Generate Schedule');
       expect(storedSchedule()).toBeNull();
@@ -2959,8 +3017,7 @@ describe('the step tabs', () => {
 
     click(setupTab());
     expect(text(container)).toContain(
-      'Your current schedule will be cleared. Scores and other session changes ' +
-        'won\u2019t carry over.'
+      'This schedule will be cleared. Scores and other session changes will be discarded.'
     );
     clickButton(/^Keep Schedule$/);
 
@@ -7226,7 +7283,7 @@ describe('Generate builds what Setup shows', () => {
 
     // A yes ends the afternoon and keeps the crowd, the way the tab's door does.
     clickButton(/^Continue to Setup/);
-    clickButton(/^Go to Setup$/);
+    clickButton(/^Return to Setup$/);
     expect(storedSchedule()).toBeNull();
     expect(JSON.parse(window.localStorage.getItem('pb-selected-ids') ?? '[]')).toHaveLength(9);
   });
@@ -7244,7 +7301,7 @@ describe('Generate builds what Setup shows', () => {
     clickButton(/^1\. Players$/);
     clickButton(/^Continue to Setup/);
     if (/Return to Setup\?/.test(container.textContent ?? '')) {
-      clickButton(/^Go to Setup$/);
+      clickButton(/^Return to Setup$/);
     }
     tickBox(victim);
     clickButton(/^Generate Schedule/);
@@ -7266,7 +7323,7 @@ describe('Generate builds what Setup shows', () => {
     clickButton(/^1\. Players$/);
     clickButton(/^Continue to Setup/);
     if (/Return to Setup\?/.test(container.textContent ?? '')) {
-      clickButton(/^Go to Setup$/);
+      clickButton(/^Return to Setup$/);
     }
     clickButton(/^Generate Schedule/);
 
@@ -7398,5 +7455,288 @@ describe('Generate builds what Setup shows', () => {
         expect(team.map((pl) => pl.name)).toContain('Ben');
       }
     }
+  });
+});
+
+/**
+ * Choose Sit-Outs (Jeff, 2026-10-02). A switch under the red sit-out line on
+ * Setup opens a page of slots, one per seat on each round's bench. Whoever is
+ * put in a slot sits out that round, locked, and the rest of the bench is
+ * filled fairly around them. On the schedule a padlock under each sit-out's
+ * name locks or unlocks them, and a locked sit-out cannot be swapped.
+ */
+describe('Choose Sit-Outs', () => {
+  // Ten ticked on two courts: two sit out each round.
+  beforeEach(() => seed(12, 10, 2));
+
+  const SWITCH = '[role="switch"][aria-label="Choose Sit-Outs?"]';
+
+  function sitOutSwitch(): HTMLElement | null {
+    return container.querySelector(SWITCH);
+  }
+
+  /** Ticks or unticks somebody on Setup's player list. */
+  function tick(name: string) {
+    const label = [...container.querySelectorAll('label')].find((l) => text(l).startsWith(name));
+    if (!label) throw new Error(`${name} is not on the player list`);
+    click(label.querySelector('input')!);
+  }
+
+  /** One round's slots on Choose Sit-Outs. */
+  function chooserRound(n: number): HTMLElement {
+    const found = container.querySelector(`[data-round="${n}"]`);
+    if (!found) throw new Error(`Choose Sit-Outs has no Round ${n}`);
+    return found as HTMLElement;
+  }
+
+  /** Fills the first empty slot of a round with somebody from the picker. */
+  function choose(round: number, name: string) {
+    clickButton(/^Tap to Choose$/, chooserRound(round));
+    const picker = container.querySelector(`[role="dialog"][aria-label="Round ${round}: Who Sits Out?"]`);
+    if (!picker) throw new Error(`no picker for Round ${round}`);
+    clickButton(new RegExp(`^${name}`), picker);
+  }
+
+  /** Setup, the switch on, Generate pressed: the chooser on screen. */
+  function openChooser() {
+    mount();
+    clickButton(/^Continue to Setup/);
+    click(sitOutSwitch()!);
+    clickButton(/^Choose Sit-Outs/);
+  }
+
+  /** A sit-out's box on a round of the schedule. */
+  function benchBox(name: string, round: number): HTMLElement {
+    const card = roundCard(round);
+    const heading = [...card.querySelectorAll('p')].find((p) => text(p) === 'SITTING OUT');
+    if (!heading) throw new Error(`nobody sitting out on Round ${round}`);
+    const list = heading.parentElement!.nextElementSibling!;
+    const box = [...list.children].find((c) => text(c).startsWith(name));
+    if (!box) throw new Error(`${name} is not sitting out on Round ${round}`);
+    return box as HTMLElement;
+  }
+
+  const nameButton = (name: string, round: number) =>
+    benchBox(name, round).querySelector('button') as HTMLElement;
+  const padlock = (name: string, round: number) =>
+    benchBox(name, round).querySelector('button[aria-label$="sit-out"]') as HTMLElement | null;
+
+  const benched = (round: number) =>
+    storedSchedule().rounds[round - 1].sitOuts.map((p) => p.name);
+
+  it('shows the switch only while somebody will sit out', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    expect(container.textContent).toContain('2 players will sit out each round');
+    expect(sitOutSwitch()).not.toBeNull();
+
+    tick('Ava');
+    tick('Ben');
+    // Eight on two courts: nobody sits, so the red line goes and the switch with it.
+    expect(container.textContent).not.toContain('will sit out each round');
+    expect(sitOutSwitch()).toBeNull();
+
+    tick('Ava');
+    expect(sitOutSwitch()).not.toBeNull();
+  });
+
+  it('is drawn exactly as Keep Score is', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    const keepScore = container.querySelector('[role="switch"][aria-label="Keep Score?"]')!;
+    const row = (el: Element) => el.parentElement!;
+    expect(row(sitOutSwitch()!).className).toBe(row(keepScore).className);
+    expect(sitOutSwitch()!.className).toBe(keepScore.className);
+    expect(row(sitOutSwitch()!).querySelector('h3')!.className).toBe(
+      row(keepScore).querySelector('h3')!.className
+    );
+  });
+
+  it('remembers the switch, and leaves Generate alone while it is off', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    expect(sitOutSwitch()!.getAttribute('aria-checked')).toBe('false');
+    clickButton(/^Generate Schedule/);
+    // Straight to the schedule, as it has always gone.
+    expect(container.textContent).not.toContain('Choose Sit-Outs');
+    expect(storedSchedule().rounds.every((r) => !r.lockedSitOutIds)).toBe(true);
+
+    parkOnSetup();
+    click(sitOutSwitch()!);
+    expect(JSON.parse(window.localStorage.getItem('pb-choose-sit-outs')!)).toBe(true);
+  });
+
+  it('names Setup\'s button for where it goes, and the chooser\'s for what it does', () => {
+    mount();
+    clickButton(/^Continue to Setup/);
+    const generates = () => buttons(/^Generate Schedule/);
+    const chooses = () => buttons(/^Choose Sit-Outs/);
+    // Off: both rows say Generate Schedule, as they always have.
+    expect(generates()).toHaveLength(2);
+    expect(chooses()).toHaveLength(0);
+
+    // On: both rows say where the press goes now.
+    click(sitOutSwitch()!);
+    expect(generates()).toHaveLength(0);
+    expect(chooses()).toHaveLength(2);
+
+    // Nobody to bench: the switch is out of sight and not obeyed, so the
+    // button goes back to building.
+    tick('Ava');
+    tick('Ben');
+    expect(generates()).toHaveLength(2);
+    expect(chooses()).toHaveLength(0);
+    tick('Ava');
+    tick('Ben');
+
+    // The chooser's own button builds the schedule, and says so.
+    clickButton(/^Choose Sit-Outs/);
+    expect(generates()).toHaveLength(2);
+    expect(chooses()).toHaveLength(0);
+  });
+
+  it('opens a slot for every seat on every round', () => {
+    openChooser();
+    expect(container.textContent).toContain('Choose Sit-Outs');
+    for (let n = 1; n <= 8; n++) {
+      expect(buttons(/^Tap to Choose$/, chooserRound(n))).toHaveLength(2);
+    }
+    expect(container.querySelector('[data-round="9"]')).toBeNull();
+  });
+
+  it('offers everybody not already sitting out that round, and takes them back', () => {
+    openChooser();
+    choose(1, 'Ava');
+    expect(text(chooserRound(1))).toContain('Ava');
+    expect(buttons(/^Tap to Choose$/, chooserRound(1))).toHaveLength(1);
+
+    // The second slot's list leaves Ava off it. Round 2's does not.
+    clickButton(/^Tap to Choose$/, chooserRound(1));
+    let picker = container.querySelector('[role="dialog"]') as HTMLElement;
+    expect(buttons(/^Ava/, picker)).toHaveLength(0);
+    expect(buttons(/^Ben/, picker)).toHaveLength(1);
+    clickButton(/^Cancel$/, picker);
+    clickButton(/^Tap to Choose$/, chooserRound(2));
+    picker = container.querySelector('[role="dialog"]') as HTMLElement;
+    expect(buttons(/^Ava/, picker)).toHaveLength(1);
+    clickButton(/^Cancel$/, picker);
+
+    // The bin where the gender and rating would be.
+    click(chooserRound(1).querySelector('[aria-label="Remove Ava from round 1"]')!);
+    expect(text(chooserRound(1))).not.toContain('Ava');
+    expect(buttons(/^Tap to Choose$/, chooserRound(1))).toHaveLength(2);
+  });
+
+  it('builds with the chosen on the bench, locked, and the rest filled in', () => {
+    openChooser();
+    choose(1, 'Ava');
+    choose(3, 'Ben');
+    choose(3, 'Cara');
+    clickButton(/^Generate Schedule/);
+
+    const rounds = storedSchedule().rounds;
+    expect(benched(1)).toContain('Ava');
+    expect(rounds[0].lockedSitOutIds).toEqual(['p1']);
+    expect(benched(3).sort()).toEqual(['Ben', 'Cara']);
+    expect(rounds[2].lockedSitOutIds).toEqual(['p2', 'p3']);
+    // Every round still benches two, chosen or not.
+    for (const r of rounds) expect(r.sitOuts).toHaveLength(2);
+    expect(rounds[1]).not.toHaveProperty('lockedSitOutIds');
+
+    // On the schedule: Ava's padlock is shut, the round's other sit-out's open.
+    expect(padlock('Ava', 1)!.getAttribute('aria-label')).toBe('Unlock sit-out');
+    const other = benched(1).find((n) => n !== 'Ava')!;
+    expect(padlock(other, 1)!.getAttribute('aria-label')).toBe('Lock sit-out');
+  });
+
+  it('goes back to Setup and forward again without losing what was chosen', () => {
+    openChooser();
+    choose(2, 'Dan');
+    clickButton(/^← Back$/);
+    expect(container.textContent).toContain('Select Players');
+    clickButton(/^Choose Sit-Outs/);
+    expect(text(chooserRound(2))).toContain('Dan');
+  });
+
+  it('treats a tap on a locked sit-out as a locked seat: pencil, no swap', () => {
+    openChooser();
+    choose(1, 'Ava');
+    clickButton(/^Generate Schedule/);
+    const before = fingerprint(storedSchedule().rounds[0]);
+
+    click(nameButton('Ava', 1));
+    expect(container.textContent).toContain('Tap the pencil for more. Unlock the player to swap.');
+    expect(container.textContent).not.toContain('Tap another player to swap');
+    expect(benchBox('Ava', 1).querySelector('[aria-label="Edit Ava"]')).not.toBeNull();
+
+    // A court player tapped, then Ava: nothing changes places.
+    const court = onCourt(storedSchedule().rounds[0])[0];
+    clickButton(new RegExp(`^${court}`), roundCard(1));
+    click(nameButton('Ava', 1));
+    expect(fingerprint(storedSchedule().rounds[0])).toBe(before);
+
+    // That last tap showed the pencil again, and one more puts it away.
+    expect(benchBox('Ava', 1).querySelector('[aria-label="Edit Ava"]')).not.toBeNull();
+    click(nameButton('Ava', 1));
+    expect(benchBox('Ava', 1).querySelector('[aria-label="Edit Ava"]')).toBeNull();
+  });
+
+  it('unlocks with a second tap on the padlock, and then swaps as ever', () => {
+    openChooser();
+    choose(1, 'Ava');
+    clickButton(/^Generate Schedule/);
+
+    click(padlock('Ava', 1)!);
+    expect(storedSchedule().rounds[0]).not.toHaveProperty('lockedSitOutIds');
+    expect(padlock('Ava', 1)!.getAttribute('aria-label')).toBe('Lock sit-out');
+
+    const court = onCourt(storedSchedule().rounds[0])[0];
+    click(nameButton('Ava', 1));
+    clickButton(new RegExp(`^${court}`), roundCard(1));
+    expect(onCourt(storedSchedule().rounds[0])).toContain('Ava');
+    expect(benched(1)).toContain(court);
+  });
+
+  it('keeps every locked sit-out through a reshuffle, set here or on Setup', () => {
+    openChooser();
+    choose(1, 'Ava');
+    clickButton(/^Generate Schedule/);
+    // A second lock, set on the schedule itself.
+    const fifth = benched(5)[0];
+    click(padlock(fifth, 5)!);
+
+    for (let i = 0; i < 4; i++) {
+      reshuffle();
+      expect(benched(1)).toContain('Ava');
+      expect(benched(5)).toContain(fifth);
+      expect(padlock('Ava', 1)!.getAttribute('aria-label')).toBe('Unlock sit-out');
+      expect(padlock(fifth, 5)!.getAttribute('aria-label')).toBe('Unlock sit-out');
+    }
+  });
+
+  it('draws no padlock on a round already played', () => {
+    openChooser();
+    choose(1, 'Ava');
+    clickButton(/^Generate Schedule/);
+    markComplete(1);
+    // A finished round folds shut. Opened again, its bench is there and has
+    // nothing on it to press: nothing about a round already played can change.
+    clickButton(/^View$/, roundCard(1));
+    expect(text(benchBox('Ava', 1))).toContain('Ava');
+    expect(padlock('Ava', 1)).toBeNull();
+    expect(padlock(benched(2)[0], 2)).not.toBeNull();
+  });
+
+  it('opens on the locks already on the schedule, and hands that schedule back unchanged', () => {
+    openChooser();
+    choose(4, 'Eve');
+    clickButton(/^Generate Schedule/);
+    const made = JSON.stringify(storedSchedule());
+
+    parkOnSetup();
+    clickButton(/^Choose Sit-Outs/);
+    expect(text(chooserRound(4))).toContain('Eve');
+    clickButton(/^Generate Schedule/);
+    expect(JSON.stringify(storedSchedule())).toBe(made);
   });
 });

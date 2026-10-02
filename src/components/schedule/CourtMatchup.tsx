@@ -1,4 +1,5 @@
 import type { CourtAssignment, Player } from '../../types';
+import { PadlockIcon } from './PadlockIcon';
 import type { CourtSlot, PlayerSlot } from './SchedulePage';
 import { getDisplayName } from '../../utils/helpers';
 import { useStoredValue } from '../../hooks/useStoredValue';
@@ -53,23 +54,6 @@ interface Props {
    * court is handed undefined and draws exactly as it always did.
    */
   tourCourt?: number;
-}
-
-function LockIcon({ locked }: { locked: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill={locked ? '#000000' : '#d1d5db'}
-      className="w-4 h-4"
-    >
-      {locked ? (
-        <path d="M12 2C9.24 2 7 4.24 7 7v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7c0-2.76-2.24-5-5-5zm-3 5c0-1.66 1.34-3 3-3s3 1.34 3 3v3H9V7z" />
-      ) : (
-        <path d="M12 2C9.24 2 7 4.24 7 7v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-7V7c0-1.66 1.34-3 3-3s3 1.34 3 3v1h2V7c0-2.76-2.24-5-5-5z" />
-      )}
-    </svg>
-  );
 }
 
 interface TeamStyles {
@@ -385,7 +369,7 @@ function TeamColumn({
             className="justify-self-center -my-0.5 z-10 p-0.5 rounded hover:bg-gray-100 transition-colors"
             aria-label={locked ? 'Unlock pair' : 'Lock pair'}
           >
-            <LockIcon locked={locked} />
+            <PadlockIcon locked={locked} />
           </button>
         ) : (
           <div aria-hidden="true" className="justify-self-center -my-0.5 p-0.5 w-4 h-4" />

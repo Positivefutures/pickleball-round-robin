@@ -96,6 +96,12 @@ interface Props {
     brokenPairs: Record<number, string[]>
   ) => void;
   onUpdateSchedule: (schedule: Schedule) => void;
+  /**
+   * A change to the schedule that is not an edit to the afternoon: a sit-out
+   * locked or unlocked. It says what the next rebuild must keep, like a padlock
+   * on a pair, and like one it is not work that leaving should ask about.
+   */
+  onSetSchedule: (schedule: Schedule) => void;
   onCompletedRoundsChange: (value: number[]) => void;
   /**
    * Somebody going home. The padlocks and the couples broken for a single round
@@ -246,6 +252,7 @@ export function SchedulePage({
   canUncomplete,
   onRegenerate,
   onUpdateSchedule,
+  onSetSchedule,
   onCompletedRoundsChange,
   onRemovePlayer,
   onEditPlayer,
@@ -272,7 +279,7 @@ export function SchedulePage({
    * in `selectedSlot` would put the swap machinery and the swap hint behind a
    * tap that cannot swap. Only one of the two is ever set.
    */
-  const [pencilSlot, setPencilSlot] = useState<CourtSlot | null>(null);
+  const [pencilSlot, setPencilSlot] = useState<CourtSlot | SitOutSlot | null>(null);
   const [locks, setLocks] = useState<Record<number, LockedPair[]>>({});
   // Couples the host has broken for a specific round (partnerKeys by round index).
   const [brokenPairs, setBrokenPairs] = useState<Record<number, string[]>>({});
@@ -338,13 +345,42 @@ export function SchedulePage({
    * Any ordinary selection is dropped, so there is never a pencil in one place
    * and an offer to swap in another.
    */
-  function handleLockedTap(slot: CourtSlot) {
+  function handleLockedTap(slot: CourtSlot | SitOutSlot) {
     // No guard on a completed round here, unlike handlePlayerTap. That one has
     // a swap behind it and refuses twice on purpose. This shows a pencil and
     // changes nothing, and the seat it comes from will not call it on a round
     // that is finished.
     setSelectedSlot(null);
     setPencilSlot((prev) => (prev && sameSlot(prev, slot) ? null : slot));
+  }
+
+  /**
+   * The padlock under a sit-out's name: locks them to the bench for this round,
+   * or lets them go back to the rotation.
+   *
+   * Written onto the round rather than held here like a padlock on a pair,
+   * because a lock can also arrive from Choose Sit-Outs on Setup, and it has to
+   * be on the schedule to survive the trip. Every rebuild reads it from there.
+   */
+  function handleToggleSitOutLock(roundIdx: number, playerId: string) {
+    const round = schedule.rounds[roundIdx];
+    if (!round || completedSet.has(round.roundNumber)) return;
+    const held = round.lockedSitOutIds ?? [];
+    const next = held.includes(playerId)
+      ? held.filter((id) => id !== playerId)
+      : [...held, playerId];
+    onSetSchedule({
+      rounds: schedule.rounds.map((r, ri) => {
+        if (ri !== roundIdx) return r;
+        // Absent rather than empty once the last lock goes, so an unlocked
+        // round is the same round it was before anything was locked.
+        const rest = { ...r };
+        delete rest.lockedSitOutIds;
+        return next.length > 0 ? { ...rest, lockedSitOutIds: next } : rest;
+      }),
+    });
+    // The pencil it may have been showing belonged to the lock.
+    clearTaps();
   }
 
   function markSwapped(roundIdx: number, playerIds: string[]) {
@@ -635,7 +671,17 @@ export function SchedulePage({
   function handlePlayerTap(slot: PlayerSlot) {
     // Completed rounds are frozen — guard here too so a stale selection can't
     // mutate one after it's been marked complete.
-    if (completedSet.has(schedule.rounds[slot.roundIdx].roundNumber)) return;
+    const tapped = schedule.rounds[slot.roundIdx];
+    if (completedSet.has(tapped.roundNumber)) return;
+    // A locked sit-out has no swap to offer. The box sends its taps to
+    // handleLockedTap already; this is the same rule, held where the swap is.
+    if (
+      slot.kind === 'sitout' &&
+      tapped.lockedSitOutIds?.includes(tapped.sitOuts[slot.sitOutIdx]?.id)
+    ) {
+      handleLockedTap(slot);
+      return;
+    }
     setPencilSlot(null);
 
     if (!selectedSlot) {
@@ -921,6 +967,7 @@ export function SchedulePage({
             pencilSlot={pencilSlot}
             onPlayerTap={handlePlayerTap}
             onLockedTap={handleLockedTap}
+            onToggleSitOutLock={handleToggleSitOutLock}
             allPlayers={players}
             locks={roundLocks}
             onToggleLock={handleToggleLock}
@@ -946,7 +993,9 @@ export function SchedulePage({
               swap went. */}
           {pencilSlot?.roundIdx === roundIdx && (
             <p className="text-sm text-blue-600 text-center mt-2">
-              Tap the pencil for more. Unlock the pair to swap.
+              {pencilSlot.kind === 'sitout'
+                ? 'Tap the pencil for more. Unlock the player to swap.'
+                : 'Tap the pencil for more. Unlock the pair to swap.'}
             </p>
           )}
         </div>

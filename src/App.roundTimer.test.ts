@@ -180,7 +180,7 @@ function generate() {
 function toSetup() {
   click(tab(/^2\. Setup/));
   if (/Return to Setup\?/.test(container.textContent ?? '')) {
-    clickButton(/^Go to Setup/);
+    clickButton(/^Return to Setup/);
   }
 }
 

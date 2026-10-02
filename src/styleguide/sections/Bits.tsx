@@ -21,6 +21,10 @@ import {
   PLAYER_NAME_TEXT,
 } from '../../components/schedule/roundLook';
 
+import { SitOutList } from '../../components/schedule/SitOutList';
+import type { SitOutSlot } from '../../components/schedule/SchedulePage';
+import { SitOutChooser, type SitOutDraft } from '../../components/setup/SitOutChooser';
+
 import * as appIcons from '../../components/icons';
 import * as timerIcons from '../../components/schedule/timerIcons';
 import * as actionIcons from '../../components/schedule/actionIcons';
@@ -289,6 +293,55 @@ import { toneFor } from './scoreTone';
           </p>
           <SwapDemo />
         </div>
+
+        <Example
+          name="<SitOutList lockedIds pencilSlot onLockedTap onToggleLock />"
+          note="the sit-out lock: a padlock under each name, shut and black-edged when locked. Tap a locked name for its pencil; it offers no swap"
+          source={`import { SitOutList } from './SitOutList';
+
+<SitOutList
+  players={round.sitOuts}
+  roundIdx={roundIdx}
+  lockedIds={round.lockedSitOutIds}
+  pencilSlot={pencilSlot?.kind === 'sitout' ? pencilSlot : null}
+  onLockedTap={onLockedTap}
+  onToggleLock={onToggleSitOutLock}
+  …
+/>`}
+        >
+          <SitOutLockDemo />
+        </Example>
+      </Section>
+
+      <Section
+        id="choose-sit-outs"
+        title="Choose Sit-Outs"
+        blurb={
+          <>
+            The page between Setup and the schedule when the switch over the player list is on.
+            A <strong>sit-out slot</strong> per seat on each round&rsquo;s bench: dashed when
+            empty, the Select Players box with a bin when filled. The picker is a panel on the
+            same edge as every dialog.
+          </>
+        }
+      >
+        <Example
+          name="<SitOutChooser players numRounds seats draft onChange onBack onGenerate />"
+          note="two rounds, two seats, one slot filled. Tap an empty slot for the picker"
+          source={`import { SitOutChooser } from './SitOutChooser';
+
+<SitOutChooser
+  players={generatePlayers}
+  numRounds={numRounds}
+  seats={sitOutSeats(selectedIds.length, numCourts)}
+  draft={draft}
+  onChange={setDraft}
+  onBack={back}
+  onGenerate={(pins) => onGenerate(pins)}
+/>`}
+        >
+          <SitOutChooserDemo />
+        </Example>
       </Section>
 
       <Section
@@ -376,6 +429,60 @@ function SwapDemo() {
       >
         Replay the Swap
       </button>
+    </div>
+  );
+}
+
+const noop = () => {};
+
+const DEMO_BENCH: Player[] = [
+  { id: 'd1', name: 'Ada Lovelace', rating: 4.0, gender: 'F', rosterIds: [] },
+  { id: 'd2', name: 'Grace Hopper', rating: 3.5, gender: 'F', rosterIds: [] },
+  { id: 'd3', name: 'Alan Turing', rating: 4.5, gender: 'M', rosterIds: [] },
+];
+
+function SitOutLockDemo() {
+  const [locked, setLocked] = useState<string[]>(['d1']);
+  const [pencil, setPencil] = useState<SitOutSlot | null>(null);
+  return (
+    <div
+      className="max-w-md rounded-lg border-2 p-3"
+      style={{ backgroundColor: ROUND_FILL, borderColor: ROUND_EDGE }}
+    >
+      <SitOutList
+        players={DEMO_BENCH}
+        roundIdx={0}
+        selectedSlot={null}
+        onPlayerTap={noop}
+        onOpenPlayerMenu={noop}
+        allPlayers={DEMO_BENCH}
+        lockedIds={locked}
+        pencilSlot={pencil}
+        onLockedTap={(slot) =>
+          setPencil((p) => (p?.sitOutIdx === slot.sitOutIdx ? null : slot))
+        }
+        onToggleLock={(_, id) => {
+          setPencil(null);
+          setLocked((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+        }}
+      />
+    </div>
+  );
+}
+
+function SitOutChooserDemo() {
+  const [draft, setDraft] = useState<SitOutDraft>({ 1: ['d1', null] });
+  return (
+    <div className="max-w-md">
+      <SitOutChooser
+        players={DEMO_BENCH}
+        numRounds={2}
+        seats={2}
+        draft={draft}
+        onChange={setDraft}
+        onBack={noop}
+        onGenerate={noop}
+      />
     </div>
   );
 }

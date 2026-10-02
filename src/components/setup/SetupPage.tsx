@@ -12,6 +12,10 @@ import { PanelBadge } from '../PanelGlyph';
 import { resolvePairs } from '../../lib/partnerships';
 import { minPlayersForCourts } from '../../lib/assign';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { generateButton } from './setupButtons';
+import { SitOutChooser, type SitOutDraft } from './SitOutChooser';
+import { sitOutSeats } from '../../lib/sitout';
+import { appScrollTo } from '../../lib/appScroll';
 
 interface Props {
   players: Player[];
@@ -47,7 +51,24 @@ interface Props {
    * says so — beside the button, rather than as a dialog in front of the page.
    */
   promptGenerate?: boolean;
-  onGenerate: () => void;
+  /**
+   * Build, or hand back the schedule already made. With `pins`, from Choose
+   * Sit-Outs: who the host has put on the bench, by round number.
+   */
+  onGenerate: (pins?: Record<number, string[]>) => void;
+  /**
+   * Everybody Generate builds from, guests included. Setup's own list is the
+   * group alone, but anybody playing can be chosen to sit out.
+   */
+  generatePlayers: Player[];
+  /** Whether Generate opens Choose Sit-Outs first. See stores.chooseSitOuts. */
+  chooseSitOuts: boolean;
+  onChooseSitOutsChange: (on: boolean) => void;
+  /**
+   * The sit-outs locked on the schedule already made, by round number, which
+   * is where Choose Sit-Outs starts from. Empty with no schedule.
+   */
+  lockedSitOuts: Record<number, string[]>;
 }
 
 export function SetupPage({
@@ -73,6 +94,10 @@ export function SetupPage({
   onPlanDraft,
   promptGenerate = false,
   onGenerate,
+  generatePlayers,
+  chooseSitOuts,
+  onChooseSitOutsChange,
+  lockedSitOuts,
 }: Props) {
   const [showError, setShowError] = useState(false);
   const [mode, setMode] = useState<'select' | 'pair'>('select');
@@ -86,6 +111,15 @@ export function SetupPage({
    * so leaving the tab unmounts it and this goes with it.
    */
   const [plannerOpen, setPlannerOpen] = useState(false);
+  /**
+   * Choose Sit-Outs, open in place of the page, and what has been chosen on it.
+   *
+   * Held here for the same reason as the list above: leaving the tab unmounts
+   * this page and takes both with it. Back keeps the draft, so a host who goes
+   * back to tick one more player comes forward again to what they had chosen.
+   */
+  const [choosing, setChoosing] = useState(false);
+  const [sitOutDraft, setSitOutDraft] = useState<SitOutDraft | null>(null);
 
   // Hold the page still behind the panel, so Setup is exactly where it was
   // when Done closes it. Not for the list, which is inline and has to scroll
@@ -118,13 +152,48 @@ export function SetupPage({
   const pairs = resolvePairs(partnerships, selectedPlayers);
 
 
+  const seats = sitOutSeats(selectedIds.length, numCourts);
+  // The switch only shows while somebody will sit out, and it is only obeyed
+  // then. Left on with nobody to bench, Generate simply builds.
+  const opensChooser = chooseSitOuts && seats > 0;
+  // The press leads to Choose Sit-Outs rather than to a schedule, so that is
+  // what the button says. The page it leads to says Generate Schedule, because
+  // that one does.
+  const generateLabel = opensChooser ? 'Choose Sit-Outs' : 'Generate Schedule';
+
   function handleGenerate() {
-    if (canGenerate) {
-      setShowError(false);
-      onGenerate();
-    } else {
+    if (!canGenerate) {
       setShowError(true);
+      return;
     }
+    setShowError(false);
+    if (opensChooser) {
+      // Opened for the first time on this visit, it starts from the locks on
+      // the schedule already made, so changing one round is not choosing all
+      // of them again.
+      setSitOutDraft((d) => d ?? { ...lockedSitOuts });
+      setChoosing(true);
+      appScrollTo({ top: 0 });
+      return;
+    }
+    onGenerate();
+  }
+
+  if (choosing) {
+    return (
+      <SitOutChooser
+        players={generatePlayers}
+        numRounds={numRounds}
+        seats={seats}
+        draft={sitOutDraft ?? {}}
+        onChange={setSitOutDraft}
+        onBack={() => {
+          setChoosing(false);
+          appScrollTo({ top: 0 });
+        }}
+        onGenerate={onGenerate}
+      />
+    );
   }
 
   function handleToggleMode() {
@@ -167,7 +236,7 @@ export function SetupPage({
       {/* Only on the upper row. The page opens at the top, so this is the row
           the host is looking at, and one bouncing box is a signpost where two
           would be a page shouting. */}
-      {tourAnchor && promptGenerate && <GeneratePrompt />}
+      {tourAnchor && promptGenerate && <GeneratePrompt label={generateLabel} />}
       <div className="flex justify-between">
         <button
           onClick={handleToggleMode}
@@ -191,9 +260,9 @@ export function SetupPage({
         <button
           onClick={handleGenerate}
           data-tutorial={tourAnchor ? 'generate-schedule' : undefined}
-          className="px-6 py-3.5 bg-brand-teal text-white rounded-md hover:bg-brand-teal-dark transition-colors font-bold"
+          className={generateButton}
         >
-          Generate Schedule &rarr;
+          {generateLabel} &rarr;
         </button>
       </div>
       {showError && errorMessage && (
@@ -295,6 +364,8 @@ export function SetupPage({
             onToggle={onTogglePlayer}
             onSelectAll={onSelectAll}
             onDeselectAll={onDeselectAll}
+            chooseSitOuts={chooseSitOuts}
+            onChooseSitOutsChange={onChooseSitOutsChange}
           />
         ) : (
           <PartnerPairing
@@ -329,7 +400,7 @@ export function SetupPage({
  * `role="status"` rather than an alert: this is the answer to a press the host
  * just made, not an interruption.
  */
-function GeneratePrompt() {
+function GeneratePrompt({ label }: { label: string }) {
   return (
     <div className="mb-3 flex justify-end no-print" role="status">
       {/* Pale teal inside a dark teal line, not a solid teal block. It is a
@@ -338,7 +409,7 @@ function GeneratePrompt() {
           it hangs off, so it covers the border it crosses and the two read as
           one shape. */}
       <div className="relative motion-safe:animate-bounce rounded-lg border-2 border-brand-teal-dark bg-brand-teal-light px-3.5 py-2 text-sm font-bold text-brand-teal-dark shadow-md">
-        Tap Generate Schedule
+        Tap {label}
         <span
           aria-hidden="true"
           className="absolute -bottom-[7px] right-7 h-3 w-3 rotate-45 rounded-br-[2px] border-b-2 border-r-2 border-brand-teal-dark bg-brand-teal-light"

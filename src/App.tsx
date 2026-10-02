@@ -9,6 +9,7 @@ import { useScrollLock } from './hooks/useScrollLock';
 import { appScrollTo } from './lib/appScroll';
 import * as stores from './lib/stores';
 import { extendSchedule, generateSchedule, regenerateRemaining } from './lib/pairing';
+import { lockedSitOutsOf, samePins } from './lib/sitout';
 import { addToRemainingRounds, replacePlayerInRounds } from './lib/sitout';
 import { addCourtToRemaining, removeCourtFromRemaining } from './lib/courts';
 import { carryCourtNumbers } from './lib/courtNumbers';
@@ -122,6 +123,7 @@ function App() {
   const [numRounds, setNumRounds] = useStoredValue(stores.numRounds);
   const [roundPlan, setRoundPlan] = useStoredValue(stores.roundPlan);
   const [scoringEnabled, setScoringEnabled] = useStoredValue(stores.scoringEnabled);
+  const [chooseSitOuts, setChooseSitOuts] = useStoredValue(stores.chooseSitOuts);
 
   // Live session state — persisted so a refresh mid-session doesn't lose the
   // schedule or which rounds have already been played.
@@ -133,7 +135,7 @@ function App() {
   // host done work worth asking about on the way out", and Setup now asks on
   // the way out whether or not there is any. It is still written, because the
   // basis and the parked session both carry it.
-  const [, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
+  const [scheduleEdited, setScheduleEdited] = useStoredValue(stores.scheduleEdited);
   const [scheduleRosterId, setScheduleRosterId] = useStoredValue(stores.scheduleRosterId);
   const [scheduleBasis, setScheduleBasis] = useStoredValue(stores.scheduleBasis);
   // Read only so the two dialogs can say what a yes does to the link. The key
@@ -760,8 +762,9 @@ function App() {
    */
   const generatePlayers = sessionPlayers.filter((p) => selectedIds.includes(p.id));
 
-  // Setup's Generate: a brand new schedule, starting the session over.
-  const handleGenerate = useCallback(() => {
+  // Setup's Generate: a brand new schedule, starting the session over. `pins`
+  // are the sit-outs chosen on Choose Sit-Outs, by round number.
+  const handleGenerate = useCallback((pins: Record<number, string[]> = {}) => {
     const attending = generatePlayers;
     if (attending.length < 4) return;
     // The box above the button has been answered by the press.
@@ -781,7 +784,7 @@ function App() {
     }
     setSchedule(
       generateSchedule(
-        attending, numCourts, numRounds, plan, activePartnerships
+        attending, numCourts, numRounds, plan, activePartnerships, pins
       )
     );
     // A fresh schedule starts over: nothing played, nobody gone, nothing hand-edited
@@ -868,6 +871,28 @@ function App() {
   const parkedIsCurrent = !!schedule && !scheduleIsStale(scheduleBasis, pressBasis);
 
   /**
+   * The sit-outs locked on the schedule already made, by round number. Choose
+   * Sit-Outs opens on these, and a press that comes back from it with the same
+   * ones has changed nothing the parked schedule does not already say.
+   */
+  const lockedSitOuts = useMemo(() => lockedSitOutsOf(schedule), [schedule]);
+
+  /**
+   * Whether the host has done anything to the session since Generate, which
+   * decides what Return to Setup says it costs.
+   *
+   * Hand edits are already counted: a swap, a score, a reshuffle, a player in
+   * or out, a round added, a court renamed. A round ticked DONE is not one of
+   * those, so it is counted here, and so is any score on the board in case a
+   * session arrived with one. A padlock is not work, as it never has been: it
+   * is staging for a reshuffle, and it goes quietly.
+   */
+  const sessionTouched =
+    scheduleEdited ||
+    completedRounds.length > 0 ||
+    !!schedule?.rounds.some((r) => r.courts.some((c) => c.score !== undefined));
+
+  /**
    * Generate, pressed on the Setup page. The only way onto the Schedule tab.
    *
    * Two jobs in one button, and the host cannot tell them apart, which is the
@@ -878,8 +903,10 @@ function App() {
    * reached from this page — leaving it is what asks, and a yes there is what
    * threw it away.
    */
-  const handleGeneratePress = useCallback(() => {
-    if (parkedIsCurrent) {
+  const handleGeneratePress = useCallback((pins?: Record<number, string[]>) => {
+    // From Choose Sit-Outs, the sit-outs are part of what was asked for: the
+    // parked schedule is only the answer if it already locks exactly those.
+    if (parkedIsCurrent && (!pins || samePins(pins, lockedSitOuts))) {
       setStep('schedule');
       // The tour's Select Players card moves on the press rather than on the
       // build. Without this, coming back from the congratulations card leaves
@@ -887,8 +914,8 @@ function App() {
       if (tour?.id === 'select-players') nextCard();
       return;
     }
-    handleGenerate();
-  }, [parkedIsCurrent, tour, setStep, handleGenerate]);
+    handleGenerate(pins);
+  }, [parkedIsCurrent, lockedSitOuts, tour, setStep, handleGenerate]);
 
   // The box above Generate belongs to one visit to Setup. Walking away is an
   // answer too, and coming back later with no press behind it should be a clean
@@ -1976,6 +2003,10 @@ function App() {
             onPlanDraft={setPlanDraft}
             promptGenerate={promptGenerate}
             onGenerate={handleGeneratePress}
+            generatePlayers={generatePlayers}
+            chooseSitOuts={chooseSitOuts}
+            onChooseSitOutsChange={setChooseSitOuts}
+            lockedSitOuts={lockedSitOuts}
           />
         )}
 
@@ -1992,6 +2023,7 @@ function App() {
             canUncomplete={removedIds.length === 0}
             onRegenerate={handleReshuffle}
             onUpdateSchedule={handleUpdateSchedule}
+            onSetSchedule={setSchedule}
             onCompletedRoundsChange={setCompletedRounds}
             onRemovePlayer={handleRemovePlayer}
             onEditPlayer={handleEditPlayer}
@@ -2033,11 +2065,14 @@ function App() {
           // question here is where the host is going rather than how sorry they
           // should be about it.
           icon={pendingLeave === 'roster' ? StepPlayersIcon : SetupReturnIcon}
+          // Two sentences for a schedule the host has worked on, one for a
+          // schedule they have only looked at. Nothing of theirs is lost in
+          // the second case, and saying scores are discarded when there are
+          // none reads as a warning about something that is not there.
           body={
-            <>
-              Your current schedule will be cleared. Scores and other session
-              changes won&rsquo;t carry over.
-            </>
+            sessionTouched
+              ? 'This schedule will be cleared. Scores and other session changes will be discarded.'
+              : 'This generated schedule will be cleared.'
           }
           // Only when there is a link out to reassure them about. A host who
           // has sent a QR code to fourteen people needs to know that rebuilding
@@ -2047,9 +2082,10 @@ function App() {
           // Staying is staying on the Schedule tab, so it wears that tab's shape
           // the way the other tile wears the one it leaves for.
           cancelIcon={StepScheduleIcon}
-          confirmLabel={`Go to ${stepName(pendingLeave)}`}
+          confirmLabel={`Return to ${stepName(pendingLeave)}`}
           // The tab it lands on, wearing that tab's own shape.
           confirmIcon={pendingLeave === 'roster' ? StepPlayersIcon : StepSetupIcon}
+          confirmFirst
           onConfirm={confirmLeave}
           onCancel={() => setPendingLeave(null)}
         />

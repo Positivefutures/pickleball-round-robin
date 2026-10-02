@@ -1,4 +1,4 @@
-import type { Player, PairingHistory, Partnership, Round } from '../types';
+import type { Player, PairingHistory, Partnership, Round, Schedule } from '../types';
 import { courtRatingDiff } from '../utils/helpers';
 
 /**
@@ -121,8 +121,66 @@ export function replacePlayerInRounds(
     const sitOuts = round.sitOuts.map((p) => (p.id === outgoingId ? incoming : p));
     if (sitOuts.some((p, i) => p !== round.sitOuts[i])) changed = true;
 
-    return changed ? { ...round, courts, sitOuts } : round;
+    // A substitute sits out where the player they replaced was locked to.
+    if (!changed) return round;
+    const next: Round = { ...round, courts, sitOuts };
+    if (round.lockedSitOutIds) {
+      next.lockedSitOutIds = round.lockedSitOutIds.map((id) =>
+        id === outgoingId ? incoming.id : id
+      );
+    }
+    return next;
   });
+}
+
+/**
+ * How many players go to the bench each round: everybody past four a court.
+ *
+ * The one count of it. The red line over the player list, the Choose Sit-Outs
+ * switch under it, the number of slots on each round of that page and the cap
+ * on a round's locked sit-outs all read it, so the page and the scheduler can
+ * never disagree about how many seats there are. A roster short of the courts
+ * plays a 2v1 rather than sitting anybody, which is why this is never negative.
+ */
+export function sitOutSeats(numPlayers: number, numCourts: number): number {
+  return Math.max(0, numPlayers - numCourts * 4);
+}
+
+/**
+ * Choose Sit-Outs' slots as the scheduler takes them: the ids chosen in each
+ * round, in slot order, with the empty slots and the empty rounds left out.
+ */
+export function pinsFromSlots(slots: Record<number, (string | null)[]>): Record<number, string[]> {
+  const pins: Record<number, string[]> = {};
+  for (const [round, ids] of Object.entries(slots)) {
+    const chosen = ids.filter((id): id is string => id !== null);
+    if (chosen.length > 0) pins[Number(round)] = chosen;
+  }
+  return pins;
+}
+
+/** The sit-outs locked on a schedule, by round number. Rounds with none are left out. */
+export function lockedSitOutsOf(schedule: Schedule | null): Record<number, string[]> {
+  const pins: Record<number, string[]> = {};
+  for (const round of schedule?.rounds ?? []) {
+    if (round.lockedSitOutIds?.length) pins[round.roundNumber] = [...round.lockedSitOutIds];
+  }
+  return pins;
+}
+
+/**
+ * Whether two sets of locked sit-outs bench the same people in the same rounds.
+ * Order within a round does not count: it only says who goes first when the
+ * bench narrows, and nothing has narrowed it between choosing and generating.
+ */
+export function samePins(a: Record<number, string[]>, b: Record<number, string[]>): boolean {
+  const rounds = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const r of rounds) {
+    const x = [...(a[Number(r)] ?? [])].sort();
+    const y = [...(b[Number(r)] ?? [])].sort();
+    if (x.length !== y.length || x.some((id, i) => id !== y[i])) return false;
+  }
+  return true;
 }
 
 // A sit-out candidate unit: a single player, or a fixed pair that sits together.
@@ -140,6 +198,11 @@ interface SitOutUnit {
  * @param missCounts On a special round, how many rounds of that type each player
  *   has already missed. Used only to break ties that fair rotation leaves open,
  *   so someone owed the round type keeps their place on court.
+ * @param owedRests Sit-outs the host has locked into later rounds, per player.
+ *   A player with one coming counts as having played that many games fewer, so
+ *   the rotation does not bench them now as well and leave them a rest ahead
+ *   of everybody else. Absent on every schedule without a locked sit-out, and
+ *   then nothing here reads differently.
  */
 export function determineSitOuts(
   players: Player[],
@@ -148,7 +211,8 @@ export function determineSitOuts(
   excludeIds?: Set<string>,
   previousSitOutIds?: Set<string>,
   partnerships?: Partnership[],
-  missCounts?: Record<string, number>
+  missCounts?: Record<string, number>,
+  owedRests?: Record<string, number>
 ): Player[] {
   const maxActive = numCourts * 4;
   const candidates = excludeIds
@@ -173,7 +237,9 @@ export function determineSitOuts(
   const cyclePos = new Map(cycleOrder.map((id, i) => [id, i]));
   const posOf = (p: Player) => cyclePos.get(p.id) ?? Infinity;
 
-  const games = (p: Player) => history.gamesPlayed[p.id] ?? 0;
+  const games = owedRests
+    ? (p: Player) => (history.gamesPlayed[p.id] ?? 0) - (owedRests[p.id] ?? 0)
+    : (p: Player) => history.gamesPlayed[p.id] ?? 0;
   const sat = (p: Player) => (previousSitOutIds ? previousSitOutIds.has(p.id) : false);
 
   // Drawn once per player, not inside the comparator: `Math.random() - 0.5`

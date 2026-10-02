@@ -38,6 +38,12 @@ interface Props {
   confirmLabel: string;
   /** The shape on the confirm tile. Every tile in the app carries one. */
   confirmIcon: (props: { className?: string }) => ReactElement;
+  /**
+   * Puts the confirm tile on the left and the way out on the right. Return to
+   * Setup asks for this (Jeff, 2026-10-02). Abandon This Schedule keeps the
+   * usual order.
+   */
+  confirmFirst?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -63,9 +69,16 @@ export function DiscardScheduleDialog({
   cancelIcon = CloseIcon,
   confirmLabel,
   confirmIcon,
+  confirmFirst = false,
   onConfirm,
   onCancel,
 }: Props) {
+  const stay = (
+    <TileButton tone="quiet" Icon={cancelIcon} label={cancelLabel} onClick={onCancel} />
+  );
+  const go = (
+    <TileButton tone="red" Icon={confirmIcon} label={confirmLabel} onClick={onConfirm} />
+  );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className={`bg-white ${panelCard} p-6 mx-4 max-w-sm w-full`}>
@@ -81,13 +94,17 @@ export function DiscardScheduleDialog({
           </p>
         )}
         <div className={`${TILE_ROW} mt-4`}>
-          <TileButton tone="quiet" Icon={cancelIcon} label={cancelLabel} onClick={onCancel} />
-          <TileButton
-            tone="red"
-            Icon={confirmIcon}
-            label={confirmLabel}
-            onClick={onConfirm}
-          />
+          {confirmFirst ? (
+            <>
+              {go}
+              {stay}
+            </>
+          ) : (
+            <>
+              {stay}
+              {go}
+            </>
+          )}
         </div>
       </div>
     </div>

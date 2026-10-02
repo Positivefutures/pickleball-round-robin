@@ -35,7 +35,8 @@ one shared button component, and it is not the ordinary button.
 | the **primary** button | `account.primary` — teal, full width, `text-lg` | `layout/accountStyles.ts` |
 | the **secondary** button | `account.secondary` — grey, bordered | same file |
 | the **danger** button | `account.danger` — `#B42318` | same file |
-| the **grey cancel** button | the inline `bg-gray-100 border-[#999]` string | 22 sites, **not exported**. It was `bg-gray-200` until 2026-08-21 |
+| the **grey cancel** button | `account.cancel`: shape and colour only, padding at the call site | `layout/accountStyles.ts`. Exported 2026-10-02 and imported by Choose Sit-Outs alone; 22 older sites still write the `bg-gray-100 border-[#999]` string out by hand. It was `bg-gray-200` until 2026-08-21 |
+| a **switch row** | `<ToggleRow label checked onChange />`: a `Toggle` with its question beside it. Keep Score and Choose Sit-Outs | `components/Toggle.tsx` |
 | a **row** | `account.row` + `rowTitle` / `rowNote` / `rowIcon` | `layout/accountStyles.ts` |
 | the **panel edge** | `panelCard` — every dialog's chrome | `components/panelStyles.ts` |
 | a **panel heading** | `<PanelHeading icon title />` | `components/PanelGlyph.tsx` |
@@ -49,6 +50,9 @@ one shared button component, and it is not the ordinary button.
 | a **banner** | `InstallBanner` / `SignInBanner` / `UpdateBanner` / `PrintNotice` / `SwapHint` | `layout/`, `schedule/` |
 | a **notice** | `account.note` + a tone, or `Problem` for the red one | `layout/accountStyles.ts`, `AccountShell.tsx` |
 | a **round-type pill** | `pillMeta(type)` → `badgeClass` + `badgeEdgeClass` | `lib/roundTypes.ts` |
+| **Choose Sit-Outs** | the page Generate opens when the switch under the red sit-out line is on: one card of rounds, a slot per bench seat | `setup/SitOutChooser.tsx` |
+| a **sit-out slot** | a box on that page: dashed "Tap to Choose" when empty, the Select Players box with a bin when filled | same file |
+| the **sit-out lock** | the padlock under a sit-out's name on the schedule. Saved on the round as `lockedSitOutIds`, and every rebuild keeps it | `schedule/SitOutList.tsx`, drawn by `schedule/PadlockIcon.tsx`, the same padlock as between partners |
 
 **Sizes are barely named.** `TileButton` takes `size="md" | "lg"` and that is
 the only named size in the app. Everything else is unnamed: the teal button
