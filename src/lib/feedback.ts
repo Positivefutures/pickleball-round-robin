@@ -22,9 +22,10 @@ export const MAX_SUMMARY = 100;
 export const MAX_DETAILS = 1500;
 export const MAX_EMAIL = 120;
 
-const LABEL: Record<FeedbackKind, string> = {
-  feature: 'Feature',
-  bug: 'Bug',
+/** What the subject starts with, so the two kinds sort apart in the inbox. */
+const SUBJECT_PREFIX: Record<FeedbackKind, string> = {
+  feature: 'FEATURE REQUEST: ',
+  bug: 'BUG REPORT: ',
 };
 
 /**
@@ -56,22 +57,51 @@ export function diagnosticLines(ctx: FeedbackContext, kind: FeedbackKind): strin
 
 export function buildSubject(kind: FeedbackKind, summary: string): string {
   const trimmed = summary.trim().replace(/\s+/g, ' ').slice(0, MAX_SUMMARY);
-  return `[${LABEL[kind]}] ${trimmed}`;
+  return `${SUBJECT_PREFIX[kind]}${trimmed}`;
 }
 
+/**
+ * How each kind of mail reads, in the layout Jeff asked for on 2026-10-05: a
+ * letter addressed to him with labelled sections. Each details heading matches
+ * the label on its form's box.
+ */
+const MAIL: Record<FeedbackKind, { noun: string; details: string }> = {
+  feature: { noun: 'feature request', details: 'MORE DETAILS' },
+  bug: { noun: 'bug report', details: 'ADDITIONAL DETAILS' },
+};
+
+/**
+ * The mail itself. Sections with nothing in them are left out rather than
+ * printed empty. A feature request ends on its version alone; a bug carries the
+ * full block of app details, because that is what it takes to reproduce one.
+ *
+ * `replyTo` is printed only when the caller has already found it sound, so the
+ * reader sees the same address Reply uses.
+ */
 export function buildBody(
   kind: FeedbackKind,
   summary: string,
   details: string,
-  ctx: FeedbackContext
+  ctx: FeedbackContext,
+  replyTo = ''
 ): string {
-  const heading = kind === 'feature' ? 'The idea' : 'What happened';
-  const parts = [`${heading}\n${'-'.repeat(heading.length)}\n${summary.trim()}`];
+  const { noun, details: detailsHeading } = MAIL[kind];
+  const parts = [
+    `Hi Jeff,\nYou got a new ${noun}:\n----------`,
+    `${noun.toUpperCase()}:\n${summary.trim()}`,
+  ];
 
   const body = details.trim();
-  if (body) parts.push(body);
+  if (body) parts.push(`${detailsHeading}:\n${body}`);
 
-  parts.push(['--- app details ---', ...diagnosticLines(ctx, kind)].join('\n'));
+  const email = replyTo.trim();
+  if (email) parts.push(`USER EMAIL:\n${email}`);
+
+  parts.push(
+    kind === 'feature'
+      ? `VERSION: ${ctx.version}`
+      : ['APP DETAILS:', ...diagnosticLines(ctx, kind)].join('\n')
+  );
   return parts.join('\n\n') + '\n';
 }
 
@@ -155,12 +185,14 @@ export function readFeedbackRequest(
     ? body.context
     : {}) as FeedbackContext;
 
+  const sound = isEmailish(replyTo) ? replyTo : '';
+
   return {
     ok: true,
     mail: {
       subject: buildSubject(kind as FeedbackKind, summary),
-      text: buildBody(kind as FeedbackKind, summary, details, context),
-      ...(isEmailish(replyTo) ? { replyTo } : {}),
+      text: buildBody(kind as FeedbackKind, summary, details, context, sound),
+      ...(sound ? { replyTo: sound } : {}),
     },
   };
 }

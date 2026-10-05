@@ -140,7 +140,7 @@ describe('ErrorBoundary', () => {
     expect(navigations).toHaveLength(1);
     const sent = decodeURIComponent(navigations[0]);
     expect(sent).toContain('mailto:');
-    expect(sent).toContain('[Bug] TypeError: x is not a function');
+    expect(sent).toContain('BUG REPORT: TypeError: x is not a function');
     // The diagnostics the Report a Bug panel sends, so both arrive alike.
     expect(sent).toContain(`Version: ${APP_VERSION}`);
     // No Screen line on any report now: the subject already says this one

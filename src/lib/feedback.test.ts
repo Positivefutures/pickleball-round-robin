@@ -28,17 +28,17 @@ const ctx: FeedbackContext = {
 
 describe('buildSubject', () => {
   it('prefixes by kind', () => {
-    expect(buildSubject('feature', 'Add a timer')).toBe('[Feature] Add a timer');
-    expect(buildSubject('bug', 'Wrong sit-outs')).toBe('[Bug] Wrong sit-outs');
+    expect(buildSubject('feature', 'Add a timer')).toBe('FEATURE REQUEST: Add a timer');
+    expect(buildSubject('bug', 'Wrong sit-outs')).toBe('BUG REPORT: Wrong sit-outs');
   });
 
   it('collapses whitespace and trims', () => {
-    expect(buildSubject('bug', '  two   spaces  ')).toBe('[Bug] two spaces');
+    expect(buildSubject('bug', '  two   spaces  ')).toBe('BUG REPORT: two spaces');
   });
 
   it('caps a long summary so the mailto stays under client limits', () => {
     const subject = buildSubject('bug', 'x'.repeat(500));
-    expect(subject.length).toBe('[Bug] '.length + MAX_SUMMARY);
+    expect(subject.length).toBe('BUG REPORT: '.length + MAX_SUMMARY);
   });
 });
 
@@ -72,16 +72,47 @@ describe('diagnosticLines', () => {
 
 describe('buildBody', () => {
   it('leads with the summary under a kind-specific heading', () => {
-    expect(buildBody('feature', 'Add a timer', '', ctx)).toContain('The idea');
-    expect(buildBody('bug', 'It broke', '', ctx)).toContain('What happened');
+    expect(buildBody('feature', 'Add a timer', '', ctx)).toContain('FEATURE REQUEST:\nAdd a timer');
+    expect(buildBody('bug', 'It broke', '', ctx)).toContain('BUG REPORT:\nIt broke');
+  });
+
+  it('lays a feature request out the way Jeff asked for it', () => {
+    const body = buildBody('feature', 'Add a timer', 'One per court.', ctx, 'sue@example.com');
+    expect(body).toBe(
+      'Hi Jeff,\nYou got a new feature request:\n----------\n\n' +
+        'FEATURE REQUEST:\nAdd a timer\n\n' +
+        'MORE DETAILS:\nOne per court.\n\n' +
+        'USER EMAIL:\nsue@example.com\n\n' +
+        'VERSION: 1.10.0\n'
+    );
+  });
+
+  it('lays a bug report out the same way, with every app detail under its own heading', () => {
+    const body = buildBody('bug', 'Wrong sit-outs', 'Round 3.', ctx, 'sue@example.com');
+    expect(body).toBe(
+      'Hi Jeff,\nYou got a new bug report:\n----------\n\n' +
+        'BUG REPORT:\nWrong sit-outs\n\n' +
+        'ADDITIONAL DETAILS:\nRound 3.\n\n' +
+        'USER EMAIL:\nsue@example.com\n\n' +
+        'APP DETAILS:\n' +
+        diagnosticLines(ctx, 'bug').join('\n') +
+        '\n'
+    );
+    expect(body).not.toContain('VERSION:');
+  });
+
+  it('leaves out the details and email sections when there is nothing to put in them', () => {
+    const body = buildBody('feature', 'Add a timer', '  ', ctx, '');
+    expect(body).not.toContain('MORE DETAILS');
+    expect(body).not.toContain('USER EMAIL');
+    expect(body).toContain('VERSION: 1.10.0');
   });
 
   it('includes the summary, the details, and the app block', () => {
     const body = buildBody('bug', 'Wrong sit-outs', 'I removed Sue,\nthen round 3 broke.', ctx);
     expect(body).toContain('Wrong sit-outs');
     expect(body).toContain('I removed Sue,\nthen round 3 broke.');
-    expect(body).toContain('--- app details ---');
-    expect(body).toContain('Version: 1.10.0');
+    expect(body).toContain('APP DETAILS:\nVersion: 1.10.0\nGroups: 3');
   });
 
   it('omits the details section entirely when it is blank', () => {
@@ -125,13 +156,21 @@ describe('readFeedbackRequest', () => {
     const read = readFeedbackRequest(sound);
     expect(read.ok).toBe(true);
     if (!read.ok) return;
-    expect(read.mail.subject).toBe('[Bug] Wrong sit-outs');
+    expect(read.mail.subject).toBe('BUG REPORT: Wrong sit-outs');
     expect(read.mail.text).toContain('Round 3');
   });
 
   it('turns an address into a reply-to, so Reply reaches the person', () => {
     const read = readFeedbackRequest({ ...sound, replyTo: ' someone@example.com ' });
     expect(read.ok && read.mail.replyTo).toBe('someone@example.com');
+  });
+
+  it('prints the address in a feature request only when it is one', () => {
+    const feature = { ...sound, kind: 'feature' };
+    const given = readFeedbackRequest({ ...feature, replyTo: ' someone@example.com ' });
+    expect(given.ok && given.mail.text).toContain('USER EMAIL:\nsomeone@example.com');
+    const junk = readFeedbackRequest({ ...feature, replyTo: 'yes please' });
+    expect(junk.ok && junk.mail.text).not.toContain('USER EMAIL');
   });
 
   it('leaves reply-to off entirely rather than empty, which Resend refuses', () => {
@@ -166,14 +205,14 @@ describe('readFeedbackRequest', () => {
     });
     expect(read.ok).toBe(true);
     if (!read.ok) return;
-    expect(read.mail.subject.length).toBe('[Bug] '.length + MAX_SUMMARY);
+    expect(read.mail.subject.length).toBe('BUG REPORT: '.length + MAX_SUMMARY);
     expect(read.mail.text.length).toBeLessThan(MAX_SUMMARY + MAX_DETAILS + 2000);
   });
 
   it('still sends when the context did not arrive', () => {
     const read = readFeedbackRequest({ kind: 'feature', summary: 'A timer' });
     expect(read.ok).toBe(true);
-    expect(read.ok && read.mail.subject).toBe('[Feature] A timer');
+    expect(read.ok && read.mail.subject).toBe('FEATURE REQUEST: A timer');
   });
 });
 

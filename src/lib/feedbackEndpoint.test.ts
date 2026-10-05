@@ -69,7 +69,7 @@ describe('sending a report', () => {
   it('writes the subject and the diagnostics into the mail', async () => {
     await handler(post(REPORT));
     const mail = lastMail(fetchMock);
-    expect(mail.subject).toBe('[Bug] Wrong sit-outs');
+    expect(mail.subject).toBe('BUG REPORT: Wrong sit-outs');
     expect(mail.text).toContain('Round 3 sat the same two out twice.');
     expect(mail.text).toContain('Version: 2.00');
   });

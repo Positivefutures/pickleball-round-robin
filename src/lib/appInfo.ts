@@ -10,7 +10,7 @@
  * The second digit is a milestone and moves only when he says so. Nothing
  * parses this string, so the shape is free to change.
  */
-export const APP_VERSION = '3.94';
+export const APP_VERSION = '3.95';
 
 /**
  * The commit this build was made from, written in by vite.config.ts.
@@ -78,8 +78,14 @@ export const ACCOUNTS_ENABLED = true;
  * and mail to FEEDBACK_EMAIL has to actually reach a mailbox. Getting the
  * first right and not the second turns a visible failure into reports that
  * quietly vanish, which is the worse of the two.
+ *
+ * Back on in 3.95, 2026-10-05, with both conditions met. Resend's 403 was the
+ * key being limited to the old domain; its permission now covers
+ * roundrobinator.com. A feature request sent through it was read in the
+ * jeff@roundrobinator.com inbox. If the key is ever replaced, give the new one
+ * that domain too, or every report fails again.
  */
-export const FEEDBACK_ENABLED = false;
+export const FEEDBACK_ENABLED = true;
 
 /**
  * Public address of the app — what Share App sends.

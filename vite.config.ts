@@ -142,7 +142,17 @@ export default defineConfig({
    * where a working copy belongs. Putting it on the network is opt-in: `--host`,
    * or the `style-guide` script that the launch agent runs.
    */
-  server: { allowedHosts: ['.local'] },
+  server: {
+    allowedHosts: ['.local'],
+    // The dev server has no functions, so without this Suggest a Feature and
+    // Report a Bug answer 404 on a phone pointed at it. Sends from dev go
+    // through the live api/feedback.ts and its real Resend key, which means
+    // they are real mail to FEEDBACK_EMAIL. That is the point: it is the only
+    // way to test the path that broke in 3.80 without deploying.
+    proxy: {
+      '/api': { target: 'https://app.roundrobinator.com', changeOrigin: true },
+    },
+  },
 
   // Two flags Sentry checks at build time and expects a bundler to replace.
   // Left alone they ship the SDK's own debug logging and its tracing code into

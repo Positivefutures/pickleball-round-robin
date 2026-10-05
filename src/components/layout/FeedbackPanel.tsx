@@ -48,7 +48,7 @@ const COPY: Record<
     title: 'Report a Bug',
     intro: 'Sorry about that. A few details make it much easier to fix.',
     summary: 'What went wrong, in one line',
-    details: 'What happened?',
+    details: 'Additional details',
     hint: 'What you did, what you expected, and what happened instead.',
     Icon: BugIcon,
   },
